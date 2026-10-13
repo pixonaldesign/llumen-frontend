@@ -1,0 +1,47 @@
+/**
+ * Overlay scrollbars hug the scrollport border (no inset from padding).
+ * Pad children, not the scroller, on the scrollbar side.
+ *
+ * Elements with data-ll-scrollbar (set by useRevealScrollbarOnScroll):
+ * - no arrow buttons (WebKit)
+ * - thumb hidden until data-ll-scrollbar-active is set during scroll
+ */
+
+[data-ll-scrollbar] {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+  scrollbar-gutter: auto;
+}
+
+[data-ll-scrollbar]::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+  height: var(--lc-scrollbar-size);
+}
+
+[data-ll-scrollbar]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-ll-scrollbar][data-ll-scrollbar-active='true'] {
+  scrollbar-color: var(--lc-scrollbar-thumb) transparent;
+}
+
+[data-ll-scrollbar]::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+[data-ll-scrollbar]::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: transparent;
+  transition: background 0.22s ease;
+}
+
+[data-ll-scrollbar][data-ll-scrollbar-active='true']::-webkit-scrollbar-thumb {
+  background: var(--lc-scrollbar-thumb);
+}
+
+[data-ll-scrollbar][data-ll-scrollbar-active='true']::-webkit-scrollbar-thumb:hover {
+  background: var(--lc-scrollbar-thumb-hover);
+}

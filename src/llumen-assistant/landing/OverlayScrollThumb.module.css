@@ -1,0 +1,41 @@
+.edge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  width: 16px;
+}
+
+.thumb {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, background 220ms ease;
+}
+
+.thumbOn {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.thumbOn:hover,
+.thumbOn:active {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.thumbOn:active {
+  cursor: grabbing;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
+}

@@ -1,0 +1,259 @@
+.card {
+  width: 100%;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-3xl);
+  background: #1c1f28;
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 6px 4px 14px;
+}
+
+.question {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding-top: 1px;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.headActions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  height: 22px;
+}
+
+.progress {
+  margin-right: 2px;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.options {
+  margin: 0;
+  padding: 2px 6px 2px;
+  list-style: none;
+}
+
+.options li {
+  position: relative;
+}
+
+.options li + li::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.options li:has(.option:hover)::before,
+.options li:has(.option:focus-visible)::before,
+.options li:has(.option:hover) + li::before,
+.options li:has(.option:focus-visible) + li::before {
+  opacity: 0;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.88);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover:not(:disabled),
+.option:focus-visible {
+  border-color: var(--color-primary-500);
+  outline: none;
+  z-index: 1;
+}
+
+.option[data-selected='true'] {
+  border-color: var(--color-primary-500);
+}
+
+.option:disabled {
+  cursor: default;
+}
+
+.option:disabled:not([data-selected='true']) {
+  opacity: 0.45;
+}
+
+.num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.label {
+  min-width: 0;
+}
+
+.custom {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 10px 14px;
+}
+
+.custom::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.options:has(li:last-child .option:hover) + .custom::before,
+.options:has(li:last-child .option:focus-visible) + .custom::before {
+  opacity: 0;
+}
+
+.pencil {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.customInput {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.customInput::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.customInput:focus {
+  outline: none;
+}
+
+.customInput:disabled {
+  opacity: 0.45;
+}
+
+.skip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 36px;
+  margin: 0;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-500);
+  color: #111;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: var(--lc-weight-medium);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.skip:hover:not(:disabled) {
+  background: var(--color-primary-300);
+}
+
+.skip:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-500);
+  color: #111;
+  cursor: pointer;
+}
+
+.send:hover {
+  background: var(--color-primary-300);
+}
+
+.close:focus-visible,
+.skip:focus-visible,
+.send:focus-visible {
+  outline: 1px solid var(--color-primary-500);
+  outline-offset: 2px;
+}

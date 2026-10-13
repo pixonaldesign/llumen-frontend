@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paper Mesh Gradient — Shader Background (Dark)</title>
+
+  <!--
+    Self-contained demo of the full-page shader background.
+
+    What this is:
+      - The Paper Design "MeshGradient" WebGL shader from
+        @paper-design/shaders-react, mounted into a single full-page <div>.
+      - Loaded from the esm.sh CDN, so there is no build step or npm install.
+        The page just needs internet access on first load.
+
+    How to reuse:
+      1. Copy the #mesh-gradient-bg <div> into your <body> (ideally first).
+      2. Copy the CSS in the <style> block below.
+      3. Copy the <script type="module"> block below.
+      4. Make sure your real page content sits above z-index: 0.
+
+    The "look" lives entirely in the shader params (colors, distortion,
+    frame, speed, scale, swirl) inside the script. The CSS linear-gradient
+    is just a fallback shown before/if the shader loads.
+
+    If you use a bundler (Vite/Next/etc.) instead of the CDN:
+      npm i @paper-design/shaders-react react react-dom
+      import { MeshGradient } from '@paper-design/shaders-react';
+  -->
+
+  <style>
+    html, body {
+      min-height: 100%;
+      margin: 0;
+      background: transparent;
+    }
+
+    /* Full-page shader background layer (stays behind all page content). */
+    #mesh-gradient-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+      min-height: 100vh;
+      /* Fallback shown before the shader loads (or if it fails). */
+      background-color: #383949;
+      background-image: linear-gradient(180deg, #2a3558 0%, #1d2845 100%);
+    }
+
+    #mesh-gradient-bg .paper-mesh-gradient {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 100vh;
+      display: block;
+    }
+
+    /* Demo content only — delete in your real page. */
+    .demo-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: rgba(255, 255, 255, 0.92);
+      text-align: center;
+    }
+    .demo-content h1 {
+      font-weight: 600;
+      font-size: 28px;
+      letter-spacing: -0.01em;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. Mount node for the shader background. -->
+  <div id="mesh-gradient-bg" aria-hidden="true"></div>
+
+  <!-- Demo content only — delete in your real page. -->
+  <div class="demo-content">
+    <h1>Your content sits above the shader background</h1>
+  </div>
+
+  <!-- 2. Shader renderer (dark mode only). -->
+  <script type="module">
+    (async () => {
+      const mountNode = document.getElementById('mesh-gradient-bg');
+      if (!mountNode) return;
+
+      const COLORS = ['#4659AA', '#182941', '#1F3049', '#122746', '#172C4B', '#28456F', '#482E57'];
+
+      try {
+        const [{ default: React }, { createRoot }, { MeshGradient }] = await Promise.all([
+          import('https://esm.sh/react@18.3.1'),
+          import('https://esm.sh/react-dom@18.3.1/client'),
+          import('https://esm.sh/@paper-design/shaders-react@0.0.76?deps=react@18.3.1,react-dom@18.3.1')
+        ]);
+
+        function PaperMeshBg() {
+          const [dims, setDims] = React.useState(() => ({
+            width: window.innerWidth,
+            height: window.innerHeight
+          }));
+
+          React.useEffect(() => {
+            const onResize = () =>
+              setDims({ width: window.innerWidth, height: window.innerHeight });
+            window.addEventListener('resize', onResize);
+            return () => window.removeEventListener('resize', onResize);
+          }, []);
+
+          return React.createElement(MeshGradient, {
+            speed: 0.1,
+            scale: 1,
+            distortion: 0.14,
+            swirl: 0,
+            frame: 457832.3249999223,
+            colors: COLORS,
+            width: dims.width,
+            height: dims.height,
+            className: 'paper-mesh-gradient',
+            style: {
+              width: '100%',
+              height: '100%',
+              minHeight: '100vh',
+              display: 'block'
+            }
+          });
+        }
+
+        const root = createRoot(mountNode);
+        root.render(React.createElement(PaperMeshBg));
+      } catch (error) {
+        console.warn('Paper shader background failed to load; using fallback gradient.', error);
+      }
+    })();
+  </script>
+
+</body>
+</html>

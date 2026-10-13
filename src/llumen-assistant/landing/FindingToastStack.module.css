@@ -1,0 +1,351 @@
+.root {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  pointer-events: none;
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(14, 16, 20, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  pointer-events: auto;
+  flex-shrink: 0;
+  align-self: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.navBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.navBtn:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+/* Sits on the chat without pushing it. Transform-free so frosted peeks can sample behind. */
+.overChat {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 12px);
+  z-index: 8;
+  width: auto;
+  /* Include the upward peek so the alert copy can sit above the stack. */
+  padding-top: 64px;
+}
+
+.navBtn:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+.stackWrap {
+  position: relative;
+  flex: 1;
+  width: min(520px, 100%);
+  max-width: 520px;
+  /* Same height as the front card so side arrows center on the stack. */
+  height: 168px;
+  /* Z-stack peeks may extend above without shifting flex alignment. */
+  overflow: visible;
+}
+
+.card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  height: 168px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(14, 16, 20, 0.42);
+  color: #fff;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(22px) saturate(1.2);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  /* Peek offset via box geometry — transform/perspective ancestors kill frost. */
+  transition:
+    left 320ms var(--lc-ease, cubic-bezier(0.2, 0, 0, 1)),
+    right 320ms var(--lc-ease, cubic-bezier(0.2, 0, 0, 1)),
+    bottom 320ms var(--lc-ease, cubic-bezier(0.2, 0, 0, 1)),
+    height 320ms var(--lc-ease, cubic-bezier(0.2, 0, 0, 1));
+  pointer-events: none;
+}
+
+.cardFront {
+  pointer-events: auto;
+}
+
+/* Frost on this node (not a child of a transformed card). */
+.cardBehind {
+  background: rgba(18, 22, 30, 0.22);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+}
+
+/* Depth dimming via scrim instead of CSS filter: brightness() on the card. */
+.cardBehindScrim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.cardMedia {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cardMedia img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cardScrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.55) 55%,
+    rgba(0, 0, 0, 0.78) 100%
+  );
+}
+
+.body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  align-self: stretch;
+  height: 100%;
+  min-height: 0;
+  gap: 8px;
+  padding: 10px 14px 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.domain {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dismiss {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dismiss:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dismiss:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+.dismissRing {
+  position: absolute;
+  inset: 0;
+  width: 24px;
+  height: 24px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.dismissRingTrack,
+.dismissRingProgress {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.dismissRingTrack {
+  stroke: rgba(255, 255, 255, 0.22);
+}
+
+.dismissRingProgress {
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+  animation: toastDismiss var(--toast-dismiss, 10s) linear forwards;
+}
+
+@keyframes toastDismiss {
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+
+.finding {
+  margin: 0;
+  width: 100%;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: #fff;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.findingHighlight {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: from-font;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.actionGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.actionBtn,
+.voteBtn,
+.linkBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.linkBtn {
+  margin-left: auto;
+}
+
+.actionBtn:hover,
+.voteBtn:hover,
+.linkBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.actionBtn:focus-visible,
+.voteBtn:focus-visible,
+.linkBtn:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+.voteBtn {
+  width: 30px;
+  padding: 0;
+}
+
+.voteBtnActive {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.voteGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+
+  .dismissRingProgress {
+    animation: none;
+  }
+}

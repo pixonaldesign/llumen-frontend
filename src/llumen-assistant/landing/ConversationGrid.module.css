@@ -1,0 +1,126 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  container-type: inline-size;
+}
+
+.eyebrow {
+  margin: 0;
+  font-family: var(--lc-font-mono);
+  font-size: 16px;
+  font-weight: var(--lc-weight-semibold);
+  line-height: 24px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--lc-text-primary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-xl);
+}
+
+/* Five columns while each card stays near the Figma width; four when tighter. */
+@container (max-width: 1560px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 1080px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 760px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 520px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+  min-width: 0;
+  min-height: 220px;
+  margin: 0;
+  padding: 22px 20px 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xl);
+  background: rgba(0, 0, 0, 0.56);
+  -webkit-backdrop-filter: blur(30px);
+  backdrop-filter: blur(30px);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card:hover {
+  background: rgba(0, 0, 0, 0.68);
+}
+
+.card:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.time {
+  font-size: 15px;
+  font-weight: var(--lc-weight-semibold);
+  line-height: 20px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  font-size: 24px;
+  font-weight: var(--lc-weight-semibold);
+  line-height: 30px;
+  color: var(--lc-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.summary {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 22px;
+  color: rgba(255, 255, 255, 0.72);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:hover {
+    background: rgba(0, 0, 0, 0.56);
+  }
+}

@@ -1,0 +1,30 @@
+---
+description: Keep overlay scrollbars flush to the container edge
+alwaysApply: true
+---
+
+# Scrollbars sit on the edge
+
+Scrollbars must hug the scrollport’s inline-end (and block-end) border, like Cursor’s chat panel: thin overlay thumb, no gap between the track and the panel edge.
+
+- The **scrollport** (`overflow: auto | overlay | scroll`) must not have padding on the side the scrollbar occupies. Prefer `padding-inline-end: 0` / `padding-right: 0`.
+- Inset **content** instead: pad children, or shrink overlays (composer, values) with width/`padding` on the inner elements.
+- Use the existing overlay treatment: `--lc-scrollbar-size` (4px), transparent track, `overflow-y: overlay` when available. Do not use `scrollbar-gutter: stable` (it reserves extra space and pulls the thumb inward).
+- Parent chrome (header, composer) can stay inset; the scrolling layer still extends to the edge so the thumb can run the full height/width.
+
+```css
+/* ❌ BAD — padding on the scroller insets the thumb */
+.scroll {
+  overflow: auto;
+  padding: 16px 12px;
+}
+
+/* ✅ GOOD — pad inner content; scroller is full-bleed */
+.scroll {
+  overflow: auto;
+  padding: 16px 0;
+}
+.scroll > * {
+  padding-inline-end: 12px;
+}
+```

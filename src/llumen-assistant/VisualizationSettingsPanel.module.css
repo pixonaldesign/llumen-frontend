@@ -1,0 +1,313 @@
+.root {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  align-self: stretch;
+  overflow: hidden;
+}
+
+.visualTypeCard {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-lg);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.visualTypeMain {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: var(--lc-text-body);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-primary);
+}
+
+.settingsShell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  padding: var(--space-lg);
+}
+
+.settingsHeading {
+  margin: 0 0 var(--space-lg);
+  flex-shrink: 0;
+  font-size: var(--lc-text-caption);
+  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-primary);
+}
+
+.settingsLayout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.sectionNav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+  align-self: start;
+}
+
+.sectionNavBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: var(--space-md) var(--space-md);
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lc-text-tertiary);
+  font-family: inherit;
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-medium);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--lc-duration) var(--lc-ease),
+    color var(--lc-duration) var(--lc-ease);
+}
+
+.sectionNavBtn:hover {
+  color: var(--lc-text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sectionNavBtnActive {
+  color: var(--lc-text-primary);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.sectionNavBtnActive:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sectionNavBtn:focus-visible {
+  outline: 2px solid rgba(132, 177, 245, 0.8);
+  outline-offset: 2px;
+}
+
+.sectionContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: var(--space-xs);
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sectionContent > * {
+  flex-shrink: 0;
+}
+
+.sectionContent::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.sectionContent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sectionContent::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb);
+}
+
+.sectionContent::-webkit-scrollbar-thumb:hover {
+  background: var(--lc-scrollbar-thumb-hover);
+}
+
+.settingsSection {
+  flex-shrink: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 11, 23, 0.45);
+}
+
+.settingsSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.settingsSectionTitle {
+  margin: 0;
+  font-size: var(--lc-text-small);
+  font-weight: var(--lc-weight-semibold);
+  color: var(--lc-text-primary);
+}
+
+.settingsSectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.fieldLabel {
+  font-size: var(--lc-text-micro);
+  font-weight: var(--lc-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lc-text-tertiary);
+}
+
+.fieldValue,
+.fieldValueInline {
+  font-size: var(--lc-text-caption);
+  line-height: var(--lc-leading-caption);
+  color: var(--lc-text-primary);
+}
+
+.fieldValueInline {
+  display: inline;
+}
+
+.fieldDescription {
+  margin: 0;
+  font-size: var(--lc-text-caption);
+  line-height: var(--lc-leading-caption);
+  color: var(--lc-text-primary);
+}
+
+.sourceTypeMeta {
+  font-size: 0.6875rem;
+  color: var(--lc-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.toggleBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: var(--lc-text-micro);
+  font-weight: var(--lc-weight-semibold);
+  color: var(--lc-text-tertiary);
+}
+
+.toggleBadgeOn {
+  color: var(--lc-text-tertiary);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.colorBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.colorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.colorPaletteName {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--lc-text-primary);
+}
+
+.colorPaletteType {
+  margin: var(--space-xs) 0 0;
+  font-size: 0.6875rem;
+  color: var(--lc-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.colorRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.colorValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--lc-text-primary);
+}
+
+.colorSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .settingsLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionNav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .sectionNavBtn {
+    width: auto;
+    flex: 1 1 auto;
+  }
+}

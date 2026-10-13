@@ -1,0 +1,260 @@
+/**
+ * App tokens — typography, spacing, and semantics from component-library/llumen-design-system.css.
+ * Dark-theme lc-* semantics are defined on :root (app is dark-only).
+ */
+@font-face {
+  font-family: "Innovator Grotesk";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../../fonts/InnovatorGrotesk-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Innovator Grotesk";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../../fonts/InnovatorGrotesk-Medium.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Innovator Grotesk";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../../fonts/InnovatorGrotesk-SemiBold.otf") format("opentype");
+}
+
+:root {
+  /* Spacing + radius — component-library :root */
+  --space-none: 0;
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 6px;
+  --space-md: 8px;
+  --space-lg: 12px;
+  --space-xl: 16px;
+  --space-2xl: 20px;
+  --space-3xl: 24px;
+  --space-4xl: 32px;
+  --space-5xl: 40px;
+  --space-6xl: 48px;
+  --space-7xl: 64px;
+  --space-8xl: 80px;
+  --space-9xl: 96px;
+  --space-10xl: 128px;
+  --space-11xl: 160px;
+
+  --radius-none: 0;
+  --radius-xxs: 2px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-4xl: 24px;
+  --radius-full: 9999px;
+
+  --lc-ui-radius: var(--radius-xl);
+  /* Frosted surface blur (levels 1–3). Keep modest for paint cost. */
+  --lc-backdrop-blur-ui: 24px;
+
+  /* Typography — families (component-library) */
+  --lc-font-sans: "Innovator Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --lc-font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --lc-font-data: var(--lc-font-mono);
+
+  /* Typography — scale (component-library) */
+  --lc-font-display-size: 32px;
+  --lc-font-display-weight: 700;
+  --lc-font-display-line-height: 1.1;
+  --lc-font-heading-lg-size: 24px;
+  --lc-font-heading-lg-weight: 700;
+  --lc-font-heading-lg-line-height: 1.2;
+  --lc-font-heading-md-size: 20px;
+  --lc-font-heading-md-weight: 500;
+  --lc-font-heading-md-line-height: 1.3;
+  --lc-font-heading-sm-size: 18px;
+  --lc-font-heading-sm-weight: 500;
+  --lc-font-heading-sm-line-height: 1.3;
+  --lc-font-body-lg-size: 16px;
+  --lc-font-body-lg-weight: 400;
+  --lc-font-body-lg-line-height: 1.5;
+  --lc-font-body-size: 14px;
+  --lc-font-body-weight: 400;
+  --lc-font-body-line-height: 1.5;
+  --lc-font-caption-size: 13px;
+  --lc-font-caption-weight: 400;
+  --lc-font-caption-line-height: 1.5;
+  --lc-font-small-size: 12px;
+  --lc-font-small-weight: 400;
+  --lc-font-small-line-height: 1.4;
+  --lc-font-micro-size: 11px;
+  --lc-font-micro-weight: 400;
+  --lc-font-micro-line-height: 1.4;
+  --lc-font-unit-size: 10px;
+  --lc-font-unit-weight: 400;
+  --lc-font-unit-line-height: 1.4;
+
+  /* Typography — shorthands (component-library) */
+  --lc-font-display: var(--lc-font-display-weight) var(--lc-font-display-size) /
+    var(--lc-font-display-line-height) var(--lc-font-sans);
+  --lc-font-heading-lg: var(--lc-font-heading-lg-weight) var(--lc-font-heading-lg-size) /
+    var(--lc-font-heading-lg-line-height) var(--lc-font-sans);
+  --lc-font-heading-md: var(--lc-font-heading-md-weight) var(--lc-font-heading-md-size) /
+    var(--lc-font-heading-md-line-height) var(--lc-font-sans);
+  --lc-font-heading-sm: var(--lc-font-heading-sm-weight) var(--lc-font-heading-sm-size) /
+    var(--lc-font-heading-sm-line-height) var(--lc-font-sans);
+  --lc-font-body-lg: var(--lc-font-body-lg-weight) var(--lc-font-body-lg-size) /
+    var(--lc-font-body-lg-line-height) var(--lc-font-sans);
+  --lc-font-body: var(--lc-font-body-weight) var(--lc-font-body-size) /
+    var(--lc-font-body-line-height) var(--lc-font-sans);
+  --lc-font-caption: var(--lc-font-caption-weight) var(--lc-font-caption-size) /
+    var(--lc-font-caption-line-height) var(--lc-font-sans);
+  --lc-font-small: var(--lc-font-small-weight) var(--lc-font-small-size) /
+    var(--lc-font-small-line-height) var(--lc-font-sans);
+  --lc-font-micro: var(--lc-font-micro-weight) var(--lc-font-micro-size) /
+    var(--lc-font-micro-line-height) var(--lc-font-sans);
+  --lc-font-unit: var(--lc-font-unit-weight) var(--lc-font-unit-size) /
+    var(--lc-font-unit-line-height) var(--lc-font-mono);
+  /* Alias: panel H2 uses heading-lg */
+  --lc-font-heading: var(--lc-font-heading-lg);
+
+  /* Compat size aliases (prefer --lc-font-*-size; keep --lc-text-* off color namespace long-term) */
+  --lc-text-display: var(--lc-font-display-size);
+  --lc-text-heading-lg: var(--lc-font-heading-lg-size);
+  --lc-text-heading-md: var(--lc-font-heading-md-size);
+  --lc-text-heading-sm: var(--lc-font-heading-sm-size);
+  --lc-text-body-lg: var(--lc-font-body-lg-size);
+  --lc-text-body: var(--lc-font-body-size);
+  --lc-text-caption: var(--lc-font-caption-size);
+  --lc-text-small: var(--lc-font-small-size);
+  --lc-text-micro: var(--lc-font-micro-size);
+  --lc-text-unit: var(--lc-font-unit-size);
+
+  --lc-weight-regular: 400;
+  --lc-weight-medium: 500;
+  --lc-weight-semibold: 600;
+  --lc-weight-bold: 700;
+
+  --lc-leading-display: var(--lc-font-display-line-height);
+  --lc-leading-heading-lg: var(--lc-font-heading-lg-line-height);
+  --lc-leading-heading: var(--lc-font-heading-md-line-height);
+  --lc-leading-body-lg: var(--lc-font-body-lg-line-height);
+  --lc-leading-body: var(--lc-font-body-line-height);
+  --lc-leading-caption: var(--lc-font-caption-line-height);
+  --lc-leading-small: var(--lc-font-small-line-height);
+
+  /* Dark surfaces — Tailwind gray scale (950 → 700).
+     Levels 1–3 are frosted materials: translucent fill + backdrop blur(24px)
+     via --lc-backdrop-blur-ui (part of the material, not companion tokens).
+     Surface-0 / base stays solid (no blur). */
+  --lc-surface-base: #030712; /* gray-950 */
+  --lc-surface-0: var(--lc-surface-base);
+  --lc-surface-1: color-mix(in srgb, #111827 85%, transparent); /* gray-900 */
+  --lc-surface-2: color-mix(in srgb, #1f2937 85%, transparent); /* gray-800 */
+  --lc-surface-3: color-mix(in srgb, #374151 85%, transparent); /* gray-700 */
+
+  --lc-bg-base: var(--lc-surface-base);
+  --lc-bg-header: color-mix(in srgb, var(--color-neutral-800) 6%, transparent);
+  --lc-bg-card: color-mix(in srgb, var(--color-neutral-100) 10%, transparent);
+  --lc-bg-dropdown: color-mix(in srgb, var(--color-neutral-100) 20%, transparent);
+  --lc-bg-control: color-mix(in srgb, var(--color-neutral-500) 20%, transparent);
+  --lc-bg-neutral-subtle: color-mix(in srgb, var(--color-neutral-800) 50%, transparent);
+
+  --lc-border-default: color-mix(in srgb, var(--color-neutral-100) 10%, transparent);
+  --lc-border-strong: color-mix(in srgb, var(--color-neutral-50) 20%, transparent);
+  --lc-border-subtle: color-mix(in srgb, var(--color-neutral-50) 10%, transparent);
+  --lc-border-control: color-mix(in srgb, var(--color-neutral-100) 20%, transparent);
+  --lc-border-dropdown: var(--lc-border-default);
+
+  --lc-text-primary: #ffffff;
+  --lc-text-secondary: var(--color-neutral-100);
+  --lc-text-tertiary: var(--color-neutral-300);
+  --lc-text-disabled: var(--color-neutral-100);
+  --lc-text-placeholder: var(--lc-text-tertiary);
+  --lc-text-positive: var(--color-positive-300);
+  --lc-text-brand: var(--color-primary-300);
+
+  --lc-shadow-color: var(--color-neutral-900);
+  --lc-shadow-1: 0 1px 2px 0 color-mix(in srgb, var(--lc-shadow-color) 40%, transparent);
+  --lc-shadow-2: 0 4px 6px -1px color-mix(in srgb, var(--lc-shadow-color) 50%, transparent);
+  --lc-shadow-3: 0 10px 15px -3px color-mix(in srgb, var(--lc-shadow-color) 60%, transparent);
+  --lc-shadow-4: 0 20px 25px -5px color-mix(in srgb, var(--lc-shadow-color) 70%, transparent);
+
+  /* Neutral palette (required by lc semantic color-mix above) */
+  --color-neutral-50: #eaebec;
+  --color-neutral-100: #d4d5d7;
+  --color-neutral-300: #93979c;
+  --color-neutral-500: #51575f;
+  --color-neutral-800: #181c20;
+  --color-neutral-900: #0c0e10;
+  --color-primary-300: #abcef9;
+  --color-primary-500: #73adf5;
+  --color-primary-800: #2e4562;
+  --color-positive-300: #7cd69e;
+  --color-negative-300: #f49797;
+  --color-negative-500: #ed5151;
+  --lc-text-negative: var(--color-negative-300);
+
+  /* Motion */
+  --lc-duration: 220ms;
+  --lc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Assistant layout (app-specific) */
+  --lc-radius-panel-shell: var(--radius-3xl);
+  --lc-bg-launcher: rgba(37, 40, 45, 0.4);
+  --lc-blur-launcher: 24px;
+  --lc-gradient-chat-separator: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    transparent 100%
+  );
+
+  --lc-panel-width: 34vw;
+  --lc-panel-min-width: 600px;
+  /* Docked left agent rail (pushes landing / story content) */
+  --lc-rail-width: min(520px, 40vw);
+  --lc-rail-enter-duration: 320ms;
+  --lc-panel-detail-width: 55vw;
+  /* Responsive split rail: track viewport changes without retaining the compact panel's 600px minimum. */
+  --lc-panel-chat-split-width: clamp(320px, 42dvw, 640px);
+  --lc-sessions-sidebar-width: 300px;
+  --lc-panel-split-width: min(
+    calc(var(--lc-panel-chat-split-width) + var(--lc-panel-detail-width)),
+    calc(100dvw - 2 * var(--space-3xl))
+  );
+  --lc-panel-stack-bottom: calc(var(--space-3xl) + 50px + var(--space-lg));
+  --lc-panel-compact-height: min(90dvh, calc(100dvh - var(--lc-panel-stack-bottom)));
+  /* Chat shell height — compact by default; fullscreen overrides to 100dvh */
+  --lc-chat-window-height: var(--lc-panel-compact-height);
+
+  /* Shared cap for composer + inline visuals (fill chat column up to this) */
+  --lc-chat-content-max: 900px;
+
+  --lc-header-icon-btn-size: var(--space-4xl);
+  --lc-search-expanded-width: 6.875rem;
+  --lc-search-expand-duration: 0.38s;
+  --lc-search-expand-ease: cubic-bezier(0.33, 1, 0.68, 1);
+
+  --lc-scrollbar-size: 4px;
+  --lc-scrollbar-thumb: rgba(132, 177, 245, 0.14);
+  --lc-scrollbar-thumb-hover: rgba(132, 177, 245, 0.24);
+  /* Content inset from the overlay scrollbar (scrollbar itself sits on the rail edge) */
+  --lc-transcript-gutter: var(--space-lg);
+
+  /* Chart accents used by KPI widgets */
+  --lc-chart-teal: #5ec4b0;
+  --lc-chart-blue: #73adf5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --lc-duration: 0ms;
+    --lc-rail-enter-duration: 0ms;
+  }
+}

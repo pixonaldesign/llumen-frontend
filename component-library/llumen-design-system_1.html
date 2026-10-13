@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Llumen Design System v3</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Design tokens: llumen-design-system.css (:root scales, html[data-theme] --lc-* semantics). -->
+<link rel="stylesheet" href="llumen-design-system.css" />
+</head>
+<body>
+<div id="mesh-gradient-bg" aria-hidden="true"></div>
+
+<div class="page-shell">
+
+<header class="app-header">
+  <h1 class="app-header__title">Llumen Design System</h1>
+  <div class="theme-toggle" role="group" aria-label="Color mode">
+    <button type="button" id="theme-light" aria-pressed="false">Light</button>
+    <button type="button" id="theme-dark" aria-pressed="true">Dark</button>
+  </div>
+</header>
+
+<div class="shell-body">
+<aside class="sidebar-nav" aria-label="Documentation sections">
+    <div class="sidebar-nav__panel">
+      <p class="sidebar-nav__section-label">Documentation</p>
+      <nav class="sidebar-nav__items" role="tablist">
+        <button type="button" class="sidebar-nav__link tab-btn active" data-tab="colors" role="tab" aria-selected="true">Colors</button>
+        <button type="button" class="sidebar-nav__link tab-btn" data-tab="playground" role="tab" aria-selected="false">Playground</button>
+        <button type="button" class="sidebar-nav__link tab-btn" data-tab="type" role="tab" aria-selected="false">Typography</button>
+        <button type="button" class="sidebar-nav__link tab-btn" data-tab="spacing" role="tab" aria-selected="false">Spacing</button>
+        <button type="button" class="sidebar-nav__link tab-btn" data-tab="layout" role="tab" aria-selected="false">Layout</button>
+        <button type="button" class="sidebar-nav__link tab-btn" data-tab="radius" role="tab" aria-selected="false">Radius</button>
+        <button type="button" class="sidebar-nav__link tab-btn" data-tab="tokens" role="tab" aria-selected="false">All tokens</button>
+      </nav>
+    </div>
+  </aside>
+
+<div class="layout-body">
+  <main class="main-panel">
+    <div class="main-panel__inner">
+
+<!-- ============ COLORS ============ -->
+<div id="colors" class="tab-content active">
+
+  <div class="section">
+    <div class="sec-label">Color scales — WCAG 2.1 contrast on swatch</div>
+    <p class="pdesc" style="margin-bottom:16px;">Each card lists <strong>fixed hex</strong> scale steps from <span style="font-family:'JetBrains Mono',monospace;">:root</span> as <span style="font-family:'JetBrains Mono',monospace;">--color-*-50</span> … <span style="font-family:'JetBrains Mono',monospace;">950</span> (500 = seed). Optional <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">color-mix</code> generation is commented in CSS. <strong>Click a row</strong> to copy resolved hex. Edit values in <span style="font-family:'JetBrains Mono',monospace;">llumen-design-system.css</span>.</p>
+    <div id="cc-scales-root" aria-label="Color scales with contrast information"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Categorical (8) — categorical-01 … categorical-08 · 500 = seed, hover to expand</div>
+    <div class="card">
+      <div class="swatch-expand" style="margin-bottom:8px;">
+        <div class="sw-exp" style="background:var(--color-categorical-01-500)" data-cp="--color-categorical-01-500"><span class="sn" style="color:#fff;">categorical-01</span><span class="sh" style="color:rgba(255,255,255,0.7)">-500</span></div>
+        <div class="sw-exp" style="background:var(--color-categorical-02-500)" data-cp="--color-categorical-02-500"><span class="sn" style="color:#fff;">categorical-02</span><span class="sh" style="color:rgba(255,255,255,0.7)">-500</span></div>
+        <div class="sw-exp" style="background:var(--color-categorical-03-500)" data-cp="--color-categorical-03-500"><span class="sn" style="color:#fff;">categorical-03</span><span class="sh" style="color:rgba(255,255,255,0.7)">-500</span></div>
+        <div class="sw-exp" style="background:var(--color-categorical-04-500)" data-cp="--color-categorical-04-500"><span class="sn" style="color:#fff;">categorical-04</span><span class="sh" style="color:rgba(255,255,255,0.7)">-500</span></div>
+        <div class="sw-exp" style="background:var(--color-categorical-05-500)" data-cp="--color-categorical-05-500"><span class="sn" style="color:#fff;">categorical-05</span><span class="sh" style="color:rgba(255,255,255,0.7)">-500</span></div>
+        <div class="sw-exp" style="background:var(--color-categorical-06-500)" data-cp="--color-categorical-06-500"><span class="sn" style="color:#fff;">categorical-06</span><span class="sh" style="color:rgba(255,255,255,0.7)">-500</span></div>
+        <div class="sw-exp" style="background:var(--color-categorical-07-500)" data-cp="--color-categorical-07-500"><span class="sn" style="color:#fff;">categorical-07</span><span class="sh" style="color:rgba(255,255,255,0.7)">-500</span></div>
+        <div class="sw-exp" style="background:var(--color-categorical-08-500)" data-cp="--color-categorical-08-500"><span class="sn" style="color:#fff;">categorical-08</span><span class="sh" style="color:rgba(255,255,255,0.7)">-500</span></div>
+      </div>
+      <div class="void-surface">
+        <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--lc-text-secondary);margin-bottom:7px;">on <span style="font-family:'JetBrains Mono',monospace;">--lc-surface-base</span></div>
+        <div class="vbar"><div class="vb" style="background:var(--color-categorical-01-500);"></div><div class="vb" style="background:var(--color-categorical-02-500);"></div><div class="vb" style="background:var(--color-categorical-03-500);"></div><div class="vb" style="background:var(--color-categorical-04-500);"></div><div class="vb" style="background:var(--color-categorical-05-500);"></div><div class="vb" style="background:var(--color-categorical-06-500);"></div><div class="vb" style="background:var(--color-categorical-07-500);"></div><div class="vb" style="background:var(--color-categorical-08-500);"></div></div>
+        <div class="vdots"><div class="vdot" style="background:var(--color-categorical-01-500);"></div><div class="vdot" style="background:var(--color-categorical-02-500);"></div><div class="vdot" style="background:var(--color-categorical-03-500);"></div><div class="vdot" style="background:var(--color-categorical-04-500);"></div><div class="vdot" style="background:var(--color-categorical-05-500);"></div><div class="vdot" style="background:var(--color-categorical-06-500);"></div><div class="vdot" style="background:var(--color-categorical-07-500);"></div><div class="vdot" style="background:var(--color-categorical-08-500);"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Diverging (7) — blue–red, violet–amber, cyan–magenta · hover to expand</div>
+    <div class="card">
+      <div class="dv-scale-block">
+        <div class="pname" style="margin-bottom:8px;">Blue ↔ Red — <span style="font-family:'JetBrains Mono',monospace;">--lc-dv-blue-red-*</span></div>
+        <div class="swatch-expand swatch-expand--dv" style="margin-bottom:8px;">
+          <div class="sw-exp" style="background:var(--lc-dv-blue-red-1)" data-cp="--lc-dv-blue-red-1" title="--lc-dv-blue-red-1"><span class="sn">cool</span><span class="sh">-1</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-blue-red-2)" data-cp="--lc-dv-blue-red-2" title="--lc-dv-blue-red-2"><span class="sn">cool</span><span class="sh">-2</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-blue-red-3)" data-cp="--lc-dv-blue-red-3" title="--lc-dv-blue-red-3"><span class="sn">cool</span><span class="sh">-3</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-blue-red-4)" data-cp="--lc-dv-blue-red-4" title="--lc-dv-blue-red-4"><span class="sn">mid</span><span class="sh">-4</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-blue-red-5)" data-cp="--lc-dv-blue-red-5" title="--lc-dv-blue-red-5"><span class="sn">warm</span><span class="sh">-5</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-blue-red-6)" data-cp="--lc-dv-blue-red-6" title="--lc-dv-blue-red-6"><span class="sn">warm</span><span class="sh">-6</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-blue-red-7)" data-cp="--lc-dv-blue-red-7" title="--lc-dv-blue-red-7"><span class="sn">warm</span><span class="sh">-7</span></div>
+        </div>
+        <div class="dv-ramp-axis"><span>Cool</span><span>Mid</span><span>Warm</span></div>
+        <div class="void-surface">
+          <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--lc-text-secondary);margin-bottom:7px;">on <span style="font-family:'JetBrains Mono',monospace;">--lc-surface-base</span></div>
+          <div class="vbar"><div class="vb" style="background:var(--lc-dv-blue-red-1);"></div><div class="vb" style="background:var(--lc-dv-blue-red-2);"></div><div class="vb" style="background:var(--lc-dv-blue-red-3);"></div><div class="vb" style="background:var(--lc-dv-blue-red-4);"></div><div class="vb" style="background:var(--lc-dv-blue-red-5);"></div><div class="vb" style="background:var(--lc-dv-blue-red-6);"></div><div class="vb" style="background:var(--lc-dv-blue-red-7);"></div></div>
+          <div class="vdots"><div class="vdot" style="background:var(--lc-dv-blue-red-1);"></div><div class="vdot" style="background:var(--lc-dv-blue-red-2);"></div><div class="vdot" style="background:var(--lc-dv-blue-red-3);"></div><div class="vdot" style="background:var(--lc-dv-blue-red-4);"></div><div class="vdot" style="background:var(--lc-dv-blue-red-5);"></div><div class="vdot" style="background:var(--lc-dv-blue-red-6);"></div><div class="vdot" style="background:var(--lc-dv-blue-red-7);"></div></div>
+        </div>
+      </div>
+
+      <div class="dv-sep" role="presentation"></div>
+
+      <div class="dv-scale-block">
+        <div class="pname" style="margin-bottom:8px;">Violet ↔ Amber — <span style="font-family:'JetBrains Mono',monospace;">--lc-dv-violet-amber-*</span> <span style="font-size:11px;font-weight:400;color:var(--lc-text-secondary);">(refract-01 ↔ refract-04)</span></div>
+        <div class="swatch-expand swatch-expand--dv" style="margin-bottom:8px;">
+          <div class="sw-exp" style="background:var(--lc-dv-violet-amber-1)" data-cp="--lc-dv-violet-amber-1" title="--lc-dv-violet-amber-1"><span class="sn">violet</span><span class="sh">-1</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-violet-amber-2)" data-cp="--lc-dv-violet-amber-2" title="--lc-dv-violet-amber-2"><span class="sn">violet</span><span class="sh">-2</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-violet-amber-3)" data-cp="--lc-dv-violet-amber-3" title="--lc-dv-violet-amber-3"><span class="sn">violet</span><span class="sh">-3</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-violet-amber-4)" data-cp="--lc-dv-violet-amber-4" title="--lc-dv-violet-amber-4"><span class="sn">mid</span><span class="sh">-4</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-violet-amber-5)" data-cp="--lc-dv-violet-amber-5" title="--lc-dv-violet-amber-5"><span class="sn">amber</span><span class="sh">-5</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-violet-amber-6)" data-cp="--lc-dv-violet-amber-6" title="--lc-dv-violet-amber-6"><span class="sn">amber</span><span class="sh">-6</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-violet-amber-7)" data-cp="--lc-dv-violet-amber-7" title="--lc-dv-violet-amber-7"><span class="sn">amber</span><span class="sh">-7</span></div>
+        </div>
+        <div class="dv-ramp-axis"><span>Violet</span><span>Mid</span><span>Amber</span></div>
+        <div class="void-surface">
+          <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--lc-text-secondary);margin-bottom:7px;">on <span style="font-family:'JetBrains Mono',monospace;">--lc-surface-base</span></div>
+          <div class="vbar"><div class="vb" style="background:var(--lc-dv-violet-amber-1);"></div><div class="vb" style="background:var(--lc-dv-violet-amber-2);"></div><div class="vb" style="background:var(--lc-dv-violet-amber-3);"></div><div class="vb" style="background:var(--lc-dv-violet-amber-4);"></div><div class="vb" style="background:var(--lc-dv-violet-amber-5);"></div><div class="vb" style="background:var(--lc-dv-violet-amber-6);"></div><div class="vb" style="background:var(--lc-dv-violet-amber-7);"></div></div>
+          <div class="vdots"><div class="vdot" style="background:var(--lc-dv-violet-amber-1);"></div><div class="vdot" style="background:var(--lc-dv-violet-amber-2);"></div><div class="vdot" style="background:var(--lc-dv-violet-amber-3);"></div><div class="vdot" style="background:var(--lc-dv-violet-amber-4);"></div><div class="vdot" style="background:var(--lc-dv-violet-amber-5);"></div><div class="vdot" style="background:var(--lc-dv-violet-amber-6);"></div><div class="vdot" style="background:var(--lc-dv-violet-amber-7);"></div></div>
+        </div>
+      </div>
+
+      <div class="dv-sep" role="presentation"></div>
+
+      <div class="dv-scale-block">
+        <div class="pname" style="margin-bottom:8px;">Cyan ↔ Magenta — <span style="font-family:'JetBrains Mono',monospace;">--lc-dv-cyan-magenta-*</span> <span style="font-size:11px;font-weight:400;color:var(--lc-text-secondary);">(refract-02 ↔ refract-03)</span></div>
+        <div class="swatch-expand swatch-expand--dv" style="margin-bottom:8px;">
+          <div class="sw-exp" style="background:var(--lc-dv-cyan-magenta-1)" data-cp="--lc-dv-cyan-magenta-1" title="--lc-dv-cyan-magenta-1"><span class="sn">cyan</span><span class="sh">-1</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-cyan-magenta-2)" data-cp="--lc-dv-cyan-magenta-2" title="--lc-dv-cyan-magenta-2"><span class="sn">cyan</span><span class="sh">-2</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-cyan-magenta-3)" data-cp="--lc-dv-cyan-magenta-3" title="--lc-dv-cyan-magenta-3"><span class="sn">cyan</span><span class="sh">-3</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-cyan-magenta-4)" data-cp="--lc-dv-cyan-magenta-4" title="--lc-dv-cyan-magenta-4"><span class="sn">mid</span><span class="sh">-4</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-cyan-magenta-5)" data-cp="--lc-dv-cyan-magenta-5" title="--lc-dv-cyan-magenta-5"><span class="sn">magenta</span><span class="sh">-5</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-cyan-magenta-6)" data-cp="--lc-dv-cyan-magenta-6" title="--lc-dv-cyan-magenta-6"><span class="sn">magenta</span><span class="sh">-6</span></div>
+          <div class="sw-exp" style="background:var(--lc-dv-cyan-magenta-7)" data-cp="--lc-dv-cyan-magenta-7" title="--lc-dv-cyan-magenta-7"><span class="sn">magenta</span><span class="sh">-7</span></div>
+        </div>
+        <div class="dv-ramp-axis"><span>Cyan</span><span>Mid</span><span>Magenta</span></div>
+        <div class="void-surface">
+          <div style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--lc-text-secondary);margin-bottom:7px;">on <span style="font-family:'JetBrains Mono',monospace;">--lc-surface-base</span></div>
+          <div class="vbar"><div class="vb" style="background:var(--lc-dv-cyan-magenta-1);"></div><div class="vb" style="background:var(--lc-dv-cyan-magenta-2);"></div><div class="vb" style="background:var(--lc-dv-cyan-magenta-3);"></div><div class="vb" style="background:var(--lc-dv-cyan-magenta-4);"></div><div class="vb" style="background:var(--lc-dv-cyan-magenta-5);"></div><div class="vb" style="background:var(--lc-dv-cyan-magenta-6);"></div><div class="vb" style="background:var(--lc-dv-cyan-magenta-7);"></div></div>
+          <div class="vdots"><div class="vdot" style="background:var(--lc-dv-cyan-magenta-1);"></div><div class="vdot" style="background:var(--lc-dv-cyan-magenta-2);"></div><div class="vdot" style="background:var(--lc-dv-cyan-magenta-3);"></div><div class="vdot" style="background:var(--lc-dv-cyan-magenta-4);"></div><div class="vdot" style="background:var(--lc-dv-cyan-magenta-5);"></div><div class="vdot" style="background:var(--lc-dv-cyan-magenta-6);"></div><div class="vdot" style="background:var(--lc-dv-cyan-magenta-7);"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ PLAYGROUND ============ -->
+<div id="playground" class="tab-content">
+
+  <p class="pdesc" style="margin-bottom:20px;">The doc column uses <span style="font-family:'JetBrains Mono',monospace;">--lc-surface-base</span> on <span style="font-family:'JetBrains Mono',monospace;">body</span> (same value as <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-base</span>). No panel wrapper here. Toggle <strong>Light</strong> / <strong>Dark</strong> in the header to verify contrast; focus each control to see <span style="font-family:'JetBrains Mono',monospace;">--lc-ring-brand</span>. Corner rounding for every control below follows <span style="font-family:'JetBrains Mono',monospace;">--lc-ui-radius</span> (default <span style="font-family:'JetBrains Mono',monospace;">--radius-xl</span>); use the visual reference row to remap it to any step in the scale.</p>
+
+  <div class="pg-radius-toolbar">
+    <p class="pg-radius-toolbar__label">Visual reference</p>
+    <div class="pg-radius-swatch-row" role="radiogroup" aria-label="Playground UI corner radius">
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="none" style="border-radius:var(--radius-none)">0</button>
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="xxs" style="border-radius:var(--radius-xxs)">xxs</button>
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="xs" style="border-radius:var(--radius-xs)">xs</button>
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="sm" style="border-radius:var(--radius-sm)">sm</button>
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="md" style="border-radius:var(--radius-md)">md</button>
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="lg" style="border-radius:var(--radius-lg)">lg</button>
+      <button type="button" class="pg-radius-swatch pg-radius-swatch--active" role="radio" aria-checked="true" aria-pressed="true" data-pg-radius="xl" style="border-radius:var(--radius-xl)">xl</button>
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="2xl" style="border-radius:var(--radius-2xl)">2xl</button>
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="3xl" style="border-radius:var(--radius-3xl)">3xl</button>
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="4xl" style="border-radius:var(--radius-4xl)">4xl</button>
+      <button type="button" class="pg-radius-swatch" role="radio" aria-checked="false" aria-pressed="false" data-pg-radius="full" style="border-radius:var(--radius-full)">full</button>
+    </div>
+    <p class="pg-radius-toolbar__hint">Selection sets <span style="font-family:'JetBrains Mono',monospace;">--lc-ui-radius</span> on the playground scope so buttons, pills, inputs, alerts, surface demos, and chrome pick it up together.</p>
+  </div>
+
+  <div class="pg-playground-tabs">
+    <div class="pg-play-tablist" role="tablist" aria-label="Playground components">
+      <button type="button" role="tab" id="pg-tab-btn-buttons" class="pg-play-tab active" aria-selected="true" aria-controls="pg-panel-buttons" data-pg-tab="buttons">Buttons</button>
+      <button type="button" role="tab" id="pg-tab-btn-alerts" class="pg-play-tab" aria-selected="false" aria-controls="pg-panel-alerts" data-pg-tab="alerts">Alerts</button>
+      <button type="button" role="tab" id="pg-tab-btn-pills" class="pg-play-tab" aria-selected="false" aria-controls="pg-panel-pills" data-pg-tab="pills">Pills</button>
+      <button type="button" role="tab" id="pg-tab-btn-badges" class="pg-play-tab" aria-selected="false" aria-controls="pg-panel-badges" data-pg-tab="badges">Badges</button>
+      <button type="button" role="tab" id="pg-tab-btn-inputs" class="pg-play-tab" aria-selected="false" aria-controls="pg-panel-inputs" data-pg-tab="inputs">Form inputs</button>
+      <button type="button" role="tab" id="pg-tab-btn-surfaces" class="pg-play-tab" aria-selected="false" aria-controls="pg-panel-surfaces" data-pg-tab="surfaces">Surfaces</button>
+    </div>
+
+    <div id="pg-panel-buttons" class="pg-play-panel pg-play-panel--buttons active" role="tabpanel" aria-labelledby="pg-tab-btn-buttons">
+  <div class="section">
+    <div class="sec-label pg-play-panel-title">Buttons — modifiers &amp; variants</div>
+    <div class="pg-group">
+      <p class="pg-sub"><strong>Modifiers:</strong> Standard (solid), Outline, Flat · <strong>Variants:</strong> base, icon left/right, small, large · Classes compose as <span style="font-family:'JetBrains Mono',monospace;">.pg-btn</span> + semantic (<span style="font-family:'JetBrains Mono',monospace;">--secondary</span> = default/neutral) + <span style="font-family:'JetBrains Mono',monospace;">--outline</span> / <span style="font-family:'JetBrains Mono',monospace;">--flat</span> + <span style="font-family:'JetBrains Mono',monospace;">--sm</span> / <span style="font-family:'JetBrains Mono',monospace;">--lg</span> + <span style="font-family:'JetBrains Mono',monospace;">--icon-left</span> / <span style="font-family:'JetBrains Mono',monospace;">--icon-right</span>.</p>
+
+      <!-- ===== STANDARD (SOLID) ===== -->
+      <div class="pg-btn-sys-mod">
+        <h3 class="pg-modifier-heading">Modifier · Standard buttons</h3>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Standard buttons</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--secondary">Default</button>
+            <button type="button" class="pg-btn pg-btn--primary">Primary</button>
+            <button type="button" class="pg-btn pg-btn--positive">Positive</button>
+            <button type="button" class="pg-btn pg-btn--warning">Warning</button>
+            <button type="button" class="pg-btn pg-btn--negative">Negative</button>
+          </div>
+          <div class="pg-btn-demo-row" style="margin-top:10px;">
+            <button type="button" class="pg-btn pg-btn--secondary" disabled>Default</button>
+            <button type="button" class="pg-btn pg-btn--primary" disabled>Primary</button>
+            <button type="button" class="pg-btn pg-btn--positive" disabled>Positive</button>
+            <button type="button" class="pg-btn pg-btn--warning" disabled>Warning</button>
+            <button type="button" class="pg-btn pg-btn--negative" disabled>Negative</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Standard buttons with left icons</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--secondary pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Default</button>
+            <button type="button" class="pg-btn pg-btn--primary pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 8.5l2.5 2 5.5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Primary</button>
+            <button type="button" class="pg-btn pg-btn--positive pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Positive</button>
+            <button type="button" class="pg-btn pg-btn--warning pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Warning</button>
+            <button type="button" class="pg-btn pg-btn--negative pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Negative</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Standard buttons with right icons</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--secondary pg-btn--icon-right">Default<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--primary pg-btn--icon-right">Primary<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 8.5l2.5 2 5.5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--positive pg-btn--icon-right">Positive<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--warning pg-btn--icon-right">Warning<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--negative pg-btn--icon-right">Negative<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Standard buttons (small)</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--secondary pg-btn--sm">Default</button>
+            <button type="button" class="pg-btn pg-btn--primary pg-btn--sm">Primary</button>
+            <button type="button" class="pg-btn pg-btn--positive pg-btn--sm">Positive</button>
+            <button type="button" class="pg-btn pg-btn--warning pg-btn--sm">Warning</button>
+            <button type="button" class="pg-btn pg-btn--negative pg-btn--sm">Negative</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Standard buttons (large)</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--secondary pg-btn--lg">Default</button>
+            <button type="button" class="pg-btn pg-btn--primary pg-btn--lg">Primary</button>
+            <button type="button" class="pg-btn pg-btn--positive pg-btn--lg">Positive</button>
+            <button type="button" class="pg-btn pg-btn--warning pg-btn--lg">Warning</button>
+            <button type="button" class="pg-btn pg-btn--negative pg-btn--lg">Negative</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== OUTLINE ===== -->
+      <div class="pg-btn-sys-mod">
+        <h3 class="pg-modifier-heading">Modifier · Outline buttons</h3>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Outline buttons</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--secondary">Default</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--primary">Primary</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--positive">Positive</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--warning">Warning</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--negative">Negative</button>
+          </div>
+          <div class="pg-btn-demo-row" style="margin-top:10px;">
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--secondary" disabled>Default</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--primary" disabled>Primary</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--positive" disabled>Positive</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--warning" disabled>Warning</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--negative" disabled>Negative</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Outline buttons with left icons</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--secondary pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Default</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--primary pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 8.5l2.5 2 5.5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Primary</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--positive pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Positive</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--warning pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Warning</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--negative pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Negative</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Outline buttons with right icons</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--secondary pg-btn--icon-right">Default<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--primary pg-btn--icon-right">Primary<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 8.5l2.5 2 5.5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--positive pg-btn--icon-right">Positive<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--warning pg-btn--icon-right">Warning<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--negative pg-btn--icon-right">Negative<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Outline buttons (small)</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--secondary pg-btn--sm">Default</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--primary pg-btn--sm">Primary</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--positive pg-btn--sm">Positive</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--warning pg-btn--sm">Warning</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--negative pg-btn--sm">Negative</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Outline buttons (large)</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--secondary pg-btn--lg">Default</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--primary pg-btn--lg">Primary</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--positive pg-btn--lg">Positive</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--warning pg-btn--lg">Warning</button>
+            <button type="button" class="pg-btn pg-btn--outline pg-btn--negative pg-btn--lg">Negative</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== FLAT ===== -->
+      <div class="pg-btn-sys-mod">
+        <h3 class="pg-modifier-heading">Modifier · Flat buttons</h3>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Flat buttons</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--secondary">Default</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--primary">Primary</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--positive">Positive</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--warning">Warning</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--negative">Negative</button>
+          </div>
+          <div class="pg-btn-demo-row" style="margin-top:10px;">
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--secondary" disabled>Default</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--primary" disabled>Primary</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--positive" disabled>Positive</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--warning" disabled>Warning</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--negative" disabled>Negative</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Flat buttons with left icons</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--secondary pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Default</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--primary pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 8.5l2.5 2 5.5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Primary</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--positive pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Positive</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--warning pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Warning</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--negative pg-btn--icon-left"><svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Negative</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Flat buttons with right icons</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--secondary pg-btn--icon-right">Default<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 5l6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--primary pg-btn--icon-right">Primary<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 8.5l2.5 2 5.5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--positive pg-btn--icon-right">Positive<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--warning pg-btn--icon-right">Warning<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--negative pg-btn--icon-right">Negative<svg class="pg-btn__icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3.5L2.5 12.5h11z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Flat buttons (small)</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--secondary pg-btn--sm">Default</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--primary pg-btn--sm">Primary</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--positive pg-btn--sm">Positive</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--warning pg-btn--sm">Warning</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--negative pg-btn--sm">Negative</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Flat buttons (large)</p>
+          <div class="pg-btn-demo-row">
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--secondary pg-btn--lg">Default</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--primary pg-btn--lg">Primary</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--positive pg-btn--lg">Positive</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--warning pg-btn--lg">Warning</button>
+            <button type="button" class="pg-btn pg-btn--flat pg-btn--negative pg-btn--lg">Negative</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ICON BUTTONS ===== -->
+      <div class="pg-btn-sys-mod">
+        <h3 class="pg-modifier-heading">Modifier · Icon buttons</h3>
+        <p class="pg-sub" style="margin-top:0;">Classes: <span style="font-family:'JetBrains Mono',monospace;">.pg-icon-btn</span> + <span style="font-family:'JetBrains Mono',monospace;">--bare</span> / <span style="font-family:'JetBrains Mono',monospace;">--circle</span> / <span style="font-family:'JetBrains Mono',monospace;">--square</span> + <span style="font-family:'JetBrains Mono',monospace;">--sm</span> / <span style="font-family:'JetBrains Mono',monospace;">--md</span> / <span style="font-family:'JetBrains Mono',monospace;">--lg</span></p>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Icon buttons (default) — small, medium, large</p>
+          <div class="pg-icon-demo-cols">
+            <div class="pg-icon-demo-col">
+              <button type="button" class="pg-icon-btn pg-icon-btn--bare pg-icon-btn--sm" aria-label="More options"><svg class="pg-icon-btn__glyph" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="8" cy="3.5" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="8" cy="12.5" r="1.25" fill="currentColor"/></svg></button>
+              <span class="pg-mini-lbl">Small</span>
+            </div>
+            <div class="pg-icon-demo-col">
+              <button type="button" class="pg-icon-btn pg-icon-btn--bare pg-icon-btn--md" aria-label="More options"><svg class="pg-icon-btn__glyph" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="8" cy="3.5" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="8" cy="12.5" r="1.25" fill="currentColor"/></svg></button>
+              <span class="pg-mini-lbl">Medium</span>
+            </div>
+            <div class="pg-icon-demo-col">
+              <button type="button" class="pg-icon-btn pg-icon-btn--bare pg-icon-btn--lg" aria-label="More options"><svg class="pg-icon-btn__glyph" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="8" cy="3.5" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="8" cy="12.5" r="1.25" fill="currentColor"/></svg></button>
+              <span class="pg-mini-lbl">Large</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Icon buttons (circle) — small, medium, large</p>
+          <div class="pg-icon-demo-cols">
+            <div class="pg-icon-demo-col">
+              <button type="button" class="pg-icon-btn pg-icon-btn--circle pg-icon-btn--sm" aria-label="Undo"><svg class="pg-icon-btn__glyph" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 3H3v3M3 8a5 5 0 109-.9l-2.5-2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <span class="pg-mini-lbl">Small</span>
+            </div>
+            <div class="pg-icon-demo-col">
+              <button type="button" class="pg-icon-btn pg-icon-btn--circle pg-icon-btn--md" aria-label="Undo"><svg class="pg-icon-btn__glyph" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 3H3v3M3 8a5 5 0 109-.9l-2.5-2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <span class="pg-mini-lbl">Medium</span>
+            </div>
+            <div class="pg-icon-demo-col">
+              <button type="button" class="pg-icon-btn pg-icon-btn--circle pg-icon-btn--lg" aria-label="Undo"><svg class="pg-icon-btn__glyph" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 3H3v3M3 8a5 5 0 109-.9l-2.5-2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <span class="pg-mini-lbl">Large</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Icon buttons (square) — small, medium, large</p>
+          <div class="pg-icon-demo-cols">
+            <div class="pg-icon-demo-col">
+              <button type="button" class="pg-icon-btn pg-icon-btn--square pg-icon-btn--sm" aria-label="Edit"><svg class="pg-icon-btn__glyph" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M10.5 3.5l2 2-7 7H3.5v-2l7-7zM9 4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+              <span class="pg-mini-lbl">Small</span>
+            </div>
+            <div class="pg-icon-demo-col">
+              <button type="button" class="pg-icon-btn pg-icon-btn--square pg-icon-btn--md" aria-label="Edit"><svg class="pg-icon-btn__glyph" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M10.5 3.5l2 2-7 7H3.5v-2l7-7zM9 4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+              <span class="pg-mini-lbl">Medium</span>
+            </div>
+            <div class="pg-icon-demo-col">
+              <button type="button" class="pg-icon-btn pg-icon-btn--square pg-icon-btn--lg" aria-label="Edit"><svg class="pg-icon-btn__glyph" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M10.5 3.5l2 2-7 7H3.5v-2l7-7zM9 4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+              <span class="pg-mini-lbl">Large</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== BUTTON GROUPS ===== -->
+      <div class="pg-btn-sys-mod">
+        <h3 class="pg-modifier-heading">Modifier · Button groups</h3>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Button group (two label buttons)</p>
+          <div class="pg-btn-group" role="group" aria-label="Example actions">
+            <button type="button" class="pg-btn-group__btn">Execute</button>
+            <span class="pg-btn-group__sep" aria-hidden="true"></span>
+            <button type="button" class="pg-btn-group__btn">Save</button>
+          </div>
+        </div>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Button group with dropdown trigger</p>
+          <div class="pg-btn-group pg-btn-group--split" role="group" aria-label="Workflow">
+            <button type="button" class="pg-btn-group__btn pg-btn-group__btn--main">Execute Workflow</button>
+            <button type="button" class="pg-btn-group__btn pg-btn-group__btn--caret" aria-label="Open menu" aria-haspopup="true">
+              <svg class="pg-btn-group__caret-svg" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== RIBBON ===== -->
+      <div class="pg-btn-sys-mod">
+        <h3 class="pg-modifier-heading">Modifier · Ribbon</h3>
+
+        <div class="pg-btn-sys-variant">
+          <p class="pg-variant-title">Variant · Ribbon (actions)</p>
+          <div class="pg-ribbon" role="toolbar" aria-label="Canvas actions">
+            <button type="button" class="pg-ribbon__btn">
+              <svg class="pg-ribbon__btn-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Node
+            </button>
+            <span class="pg-ribbon__divider" aria-hidden="true"></span>
+            <button type="button" class="pg-ribbon__btn" aria-label="Undo">
+              <svg class="pg-ribbon__btn-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 3H3v3M3 8a5 5 0 109-.9l-2.5-2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button type="button" class="pg-ribbon__btn" aria-label="Redo">
+              <svg class="pg-ribbon__btn-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M10 3h3v3M13 8a5 5 0 10-9-.9l2.5-2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <span class="pg-ribbon__divider" aria-hidden="true"></span>
+            <button type="button" class="pg-ribbon__btn" aria-label="Zoom in">
+              <svg class="pg-ribbon__btn-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="7" cy="7" r="4.25" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l3 3M9 7H5M7 5v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+            <button type="button" class="pg-ribbon__btn" aria-label="Zoom out">
+              <svg class="pg-ribbon__btn-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="7" cy="7" r="4.25" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l3 3M5 7h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+            <span class="pg-ribbon__divider" aria-hidden="true"></span>
+            <button type="button" class="pg-ribbon__btn" aria-label="Focus">
+              <svg class="pg-ribbon__btn-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 3h3v3M10 3h3v3M3 10v3h3M13 10v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.5" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <p class="pg-sub" style="margin-bottom:0;">Legacy ghost link style remains available as <span style="font-family:'JetBrains Mono',monospace;">.pg-btn--ghost</span> (not shown above). Static hover chips: <span style="font-family:'JetBrains Mono',monospace;">.pg-demo-secondary-hover</span>, <span style="font-family:'JetBrains Mono',monospace;">.pg-demo-ghost-hover</span>.</p>
+    </div>
+  </div>
+    </div>
+
+    <div id="pg-panel-alerts" class="pg-play-panel" role="tabpanel" aria-labelledby="pg-tab-btn-alerts" hidden>
+  <div class="section">
+    <div class="sec-label pg-play-panel-title">Alerts</div>
+    <div class="pg-group">
+      <p class="pg-sub">Inline messages — <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-*-subtle</span> + semantic borders (<span style="font-family:'JetBrains Mono',monospace;">--lc-border-brand-subtle</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-positive-subtle</span>, … or <span style="font-family:'JetBrains Mono',monospace;">--lc-border-default</span> for neutral)</p>
+      <div class="pg-alert-stack">
+        <div class="pg-alert pg-alert--neutral" role="status">
+          <p class="pg-alert__title">Neutral</p>
+          <p class="pg-alert__text">Same tokens as outline secondary: subtle fill, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-neutral-subtle</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-text-neutral</span>.</p>
+        </div>
+        <div class="pg-alert pg-alert--info" role="status">
+          <p class="pg-alert__title">Information</p>
+          <p class="pg-alert__text">Brand wash and <span style="font-family:'JetBrains Mono',monospace;">--lc-text-brand</span> for the title.</p>
+        </div>
+        <div class="pg-alert pg-alert--positive" role="status">
+          <p class="pg-alert__title">Success</p>
+          <p class="pg-alert__text">Positive subtle surface with <span style="font-family:'JetBrains Mono',monospace;">--lc-text-positive</span> on the title.</p>
+        </div>
+        <div class="pg-alert pg-alert--warning" role="status">
+          <p class="pg-alert__title">Warning</p>
+          <p class="pg-alert__text">Check thresholds before publishing.</p>
+        </div>
+        <div class="pg-alert pg-alert--negative" role="alert">
+          <p class="pg-alert__title">Error</p>
+          <p class="pg-alert__text">Something failed — use <span style="font-family:'JetBrains Mono',monospace;">--lc-text-negative</span> for emphasis.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+
+    <div id="pg-panel-pills" class="pg-play-panel" role="tabpanel" aria-labelledby="pg-tab-btn-pills" hidden>
+  <div class="section">
+    <div class="sec-label pg-play-panel-title">Pills</div>
+    <div class="pg-group">
+      <p class="pg-sub">Filter / toggle — unselected, selected, disabled</p>
+      <div class="pg-row">
+        <span class="pg-lbl">States</span>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+          <button type="button" class="pg-pill">24h</button>
+          <button type="button" class="pg-pill pg-pill--active" aria-pressed="true">7d</button>
+          <button type="button" class="pg-pill" disabled>30d</button>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+
+    <div id="pg-panel-badges" class="pg-play-panel" role="tabpanel" aria-labelledby="pg-tab-btn-badges" hidden>
+  <div class="section">
+    <div class="sec-label pg-play-panel-title">Badges</div>
+    <div class="pg-group">
+      <p class="pg-sub">Status chips — semantic borders (<span style="font-family:'JetBrains Mono',monospace;">--lc-border-brand-subtle</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-positive-subtle</span>, …)</p>
+      <div class="pg-row">
+        <span class="pg-lbl">Variants</span>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+          <span class="pg-badge pg-badge--neutral">Neutral</span>
+          <span class="pg-badge pg-badge--info">Info</span>
+          <span class="pg-badge pg-badge--positive">Positive</span>
+          <span class="pg-badge pg-badge--warning">Warning</span>
+          <span class="pg-badge pg-badge--negative">Negative</span>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+
+    <div id="pg-panel-inputs" class="pg-play-panel" role="tabpanel" aria-labelledby="pg-tab-btn-inputs" hidden>
+  <div class="section">
+    <div class="sec-label pg-play-panel-title">Form inputs</div>
+    <div class="pg-group">
+      <p class="pg-sub">Shape follows <span style="font-family:'JetBrains Mono',monospace;">--lc-ui-radius</span> · field chrome: <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-control</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-control</span> → <span style="font-family:'JetBrains Mono',monospace;">--lc-border-control-hover</span> · focus <span style="font-family:'JetBrains Mono',monospace;">--lc-border-control-focus</span> + <span style="font-family:'JetBrains Mono',monospace;">--lc-shadow-control-focus</span> · value <span style="font-family:'JetBrains Mono',monospace;">--lc-text-control</span>, placeholder <span style="font-family:'JetBrains Mono',monospace;">--lc-text-control-placeholder</span></p>
+      <div class="pg-wrap">
+        <div class="pg-field">
+          <label class="pg-field-lbl" for="pg-in-1">Label</label>
+          <input id="pg-in-1" class="pg-inp" type="text" placeholder="Placeholder" autocomplete="off" />
+        </div>
+        <div class="pg-field">
+          <label class="pg-field-lbl" for="pg-in-2">Error</label>
+          <input id="pg-in-2" class="pg-inp pg-inp--error" type="text" value="Invalid value" aria-invalid="true" />
+          <span class="pg-err">Use semantic token <span style="font-family:'JetBrains Mono',monospace;">--lc-text-negative</span> for error copy</span>
+        </div>
+        <div class="pg-field">
+          <label class="pg-field-lbl" for="pg-in-3">Disabled</label>
+          <input id="pg-in-3" class="pg-inp" type="text" value="Read only" disabled />
+        </div>
+      </div>
+    </div>
+    </div>
+    </div>
+
+    <div id="pg-panel-surfaces" class="pg-play-panel pg-play-panel--surfaces" role="tabpanel" aria-labelledby="pg-tab-btn-surfaces" hidden>
+  <div class="section">
+    <div class="sec-label pg-play-panel-title">Surfaces — cards, modals, tables, menus, tooltips</div>
+    <p class="pg-sub" style="margin-bottom:var(--space-3xl);">Semantic <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-*</span> · <span style="font-family:'JetBrains Mono',monospace;">--lc-border-*</span> · <span style="font-family:'JetBrains Mono',monospace;">--lc-shadow-*</span> map to the glazed <span style="font-family:'JetBrains Mono',monospace;">--lc-surface-*</span> ladder in <span style="font-family:'JetBrains Mono',monospace;">llumen-design-system.css</span>.</p>
+
+    <div class="pg-surface-section">
+      <h3 class="pg-modifier-heading">Cards</h3>
+      <p class="pg-sub">Four-up grid uses <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-card</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-card</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-shadow-card</span>. Add duplicates the same tile.</p>
+      <div class="pg-surface-cards-wrap">
+        <div class="pg-surface-cards-grid" id="pg-surface-cards-grid" aria-live="polite"></div>
+        <button type="button" class="pg-surface-card-add" id="pg-surface-cards-add" aria-label="Add another card">
+          <svg class="pg-surface-card-add__icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="pg-surface-card-add__lbl">Add card</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="pg-surface-section">
+      <h3 class="pg-modifier-heading">Modal</h3>
+      <p class="pg-sub">Dialog uses <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-modal</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-modal</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-shadow-modal</span>; overlay uses <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-modal-backdrop</span>. Size: 60vw × 90vh (capped to viewport).</p>
+      <button type="button" class="pg-btn pg-btn--secondary" id="pg-surface-modal-open">Open modal</button>
+    </div>
+
+    <div class="pg-surface-section">
+      <h3 class="pg-modifier-heading">Table</h3>
+      <p class="pg-sub">Header <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-table-header</span> · cells <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-table</span> · row hover <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-table-row-hover</span> · <span style="font-family:'JetBrains Mono',monospace;">--lc-border-table</span>.</p>
+      <div class="pg-surface-table-scroll">
+          <table class="pg-surface-table" id="pg-surface-data-table">
+            <thead>
+              <tr>
+                <th>Site</th>
+                <th>Sensor</th>
+                <th>Metric</th>
+                <th>Value</th>
+                <th>Unit</th>
+                <th>AQI</th>
+                <th>Status</th>
+                <th>Updated (UTC)</th>
+              </tr>
+            </thead>
+            <tbody id="pg-surface-table-body">
+              <tr><td>North River</td><td>NR-A12</td><td>PM2.5</td><td>18.4</td><td>µg/m³</td><td>62</td><td>Good</td><td>2026-05-10 06:12</td></tr>
+              <tr><td>North River</td><td>NR-O3</td><td>O₃</td><td>112</td><td>ppb</td><td>58</td><td>Good</td><td>2026-05-10 06:11</td></tr>
+              <tr><td>Harbor East</td><td>HE-PM1</td><td>PM1</td><td>9.1</td><td>µg/m³</td><td>48</td><td>Good</td><td>2026-05-10 06:10</td></tr>
+              <tr><td>Harbor East</td><td>HE-NO2</td><td>NO₂</td><td>28</td><td>ppb</td><td>54</td><td>Good</td><td>2026-05-10 06:09</td></tr>
+              <tr><td>Central Station</td><td>CS-PM25</td><td>PM2.5</td><td>35.2</td><td>µg/m³</td><td>98</td><td>Moderate</td><td>2026-05-10 06:08</td></tr>
+              <tr><td>Central Station</td><td>CS-CO</td><td>CO</td><td>0.6</td><td>ppm</td><td>44</td><td>Good</td><td>2026-05-10 06:07</td></tr>
+              <tr><td>West Park</td><td>WP-SO2</td><td>SO₂</td><td>4</td><td>ppb</td><td>41</td><td>Good</td><td>2026-05-10 06:06</td></tr>
+              <tr><td>West Park</td><td>WP-PM10</td><td>PM10</td><td>44</td><td>µg/m³</td><td>71</td><td>Moderate</td><td>2026-05-10 06:05</td></tr>
+              <tr><td>South Loop</td><td>SL-PM25</td><td>PM2.5</td><td>52.8</td><td>µg/m³</td><td>142</td><td>Unhealthy (sens.)</td><td>2026-05-10 06:04</td></tr>
+              <tr><td>South Loop</td><td>SL-BENZ</td><td>Benzene</td><td>0.8</td><td>µg/m³</td><td>—</td><td>Good</td><td>2026-05-10 06:03</td></tr>
+              <tr><td>Airport N</td><td>APN-O3</td><td>O₃</td><td>138</td><td>ppb</td><td>88</td><td>Moderate</td><td>2026-05-10 06:02</td></tr>
+              <tr><td>Airport N</td><td>APN-PM25</td><td>PM2.5</td><td>22.0</td><td>µg/m³</td><td>76</td><td>Moderate</td><td>2026-05-10 06:01</td></tr>
+              <tr><td>Lakeside</td><td>LS-HUM</td><td>RH</td><td>61</td><td>%</td><td>—</td><td>—</td><td>2026-05-10 06:00</td></tr>
+              <tr><td>Lakeside</td><td>LS-TEMP</td><td>Temp</td><td>17.3</td><td>°C</td><td>—</td><td>—</td><td>2026-05-10 05:59</td></tr>
+              <tr><td>Industrial SE</td><td>ISE-NO2</td><td>NO₂</td><td>58</td><td>ppb</td><td>112</td><td>Unhealthy (sens.)</td><td>2026-05-10 05:58</td></tr>
+              <tr><td>Industrial SE</td><td>ISE-PM25</td><td>PM2.5</td><td>61.1</td><td>µg/m³</td><td>158</td><td>Unhealthy</td><td>2026-05-10 05:57</td></tr>
+            </tbody>
+          </table>
+      </div>
+    </div>
+
+    <div class="pg-surface-section">
+      <h3 class="pg-modifier-heading">Dropdown</h3>
+      <p class="pg-sub">Field + menu use <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-dropdown</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-dropdown</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-shadow-dropdown</span>. Trigger uses form-control tokens (<span style="font-family:'JetBrains Mono',monospace;">--lc-bg-control</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-control</span>).</p>
+      <div class="pg-surface-dropdown-field" id="pg-surface-dropdown-field">
+        <button type="button" class="pg-surface-dropdown-trigger" id="pg-surface-dropdown-trigger" aria-expanded="false" aria-haspopup="listbox" aria-controls="pg-surface-dropdown-menu">
+          <span class="pg-surface-dropdown-trigger__text" id="pg-surface-dropdown-label">Select a sensor…</span>
+          <svg class="pg-surface-dropdown-trigger__caret" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="pg-surface-dropdown-menu" id="pg-surface-dropdown-menu" role="listbox" aria-labelledby="pg-surface-dropdown-trigger" hidden>
+          <button type="button" class="pg-surface-dropdown__item" role="option" data-pg-dd-value="NR-A12 · North River">NR-A12 · North River</button>
+          <button type="button" class="pg-surface-dropdown__item" role="option" data-pg-dd-value="HE-PM1 · Harbor East">HE-PM1 · Harbor East</button>
+          <button type="button" class="pg-surface-dropdown__item" role="option" data-pg-dd-value="CS-PM25 · Central Station">CS-PM25 · Central Station</button>
+          <button type="button" class="pg-surface-dropdown__item" role="option" data-pg-dd-value="SL-PM25 · South Loop">SL-PM25 · South Loop</button>
+          <button type="button" class="pg-surface-dropdown__item" role="option" data-pg-dd-value="APN-O3 · Airport N">APN-O3 · Airport N</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pg-surface-section">
+      <h3 class="pg-modifier-heading">Tooltips</h3>
+      <p class="pg-sub">Flyout uses <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-tooltip</span> and <span style="font-family:'JetBrains Mono',monospace;">--lc-text-tooltip</span>. Placement is relative to each anchor (Top / Left / Right / Bottom).</p>
+      <div class="pg-surface-tooltip-block">
+        <p class="pg-variant-title">Hover trigger</p>
+        <div class="pg-surface-tooltip-row">
+          <button type="button" class="pg-btn pg-btn--secondary pg-surface-tip" data-pg-tip-mode="hover" data-pg-tip-place="top">Top</button>
+          <button type="button" class="pg-btn pg-btn--secondary pg-surface-tip" data-pg-tip-mode="hover" data-pg-tip-place="left">Left</button>
+          <button type="button" class="pg-btn pg-btn--secondary pg-surface-tip" data-pg-tip-mode="hover" data-pg-tip-place="right">Right</button>
+          <button type="button" class="pg-btn pg-btn--secondary pg-surface-tip" data-pg-tip-mode="hover" data-pg-tip-place="bottom">Bottom</button>
+        </div>
+      </div>
+      <div class="pg-surface-tooltip-block" style="margin-top:var(--space-xl);">
+        <p class="pg-variant-title">Click trigger</p>
+        <div class="pg-surface-tooltip-row">
+          <button type="button" class="pg-btn pg-btn--secondary pg-surface-tip" data-pg-tip-mode="click" data-pg-tip-place="top">Top</button>
+          <button type="button" class="pg-btn pg-btn--secondary pg-surface-tip" data-pg-tip-mode="click" data-pg-tip-place="left">Left</button>
+          <button type="button" class="pg-btn pg-btn--secondary pg-surface-tip" data-pg-tip-mode="click" data-pg-tip-place="right">Right</button>
+          <button type="button" class="pg-btn pg-btn--secondary pg-surface-tip" data-pg-tip-mode="click" data-pg-tip-place="bottom">Bottom</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="pg-surface-modal-overlay" class="pg-surface-modal-overlay" hidden>
+      <div class="pg-surface-modal-overlay__backdrop" id="pg-surface-modal-backdrop"></div>
+      <div class="pg-surface-modal-overlay__dialog" role="dialog" aria-modal="true" aria-labelledby="pg-surface-modal-title" tabindex="-1">
+        <div class="pg-surface-modal-overlay__head">
+          <h4 class="pg-surface-modal-overlay__title" id="pg-surface-modal-title">Modal title</h4>
+          <button type="button" class="pg-btn pg-btn--secondary pg-surface-modal-overlay__dismiss" id="pg-surface-modal-dismiss">Dismiss</button>
+        </div>
+        <div class="pg-surface-modal-overlay__body">
+          <p class="pg-surface-modal-overlay__lede">This panel is sized to <strong>60vw</strong> by <strong>90vh</strong> (with safe maxima). Tokens: <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-modal</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-modal</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-shadow-modal</span>.</p>
+          <p class="pg-surface-modal-overlay__copy">Use the dismiss control or click the dimmed backdrop to close. Press <kbd style="font-family:'JetBrains Mono',monospace;">Esc</kbd> from anywhere.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ============ TYPOGRAPHY ============ -->
+<div id="type" class="tab-content">
+
+  <div class="section">
+    <div class="sec-label">Type scale — Innovator Grotesk unless noted</div>
+    <div class="type-preview">
+      <div class="tp-row"><div class="tp-size">32px / 700</div><div class="tp-token">--lc-font-display</div><div style="font-size:32px;font-weight:700;line-height:1.1;">Hero KPI value</div></div>
+      <div class="tp-row"><div class="tp-size">24px / 700</div><div class="tp-token">--lc-font-heading-lg</div><div style="font-size:24px;font-weight:700;line-height:1.2;">Page title / secondary stat</div></div>
+      <div class="tp-row"><div class="tp-size">20px / 500</div><div class="tp-token">--lc-font-heading-md</div><div style="font-size:20px;font-weight:500;line-height:1.3;">Card title</div></div>
+      <div class="tp-row"><div class="tp-size">18px / 500</div><div class="tp-token">--lc-font-heading-sm</div><div style="font-size:18px;font-weight:500;line-height:1.3;">Tertiary stat / pollutant value</div></div>
+      <div class="tp-row"><div class="tp-size">14px / 400</div><div class="tp-token">--lc-font-body</div><div style="font-size:14px;font-weight:400;line-height:1.5;">Body text, inputs, labels, filter pills</div></div>
+      <div class="tp-row"><div class="tp-size">13px / 400</div><div class="tp-token">--lc-font-caption</div><div style="font-size:13px;font-weight:400;line-height:1.5;color:var(--lc-text-secondary);">Legend text, form labelc, map data</div></div>
+      <div class="tp-row"><div class="tp-size">12px / 400</div><div class="tp-token">--lc-font-small</div><div style="font-size:12px;font-weight:400;line-height:1.4;color:var(--lc-text-secondary);">Status badges, small pills</div></div>
+      <div class="tp-row"><div class="tp-size">11px / 400</div><div class="tp-token">--lc-font-micro</div><div style="font-size:11px;font-weight:400;line-height:1.4;color:var(--lc-text-secondary);">Chart axis labelc, timestamps</div></div>
+      <div class="tp-row"><div class="tp-size">10px / 400</div><div class="tp-token">--lc-font-unit</div><div style="font-size:10px;font-weight:400;line-height:1.4;color:var(--lc-text-secondary);">Measurement units — ug/m³, ppb, etc.</div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ SPACING ============ -->
+<div id="spacing" class="tab-content">
+
+  <div class="section">
+    <div class="sec-label">Spacing scale — Figma (none → 11xl)</div>
+    <div class="card">
+      <div class="sp-row"><div class="sp-name">--space-none</div><div class="sp-val">0</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:1px;"></div></div><div class="sp-use">Reset / collapse</div></div>
+      <div class="sp-row"><div class="sp-name">--space-xxs</div><div class="sp-val">2px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-xxs) * 2);"></div></div><div class="sp-use">Icon-to-text nudge</div></div>
+      <div class="sp-row"><div class="sp-name">--space-xs</div><div class="sp-val">4px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-xs) * 2);"></div></div><div class="sp-use">Title-to-subtitle</div></div>
+      <div class="sp-row"><div class="sp-name">--space-sm</div><div class="sp-val">6px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-sm) * 2);"></div></div><div class="sp-use">Tight stacks</div></div>
+      <div class="sp-row"><div class="sp-name">--space-md</div><div class="sp-val">8px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-md) * 2);"></div></div><div class="sp-use">Default element gap, grid cell gap</div></div>
+      <div class="sp-row"><div class="sp-name">--space-lg</div><div class="sp-val">12px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-lg) * 2);"></div></div><div class="sp-use">Section separators, inner card padding</div></div>
+      <div class="sp-row"><div class="sp-name">--space-xl</div><div class="sp-val">16px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-xl) * 2);"></div></div><div class="sp-use">Card padding, card section gap</div></div>
+      <div class="sp-row"><div class="sp-name">--space-2xl</div><div class="sp-val">20px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-2xl) * 2);"></div></div><div class="sp-use">Screen edge padding, map margins</div></div>
+      <div class="sp-row"><div class="sp-name">--space-3xl</div><div class="sp-val">24px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-3xl) * 2);"></div></div><div class="sp-use">Major section gaps, chat to box</div></div>
+      <div class="sp-row"><div class="sp-name">--space-4xl</div><div class="sp-val">32px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-4xl) * 1.25);"></div></div><div class="sp-use">Large rhythm</div></div>
+      <div class="sp-row"><div class="sp-name">--space-5xl</div><div class="sp-val">40px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-5xl) * 1);"></div></div><div class="sp-use">Login form to CTA, hero gaps</div></div>
+      <div class="sp-row"><div class="sp-name">--space-6xl</div><div class="sp-val">48px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-6xl) * 0.85);"></div></div><div class="sp-use">Wide section breaks</div></div>
+      <div class="sp-row"><div class="sp-name">--space-7xl</div><div class="sp-val">64px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-7xl) * 0.75);"></div></div><div class="sp-use">Hero / marketing blocks</div></div>
+      <div class="sp-row"><div class="sp-name">--space-8xl</div><div class="sp-val">80px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-8xl) * 0.65);"></div></div><div class="sp-use">Page-level air</div></div>
+      <div class="sp-row"><div class="sp-name">--space-9xl</div><div class="sp-val">96px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-9xl) * 0.55);"></div></div><div class="sp-use">Large hero padding</div></div>
+      <div class="sp-row"><div class="sp-name">--space-10xl</div><div class="sp-val">128px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-10xl) * 0.45);"></div></div><div class="sp-use">XL section spacing</div></div>
+      <div class="sp-row"><div class="sp-name">--space-11xl</div><div class="sp-val">160px</div><div class="sp-bar-wrap"><div class="sp-bar" style="width:calc(var(--space-11xl) * 0.4);"></div></div><div class="sp-use">Maximum scale step</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Context reference</div>
+    <table>
+      <thead><tr><th style="width:40%">Context</th><th style="width:16%">Value</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="t-el">Card internal padding<span class="t-note-sm">visual-card, chat box, request box</span></td><td class="t-after">16px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-xl</td></tr>
+        <tr><td class="t-el">Card section gap<span class="t-note-sm">Between major blocks inside a card</span></td><td class="t-after">16px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-xl</td></tr>
+        <tr><td class="t-el">KPI card inner padding</td><td class="t-after">12px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-lg</td></tr>
+        <tr><td class="t-el">KPI cell gap<span class="t-note-sm">Pollutant grid</span></td><td class="t-after">8px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-md</td></tr>
+        <tr><td class="t-el">Header stack gap<span class="t-note-sm">back → title → pills</span></td><td class="t-after">8px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-md</td></tr>
+        <tr><td class="t-el">Title-to-subtitle gap</td><td class="t-after">4px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-xs</td></tr>
+        <tr><td class="t-el">Section separator gap<span class="t-note-sm">KPI group dividers</span></td><td class="t-after">12px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-lg</td></tr>
+        <tr><td class="t-el">Chat content to chat box</td><td class="t-after">24px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-3xl</td></tr>
+        <tr><td class="t-el">Login form field gap</td><td class="t-after">16px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-xl</td></tr>
+        <tr><td class="t-el">Login form to CTA</td><td class="t-after">40px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-5xl</td></tr>
+        <tr><td class="t-el">Screen edge padding</td><td class="t-after">20px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-2xl</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ============ LAYOUT ============ -->
+<div id="layout" class="tab-content">
+  <div class="section">
+    <div class="sec-label">Layout dimensions — 1920×1080</div>
+    <table>
+      <thead><tr><th style="width:40%">Element</th><th style="width:18%">Value</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="t-el">Header zone height</td><td class="t-after">140px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Title + subtitle + pill row</td></tr>
+        <tr><td class="t-el">KPI sidebar width</td><td class="t-after">380px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Leaves more room for map canvas</td></tr>
+        <tr><td class="t-el">Visual card (tooltip) width</td><td class="t-after">380px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Matches sidebar width</td></tr>
+        <tr><td class="t-el">Visual card height</td><td class="t-after">~680px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Fits within 1080p without scroll</td></tr>
+        <tr><td class="t-el">KPI card height</td><td class="t-after">176px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Grid cellc with compact padding</td></tr>
+        <tr><td class="t-el">Pollutant cell height</td><td class="t-after">92px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Value + unit + label</td></tr>
+        <tr><td class="t-el">Chat request box padding</td><td class="t-after">16px</td><td style="font-size:12px;color:var(--lc-text-secondary)">--space-xl all sides</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============ RADIUS ============ -->
+<div id="radius" class="tab-content">
+  <div class="section">
+    <div class="sec-label">Radius scale — Figma (none → 4xl + full)</div>
+    <table>
+      <thead><tr><th style="width:30%">Token</th><th style="width:16%">Value</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="t-el">--radius-none</td><td class="t-after">0</td><td style="font-size:12px;color:var(--lc-text-secondary)">Square corners</td></tr>
+        <tr><td class="t-el">--radius-xxs</td><td class="t-after">2px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Hairline chips</td></tr>
+        <tr><td class="t-el">--radius-xs</td><td class="t-after">4px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Micro bars, tiny swatches</td></tr>
+        <tr><td class="t-el">--radius-sm</td><td class="t-after">6px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Compact controls; <span style="font-family:'JetBrains Mono',monospace;">--radius-xs</span> maps here</td></tr>
+        <tr><td class="t-el">--radius-md</td><td class="t-after">8px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Badges, tags, mode pairs</td></tr>
+        <tr><td class="t-el">--radius-lg</td><td class="t-after">10px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Cards-sm; <span style="font-family:'JetBrains Mono',monospace;">--radius-sm</span> maps here</td></tr>
+        <tr><td class="t-el">--radius-xl</td><td class="t-after">12px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Inputs, dropdowns, inner panels</td></tr>
+        <tr><td class="t-el">--radius-2xl</td><td class="t-after">16px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Default cards → <span style="font-family:'JetBrains Mono',monospace;">--radius-2xl</span></td></tr>
+        <tr><td class="t-el">--radius-3xl</td><td class="t-after">20px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Large cards → <span style="font-family:'JetBrains Mono',monospace;">--radius-3xl</span></td></tr>
+        <tr><td class="t-el">--radius-4xl</td><td class="t-after">24px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Hero panels</td></tr>
+        <tr><td class="t-el">--radius-full</td><td class="t-after">9999px</td><td style="font-size:12px;color:var(--lc-text-secondary)">Pills → <span style="font-family:'JetBrains Mono',monospace;">--radius-full</span></td></tr>
+      </tbody>
+    </table>
+    <div class="sec-label" style="margin-top:20px;">Visual reference</div>
+    <div class="radius-demo">
+      <div class="rd" style="border-radius:var(--radius-none);">0</div>
+      <div class="rd" style="border-radius:var(--radius-xxs);">xxs</div>
+      <div class="rd" style="border-radius:var(--radius-xs);">xs</div>
+      <div class="rd" style="border-radius:var(--radius-sm);">sm</div>
+      <div class="rd" style="border-radius:var(--radius-md);">md</div>
+      <div class="rd" style="border-radius:var(--radius-lg);">lg</div>
+      <div class="rd" style="border-radius:var(--radius-xl);">xl</div>
+      <div class="rd" style="border-radius:var(--radius-2xl);">2xl</div>
+      <div class="rd" style="border-radius:var(--radius-3xl);">3xl</div>
+      <div class="rd" style="border-radius:var(--radius-4xl);">4xl</div>
+      <div class="rd" style="border-radius:var(--radius-full);">full</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ALL TOKENS ============ -->
+<div id="tokens" class="tab-content">
+
+  <div class="section">
+    <div class="sec-label">Surfaces &amp; layout (theme)</div>
+    <table>
+      <thead><tr><th style="width:42%">Token</th><th style="width:28%">Maps to (dark / light)</th><th style="width:8%">Chips</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">--lc-surface-base</td><td class="tok-val" style="font-size:9px;">rgba(6,14,23,.5) / rgba(244,247,252,.5)</td><td><span class="tok-chip" style="background:var(--lc-surface-base);border:1px solid var(--lc-border-default);"></span></td><td class="tok-desc">Page background · <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-base</span> aliases this · pair with <span style="font-family:'JetBrains Mono',monospace;">blur(30px)</span> on <span style="font-family:'JetBrains Mono',monospace;">body</span></td></tr>
+        <tr><td class="tok-name">--lc-surface-1</td><td class="tok-val" style="font-size:9px;">rgba(13,27,42,.5) / rgba(255,255,255,.5)</td><td><span class="tok-chip" style="background:var(--lc-surface-1);border:1px solid var(--lc-border-default);"></span></td><td class="tok-desc">Primary card, tables, type preview · <span style="font-family:'JetBrains Mono',monospace;">blur(30px)</span></td></tr>
+        <tr><td class="tok-name">--lc-surface-2</td><td class="tok-val" style="font-size:9px;">rgba(26,42,61,.5) / rgba(240,244,250,.5)</td><td><span class="tok-chip" style="background:var(--lc-surface-2);border:1px solid var(--lc-border-default);"></span></td><td class="tok-desc">Elevated panels, table header, theme toggle · <span style="font-family:'JetBrains Mono',monospace;">blur(30px)</span></td></tr>
+        <tr><td class="tok-name">--lc-surface-3</td><td class="tok-val" style="font-size:9px;">rgba(46,63,85,.5) / rgba(226,236,249,.5)</td><td><span class="tok-chip" style="background:var(--lc-surface-3);border:1px solid var(--lc-border-default);"></span></td><td class="tok-desc">Overlay / modal / toast · <span style="font-family:'JetBrains Mono',monospace;">blur(30px)</span></td></tr>
+        <tr><td class="tok-name">--lc-surface-0 / --lc-surface-4</td><td class="tok-val" style="font-size:10px;">aliases</td><td><div class="chip-pair"><span class="tok-chip" style="background:var(--lc-surface-0);border:1px solid var(--lc-border-default);"></span><span class="tok-chip" style="background:var(--lc-surface-4);border:1px solid var(--lc-border-default);"></span></div></td><td class="tok-desc"><span style="font-family:'JetBrains Mono',monospace;">--lc-surface-0</span> → <span style="font-family:'JetBrains Mono',monospace;">base</span>; <span style="font-family:'JetBrains Mono',monospace;">--lc-surface-4</span> → <span style="font-family:'JetBrains Mono',monospace;">--lc-surface-3</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Brand &amp; primary actions</div>
+    <table>
+      <thead><tr><th style="width:42%">Token</th><th style="width:28%">Dark / Light</th><th style="width:8%">Chips</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">--lc-text-brand</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-text-brand);border:1px solid var(--lc-border-default);"></span></td><td class="tok-desc">Brand-colored text, links, ghost buttons</td></tr>
+        <tr><td class="tok-name">--lc-text-brand-hover</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-text-brand-hover);border:1px solid var(--lc-border-default);"></span></td><td class="tok-desc">Brand text hover</td></tr>
+        <tr><td class="tok-name">--lc-text-on-brand</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-text-on-brand);border:1px solid var(--lc-border-default);"></span></td><td class="tok-desc">Ink on solid primary fills</td></tr>
+        <tr><td class="tok-name">--lc-bg-brand</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-bg-brand)"></span></td><td class="tok-desc">Primary solid fill</td></tr>
+        <tr><td class="tok-name">--lc-bg-brand-hover</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-bg-brand-hover)"></span></td><td class="tok-desc">Primary hover</td></tr>
+        <tr><td class="tok-name">--lc-bg-brand-pressed</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-bg-brand-pressed)"></span></td><td class="tok-desc">Primary pressed</td></tr>
+        <tr><td class="tok-name">--lc-bg-brand-subtle</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-bg-brand-subtle);border:1px solid var(--lc-border-default)"></span></td><td class="tok-desc">Brand wash, selected pills, info badge fill</td></tr>
+        <tr><td class="tok-name">--lc-ring-brand</td><td class="tok-val" style="font-size:10px;">color-mix</td><td><span class="tok-chip" style="background:var(--lc-ring-brand);border:1px solid var(--lc-border-default)"></span></td><td class="tok-desc">Focus ring on interactive controls</td></tr>
+        <tr><td class="tok-name">Ghost hover (playground)</td><td class="tok-val" style="font-size:10px;">see CSS</td><td><span class="tok-chip pg-demo-ghost-hover"></span></td><td class="tok-desc"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;">.pg-demo-ghost-hover</span> — theme-aware <span style="font-family:'JetBrains Mono',monospace;">color-mix</span> on primary seed</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Text hierarchy &amp; dividers</div>
+    <table>
+      <thead><tr><th style="width:42%">Token</th><th style="width:28%">Dark / Light</th><th style="width:8%">Chips</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">--lc-text-primary</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-text-primary);border:1px solid var(--lc-border-default)"></span></td><td class="tok-desc">Headings, body, default ink</td></tr>
+        <tr><td class="tok-name">--lc-text-secondary</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-text-secondary);border:1px solid var(--lc-border-default)"></span></td><td class="tok-desc">Muted labels, secondary buttons, supporting copy</td></tr>
+        <tr><td class="tok-name">--lc-text-tertiary</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-text-tertiary);border:1px solid var(--lc-border-default)"></span></td><td class="tok-desc">Placeholders, meta, pressed secondary ink</td></tr>
+        <tr><td class="tok-name">--lc-text-placeholder</td><td class="tok-val" style="font-size:10px;">→ tertiary</td><td><span class="tok-chip" style="background:var(--lc-text-placeholder);border:1px solid var(--lc-border-default)"></span></td><td class="tok-desc">Generic placeholder ink; form fields prefer <span style="font-family:'JetBrains Mono',monospace;">--lc-text-control-placeholder</span></td></tr>
+        <tr><td class="tok-name">--lc-bg-control … --lc-shadow-control-error-focus</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-bg-control);border:1px solid var(--lc-border-control);"></span></td><td class="tok-desc">Form chrome: <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-control</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-bg-control-disabled</span>, <span style="font-family:'JetBrains Mono',monospace;">--lc-border-control</span> (+ <span style="font-family:'JetBrains Mono',monospace;">hover</span>/<span style="font-family:'JetBrains Mono',monospace;">focus</span>/<span style="font-family:'JetBrains Mono',monospace;">disabled</span>), <span style="font-family:'JetBrains Mono',monospace;">--lc-text-control</span> (+ <span style="font-family:'JetBrains Mono',monospace;">placeholder</span>/<span style="font-family:'JetBrains Mono',monospace;">disabled</span>), <span style="font-family:'JetBrains Mono',monospace;">--lc-shadow-control-focus</span> / <span style="font-family:'JetBrains Mono',monospace;">--lc-shadow-control-error-focus</span></td></tr>
+        <tr><td class="tok-name">--lc-border-subtle</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-border-subtle);border:1px solid var(--lc-border-default)"></span></td><td class="tok-desc">Hairline dividers</td></tr>
+        <tr><td class="tok-name">--lc-border-default / --lc-border-strong</td><td class="tok-val" style="font-size:10px;">semantic</td><td><div class="chip-pair"><span class="tok-chip" style="background:var(--lc-border-default)"></span><span class="tok-chip" style="background:var(--lc-border-strong)"></span></div></td><td class="tok-desc">Cards, inputs (strong = hover / emphasis)</td></tr>
+        <tr><td class="tok-name">--lc-bg-neutral (+ hover / pressed / subtle)</td><td class="tok-val" style="font-size:10px;">semantic</td><td><span class="tok-chip" style="background:var(--lc-bg-neutral)"></span></td><td class="tok-desc">Neutral action fills (toolbar, secondary solid)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Status & feedback</div>
+    <table>
+      <thead><tr><th style="width:42%">Token</th><th style="width:28%">Dark / Light</th><th style="width:8%">Chips</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">--lc-bg-positive (+ hover / pressed / subtle)</td><td class="tok-val" style="font-size:10px;">semantic</td><td><div class="chip-pair"><span class="tok-chip" style="background:var(--lc-bg-positive)"></span><span class="tok-chip" style="background:var(--lc-bg-positive-subtle);border:1px solid var(--lc-border-default)"></span></div></td><td class="tok-desc">Solid fills + soft washes; pair with <span style="font-family:'JetBrains Mono',monospace;">--lc-text-positive</span> on subtle</td></tr>
+        <tr><td class="tok-name">--lc-bg-warning (+ hover / pressed / subtle)</td><td class="tok-val" style="font-size:10px;">semantic</td><td><div class="chip-pair"><span class="tok-chip" style="background:var(--lc-bg-warning)"></span><span class="tok-chip" style="background:var(--lc-bg-warning-subtle);border:1px solid var(--lc-border-default)"></span></div></td><td class="tok-desc">Warning fills; ink <span style="font-family:'JetBrains Mono',monospace;">--lc-text-warning</span> / <span style="font-family:'JetBrains Mono',monospace;">--lc-text-on-warning</span></td></tr>
+        <tr><td class="tok-name">--lc-bg-negative (+ hover / pressed / subtle)</td><td class="tok-val" style="font-size:10px;">semantic</td><td><div class="chip-pair"><span class="tok-chip" style="background:var(--lc-bg-negative)"></span><span class="tok-chip" style="background:var(--lc-bg-negative-subtle);border:1px solid var(--lc-border-default)"></span></div></td><td class="tok-desc">Error fills; field errors use <span style="font-family:'JetBrains Mono',monospace;">--lc-text-negative</span> and <span style="font-family:'JetBrains Mono',monospace;">--lc-border-negative</span></td></tr>
+        <tr><td class="tok-name">--lc-text-positive / warning / negative</td><td class="tok-val" style="font-size:10px;">scale steps</td><td><span class="tok-chip" style="background:var(--lc-text-positive);border:1px solid var(--lc-border-default)"></span></td><td class="tok-desc">Semantic ink on surfaces (see CSS)</td></tr>
+        <tr><td class="tok-name">--lc-text-brand + --lc-bg-brand-subtle</td><td class="tok-val" style="font-size:10px;">semantic</td><td><div class="chip-pair"><span class="tok-chip" style="background:var(--lc-text-brand);border:1px solid var(--lc-border-default)"></span><span class="tok-chip" style="background:var(--lc-bg-brand-subtle);border:1px solid var(--lc-border-default)"></span></div></td><td class="tok-desc">Info-style badges (same as brand text + wash)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Typography tokens</div>
+    <table>
+      <thead><tr><th style="width:42%">Token</th><th style="width:18%">Value</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">--lc-font-sans</td><td class="tok-val" style="font-size:10px;">Innovator Grotesk</td><td class="tok-desc">Primary typeface</td></tr>
+        <tr><td class="tok-name">--lc-font-data</td><td class="tok-val" style="font-size:10px;">IBM Plex Mono</td><td class="tok-desc">Data values, pollutant numbers</td></tr>
+        <tr><td class="tok-name">--lc-font-mono</td><td class="tok-val" style="font-size:10px;">IBM Plex Mono</td><td class="tok-desc">Code, tokens, axis labelc</td></tr>
+        <tr><td class="tok-name">--lc-font-display</td><td class="tok-val">32px / 700</td><td class="tok-desc">Hero KPI numbers only</td></tr>
+        <tr><td class="tok-name">--lc-font-heading-lg</td><td class="tok-val">24px / 700</td><td class="tok-desc">Page titles, secondary stats</td></tr>
+        <tr><td class="tok-name">--lc-font-heading-md</td><td class="tok-val">20px / 500</td><td class="tok-desc">Card titles</td></tr>
+        <tr><td class="tok-name">--lc-font-heading-sm</td><td class="tok-val">18px / 500</td><td class="tok-desc">Tertiary stats, pollutant values</td></tr>
+        <tr><td class="tok-name">--lc-font-body</td><td class="tok-val">14px / 400</td><td class="tok-desc">Body text, inputs, labels, pills</td></tr>
+        <tr><td class="tok-name">--lc-font-caption</td><td class="tok-val">13px / 400</td><td class="tok-desc">Legends, form labelc, map data</td></tr>
+        <tr><td class="tok-name">--lc-font-small</td><td class="tok-val">12px / 400</td><td class="tok-desc">Badges, status pills</td></tr>
+        <tr><td class="tok-name">--lc-font-micro</td><td class="tok-val">11px / 400</td><td class="tok-desc">Chart axis labelc, timestamps</td></tr>
+        <tr><td class="tok-name">--lc-font-unit</td><td class="tok-val">10px / 400</td><td class="tok-desc">Measurement units (ug/m³)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Spacing tokens</div>
+    <table>
+      <thead><tr><th style="width:42%">Token</th><th style="width:18%">Value</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">--space-none</td><td class="tok-val">0</td><td class="tok-desc">Reset / collapse</td></tr>
+        <tr><td class="tok-name">--space-xxs</td><td class="tok-val">2px</td><td class="tok-desc">Icon-to-text nudge</td></tr>
+        <tr><td class="tok-name">--space-xs</td><td class="tok-val">4px</td><td class="tok-desc">Title-to-subtitle</td></tr>
+        <tr><td class="tok-name">--space-sm</td><td class="tok-val">6px</td><td class="tok-desc">Tight stacks</td></tr>
+        <tr><td class="tok-name">--space-md</td><td class="tok-val">8px</td><td class="tok-desc">Default element gap, grid cell gap</td></tr>
+        <tr><td class="tok-name">--space-lg</td><td class="tok-val">12px</td><td class="tok-desc">Section separators, inner card padding</td></tr>
+        <tr><td class="tok-name">--space-xl</td><td class="tok-val">16px</td><td class="tok-desc">Card padding, card section gap</td></tr>
+        <tr><td class="tok-name">--space-2xl</td><td class="tok-val">20px</td><td class="tok-desc">Screen edge padding, map margins</td></tr>
+        <tr><td class="tok-name">--space-3xl</td><td class="tok-val">24px</td><td class="tok-desc">Major section gaps</td></tr>
+        <tr><td class="tok-name">--space-4xl</td><td class="tok-val">32px</td><td class="tok-desc">Large rhythm</td></tr>
+        <tr><td class="tok-name">--space-5xl</td><td class="tok-val">40px</td><td class="tok-desc">Login form to CTA, hero gaps</td></tr>
+        <tr><td class="tok-name">--space-6xl</td><td class="tok-val">48px</td><td class="tok-desc">Wide section breaks</td></tr>
+        <tr><td class="tok-name">--space-7xl</td><td class="tok-val">64px</td><td class="tok-desc">Hero / marketing blocks</td></tr>
+        <tr><td class="tok-name">--space-8xl</td><td class="tok-val">80px</td><td class="tok-desc">Page-level air</td></tr>
+        <tr><td class="tok-name">--space-9xl</td><td class="tok-val">96px</td><td class="tok-desc">Large hero padding</td></tr>
+        <tr><td class="tok-name">--space-10xl</td><td class="tok-val">128px</td><td class="tok-desc">XL section spacing</td></tr>
+        <tr><td class="tok-name">--space-11xl</td><td class="tok-val">160px</td><td class="tok-desc">Maximum scale step</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Radius tokens</div>
+    <table>
+      <thead><tr><th style="width:42%">Token</th><th style="width:18%">Value</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">--radius-none</td><td class="tok-val">0</td><td class="tok-desc">Square corners</td></tr>
+        <tr><td class="tok-name">--radius-xxs</td><td class="tok-val">2px</td><td class="tok-desc">Hairline chips</td></tr>
+        <tr><td class="tok-name">--radius-xs</td><td class="tok-val">4px</td><td class="tok-desc">Micro bars, swatches</td></tr>
+        <tr><td class="tok-name">--radius-sm</td><td class="tok-val">6px</td><td class="tok-desc">Compact controls; layout alias <span style="font-family:'JetBrains Mono',monospace;font-size:10px;">--radius-xs</span></td></tr>
+        <tr><td class="tok-name">--radius-md</td><td class="tok-val">8px</td><td class="tok-desc">Badges, tags, mode pairs</td></tr>
+        <tr><td class="tok-name">--radius-lg</td><td class="tok-val">10px</td><td class="tok-desc">Cards-sm; layout alias <span style="font-family:'JetBrains Mono',monospace;font-size:10px;">--radius-sm</span></td></tr>
+        <tr><td class="tok-name">--radius-xl</td><td class="tok-val">12px</td><td class="tok-desc">Inner surfaces</td></tr>
+        <tr><td class="tok-name">--radius-2xl</td><td class="tok-val">16px</td><td class="tok-desc">Default cards; use <span style="font-family:'JetBrains Mono',monospace;font-size:10px;">--radius-2xl</span> for page cards in this doc</td></tr>
+        <tr><td class="tok-name">--radius-3xl</td><td class="tok-val">20px</td><td class="tok-desc">Large cards</td></tr>
+        <tr><td class="tok-name">--radius-4xl</td><td class="tok-val">24px</td><td class="tok-desc">Hero panels</td></tr>
+        <tr><td class="tok-name">--radius-full</td><td class="tok-val">9999px</td><td class="tok-desc">Pills, circles</td></tr>
+        <tr><td class="tok-name" colspan="2" style="font-size:11px;color:var(--lc-text-secondary)">Naming conventions (not separate CSS vars)</td><td class="tok-desc">Pills: <span style="font-family:'JetBrains Mono',monospace;">--radius-full</span> · Cards: <span style="font-family:'JetBrains Mono',monospace;">--radius-3xl</span> · Inputs: <span style="font-family:'JetBrains Mono',monospace;">--radius-xl</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">DataViz aliases</div>
+    <table>
+      <thead><tr><th style="width:42%">Token</th><th style="width:18%">Value</th><th style="width:8%">Chip</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">--lc-dataviz-1</td><td class="tok-val">categorical-01-500</td><td><span class="tok-chip" style="background:var(--lc-dataviz-1)"></span></td><td class="tok-desc">categorical-01 (seed slot 1)</td></tr>
+        <tr><td class="tok-name">--lc-dataviz-2</td><td class="tok-val">categorical-02-500</td><td><span class="tok-chip" style="background:var(--lc-dataviz-2)"></span></td><td class="tok-desc">categorical-02</td></tr>
+        <tr><td class="tok-name">--lc-dataviz-3</td><td class="tok-val">categorical-03-500</td><td><span class="tok-chip" style="background:var(--lc-dataviz-3)"></span></td><td class="tok-desc">categorical-03</td></tr>
+        <tr><td class="tok-name">--lc-dataviz-4</td><td class="tok-val">categorical-04-500</td><td><span class="tok-chip" style="background:var(--lc-dataviz-4)"></span></td><td class="tok-desc">categorical-04</td></tr>
+        <tr><td class="tok-name">--lc-dataviz-5</td><td class="tok-val">categorical-05-500</td><td><span class="tok-chip" style="background:var(--lc-dataviz-5)"></span></td><td class="tok-desc">categorical-05</td></tr>
+        <tr><td class="tok-name">--lc-dataviz-6</td><td class="tok-val">categorical-06-500</td><td><span class="tok-chip" style="background:var(--lc-dataviz-6)"></span></td><td class="tok-desc">categorical-06</td></tr>
+        <tr><td class="tok-name">--lc-dataviz-7</td><td class="tok-val">categorical-07-500</td><td><span class="tok-chip" style="background:var(--lc-dataviz-7)"></span></td><td class="tok-desc">categorical-07</td></tr>
+        <tr><td class="tok-name">--lc-dataviz-8</td><td class="tok-val">categorical-08-500</td><td><span class="tok-chip" style="background:var(--lc-dataviz-8)"></span></td><td class="tok-desc">categorical-08</td></tr>
+        <tr><td class="tok-name">--lc-shadow-1 … --lc-shadow-4</td><td class="tok-val" style="font-size:10px;">box-shadow</td><td><span class="tok-chip" style="background:var(--color-neutral-700);box-shadow:var(--lc-shadow-2);"></span></td><td class="tok-desc">Elevation shadows (see CSS <span style="font-family:'JetBrains Mono',monospace;">--lc-shadow-*</span>)</td></tr>
+        <tr><td class="tok-name">--lc-dv-blue-red-1 … 7</td><td class="tok-val" style="font-size:10px;">theme</td><td><span class="tok-chip" style="background:var(--lc-dv-blue-red-4)"></span></td><td class="tok-desc">Diverging data viz: primary ↔ negative</td></tr>
+        <tr><td class="tok-name">--lc-dv-violet-amber-1 … 7</td><td class="tok-val" style="font-size:10px;">theme</td><td><span class="tok-chip" style="background:var(--lc-dv-violet-amber-4)"></span></td><td class="tok-desc">refract-01 ↔ refract-04</td></tr>
+        <tr><td class="tok-name">--lc-dv-cyan-magenta-1 … 7</td><td class="tok-val" style="font-size:10px;">theme</td><td><span class="tok-chip" style="background:var(--lc-dv-cyan-magenta-4)"></span></td><td class="tok-desc">refract-02 ↔ refract-03</td></tr>
+        <tr><td class="tok-name">--lc-text-primary</td><td class="tok-val" style="font-size:10px;">white / neutral-900</td><td><div class="chip-pair"><span class="tok-chip" style="background:var(--lc-text-primary);border:1px solid var(--lc-border-default);"></span></div></td><td class="tok-desc">Main reading text (theme)</td></tr>
+        <tr><td class="tok-name">--lc-text-secondary</td><td class="tok-val" style="font-size:10px;">neutral-100 / neutral-600</td><td><span class="tok-chip" style="background:var(--lc-text-secondary);border:1px solid var(--lc-border-default);"></span></td><td class="tok-desc">Supporting text per theme</td></tr>
+        <tr><td class="tok-name">--lc-text-tertiary</td><td class="tok-val" style="font-size:10px;">neutral-300 (both)</td><td><span class="tok-chip" style="background:var(--lc-text-tertiary);border:1px solid var(--lc-border-default);"></span></td><td class="tok-desc">Hints, meta, quiet UI copy per theme</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="sec-label">Legacy <span style="font-family:'JetBrains Mono',monospace;">--ll-*</span> color names → Llumen semantics</div>
+    <table>
+      <thead><tr><th style="width:38%">Legacy</th><th style="width:42%">Use instead</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="tok-name">--ll-color-primary</td><td class="tok-name">--lc-bg-brand</td><td class="tok-desc">Primary fill</td></tr>
+        <tr><td class="tok-name">--ll-color-primary-hover</td><td class="tok-name">--lc-bg-brand-hover</td><td class="tok-desc"></td></tr>
+        <tr><td class="tok-name">--ll-color-neutral</td><td class="tok-name">--lc-text-secondary</td><td class="tok-desc">Secondary label ink</td></tr>
+        <tr><td class="tok-name">--ll-color-neutral-hover</td><td class="tok-name">--lc-text-primary</td><td class="tok-desc">Stronger label on hover</td></tr>
+        <tr><td class="tok-name">--ll-color-positive</td><td class="tok-name">--lc-bg-positive</td><td class="tok-desc">Solid positive fill</td></tr>
+        <tr><td class="tok-name">--ll-color-positive-hover</td><td class="tok-name">--lc-bg-positive-hover</td><td class="tok-desc"></td></tr>
+        <tr><td class="tok-name">--ll-color-warning</td><td class="tok-name">--lc-bg-warning</td><td class="tok-desc"></td></tr>
+        <tr><td class="tok-name">--ll-color-warning-hover</td><td class="tok-name">--lc-bg-warning-hover</td><td class="tok-desc"></td></tr>
+        <tr><td class="tok-name">--ll-color-negative</td><td class="tok-name">--lc-bg-negative</td><td class="tok-desc"></td></tr>
+        <tr><td class="tok-name">--ll-color-negative-hover</td><td class="tok-name">--lc-bg-negative-hover</td><td class="tok-desc"></td></tr>
+        <tr><td class="tok-name">--ll-color-accent</td><td class="tok-name">--lc-text-brand</td><td class="tok-desc">Lighter brand as text (not chart red)</td></tr>
+        <tr><td class="tok-name">--ll-color-muted</td><td class="tok-name">--lc-text-secondary</td><td class="tok-desc"></td></tr>
+        <tr><td class="tok-name">--ll-color-muted-lighter</td><td class="tok-name">--lc-text-tertiary</td><td class="tok-desc"></td></tr>
+        <tr><td class="tok-name">--ll-color-divider</td><td class="tok-name">--lc-border-subtle</td><td class="tok-desc"></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+</div>
+</main>
+
+</div>
+</div>
+
+<div id="toast"></div>
+<div id="pg-surface-tooltip-flyout" class="pg-surface-tooltip-flyout" role="tooltip" hidden><span class="pg-surface-tooltip-flyout__inner"></span></div>
+</div>
+
+<script type="module">
+  (async () => {
+    const mountNode = document.getElementById('mesh-gradient-bg');
+    if (!mountNode) return;
+
+    const DARK_COLORS = ['#4659AA', '#182941', '#1F3049', '#122746', '#172C4B', '#28456F', '#482E57'];
+    /* Paper — light (https://app.paper.design/.../14-0, May 6, 2026) */
+    const LIGHT_COLORS = ['#8A8EF5', '#97C1FD', '#84B1F5', '#5C9DFF', '#DFEAFB', '#74A3EA', '#74A3EA'];
+
+    try {
+      const [{ default: React }, { createRoot }, { MeshGradient }] = await Promise.all([
+        import('https://esm.sh/react@18.3.1'),
+        import('https://esm.sh/react-dom@18.3.1/client'),
+        import(
+          'https://esm.sh/@paper-design/shaders-react@0.0.76?deps=react@18.3.1,react-dom@18.3.1'
+        )
+      ]);
+
+      function PaperMeshBg() {
+        const initial =
+          document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+        const [theme, setTheme] = React.useState(initial);
+        const [dims, setDims] = React.useState(() => ({
+          width: window.innerWidth,
+          height: window.innerHeight
+        }));
+
+        React.useEffect(() => {
+          const sync = () => {
+            setTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+          };
+          sync();
+          const mo = new MutationObserver(sync);
+          mo.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-theme']
+          });
+          return () => mo.disconnect();
+        }, []);
+
+        React.useEffect(() => {
+          const onResize = () =>
+            setDims({ width: window.innerWidth, height: window.innerHeight });
+          window.addEventListener('resize', onResize);
+          return () => window.removeEventListener('resize', onResize);
+        }, []);
+
+        const colors = theme === 'light' ? LIGHT_COLORS : DARK_COLORS;
+        const frame = theme === 'light' ? 476084.28499991837 : 457832.3249999223;
+        const distortion = theme === 'light' ? 0.09 : 0.14;
+
+        return React.createElement(MeshGradient, {
+          speed: 0.1,
+          scale: 1,
+          distortion,
+          swirl: 0,
+          frame,
+          colors,
+          width: dims.width,
+          height: dims.height,
+          className: 'paper-mesh-gradient',
+          style: {
+            width: '100%',
+            height: '100%',
+            minHeight: '100vh',
+            display: 'block'
+          }
+        });
+      }
+
+      const root = createRoot(mountNode);
+      root.render(React.createElement(PaperMeshBg));
+    } catch (error) {
+      console.warn('Paper shader background failed to load; using fallback gradient.', error);
+    }
+  })();
+</script>
+<script src="llumen-design-system.js" defer></script>
+
+
+</body>
+</html>

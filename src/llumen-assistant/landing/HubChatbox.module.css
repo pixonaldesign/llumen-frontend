@@ -1,0 +1,618 @@
+.root {
+  position: relative;
+  /* Above the toast siblings' base layer; the dock itself is above the aurora. */
+  z-index: 2;
+  width: 100%;
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: none;
+  transition:
+    transform var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    opacity var(--lc-rail-enter-duration, 320ms) var(--lc-ease);
+}
+
+.rootExiting {
+  transform: translateY(28px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.rootMorphingOut {
+  pointer-events: none;
+}
+
+.beamWrap {
+  display: block;
+  width: 100%;
+  pointer-events: auto;
+  border-radius: var(--radius-3xl);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Stretch the traveling line-beam upward so the glow fills more of the toast. */
+.beamWrap[data-beam][data-active]::after,
+.beamWrap[data-beam][data-fading]::after {
+  transform: scale(1.35, 2.8);
+  transform-origin: 50% 100%;
+}
+
+.beamWrap[data-beam][data-active]::before,
+.beamWrap[data-beam][data-fading]::before {
+  transform: scale(1.45, 3.2);
+  transform-origin: 50% 100%;
+}
+
+.beamWrap[data-beam] [data-beam-bloom] {
+  transform: scale(1.55, 3.6);
+  transform-origin: 50% 100%;
+}
+
+.box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-3xl);
+  background: rgba(14, 16, 20, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  box-sizing: border-box;
+  transform-origin: center center;
+}
+
+.box[data-finding-cue='true'] {
+  border-color: transparent;
+}
+
+.box[data-finding-cue='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--orb-shimmer-angle, 0deg),
+    var(--orb-shimmer-2, #2a4098) 0deg,
+    var(--orb-shimmer-1, #3c78ff) 70deg,
+    var(--orb-shimmer-3, #6beeff) 120deg,
+    var(--orb-shimmer-1, #3c78ff) 170deg,
+    var(--orb-shimmer-2, #2a4098) 240deg,
+    var(--orb-shimmer-2, #2a4098) 360deg
+  );
+  mask-image: linear-gradient(#fff, #fff), linear-gradient(#fff, #fff);
+  mask-clip: content-box, border-box;
+  mask-origin: border-box, border-box;
+  mask-composite: exclude;
+  mask-repeat: no-repeat;
+  opacity: 1;
+  transition: opacity 280ms ease;
+  animation: findingBorderShimmer 1s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.box[data-finding-cue='true'] {
+  transition: border-color 280ms ease;
+}
+
+.box[data-finding-cue='true'][data-shimmer-exit='true'] {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.box[data-finding-cue='true'][data-shimmer-exit='true']::after {
+  opacity: 0;
+}
+
+@keyframes findingBorderShimmer {
+  to {
+    --orb-shimmer-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box[data-finding-cue='true'],
+  .box[data-finding-cue='true']::after,
+  .orb[data-orb-cue='true']::before {
+    animation: none;
+    transition: none;
+  }
+}
+
+.collapseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Same width as .send so the X centers on the send arrow. */
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.collapseBtnOpposite {
+  margin-left: auto;
+}
+
+.collapseBtn:hover:not(:disabled) {
+  color: #fff;
+}
+
+.collapseBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.collapseBtn:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.rootExiting .box,
+.rootMorphingOut .box {
+  pointer-events: none;
+}
+
+.chipRow {
+  margin-bottom: 8px;
+}
+
+.composeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.orbWrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.orbRestore {
+  position: relative;
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.orb {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 1;
+  transition:
+    width 220ms var(--lc-ease),
+    opacity 180ms var(--lc-ease),
+    margin 220ms var(--lc-ease);
+}
+
+.unreadDot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff3b30;
+  box-shadow: 0 0 0 2px rgba(14, 16, 20, 0.95);
+  pointer-events: none;
+}
+
+.orbCollapsed {
+  width: 0;
+  margin: 0;
+  opacity: 0;
+}
+
+.orb[data-orb-cue='true']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--orb-shimmer-angle, 0deg),
+    var(--orb-shimmer-2, #2a4098) 0deg,
+    var(--orb-shimmer-1, #3c78ff) 70deg,
+    var(--orb-shimmer-3, #6beeff) 120deg,
+    var(--orb-shimmer-1, #3c78ff) 170deg,
+    var(--orb-shimmer-2, #2a4098) 240deg,
+    var(--orb-shimmer-2, #2a4098) 360deg
+  );
+  mask-image: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2px),
+    #000 calc(100% - 1px)
+  );
+  opacity: 1;
+  transition: opacity 280ms ease;
+  animation: findingBorderShimmer 1s linear infinite;
+  pointer-events: none;
+}
+
+.box[data-shimmer-exit='true'] .orb[data-orb-cue='true']::before {
+  opacity: 0;
+}
+
+.orb img {
+  position: relative;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb[data-orb-cue='true']::before {
+    animation: none;
+  }
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 96px;
+  margin: 0;
+  padding: 7px 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  line-height: 22px;
+  outline: none;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 1;
+  transition:
+    transform 220ms var(--lc-ease),
+    opacity 280ms var(--lc-ease);
+}
+
+.composerEditor {
+  outline: none;
+  caret-color: #fff;
+}
+
+.composerEditorEmpty:before {
+  content: attr(data-placeholder);
+  color: var(--lc-text-placeholder);
+  pointer-events: none;
+  float: left;
+  height: 0;
+  transform: translateX(0);
+  transition: transform 220ms var(--lc-ease);
+}
+
+.inputEngaged.composerEditorEmpty:before {
+  /* Optical nudge left as the idle orb collapses so the copy doesn’t pop. */
+  transform: translateX(-2px);
+}
+
+.input[contenteditable='false'] {
+  opacity: 0.6;
+}
+
+.composeActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-height: 0;
+  max-height: 44px;
+  margin-top: 8px;
+  overflow: hidden;
+  opacity: 1;
+  transition:
+    max-height 320ms var(--lc-ease),
+    margin-top 320ms var(--lc-ease),
+    opacity 240ms var(--lc-ease);
+}
+
+.toolbarCollapsed {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toolbarLeft,
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.toolbarRight {
+  margin-left: auto;
+}
+
+.iconAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.iconAction:hover:not(:disabled) {
+  color: #fff;
+}
+
+.iconAction:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.iconAction:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.labelAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  margin: 0;
+  padding: 0 2px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.labelAction:hover:not(:disabled),
+.labelActionActive:not(:disabled) {
+  color: #fff;
+}
+
+.labelAction:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.labelAction:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Match sessions / iconAction control size; icon stays 18px. */
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.send:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.send:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.send:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+.boxToast {
+  overflow: visible;
+  box-shadow: none;
+}
+
+.toastMessage {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 7px 0;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.wordReveal {
+  display: inline-block;
+  opacity: 0;
+  animation: wordRevealIn 0.44s var(--lc-ease) forwards;
+}
+
+@keyframes wordRevealIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.toastAction,
+.toastActionPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  margin: 0;
+  padding: 0 2px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toastAction {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.toastActionPrimary {
+  color: #fff;
+}
+
+.toastAction:hover,
+.toastActionPrimary:hover {
+  color: #fff;
+}
+
+.toastAction:focus-visible,
+.toastActionPrimary:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.toastClose {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toastClose:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.toastClose:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+.toastCloseRing {
+  position: absolute;
+  inset: 0;
+  width: 24px;
+  height: 24px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.toastCloseTrack,
+.toastCloseProgress {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.toastCloseTrack {
+  stroke: rgba(255, 255, 255, 0.22);
+}
+
+.toastCloseProgress {
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+  animation: toastCloseCountdown var(--toast-dismiss, 10s) linear forwards;
+}
+
+@keyframes toastCloseCountdown {
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .toolbar,
+  .orb,
+  .input,
+  .composerEditorEmpty:before {
+    transition: none;
+  }
+
+  .toolbarCollapsed {
+    margin-top: 0;
+  }
+
+  .wordReveal {
+    animation: none;
+    opacity: 1;
+  }
+
+  .beamWrap[data-beam][data-active]::after,
+  .beamWrap[data-beam][data-fading]::after,
+  .beamWrap[data-beam][data-active]::before,
+  .beamWrap[data-beam][data-fading]::before,
+  .beamWrap[data-beam] [data-beam-bloom] {
+    transform: scale(1.25, 2.4);
+  }
+}

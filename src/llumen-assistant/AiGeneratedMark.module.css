@@ -1,0 +1,32 @@
+.mark {
+  position: relative;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 10050;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(12, 18, 28, 0.96);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.tooltipText {
+  margin: 0;
+  font: var(--lc-font-caption);
+  color: rgba(226, 232, 240, 0.95);
+  white-space: nowrap;
+}

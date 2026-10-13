@@ -1,0 +1,920 @@
+.root {
+  width: 100%;
+  max-width: 100%;
+  padding: var(--space-xs) 0 var(--space-md);
+  color-scheme: dark;
+  overflow: visible;
+}
+
+.thinkingWrap {
+  margin: var(--space-md) 0 var(--space-sm);
+}
+
+.thinkingRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  color: rgba(148, 163, 184, 0.92);
+}
+
+.thinkingRow:disabled {
+  cursor: default;
+}
+
+.thinkingRow:not(:disabled):hover .thinkingLabel {
+  color: rgba(203, 213, 225, 0.95);
+}
+
+.thinkingLabel,
+.thinkingLabelActive {
+  font-size: var(--lc-text-caption);
+  font-weight: var(--lc-weight-regular);
+  line-height: var(--lc-leading-caption);
+  color: rgba(148, 163, 184, 0.92);
+}
+
+.thinkingLabelActive {
+  animation: thinkingPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes thinkingPulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinkingLabelActive {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.thinkingCaret {
+  flex-shrink: 0;
+  color: rgba(148, 163, 184, 0.85);
+  transition: transform var(--lc-duration) var(--lc-ease);
+}
+
+.thinkingCaretOpen {
+  transform: rotate(90deg);
+}
+
+.thinkingPopover {
+  --thinking-surface: var(--lc-surface-3);
+  --thinking-border: rgba(255, 255, 255, 0.14);
+  --thinking-highlight: rgba(255, 255, 255, 0.08);
+
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  max-height: min(360px, 50vh);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--thinking-border);
+  background: var(--thinking-surface);
+  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  box-shadow:
+    inset 0 1px 0 var(--thinking-highlight),
+    0 24px 56px rgba(0, 0, 0, 0.42);
+  animation: thinkingPanelIn 0.22s var(--lc-ease) both;
+}
+
+.thinkingPopoverAbove {
+  animation-name: thinkingPanelInAbove;
+}
+
+@keyframes thinkingPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes thinkingPanelInAbove {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinkingPopover {
+    animation: none;
+  }
+}
+
+.thinkingPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-shrink: 0;
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--lc-surface-3);
+  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
+}
+
+.thinkingPanelTitle {
+  margin: 0;
+  font-size: var(--lc-text-heading-sm);
+  font-weight: var(--lc-weight-semibold);
+  line-height: var(--lc-leading-heading);
+  color: rgba(241, 245, 249, 0.98);
+}
+
+.thinkingPanelClose {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(148, 163, 184, 0.92);
+  cursor: pointer;
+}
+
+.thinkingPanelClose:hover {
+  color: rgba(241, 245, 249, 0.98);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.thinkingPanelClose:focus-visible {
+  outline: 2px solid rgba(132, 177, 245, 0.65);
+  outline-offset: 2px;
+}
+
+.thinkingStepList {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding-block: var(--space-lg) var(--space-2xl);
+  padding-inline-start: var(--space-xl);
+  padding-inline-end: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb) transparent;
+  box-sizing: border-box;
+}
+
+@supports (overflow: overlay) {
+  .thinkingStepList {
+    overflow-y: overlay;
+  }
+}
+
+/* Chromium drops ::-webkit-scrollbar sizing when scrollbar-color is set, which
+   brings back the thick system bar. Reset the standard props so the 4px thumb wins. */
+@supports selector(::-webkit-scrollbar) {
+  .thinkingStepList {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.thinkingStepList::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.thinkingStepList::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.thinkingStepList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thinkingStepList::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb);
+}
+
+.thinkingStepList::-webkit-scrollbar-thumb:hover {
+  background: var(--lc-scrollbar-thumb-hover);
+}
+
+.thinkingStepItem {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding-block: 0 var(--space-2xl);
+  padding-inline: 0 var(--space-xl);
+  animation: thinkingStepIn 0.36s var(--lc-ease) both;
+}
+
+.thinkingStepItem:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 26px;
+  bottom: 4px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.thinkingStepItem:last-child {
+  padding-bottom: 0;
+}
+
+@keyframes thinkingStepIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinkingStepItem {
+    animation: none;
+  }
+}
+
+.thinkingStepDot {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border-radius: 999px;
+  background: rgba(241, 245, 249, 0.92);
+}
+
+.thinkingStepIcon {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: transparent;
+}
+
+.thinkingStepText {
+  flex: 1;
+  min-width: 0;
+}
+
+.thinkingStepTitle {
+  display: block;
+  font-size: var(--lc-text-caption);
+  font-weight: var(--lc-weight-semibold);
+  line-height: var(--lc-leading-caption);
+  color: rgba(241, 245, 249, 0.96);
+}
+
+.openingLine {
+  margin: 0 0 var(--space-lg);
+  font: var(--lc-font-body-lg);
+  color: rgba(241, 245, 249, 0.95);
+}
+
+.wordReveal {
+  display: inline-block;
+  opacity: 0;
+  animation: wordRevealIn 0.44s var(--lc-ease) forwards;
+}
+
+@keyframes wordRevealIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordReveal {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+@keyframes timelineIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.timeline {
+  position: relative;
+  margin: 0;
+  padding: 4px 0 0 4px;
+  animation: timelineIn 0.5s var(--lc-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline {
+    animation: none;
+  }
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 14px;
+  bottom: 16px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.statusWrap {
+  width: 100%;
+  margin: 0;
+  padding: 4px 0 4px 4px;
+}
+
+.statusLine {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  animation: statusLineIn 0.5s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+@keyframes statusLineIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .statusLine {
+    animation: none;
+  }
+}
+
+.stepRow {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  width: 100%;
+  padding: 0 0 var(--space-lg) var(--space-4xl);
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+}
+
+.kindIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  margin-left: -28px;
+  margin-right: var(--space-md);
+  background: rgba(8, 11, 23, 0.96);
+  border-radius: 999px;
+  color: rgba(148, 163, 184, 0.95);
+  box-shadow: 0 0 0 2px rgba(8, 11, 23, 0.96);
+}
+
+.kindIconTool {
+  color: rgba(147, 197, 253, 0.95);
+}
+
+.kindIconOutcome {
+  color: var(--lc-text-positive);
+}
+
+.stepTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(241, 245, 249, 0.94);
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.stepTitleShimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(241, 245, 249, 0.55) 0%,
+    rgba(241, 245, 249, 0.95) 42%,
+    rgba(147, 197, 253, 0.98) 50%,
+    rgba(241, 245, 249, 0.95) 58%,
+    rgba(241, 245, 249, 0.55) 100%
+  );
+  background-size: 240% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: titleShimmer 3.2s ease-in-out infinite;
+}
+
+@keyframes titleShimmer {
+  0% {
+    background-position: 110% 0;
+  }
+  50% {
+    background-position: -10% 0;
+  }
+  100% {
+    background-position: -110% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepTitleShimmer {
+    animation: none;
+    background: none;
+    color: rgba(241, 245, 249, 0.94);
+    -webkit-text-fill-color: rgba(241, 245, 249, 0.94);
+  }
+}
+
+.resultChip {
+  flex-shrink: 0;
+  margin: var(--space-xxs) 0 0;
+  font-size: var(--lc-text-micro);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(203, 213, 225, 0.75);
+}
+
+.stepAccordionContent {
+  padding: 0 var(--space-lg) var(--space-2xl) var(--space-6xl);
+  overflow: hidden;
+}
+
+.stepBody {
+  margin: 0 0 var(--space-md);
+  font-size: var(--lc-text-caption);
+  line-height: var(--lc-leading-caption);
+  color: rgba(203, 213, 225, 0.85);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.techDetails {
+  margin-top: var(--space-xs);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(3, 7, 30, 0.55);
+  overflow: hidden;
+}
+
+.techSummary {
+  list-style: none;
+  cursor: pointer;
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--lc-text-small);
+  font-weight: 500;
+  color: rgba(147, 197, 253, 0.92);
+  user-select: none;
+}
+
+.techSummary::-webkit-details-marker {
+  display: none;
+}
+
+.techSummary::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: var(--space-sm);
+  border-left: 5px solid rgba(147, 197, 253, 0.7);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform var(--lc-duration) var(--lc-ease);
+  transform: rotate(0deg);
+}
+
+.techDetails[open] .techSummary::before {
+  transform: rotate(90deg);
+}
+
+.techSummary:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.techBody {
+  padding: 0 var(--space-lg) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.techBlockLabel {
+  margin: 0 0 var(--space-xs);
+  font-size: var(--lc-text-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.techBlockPre {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--lc-font-mono);
+  font-size: var(--lc-text-micro);
+  line-height: var(--lc-leading-body);
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgba(226, 232, 240, 0.92);
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
+}
+
+@supports (overflow: overlay) {
+  .techBlockPre {
+    overflow-y: overlay;
+  }
+}
+
+.techBlockPre::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.techBlockPre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.techBlockPre::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb);
+}
+
+.techBlockPre::-webkit-scrollbar-thumb:hover {
+  background: var(--lc-scrollbar-thumb-hover);
+}
+
+.finalReply {
+  margin-top: var(--space-xs);
+  padding-top: 16px;
+  animation: finalIn 0.45s var(--lc-ease) both;
+  overflow: visible;
+}
+
+.visualBlock {
+  overflow: visible;
+}
+
+.answerBlockSeparator {
+  overflow: visible;
+}
+
+.answerBlockSeparatorTop {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.answerBlockSeparatorBottom {
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.answerBlockEnter {
+  animation: answerBlockIn 0.52s var(--lc-ease) both;
+  overflow: visible;
+}
+
+@keyframes answerBlockIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes finalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finalReply {
+    animation: none;
+  }
+
+  .answerBlockEnter {
+    animation: none;
+  }
+}
+
+.finalReplyText {
+  margin: 0 0 28px;
+  font: var(--lc-font-body-lg);
+  color: rgba(241, 245, 249, 0.95);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.finalReplyHeading {
+  margin: var(--space-2xl) 0 var(--space-md);
+  font: var(--lc-font-heading-md);
+  color: rgba(241, 245, 249, 0.98);
+  letter-spacing: -0.01em;
+}
+
+.finalReplyHeading:first-child {
+  margin-top: 0;
+}
+
+.subcontextNote {
+  margin: 0 0 var(--space-lg);
+  font-size: var(--lc-text-caption);
+  line-height: var(--lc-leading-caption);
+  color: rgba(148, 163, 184, 0.9);
+  font-style: italic;
+}
+
+.finalReplyPending {
+  margin: 0;
+  font-size: var(--lc-text-caption);
+  line-height: var(--lc-leading-caption);
+  color: rgba(148, 163, 184, 0.9);
+  font-style: italic;
+}
+
+@keyframes proactiveReveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.createdComponentsWrap {
+  margin-top: var(--space-xl);
+  animation: timelineIn 0.5s var(--lc-ease) both;
+}
+
+.createdComponentsLabel {
+  margin: 0 0 var(--space-md);
+  font-size: var(--lc-text-small);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.createdComponentsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.createdComponentsItem {
+  display: flex;
+  min-height: 0;
+  opacity: 0;
+  animation: proactiveReveal 0.52s var(--lc-ease) forwards;
+}
+
+.componentCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  text-align: left;
+  font: inherit;
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  transition: transform var(--lc-duration) var(--lc-ease);
+}
+
+.componentCard:hover .componentCardPreview {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.componentCard:hover .componentCardTitle {
+  color: #fff;
+}
+
+.componentCardActive .componentCardPreview {
+  border-color: rgba(132, 177, 245, 0.65);
+  box-shadow: 0 0 0 1px rgba(132, 177, 245, 0.35), 0 0 18px rgba(132, 177, 245, 0.22);
+}
+
+.componentCard:focus-visible {
+  outline: 2px solid rgba(132, 177, 245, 0.65);
+  outline-offset: 2px;
+}
+
+.componentCardPreview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 290 / 162;
+  min-height: 120px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(46, 63, 85, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  box-sizing: border-box;
+  transition:
+    border-color var(--lc-duration) var(--lc-ease),
+    box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+.componentCardPreviewFill {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.componentPreviewImage {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.componentPreviewImageCover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.componentPreviewKpi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  text-align: center;
+}
+
+.componentPreviewKpiValue {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xxs);
+  font-size: var(--lc-text-heading-lg);
+  font-weight: var(--lc-weight-bold);
+  line-height: var(--lc-leading-heading-lg);
+  color: #fff;
+}
+
+.componentPreviewKpiUnit {
+  font-size: var(--lc-text-body);
+  font-weight: 500;
+  color: rgba(226, 232, 240, 0.7);
+}
+
+.componentPreviewKpiCaption {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: rgba(226, 232, 240, 0.55);
+}
+
+.componentPreviewText {
+  margin: 0;
+  width: 100%;
+  font-size: var(--lc-text-small);
+  line-height: var(--lc-leading-body);
+  color: rgba(226, 232, 240, 0.78);
+  white-space: pre-line;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.componentPreviewFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.componentPreviewFallbackIcon {
+  color: rgba(226, 232, 240, 0.6);
+}
+
+.componentCardContent {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.componentCardTitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: var(--lc-leading-small);
+  color: rgba(241, 245, 249, 0.96);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--lc-duration) var(--lc-ease);
+}
+
+.componentCardCaption {
+  margin: 4px 0 0;
+  font-size: var(--lc-text-micro);
+  font-weight: 400;
+  line-height: var(--lc-leading-small);
+  color: rgba(148, 163, 184, 0.88);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .createdComponentsWrap,
+  .createdComponentsItem {
+    animation: none;
+    opacity: 1;
+  }
+}

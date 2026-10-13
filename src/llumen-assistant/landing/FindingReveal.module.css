@@ -1,0 +1,558 @@
+/* Stronger blur at the bottom, easing out above the domain label. */
+.veil {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Frost stays under the hub composer so the blur samples the page, not the chatbox. */
+  z-index: 4;
+  height: calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 2.2 + 120px);
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(4, 6, 12, 0.5) 0,
+    rgba(4, 6, 12, 0.22) calc(var(--aurora-blur-hold, 480px) * 0.7),
+    rgba(4, 6, 12, 0.08) calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 0.8),
+    transparent calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 1.8)
+  );
+  opacity: 0;
+}
+
+.veilBlur {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  pointer-events: none;
+}
+
+.veilBlur[data-level='1'] {
+  backdrop-filter: blur(calc(var(--aurora-blur, 24px) * 0.18));
+  -webkit-backdrop-filter: blur(calc(var(--aurora-blur, 24px) * 0.18));
+  -webkit-mask-image: linear-gradient(
+    to top,
+    #000 0,
+    #000 calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 0.35),
+    transparent calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 1.7)
+  );
+  mask-image: linear-gradient(
+    to top,
+    #000 0,
+    #000 calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 0.35),
+    transparent calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 1.7)
+  );
+}
+
+.veilBlur[data-level='2'] {
+  backdrop-filter: blur(calc(var(--aurora-blur, 24px) * 0.4));
+  -webkit-backdrop-filter: blur(calc(var(--aurora-blur, 24px) * 0.4));
+  -webkit-mask-image: linear-gradient(
+    to top,
+    #000 0,
+    #000 calc(var(--aurora-blur-hold, 480px) * 0.85),
+    transparent calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 1.05)
+  );
+  mask-image: linear-gradient(
+    to top,
+    #000 0,
+    #000 calc(var(--aurora-blur-hold, 480px) * 0.85),
+    transparent calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 1.05)
+  );
+}
+
+.veilBlur[data-level='3'] {
+  backdrop-filter: blur(calc(var(--aurora-blur, 24px) * 0.72));
+  -webkit-backdrop-filter: blur(calc(var(--aurora-blur, 24px) * 0.72));
+  -webkit-mask-image: linear-gradient(
+    to top,
+    #000 0,
+    #000 calc(var(--aurora-blur-hold, 480px) * 0.45),
+    transparent calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 0.45)
+  );
+  mask-image: linear-gradient(
+    to top,
+    #000 0,
+    #000 calc(var(--aurora-blur-hold, 480px) * 0.45),
+    transparent calc(var(--aurora-blur-hold, 480px) + var(--aurora-blur-fade, 140px) * 0.45)
+  );
+}
+
+.veilBlur[data-level='4'] {
+  backdrop-filter: blur(var(--aurora-blur, 24px));
+  -webkit-backdrop-filter: blur(var(--aurora-blur, 24px));
+  -webkit-mask-image: linear-gradient(
+    to top,
+    #000 0,
+    #000 calc(var(--aurora-blur-hold, 480px) * 0.2),
+    transparent var(--aurora-blur-hold, 480px)
+  );
+  mask-image: linear-gradient(
+    to top,
+    #000 0,
+    #000 calc(var(--aurora-blur-hold, 480px) * 0.2),
+    transparent var(--aurora-blur-hold, 480px)
+  );
+}
+
+.aurora {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Behind the hub composer dock (8). Copy is 7, also behind that dock. */
+  z-index: 6;
+  width: 100%;
+  height: 100dvh;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.veil[data-ready='true'],
+.aurora[data-ready='true'] {
+  opacity: 1;
+  --aurora-reveal: 160%;
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 100%,
+    #000 0%,
+    #000 var(--aurora-reveal),
+    transparent calc(var(--aurora-reveal) + 24%)
+  );
+  mask-image: radial-gradient(
+    circle at 50% 100%,
+    #000 0%,
+    #000 var(--aurora-reveal),
+    transparent calc(var(--aurora-reveal) + 24%)
+  );
+  animation: auroraReveal 1.05s var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.auroraCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+.auroraCanvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: translateZ(0);
+}
+
+/* Finding copy sits in the beam, just above the composer. */
+.copy {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--aurora-anchor, 0px);
+  z-index: 7;
+  display: flex;
+  align-items: flex-end;
+  justify-content: stretch;
+  width: min(640px, calc(100vw - 48px));
+  height: auto;
+  margin-inline: auto;
+  padding: 0 0 12px;
+  pointer-events: none;
+  box-sizing: border-box;
+  /* Keep the word fade on its own layer so it does not recomposite the shader. */
+  isolation: isolate;
+}
+
+.copy[data-story='true'] {
+  padding-bottom: 20px;
+}
+
+.close {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.closeRing {
+  position: absolute;
+  inset: 0;
+  width: 28px;
+  height: 28px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.closeRingTrack,
+.closeRingProgress {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.closeRingTrack {
+  stroke: rgba(255, 255, 255, 0.22);
+}
+
+.closeRingProgress {
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-linecap: round;
+  stroke-dasharray: 69.12;
+  stroke-dashoffset: 0;
+  animation: findingDismiss var(--finding-dismiss, 10s) linear forwards;
+}
+
+@keyframes findingDismiss {
+  to {
+    stroke-dashoffset: 69.12;
+  }
+}
+
+.close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.close:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+.copy[data-rail='true'] {
+  left: var(--lc-rail-width, 400px);
+  right: 0;
+  width: min(640px, calc(100vw - var(--lc-rail-width, 400px) - 48px));
+}
+
+.copyCluster {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  pointer-events: auto;
+  text-align: left;
+  animation: copyIn 520ms var(--lc-ease, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+
+.copyClusterPending,
+.copyClusterPending .wordReveal,
+.copyClusterPending .findingHighlightReady {
+  visibility: hidden;
+  animation: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.headerEnd {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: -4px;
+}
+
+.domain {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.finding {
+  margin: 0;
+  max-width: none;
+  font-size: clamp(22px, 1.55vw, 26px);
+  font-weight: 400;
+  line-height: 1.25;
+  color: #fff;
+  text-align: left;
+  text-shadow: 0 1px 24px rgba(0, 0, 0, 0.45);
+}
+
+.findingHighlightReady {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 calc(100% - 2px);
+  background-size: 0 1px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  animation: underlineDraw 0.55s var(--lc-ease, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+@keyframes underlineDraw {
+  to {
+    background-size: 100% 1px;
+  }
+}
+
+.wordReveal {
+  display: inline;
+  opacity: 0;
+  animation: wordRevealIn 0.44s var(--lc-ease, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.navCount {
+  font-size: 12px;
+  line-height: 16px;
+  color: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.navBtn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.navBtn:focus-visible,
+.actionBtn:focus-visible,
+.voteBtn:focus-visible,
+.dashboardItem:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.actionGroup,
+.voteGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboardAnchor {
+  position: relative;
+}
+
+.dashboardMenu {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(14, 16, 20, 0.45);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+}
+
+.dashboardItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboardItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dashboardCreate {
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 8px 8px;
+  padding-top: 10px;
+}
+
+.voteBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(8, 10, 16, 0.55);
+  color: #fff;
+  cursor: pointer;
+}
+
+.voteBtn:hover,
+.voteBtnActive {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 34px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(8, 10, 16, 0.55);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.actionBtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+@keyframes copyIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.veil[data-exiting='true'],
+.aurora[data-exiting='true'],
+.copy[data-exiting='true'] {
+  animation: findingExit 480ms var(--lc-ease, cubic-bezier(0.2, 0, 0, 1)) forwards;
+  pointer-events: none;
+}
+
+@keyframes findingExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@property --aurora-reveal {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 12%;
+}
+
+.veil[data-ready='true'][data-staged='true'],
+.aurora[data-ready='true'][data-staged='true'] {
+  animation-name: auroraRevealStaged;
+  animation-duration: 3s;
+}
+
+@keyframes auroraReveal {
+  from {
+    --aurora-reveal: 12%;
+  }
+  to {
+    --aurora-reveal: 160%;
+  }
+}
+
+/* 3s total. Phase 1 hold still ends at 1392ms; the expand to full is 600ms longer. */
+@keyframes auroraRevealStaged {
+  0% {
+    --aurora-reveal: 0%;
+  }
+  12.8% {
+    --aurora-reveal: 11%;
+  }
+  46.4% {
+    --aurora-reveal: 11%;
+  }
+  100% {
+    --aurora-reveal: 160%;
+  }
+}
+
+@keyframes wordRevealIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .veil[data-ready='true']:not([data-exiting='true']),
+  .aurora[data-ready='true']:not([data-exiting='true']) {
+    animation: none;
+    opacity: 1;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .copyCluster,
+  .wordReveal,
+  .findingHighlightReady {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .findingHighlightReady {
+    background-size: 100% 1px;
+  }
+
+  .beam[data-beam][data-active]::after,
+  .beam[data-beam][data-fading]::after,
+  .beam[data-beam][data-active]::before,
+  .beam[data-beam][data-fading]::before,
+  .beam[data-beam] [data-beam-bloom] {
+    transform: none;
+  }
+}
