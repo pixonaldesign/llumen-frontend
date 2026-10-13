@@ -151,12 +151,9 @@ build: {
 Keep that setting (or an equivalent fix) if you change the build toolchain.
 
 ### Mapbox
-The maps read their Mapbox public token from `VITE_MAPBOX_TOKEN`.
+The maps read their Mapbox public token from `VITE_MAPBOX_TOKEN`, committed in `.env`, so maps work locally and on Pages with no setup.
 
-- **Local:** create `.env.local` (gitignored) with `VITE_MAPBOX_TOKEN=pk....`. Ask a teammate for the value.
-- **CI / Pages:** set as the `VITE_MAPBOX_TOKEN` repository Actions secret.
-
-The token still ends up in the built JavaScript, as all Mapbox browser tokens do, so keep it URL-restricted in the Mapbox dashboard.
+It is a public (`pk.`) token, which ships in the browser bundle by design. Keep it URL-restricted in the Mapbox dashboard. To use a different token locally, put `VITE_MAPBOX_TOKEN=...` in `.env.local` (gitignored), which overrides `.env`.
 
 ---
 
