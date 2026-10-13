@@ -173,6 +173,17 @@ Typography:
 
 ---
 
+## Imported apps
+
+| App | Source | Lives in | Opens from |
+| --- | --- | --- | --- |
+| Asset builder | [pixonaldesign/llumen-asset-builder](https://github.com/pixonaldesign/llumen-asset-builder) | `src/asset-builder/`, `public/asset-builder/` | Top bar **Create → Asset** |
+
+**Asset builder notes**
+- Its global CSS is confined to the `.ab-scope` container by `postcss-prefix-selector` in `vite.config.ts`. Files under `src/asset-builder/` can keep plain global class names.
+- Pop-ups mount through `portalRoot()` and public assets resolve through `ASSET_BASE`, both in `src/asset-builder/host.ts`. When syncing new code from the source repo, route any new `document.body` portals and `import.meta.env.BASE_URL` paths through those helpers.
+- The source repo's landing page (`App.tsx`), entry file and fonts are not imported.
+
 ## Branching & sign-off
 
 `main` is what devs receive: it is always the signed-off design and is what the live Pages site shows.

@@ -250,6 +250,31 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.menuItem:disabled {
+  color: rgba(255, 255, 255, 0.4);
+  cursor: default;
+}
+
+.menuItem:disabled:hover {
+  background: transparent;
+}
+
+.createMenu {
+  right: 0;
+  left: auto;
+  min-width: 200px;
+}
+
+.soon {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
 .menuItem:focus-visible {
   outline: 2px solid #70aeff;
   outline-offset: 2px;
