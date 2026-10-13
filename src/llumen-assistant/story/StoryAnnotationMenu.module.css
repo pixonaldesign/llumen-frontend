@@ -1,0 +1,23 @@
+.triggerSelected,
+.triggerSelected:hover:not(:disabled) {
+  color: #70aeff;
+}
+
+.caret {
+  transition: transform 160ms ease;
+}
+
+.caretOpen {
+  transform: rotate(180deg);
+}
+
+.menu {
+  width: min(260px, calc(100vw - 24px));
+  max-height: none;
+}
+
+.check {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: #70aeff;
+}

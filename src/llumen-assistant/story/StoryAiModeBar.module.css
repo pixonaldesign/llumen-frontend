@@ -1,0 +1,156 @@
+.bar {
+  --ai-accent: #70aeff;
+
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 25;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 4px 0 12px;
+  border-radius: 999px;
+  background: rgba(14, 18, 26, 0.82);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transform: translateX(-50%);
+  animation: aiBarIn 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes aiBarIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 6px;
+  font-weight: 500;
+}
+
+.label > svg {
+  color: var(--ai-accent);
+}
+
+.hint {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+  animation: aiHintIn 220ms ease both;
+}
+
+@keyframes aiHintIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.action:hover {
+  color: #fff;
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.action:disabled:hover {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.bar[aria-busy='true'] .actionPrimary:disabled {
+  opacity: 1;
+  color: var(--ai-accent);
+}
+
+.spin {
+  animation: aiSpin 800ms linear infinite;
+}
+
+@keyframes aiSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.actionPrimary {
+  color: var(--ai-accent);
+  font-weight: 600;
+}
+
+.actionPrimary:hover {
+  color: #a8ceff;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.iconButton:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.iconButtonActive {
+  background: rgba(112, 174, 255, 0.18);
+  color: #cfe3ff;
+}
+
+.action:focus-visible,
+.iconButton:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}

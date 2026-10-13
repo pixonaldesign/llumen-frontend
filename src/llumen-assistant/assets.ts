@@ -26,4 +26,5 @@ export const llumenAssets = {
   mapAbuDhabiAqi: `${b}/map-abu-dhabi-aqi.png`,
   dataProfileSpatialAvailability: `${b}/data-profile-spatial-availability.webp`,
   aiGeneratedBadgeIcon: `${b}/ai-generated-badge-icon.svg`,
+  backgrounds: `${b}/backgrounds`,
 } as const

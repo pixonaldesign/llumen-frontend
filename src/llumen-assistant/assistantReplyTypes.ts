@@ -7,6 +7,7 @@
  *   keep collapsed until the user expands.
  * - Streaming: interleaved `blocks` reveal after the timeline finishes.
  */
+import type { StoryAiSnapshot } from './story/storyAiScenarios'
 
 export type TechnicalFormat = 'sql' | 'json' | 'markdown' | 'plain'
 
@@ -48,8 +49,78 @@ export type WidgetVariant =
   | 'chart'
   | 'map'
 
+/** Chart data rendered with the Story insight-card visuals (see `StoryReplyChart`). */
+export type StoryReplyChartData =
+  | {
+      type: 'trend'
+      title: string
+      value?: string
+      unit?: string
+      legend?: [string, string]
+      yLabels: string[]
+      xLabels: string[]
+      line: string
+      /** Line drawn first, then morphed into `line` once the chart is on screen. */
+      fromLine?: string
+      color: string
+      dashed?: boolean
+    }
+  | {
+      /** The story's Junction Traffic Status card; `from` values animate into the final ones. */
+      type: 'status'
+      title: string
+      terrestrial: number
+      marine: number
+      from?: { terrestrial: number; marine: number }
+    }
+  | {
+      /** The story's Live Junction Data card; `from` values animate into the final ones. */
+      type: 'sites'
+      title: string
+      online: number
+      sites: number
+      uptime: number
+      offlineBars: number[]
+      from?: { online: number; uptime: number; offlineBars: number[] }
+    }
+  | {
+      type: 'bars'
+      title: string
+      value?: string
+      unit?: string
+      color: string
+      rows: { label: string; value: number; display: string }[]
+    }
+  | {
+      type: 'compare'
+      title: string
+      value?: string
+      unit?: string
+      legend: [string, string]
+      rows: { label: string; before: number; after: number; beforeDisplay: string; afterDisplay: string }[]
+    }
+  | {
+      type: 'histogram'
+      title: string
+      value?: string
+      unit?: string
+      legend: [string, string]
+      bins: string[]
+      before: number[]
+      after: number[]
+    }
+
 export type CreatedComponentPreview =
   | { kind: 'kpi'; value: string; unit?: string; status?: string; statusTone?: 'critical' | 'normal' | 'warning' }
+  | { kind: 'story-chart'; chart: StoryReplyChartData }
+  | {
+      kind: 'story-map-state'
+      /** Key into the captured map screenshots; the image arrives after the reply is created. */
+      stateId: string
+      snapshot: StoryAiSnapshot
+      tag: string
+      meta: string
+    }
   | { kind: 'text'; content: string }
   | {
       kind: 'image'

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChatText, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
-import { StoryMap, type StoryMapFocus } from '../story/StoryMap'
+import { FeedMap, type FeedMapFocus } from './FeedMap'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { OverlayScrollThumb } from './OverlayScrollThumb'
@@ -200,7 +200,7 @@ export function FeedLanding({
     setActive((current) => (current === best ? current : best))
   }, [])
 
-  const mapFocus: StoryMapFocus = useMemo(() => {
+  const mapFocus: FeedMapFocus = useMemo(() => {
     for (let index = active; index >= 0; index -= 1) {
       const stop = FEED_STOPS[index]
       if (stop.kind === 'map' && stop.center) {
@@ -233,7 +233,7 @@ export function FeedLanding({
     >
       {contained ? null : (
         <div className={`${styles.map}${blurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
-          <StoryMap focus={mapFocus} scrollZoom={false} showControls={false} />
+          <FeedMap focus={mapFocus} scrollZoom={false} showControls={false} />
         </div>
       )}
       {contained ? null : <div className={styles.scrim} aria-hidden />}
@@ -548,7 +548,7 @@ function FeedAttentionCard({
     >
       <div className={home.cardMedia} style={gradientCard && stop.gradient ? { background: stop.gradient } : undefined}>
         {stop.kind === 'map' && stop.center ? (
-          <StoryMap
+          <FeedMap
             className={styles.feedMap}
             focus={{ center: stop.center, zoom: stop.zoom, seed: stop.seed }}
             scrollZoom={false}
