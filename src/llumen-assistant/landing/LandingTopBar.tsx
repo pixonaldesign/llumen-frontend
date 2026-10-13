@@ -1,5 +1,18 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Bell, CaretDown, GearSix, LockSimple, MagnifyingGlass, Plus, SquaresFour, User, Users } from '@phosphor-icons/react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  AppWindow,
+  Bell,
+  CaretDown,
+  ChartBar,
+  Cube,
+  GearSix,
+  LockSimple,
+  MagnifyingGlass,
+  Plus,
+  SquaresFour,
+  User,
+  Users,
+} from '@phosphor-icons/react'
 import { landingAssets as a } from './landingAssets'
 import type { TopBarVariant } from '../prototypeChrome'
 import home from './LandingHome.module.css'
@@ -86,6 +99,80 @@ export function LandingTopBar({
   return <CurrentBar />
 }
 
+const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
+
+type CreateKind = 'asset' | 'dashboard' | 'data-app'
+
+const CREATE_OPTIONS: readonly { kind: CreateKind; label: string; icon: ReactNode; active: boolean }[] = [
+  { kind: 'asset', label: 'Asset', icon: <Cube size={20} weight="regular" aria-hidden />, active: true },
+  { kind: 'dashboard', label: 'Dashboard', icon: <ChartBar size={20} weight="regular" aria-hidden />, active: false },
+  { kind: 'data-app', label: 'Data app', icon: <AppWindow size={20} weight="regular" aria-hidden />, active: false },
+]
+
+function CreateMenu({ triggerClassName }: { triggerClassName: string }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [building, setBuilding] = useState<CreateKind | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointer = (event: PointerEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) return
+      setMenuOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
+
+  return (
+    <div className={styles.workspaceWrap} ref={menuRef}>
+      <button
+        type="button"
+        className={triggerClassName}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((value) => !value)}
+      >
+        <Plus size={20} weight="regular" aria-hidden />
+        Create
+      </button>
+      {menuOpen ? (
+        <div className={`${styles.menu} ${styles.createMenu}`} role="menu" aria-label="Create">
+          {CREATE_OPTIONS.map((option) => (
+            <button
+              key={option.kind}
+              type="button"
+              role="menuitem"
+              className={styles.menuItem}
+              disabled={!option.active}
+              onClick={() => {
+                setMenuOpen(false)
+                setBuilding(option.kind)
+              }}
+            >
+              {option.icon}
+              {option.label}
+              {option.active ? null : <span className={styles.soon}>Soon</span>}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {building === 'asset' ? (
+        <Suspense fallback={null}>
+          <AssetBuilder onClose={() => setBuilding(null)} />
+        </Suspense>
+      ) : null}
+    </div>
+  )
+}
+
 function CurrentBar() {
   return (
     <div className={home.navTop}>
@@ -102,10 +189,7 @@ function CurrentBar() {
           <GearSix size={20} weight="regular" aria-hidden />
           Studio
         </button>
-        <button type="button" className={home.pillBtn}>
-          <Plus size={20} weight="regular" aria-hidden />
-          Create
-        </button>
+        <CreateMenu triggerClassName={home.pillBtn} />
         <button type="button" className={home.iconBtn} aria-label="Notifications">
           <Bell size={20} weight="regular" />
         </button>
@@ -270,10 +354,7 @@ function StudioBar({
         </button>
       </div>
       <div className={styles.actions}>
-        <button type="button" className={styles.create}>
-          <Plus size={20} weight="regular" aria-hidden />
-          Create
-        </button>
+        <CreateMenu triggerClassName={styles.create} />
         <button type="button" className={styles.icon} aria-label="Search">
           <MagnifyingGlass size={20} weight="regular" />
         </button>

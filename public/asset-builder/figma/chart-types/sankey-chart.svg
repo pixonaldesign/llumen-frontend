@@ -1,0 +1,35 @@
+<svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sankey-link-a" x1="10" y1="10" x2="34" y2="20" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#91C4EA"/>
+      <stop offset="1" stop-color="#1174BD"/>
+    </linearGradient>
+    <linearGradient id="sankey-link-b" x1="10" y1="26" x2="34" y2="31" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#53A9E8"/>
+      <stop offset="1" stop-color="#1174BD"/>
+    </linearGradient>
+    <linearGradient id="sankey-node" x1="8" y1="7" x2="36" y2="37" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#91C4EA"/>
+      <stop offset="1" stop-color="#1174BD"/>
+    </linearGradient>
+    <filter id="sankey-glow" x="2" y="3" width="40" height="38" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="1.4"/>
+    </filter>
+  </defs>
+  <g opacity="0.2" filter="url(#sankey-glow)">
+    <path d="M10 10C20 10 24 18 34 18" stroke="#53A9E8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M10 24C19 24 25 15 34 15" stroke="#53A9E8" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M10 31C19 31 25 27 34 27" stroke="#53A9E8" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <path d="M10 10C20 10 24 18 34 18" stroke="url(#sankey-link-a)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M10 23C19 23 25 15 34 15" stroke="url(#sankey-link-a)" stroke-width="2.8" stroke-linecap="round" opacity="0.85"/>
+  <path d="M10 31C19 31 25 27 34 27" stroke="url(#sankey-link-b)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M10 34C20 34 24 30 34 30" stroke="url(#sankey-link-b)" stroke-width="2" stroke-linecap="round" opacity="0.72"/>
+  <rect x="7" y="6" width="5" height="9" rx="1.5" fill="url(#sankey-node)"/>
+  <rect x="7" y="19" width="5" height="8" rx="1.5" fill="url(#sankey-node)"/>
+  <rect x="7" y="29" width="5" height="8" rx="1.5" fill="url(#sankey-node)"/>
+  <rect x="32" y="11" width="5" height="11" rx="1.5" fill="url(#sankey-node)"/>
+  <rect x="32" y="25" width="5" height="9" rx="1.5" fill="url(#sankey-node)"/>
+  <path d="M8 7.5H10" stroke="white" stroke-opacity="0.45" stroke-width="0.8" stroke-linecap="round"/>
+  <path d="M33 12.5H35" stroke="white" stroke-opacity="0.45" stroke-width="0.8" stroke-linecap="round"/>
+</svg>
