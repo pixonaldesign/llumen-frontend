@@ -1,27 +1,45 @@
 name: Deploy to GitHub Pages
 
+# main is published at the site root. Each open pull request from this repo gets
+# a preview at preview/<branch>/, updated on every push and removed when it closes.
+# GitHub Pages serves the gh-pages branch (Settings → Pages → Deploy from a branch).
+
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened, closed]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
+  pull-requests: write
 
-concurrency:
-  group: pages-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+env:
+  PREVIEW_MARKER: '<!-- branch-preview -->'
 
 jobs:
   build:
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    concurrency:
+      group: build-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    outputs:
+      slug: ${{ steps.target.outputs.slug }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Pick site path
+        id: target
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          slug="$(bash .github/scripts/publish-pages.sh slug "$HEAD_REF")"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          echo "VITE_BASE=/${{ github.event.repository.name }}/preview/$slug/" >> "$GITHUB_ENV"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -35,20 +53,87 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Upload Pages artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload build
+        uses: actions/upload-artifact@v4
         with:
+          name: site
           path: dist
+          retention-days: 1
 
-  deploy:
-    if: github.event_name != 'pull_request'
+  publish:
     needs: build
+    if: >-
+      (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: site
+
+      - name: Publish main
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/publish-pages.sh main site
+
+      - name: Publish preview
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/publish-pages.sh preview site "${{ needs.build.outputs.slug }}"
+
+      - name: Post preview link
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/preview/${{ needs.build.outputs.slug }}/
+        run: |
+          url="${URL,,}"
+          body="$PREVIEW_MARKER
+          **Preview:** $url
+
+          Updated for \`${SHA::7}\` at $(date -u '+%Y-%m-%d %H:%M UTC'). It goes live a minute or two after this comment updates. If you already have it open, hard-refresh (Ctrl+Shift+R)."
+          id="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$PREVIEW_MARKER\")) | .id" | head -n 1)"
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" > /dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" > /dev/null
+          fi
+
+  remove-preview:
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Remove preview
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: bash .github/scripts/publish-pages.sh remove "$(bash .github/scripts/publish-pages.sh slug "$HEAD_REF")"
+
+      - name: Update preview comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          id="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$PREVIEW_MARKER\")) | .id" | head -n 1)"
+          [ -z "$id" ] && exit 0
+          body="$PREVIEW_MARKER
+          Preview removed because this pull request was closed."
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" > /dev/null

@@ -178,11 +178,17 @@ Typography:
 | App | Source | Lives in | Opens from |
 | --- | --- | --- | --- |
 | Asset builder | [pixonaldesign/llumen-asset-builder](https://github.com/pixonaldesign/llumen-asset-builder) | `src/asset-builder/`, `public/asset-builder/` | Top bar **Create → Asset** |
+| Story Builder (approach-3) | [pixonaldesign/Story-Builder-](https://github.com/pixonaldesign/Story-Builder-) | `src/llumen-assistant/story/`, `public/llumen-assets/` | Any story card on the landing |
 
 **Asset builder notes**
 - Its global CSS is confined to the `.ab-scope` container by `postcss-prefix-selector` in `vite.config.ts`. Files under `src/asset-builder/` can keep plain global class names.
 - Pop-ups mount through `portalRoot()` and public assets resolve through `ASSET_BASE`, both in `src/asset-builder/host.ts`. When syncing new code from the source repo, route any new `document.body` portals and `import.meta.env.BASE_URL` paths through those helpers.
 - The source repo's landing page (`App.tsx`), entry file and fonts are not imported.
+
+**Story Builder notes**
+- Only the story experience is imported (from opening a story onward). Its landing page is not.
+- The story's **Ask** button opens this app's assistant panel, so findings toasts, slash commands and agent replies are the ones from `src/llumen-assistant/`, not the source repo's.
+- The previous story map view is kept for `?landing=feed` as `landing/FeedMap.tsx`.
 
 ## Branching & sign-off
 
@@ -197,19 +203,25 @@ Typography:
 
 ## Deployment
 
-Pushes to `main` trigger [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml). Pull requests run the same build without deploying.
+[.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) builds the site and publishes it to the `gh-pages` branch, which GitHub Pages serves.
 
-1. Checkout
-2. Node 22 + `npm ci`
-3. `npm run build`
-4. Upload `dist/` as a Pages artifact
-5. Deploy with `actions/deploy-pages`
+| Trigger | Published at |
+| --- | --- |
+| Merge / push to `main` | `https://pixonaldesign.github.io/llumen-frontend/` |
+| Open pull request from branch `design/story-landing` | `https://pixonaldesign.github.io/llumen-frontend/preview/design-story-landing/` |
 
-You can also re-run the workflow manually (**Actions → Deploy to GitHub Pages → Run workflow**).
+### Branch previews
+- Opening a pull request publishes a preview and posts its link as a comment on the pull request.
+- Every push to that branch rebuilds the same link and edits the same comment (commit and time), so the link you share with reviewers never changes.
+- The preview goes live a minute or two after the comment updates. If it is already open, hard-refresh (Ctrl+Shift+R).
+- Closing or merging the pull request deletes the preview.
+- Previews are only built for branches in this repo, not forks.
+- Each preview is a full copy of the site (~75 MB) and Pages caps the site at 1 GB, so keep roughly a dozen pull requests open at most. Close stale ones to free space.
+
+You can also re-run the workflow manually for `main` (**Actions → Deploy to GitHub Pages → Run workflow**).
 
 **Pages settings required**
-- Source: **GitHub Actions** (not “Deploy from a branch”)
-- That way Pages serves the Vite production build, not the raw repo `index.html`
+- Source: **Deploy from a branch**, branch `gh-pages`, folder `/ (root)`
 
 ---
 

@@ -8,7 +8,8 @@ const ASSET_BUILDER_SCOPE = '.ab-scope'
 // https://vite.dev/config/
 export default defineConfig({
   // Project Pages site: https://pixonaldesign.github.io/llumen-frontend/
-  base: '/llumen-frontend/',
+  // PR previews are built under /llumen-frontend/preview/<branch>/ (see deploy-pages.yml).
+  base: process.env.VITE_BASE || '/llumen-frontend/',
   plugins: [react(), tailwindcss()],
   css: {
     postcss: {
