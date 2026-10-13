@@ -294,7 +294,7 @@ const RECOMMENDED: {
     title: 'Building a Scalable Microservices Architecture From the Ground Up',
     kind: 'Story',
     sections: '19 Sections',
-    thumb: 'map',
+    thumb: 'bars',
   },
   {
     id: 'r2',
