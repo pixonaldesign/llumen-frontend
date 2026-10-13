@@ -141,7 +141,7 @@
 
 .segmented {
   display: grid;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-columns: minmax(max-content, 1fr);
   grid-auto-flow: column;
   gap: 2px;
   padding: 3px;

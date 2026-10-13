@@ -19,6 +19,7 @@ export function StoryComparisonModal({
   initialOptionId,
   framePhase,
   styleUrl,
+  flat = false,
   onApply,
   onClose,
 }: {
@@ -27,6 +28,7 @@ export function StoryComparisonModal({
   /** Current point on the shared time series; previews show each option at its own offset. */
   framePhase: number
   styleUrl: string
+  flat?: boolean
   onApply: (option: ComparisonMapOption) => void
   onClose: () => void
 }) {
@@ -117,6 +119,7 @@ export function StoryComparisonModal({
                       sceneIndex={option.sceneIndex}
                       framePhase={comparisonPhase(framePhase, option)}
                       styleUrl={styleUrl}
+                      flat={flat}
                       layers={option.layers}
                       interactive={false}
                       cameraPadding={PREVIEW_PADDING}

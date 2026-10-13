@@ -1,0 +1,161 @@
+/* DOM labels for user annotations. `--annotation-color` and `--annotation-opacity` are set per label. */
+
+.marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: var(--annotation-opacity, 1);
+  cursor: pointer;
+  transition: opacity 200ms ease;
+}
+
+.markerCard {
+  box-sizing: border-box;
+  max-width: 220px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(18, 22, 30, 0.82);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+}
+
+.markerCardText {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.markerStem {
+  width: 2px;
+  height: 44px;
+  background: linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
+}
+
+.dot {
+  position: relative;
+  display: block;
+  flex: none;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--annotation-color);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: transform 160ms ease;
+}
+
+.marker:hover .dot,
+.selected .dot {
+  transform: scale(1.15);
+}
+
+.selected .markerCard,
+.pill.selected {
+  border-color: color-mix(in srgb, var(--annotation-color) 70%, transparent);
+}
+
+/* No `position` here: Mapbox positions the marker element absolutely, which also anchors the status dot. */
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--annotation-color) 45%, transparent);
+  border-radius: 999px;
+  background: rgba(16, 19, 26, 0.86);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  opacity: var(--annotation-opacity, 1);
+  cursor: pointer;
+  transition:
+    opacity 200ms ease,
+    border-color 160ms ease;
+}
+
+.pillDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--annotation-color);
+}
+
+.pillText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid rgba(16, 19, 26, 0.95);
+  border-radius: 50%;
+}
+
+.pillStatus {
+  top: -2px;
+  right: -2px;
+}
+
+.statusChanged {
+  background: #ffb547;
+}
+
+.statusInvalid {
+  background: #ff6b6b;
+}
+
+.readOnly {
+  cursor: default;
+}
+
+.readOnly.marker:hover .dot {
+  transform: none;
+}
+
+.entering {
+  animation: annotationLabelIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Labels let clicks through to the map while a shape is drawn or reshaped. */
+.drawing .marker,
+.drawing .pill {
+  pointer-events: none;
+}
+
+/* Live distance / area readout beside the pointer. */
+.measure {
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(16, 19, 26, 0.9);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@keyframes annotationLabelIn {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}

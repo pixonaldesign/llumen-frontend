@@ -951,7 +951,9 @@
     transform 160ms ease-out;
 }
 
+/* Edit mode keeps the card's ⋮ menu in the corner, so the toolbar sits beside it. */
 .insightCard:hover > .cardActions,
+.cardActions.cardActionsOpen,
 .cardActions:focus-within {
   opacity: 1;
   pointer-events: auto;
@@ -977,7 +979,8 @@
   transition: background 140ms ease;
 }
 
-.cardAction:hover {
+.cardAction:hover,
+.cardAction.cardActionActive {
   background: rgba(255, 255, 255, 0.1);
 }
 

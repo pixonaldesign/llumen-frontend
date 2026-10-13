@@ -10,6 +10,8 @@ import {
   MUSSAFAH_REGION,
   pointInPolygon,
   regionColumnHeights,
+  type StoryAiSnapshot,
+  type StoryMapRegion,
 } from './storyAiScenarios'
 import { COLUMN_MAX_HEIGHT_M, sceneAtPhase, sceneState, storySceneAt } from './storyDemoScenes'
 
@@ -92,20 +94,52 @@ const MUSSAFAH_SCHOOL_NAMES = [
   'M-4 Cycle 3 School',
 ]
 
-const DISTRICTS: { name: string; at: [number, number] }[] = [
-  { name: 'Al Khalidiyah', at: [54.347, 24.468] },
-  { name: 'Al Manhal', at: [54.362, 24.466] },
-  { name: 'Al Hisn', at: [54.355, 24.481] },
-  { name: 'Al Markaziyah', at: [54.357, 24.492] },
-  { name: 'Al Danah', at: [54.366, 24.484] },
-  { name: 'Al Bateen', at: [54.334, 24.458] },
-  { name: 'Al Khubeirat', at: [54.326, 24.474] },
-  { name: 'Al Zahiyah', at: [54.382, 24.495] },
-  { name: 'Al Mina', at: [54.372, 24.517] },
-  { name: 'Al Wahdah', at: [54.376, 24.471] },
-  { name: 'Al Nahyan', at: [54.388, 24.462] },
-  { name: 'Al Mushrif', at: [54.385, 24.444] },
-  { name: MUSSAFAH_LABEL, at: [54.516, 24.346] },
+type RegionId = 'abu-dhabi' | 'al-ain' | 'al-dhafra'
+
+const REGIONS: { id: RegionId; name: string }[] = [
+  { id: 'abu-dhabi', name: 'Abu Dhabi' },
+  { id: 'al-ain', name: 'Al Ain' },
+  { id: 'al-dhafra', name: 'Al Dhafra' },
+]
+
+/** Demo district centres; only the island ones (and Mussafah) sit on the story's own data. */
+const DISTRICTS: { name: string; at: [number, number]; region: RegionId; island?: boolean }[] = [
+  { name: 'Al Khalidiyah', at: [54.347, 24.468], region: 'abu-dhabi', island: true },
+  { name: 'Al Manhal', at: [54.362, 24.466], region: 'abu-dhabi', island: true },
+  { name: 'Al Hisn', at: [54.355, 24.481], region: 'abu-dhabi', island: true },
+  { name: 'Al Markaziyah', at: [54.357, 24.492], region: 'abu-dhabi', island: true },
+  { name: 'Al Danah', at: [54.366, 24.484], region: 'abu-dhabi', island: true },
+  { name: 'Al Bateen', at: [54.334, 24.458], region: 'abu-dhabi', island: true },
+  { name: 'Al Khubeirat', at: [54.326, 24.474], region: 'abu-dhabi', island: true },
+  { name: 'Al Zahiyah', at: [54.382, 24.495], region: 'abu-dhabi', island: true },
+  { name: 'Al Mina', at: [54.372, 24.517], region: 'abu-dhabi', island: true },
+  { name: 'Al Wahdah', at: [54.376, 24.471], region: 'abu-dhabi', island: true },
+  { name: 'Al Nahyan', at: [54.388, 24.462], region: 'abu-dhabi', island: true },
+  { name: 'Al Mushrif', at: [54.385, 24.444], region: 'abu-dhabi', island: true },
+  { name: MUSSAFAH_LABEL, at: [54.516, 24.346], region: 'abu-dhabi' },
+  { name: "Al 'Ajban", at: [54.795, 24.605], region: 'abu-dhabi' },
+  { name: 'Al Aliah Island', at: [54.452, 24.548], region: 'abu-dhabi' },
+  { name: 'Ain Al Faydah', at: [55.772, 24.104], region: 'al-ain' },
+  { name: "Al 'Arad", at: [55.722, 24.172], region: 'al-ain' },
+  { name: "Al 'Iqabiyyah", at: [55.738, 24.236], region: 'al-ain' },
+  { name: 'Al Aamerah', at: [55.694, 24.246], region: 'al-ain' },
+  { name: 'Al Aflaj', at: [55.782, 24.192], region: 'al-ain' },
+  { name: 'Al Ain International Airport', at: [55.609, 24.262], region: 'al-ain' },
+  { name: 'Madinat Zayed', at: [53.705, 23.68], region: 'al-dhafra' },
+  { name: 'Ghayathi', at: [52.805, 23.835], region: 'al-dhafra' },
+  { name: 'Ruwais', at: [52.73, 24.11], region: 'al-dhafra' },
+  { name: 'Liwa', at: [53.775, 23.14], region: 'al-dhafra' },
+]
+
+/** Demo corridors: a street's centreline, end to end. */
+const CORRIDORS: { name: string; region: RegionId; path: [number, number][] }[] = [
+  { name: 'Sheikh Zayed Bin Sultan St.', region: 'abu-dhabi', path: [[54.358, 24.496], [54.398, 24.446]] },
+  { name: 'Al Khalidiyah', region: 'abu-dhabi', path: [[54.334, 24.476], [54.358, 24.458]] },
+  { name: 'Al Manhal', region: 'abu-dhabi', path: [[54.35, 24.479], [54.373, 24.456]] },
+  { name: 'Al Bateen', region: 'abu-dhabi', path: [[54.321, 24.464], [54.346, 24.447]] },
+  { name: 'Al Rawdah', region: 'abu-dhabi', path: [[54.374, 24.454], [54.398, 24.43]] },
+  { name: 'Khalifa Bin Zayed St.', region: 'al-ain', path: [[55.712, 24.226], [55.772, 24.204]] },
+  { name: 'Madinat Zayed Main St.', region: 'al-dhafra', path: [[53.684, 23.694], [53.724, 23.668]] },
 ]
 
 const STREETS = [
@@ -139,7 +173,29 @@ export type StoryLocation = {
   polygon: [number, number][]
 }
 
-export type StoryLocationOption = StoryLocation & { description: string }
+export type StoryLocationType = 'emirate' | 'region' | 'district' | 'zone' | 'corridor'
+
+export type StoryLocationOption = StoryLocation & {
+  type: StoryLocationType
+  /** How the list shows it; zones are listed by number. */
+  label: string
+  /** The region a district or corridor sits in, or the district a zone sits in. */
+  parent: string | null
+}
+
+export const STORY_LOCATION_TYPES: {
+  id: StoryLocationType
+  label: string
+  plural: string
+  /** The parent type the list can be filtered by. */
+  filterBy?: StoryLocationType
+}[] = [
+  { id: 'emirate', label: 'Emirate', plural: 'Emirates' },
+  { id: 'region', label: 'Region', plural: 'Regions' },
+  { id: 'district', label: 'District', plural: 'Districts', filterBy: 'region' },
+  { id: 'zone', label: 'Zone', plural: 'Zones', filterBy: 'district' },
+  { id: 'corridor', label: 'Corridor', plural: 'Corridors', filterBy: 'region' },
+]
 
 export type AnnotatedSchool = {
   /** Index into the annotated layer's columns: the feature this annotation is anchored to. */
@@ -322,38 +378,121 @@ function paddedOutline(points: [number, number][], paddingM = AREA_PADDING_M) {
   return convexHull(ring)
 }
 
-const islandDistricts = DISTRICTS.filter((district) => district.name !== MUSSAFAH_LABEL)
+const islandDistricts = DISTRICTS.filter((district) => district.island)
+const ZONES_PER_DISTRICT = 3
+const OFF_ISLAND_DISTRICT_RADIUS_M = 1200
+const CORRIDOR_HALF_WIDTH_M = 260
 
-export function locationColumnCount(polygon: [number, number][]) {
-  return (
-    DEMO_COLUMNS.filter(([lng, lat]) => pointInPolygon([lng, lat], polygon)).length +
-    MUSSAFAH_REGION.columns.filter(([lng, lat]) => pointInPolygon([lng, lat], polygon)).length
-  )
+function slug(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
-/** Areas the location search knows about; Mussafah's outline follows its columns. */
-export const STORY_LOCATIONS: StoryLocationOption[] = [
-  {
-    id: 'mussafah',
-    name: MUSSAFAH_LABEL,
-    kind: 'district' as const,
-    polygon: paddedOutline(
+function locationOption(
+  type: StoryLocationType,
+  name: string,
+  polygon: [number, number][],
+  parent: string | null,
+  label = name,
+): StoryLocationOption {
+  return { id: `${type}-${slug(name)}`, name, label, kind: 'district', type, parent, polygon }
+}
+
+/** Mussafah's outline follows its columns; the others are drawn around their centres. */
+function districtOutline(district: (typeof DISTRICTS)[number]) {
+  if (district.name === MUSSAFAH_LABEL) {
+    return paddedOutline(
       MUSSAFAH_REGION.columns.map(([lng, lat]) => [lng, lat]),
       MUSSAFAH_PADDING_M,
+    )
+  }
+  return paddedOutline([district.at], district.island ? DISTRICT_RADIUS_M : OFF_ISLAND_DISTRICT_RADIUS_M)
+}
+
+/** A district split into numbered zones, spread evenly around its centre. */
+function zoneOutlines(polygon: [number, number][], seed: number) {
+  const center = areaCentroid(polygon)
+  const radiusKm = Math.max(...polygon.map((point) => distanceKm(point, center)))
+  const turn = hash01(seed, 21) * Math.PI * 2
+  return Array.from({ length: ZONES_PER_DISTRICT }, (_, index) => {
+    const angle = turn + (index * 2 * Math.PI) / ZONES_PER_DISTRICT
+    const at: [number, number] = [
+      center[0] + (Math.cos(angle) * radiusKm * 0.48) / KM_PER_DEG_LNG,
+      center[1] + (Math.sin(angle) * radiusKm * 0.48) / KM_PER_DEG_LAT,
+    ]
+    return paddedOutline([at], radiusKm * 420)
+  })
+}
+
+const byLabel = (a: StoryLocationOption, b: StoryLocationOption) =>
+  a.label.localeCompare(b.label, 'en', { numeric: true })
+
+const regionDistricts = (id: RegionId) => DISTRICTS.filter((district) => district.region === id)
+
+const REGION_OUTLINES: Record<RegionId, [number, number][]> = {
+  'abu-dhabi': paddedOutline(
+    regionDistricts('abu-dhabi')
+      .filter((district) => district.name !== "Al 'Ajban")
+      .map((district) => district.at),
+    1500,
+  ),
+  'al-ain': paddedOutline(
+    regionDistricts('al-ain').map((district) => district.at),
+    1500,
+  ),
+  // Al Dhafra spans the western desert; the demo focuses on its seat, Madinat Zayed.
+  'al-dhafra': paddedOutline([[53.705, 23.68]], 4500),
+}
+
+const DISTRICT_OPTIONS = [
+  locationOption(
+    'district',
+    'Abu Dhabi Island',
+    paddedOutline(
+      islandDistricts.map((district) => district.at),
+      DISTRICT_RADIUS_M,
     ),
-    description: 'Industrial district',
-  },
-  ...islandDistricts.map((district) => ({
-    id: district.name.toLowerCase().replace(/\s+/g, '-'),
-    name: district.name,
-    kind: 'district' as const,
-    polygon: paddedOutline([district.at], DISTRICT_RADIUS_M),
-    description: 'Abu Dhabi Island',
-  })),
-].map((location) => ({
-  ...location,
-  description: `${location.description} · ${locationColumnCount(location.polygon)} columns`,
-}))
+    'region-abu-dhabi',
+  ),
+  ...DISTRICTS.map((district) =>
+    locationOption('district', district.name, districtOutline(district), `region-${district.region}`),
+  ),
+].sort(byLabel)
+
+const ZONE_OPTIONS = DISTRICT_OPTIONS.filter((district) => district.id !== 'district-abu-dhabi-island').flatMap(
+  (district, order) =>
+    zoneOutlines(district.polygon, order + 1).map((polygon, index) => {
+      const number = order * ZONES_PER_DISTRICT + index + 1
+      return { ...locationOption('zone', `${district.name} Zone ${number}`, polygon, district.id), label: `${number}` }
+    }),
+)
+
+/** Every area the location picker offers, grouped by type: emirate, regions, districts, zones, corridors. */
+export const STORY_LOCATIONS: StoryLocationOption[] = [
+  locationOption(
+    'emirate',
+    'Abu Dhabi',
+    paddedOutline(
+      regionDistricts('abu-dhabi').map((district) => district.at),
+      3000,
+    ),
+    null,
+  ),
+  ...REGIONS.map((region) => locationOption('region', region.name, REGION_OUTLINES[region.id], null)).sort(byLabel),
+  ...DISTRICT_OPTIONS,
+  ...ZONE_OPTIONS,
+  ...CORRIDORS.map((corridor) =>
+    locationOption(
+      'corridor',
+      corridor.name.endsWith('St.') ? corridor.name : `${corridor.name} Corridor`,
+      paddedOutline(corridor.path, CORRIDOR_HALF_WIDTH_M),
+      `region-${corridor.region}`,
+      corridor.name,
+    ),
+  ),
+]
 
 export function drawnLocation(polygon: [number, number][]): StoryLocation {
   return {
@@ -535,30 +674,136 @@ function emissionsAction(location: StoryLocation, schools: AnnotatedSchool[]): A
   }
 }
 
-/** Whether a location's columns come from the Mussafah focus region rather than the island overlay. */
-export function locationUsesRegion(location: StoryLocation) {
-  const inside = (columns: [number, number, number][]) =>
-    columns.filter(([lng, lat]) => pointInPolygon([lng, lat], location.polygon)).length
-  const region = inside(MUSSAFAH_REGION.columns)
-  return region > 0 && region >= inside(DEMO_COLUMNS)
+/** A location needs at least this many of the island's columns to be read from the story's own data. */
+const MIN_LOCATION_COLUMNS = 3
+/** Generated regions lay their columns on a (2n + 1)² grid over the location, and junctions on a coarser one. */
+const GENERATED_COLUMN_GRID = 6
+const GENERATED_JUNCTION_GRID = 3
+const MIN_GENERATED_COLUMNS = 16
+const MIN_GENERATED_JUNCTIONS = 6
+/** Mussafah's span, the reference the generated regions' camera and sizes scale from. */
+const REFERENCE_SPAN_KM = 6.5
+
+function countInside(points: [number, number, number][], polygon: [number, number][]) {
+  return points.filter(([lng, lat]) => pointInPolygon([lng, lat], polygon)).length
+}
+
+function seedOf(id: string) {
+  let seed = 0
+  for (const char of id) seed = (seed * 31 + char.charCodeAt(0)) % 100_003
+  return seed
+}
+
+/** Demo columns and junctions inside a location the story has no data for, laid out like Mussafah's. */
+function generatedRegion(location: StoryLocation): StoryMapRegion {
+  const { polygon } = location
+  const seed = seedOf(location.id)
+  const center = areaCentroid(polygon)
+  const lngs = polygon.map(([lng]) => lng)
+  const lats = polygon.map(([, lat]) => lat)
+  const widthKm = (Math.max(...lngs) - Math.min(...lngs)) * KM_PER_DEG_LNG
+  const heightKm = (Math.max(...lats) - Math.min(...lats)) * KM_PER_DEG_LAT
+  const spanKm = Math.max(0.6, widthKm, heightKm)
+  const scale = Math.min(3, Math.max(0.35, spanKm / REFERENCE_SPAN_KM))
+  const hotspot: [number, number] = [
+    center[0] + ((hash01(seed, 1) - 0.5) * widthKm * 0.4) / KM_PER_DEG_LNG,
+    center[1] + ((hash01(seed, 2) - 0.5) * heightKm * 0.4) / KM_PER_DEG_LAT,
+  ]
+  const heat = (point: [number, number]) => Math.exp(-(distanceKm(point, hotspot) ** 2) / (2 * (spanKm * 0.3) ** 2))
+  const grid = (cells: number, keep: number, place: (point: [number, number], index: number) => number) => {
+    const step = spanKm / (2 * cells)
+    const out: [number, number, number][] = []
+    let index = 0
+    for (let i = -cells; i <= cells; i += 1) {
+      for (let j = -cells; j <= cells; j += 1) {
+        index += 1
+        const point: [number, number] = [
+          center[0] + ((i + (hash01(index, seed + 3) - 0.5) * 0.7) * step) / KM_PER_DEG_LNG,
+          center[1] + ((j + (hash01(index, seed + 4) - 0.5) * 0.7) * step) / KM_PER_DEG_LAT,
+        ]
+        if (hash01(index, seed + 5) > keep || !pointInPolygon(point, polygon)) continue
+        out.push([point[0], point[1], place(point, index)])
+      }
+    }
+    return out
+  }
+  // Thin or diagonal outlines (corridors) catch few grid points, so the grid densifies until enough land inside.
+  const dense = (cells: number, min: number, keep: number, place: (point: [number, number], index: number) => number) => {
+    let points = grid(cells, keep, place)
+    for (let next = cells * 2; points.length < min && next <= cells * 8; next *= 2) points = grid(next, keep, place)
+    return points
+  }
+  // Smaller areas are seen from closer, so their columns are shorter to keep the same proportions on screen.
+  const heightScale = Math.min(1, Math.max(0.2, spanKm / REFERENCE_SPAN_KM))
+  const columns = dense(GENERATED_COLUMN_GRID, MIN_GENERATED_COLUMNS, 0.58, (point, index) =>
+    Math.min(
+      COLUMN_MAX_HEIGHT_M,
+      (200 + 520 * hash01(index, seed + 6) + 2300 * heat(point) * (0.45 + 0.55 * hash01(index, seed + 7))) *
+        heightScale,
+    ),
+  )
+  const junctions = dense(
+    GENERATED_JUNCTION_GRID,
+    MIN_GENERATED_JUNCTIONS,
+    0.88,
+    (point, index) => (120 + 170 * hash01(index, seed + 8) + 190 * heat(point)) * scale,
+  )
+  return {
+    id: `location-${location.id}`,
+    label: location.name,
+    camera: {
+      center,
+      // Capped so small zones keep some context and the area's fixed-height walls don't fill the view.
+      zoom: Math.min(14, Math.max(9, 12.75 + Math.log2(REFERENCE_SPAN_KM / spanKm))),
+      pitch: 58,
+      bearing: -24,
+    },
+    columnRadiusM: Math.min(160, Math.max(18, spanKm * 6)),
+    columnRamp: MUSSAFAH_REGION.columnRamp,
+    columns,
+    junctions,
+  }
+}
+
+const generatedRegions = new Map<string, StoryMapRegion>()
+
+/**
+ * Where a location's columns come from: the island's own (null), Mussafah's focus region, or — for
+ * places the story has no data for — demo columns generated inside it, so every location shows data.
+ */
+export function locationRegion(location: StoryLocation): StoryMapRegion | null {
+  if (countInside(DEMO_COLUMNS, location.polygon) >= MIN_LOCATION_COLUMNS) return null
+  if (countInside(MUSSAFAH_REGION.columns, location.polygon) > 0) return MUSSAFAH_REGION
+  const key = `${location.id}:${location.polygon.map(([lng, lat]) => `${lng.toFixed(5)},${lat.toFixed(5)}`).join(';')}`
+  let region = generatedRegions.get(key)
+  if (!region) {
+    region = generatedRegion(location)
+    generatedRegions.set(key, region)
+  }
+  return region
+}
+
+/** The focus region a saved snapshot shows: its location's, or Mussafah for the region prompts. */
+export function snapshotRegion(snapshot: Pick<StoryAiSnapshot, 'annotation'>) {
+  const location = snapshot.annotation?.location
+  return (location && locationRegion(location)) || MUSSAFAH_REGION
 }
 
 /** The 10 tallest columns inside a picked or drawn area, read as the schools most exposed to its factory emissions. */
 export function locationAnnotation(slide: number, location: StoryLocation): StoryMapAnnotation {
-  const region = locationUsesRegion(location)
-  const columns = region ? MUSSAFAH_REGION.columns : DEMO_COLUMNS
-  const heights = region
-    ? regionColumnHeights(MUSSAFAH_REGION, 0)
-    : sceneState(sceneAtPhase(storySceneAt(slide), 0)).heights
+  const region = locationRegion(location)
+  const columns = region ? region.columns : DEMO_COLUMNS
+  const heights = region ? regionColumnHeights(region, 0) : sceneState(sceneAtPhase(storySceneAt(slide), 0)).heights
   const candidates = columns.flatMap(([lng, lat], index): Candidate[] =>
     pointInPolygon([lng, lat], location.polygon) ? [{ index, height: heights[index] ?? 0, coordinates: [lng, lat] }] : [],
   )
-  const schools = rankSchools(
-    candidates,
-    region ? MUSSAFAH_MAX_HEIGHT_M : COLUMN_MAX_HEIGHT_M,
-    region ? MUSSAFAH_SCHOOL_NAMES : SCHOOL_NAMES,
-  )
-  const junctions = region ? MUSSAFAH_REGION.junctions : DEMO_JUNCTIONS
+  const maxHeight = !region
+    ? COLUMN_MAX_HEIGHT_M
+    : region === MUSSAFAH_REGION
+      ? MUSSAFAH_MAX_HEIGHT_M
+      : Math.max(...region.columns.map(([, , height]) => height))
+  const schools = rankSchools(candidates, maxHeight, region === MUSSAFAH_REGION ? MUSSAFAH_SCHOOL_NAMES : SCHOOL_NAMES)
+  const junctions = region ? region.junctions : DEMO_JUNCTIONS
   return {
     slide,
     layer: region ? 'region' : 'main',

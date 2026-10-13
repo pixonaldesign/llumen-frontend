@@ -35,6 +35,17 @@ import {
   type StoryMapAnnotation,
 } from './storyAnnotations'
 import type { StoryCamera, StoryCameraLink } from './storyCameraLink'
+import {
+  AnnotationLabels,
+  annotationAt,
+  drawAnnotations,
+  mountAnnotationLayers,
+  setAnnotationLift,
+  startAnnotationDrawing,
+  startAnnotationEditing,
+  type AnnotationDrawing,
+} from './storyMapAnnotationLayer'
+import type { AnnotationTool, AnnotationValidity, DrawnShape, MapAnnotationItem } from './storyMapAnnotations'
 import styles from './StoryMap.module.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
@@ -81,6 +92,11 @@ const ACTION_TOP_MARGIN_PX = 96
 /** Zoom backed off from the area fit, so the columns and the action card above them both fit. */
 const ACTION_ZOOM_OUT = 0.45
 const ACTION_MIN_STEM_PX = 80
+/** Mapbox's default tilt limit, restored when a 2D basemap goes back to 3D. */
+const MAX_PITCH_3D = 85
+const DIMENSION_EASE_MS = 600
+/** Columns on a 2D basemap keep this much height, so their coloured footprints still draw. */
+const FLAT_COLUMN_M = 2
 /** Zoom levels backed off from the tight fit, so the areas keep some surrounding context. */
 const ANNOTATION_ZOOM_OUT = 0.6
 
@@ -94,7 +110,29 @@ export type StoryMapHandle = {
   unproject: (clientX: number, clientY: number) => [number, number]
   /** Thumbnail of the visible (unpadded) map area plus the camera that produced it. */
   capture: () => Promise<StoryMapCapture>
+  /** Completes the line, arrow or polygon being drawn, if it has enough points. */
+  finishDrawing: () => void
+  /** Removes the last point of the shape being drawn. */
+  undoDrawing: () => void
 }
+
+export type StoryMapAnnotationLayer = {
+  items: MapAnnotationItem[]
+  validity: Record<string, AnnotationValidity>
+  selectedId: string | null
+  /** Click selection is only on while the story is edited. */
+  onSelect?: (id: string | null) => void
+  /** A tool here puts the map in drawing mode until the shape is completed or cancelled. */
+  drawing: AnnotationTool | null
+  onDrawn?: (shape: DrawnShape) => void
+  onDrawProgress?: (points: number) => void
+  onDrawCancel?: () => void
+  /** An annotation whose anchor points can be dragged; leave it out of `items` while it is edited. */
+  editing?: MapAnnotationItem | null
+  onEdited?: (shape: DrawnShape) => void
+}
+
+const NO_VALIDITY: Record<string, AnnotationValidity> = {}
 
 const CAPTURE_WIDTH = 560
 const CAPTURE_ASPECT = 2.2
@@ -136,6 +174,8 @@ export type StoryMapProps = {
   frameDuration?: number
   frameLinear?: boolean
   styleUrl?: string
+  /** 2D basemap: the camera looks straight down and can't be tilted. */
+  flat?: boolean
   /** Turn off for previews; also hides the zoom controls. */
   interactive?: boolean
   /** Applied once when the map mounts. */
@@ -159,6 +199,8 @@ export type StoryMapProps = {
   cameraRequest?: { camera: StorySceneCamera } | null
   /** Highlighted columns, outlined areas and per-column tooltips, anchored to the map. */
   annotation?: StoryMapAnnotation | null
+  /** Markup the author draws on the map; it never changes the data layers underneath. */
+  annotations?: StoryMapAnnotationLayer | null
   onHandle?: (handle: StoryMapHandle | null) => void
 }
 
@@ -246,6 +288,8 @@ type StoryFrame = {
   phase: number
   area: [number, number][] | null
   annotation: FrameAnnotation | null
+  /** 1 draws columns, pins and walls at full height; 0 lays them flat for a 2D basemap. */
+  lift: number
 }
 
 const SCALE_KEYS = ['columns', 'junctions', 'regionColumns', 'regionJunctions'] as const
@@ -267,13 +311,17 @@ function columnFeatures(
   scales: number[],
   color: (index: number, height: number, scale: number) => [number, number, number],
   rank?: (index: number) => number | undefined,
+  lift = 1,
 ) {
   const features: DemoFeature[] = []
   geometry.forEach((ring, index) => {
     const scale = scales[index] ?? 1
     const height = (heights[index] ?? 0) * scale
     if (height < 1) return
-    const properties: DemoFeature['properties'] = { height, color: rgbString(color(index, height, scale)) }
+    const properties: DemoFeature['properties'] = {
+      height: lift === 1 ? height : FLAT_COLUMN_M + (height - FLAT_COLUMN_M) * lift,
+      color: rgbString(color(index, height, scale)),
+    }
     const featureRank = rank?.(index)
     if (featureRank !== undefined) properties.rank = featureRank
     features.push({ type: 'Feature', properties, geometry: ring })
@@ -310,7 +358,7 @@ function annotationAreaData(annotation: FrameAnnotation | null) {
   )
 }
 
-function drawAnnotationArea(map: mapboxgl.Map, annotation: FrameAnnotation | null) {
+function drawAnnotationArea(map: mapboxgl.Map, annotation: FrameAnnotation | null, lift: number) {
   if (!map.getLayer('story-annotation-fill')) return
   const mix = annotation?.mix ?? 0
   const color = annotation?.value.color ?? '#ffffff'
@@ -320,12 +368,12 @@ function drawAnnotationArea(map: mapboxgl.Map, annotation: FrameAnnotation | nul
   map.setPaintProperty('story-annotation-glow', 'line-color', color)
   map.setPaintProperty('story-annotation-glow', 'line-opacity', (walled ? 0.5 : 0.32) * mix)
   map.setPaintProperty('story-annotation-line', 'line-color', color)
-  map.setPaintProperty('story-annotation-line', 'line-opacity', (walled ? 0 : 0.95) * mix)
+  map.setPaintProperty('story-annotation-line', 'line-opacity', (walled ? 1 - lift : 1) * 0.95 * mix)
   for (let band = 0; band < ANNOTATION_WALL_BANDS; band += 1) {
     const id = `story-annotation-wall-${band}`
     const falloff = (1 - band / ANNOTATION_WALL_BANDS) ** 1.6
     map.setPaintProperty(id, 'fill-extrusion-color', color)
-    map.setPaintProperty(id, 'fill-extrusion-opacity', walled ? ANNOTATION_WALL_OPACITY * falloff * mix : 0)
+    map.setPaintProperty(id, 'fill-extrusion-opacity', walled ? ANNOTATION_WALL_OPACITY * falloff * mix * lift : 0)
   }
 }
 
@@ -387,7 +435,7 @@ function notedFade(note: FrameAnnotation | null, index: number) {
 }
 
 function drawStory(map: mapboxgl.Map, frame: StoryFrame) {
-  const { state, ramp, scales, region, annotation: note } = frame
+  const { state, ramp, scales, region, annotation: note, lift } = frame
   const mainNote = note?.value.layer === 'main' ? note : null
   const regionNote = note?.value.layer === 'region' ? note : null
   setSourceData(
@@ -400,6 +448,7 @@ function drawStory(map: mapboxgl.Map, frame: StoryFrame) {
       (index, height, scale) =>
         notedColor(mainNote, index, scale === 1 ? state.columnColors[index] : rampColor(ramp, height)),
       (index) => mainNote?.ranks.get(index),
+      lift,
     ),
   )
   setSourceData(
@@ -408,7 +457,7 @@ function drawStory(map: mapboxgl.Map, frame: StoryFrame) {
     junctionFeatures(DEMO_JUNCTIONS, state.radii, scales.junctions, (index) => notedFade(mainNote, index)),
   )
   mainNote?.pins.forEach((marker, index) => {
-    const height = (state.heights[index] ?? 0) * (scales.columns[index] ?? 1)
+    const height = (state.heights[index] ?? 0) * (scales.columns[index] ?? 1) * lift
     marker.setAltitude(Math.min(ANNOTATION_PIN_MAX_ALTITUDE_M, height))
     mainNote.action?.heights.set(index, height)
   })
@@ -424,6 +473,7 @@ function drawStory(map: mapboxgl.Map, frame: StoryFrame) {
         notedScales(regionNote, scales.regionColumns),
         (index, h) => notedColor(regionNote, index, rampColor(regionRamp, h)),
         (index) => regionNote?.ranks.get(index),
+        lift,
       ),
     )
     setSourceData(
@@ -434,7 +484,7 @@ function drawStory(map: mapboxgl.Map, frame: StoryFrame) {
       ),
     )
     regionNote?.pins.forEach((marker, index) => {
-      const height = (regionHeights[index] ?? 0) * (scales.regionColumns[index] ?? 0)
+      const height = (regionHeights[index] ?? 0) * (scales.regionColumns[index] ?? 0) * lift
       marker.setAltitude(Math.min(ANNOTATION_PIN_MAX_ALTITUDE_M, height))
       regionNote.action?.heights.set(index, height)
     })
@@ -553,7 +603,7 @@ function mountStoryLayers(map: mapboxgl.Map, frame: StoryFrame) {
 
   setSourceData(map, 'story-area', areaData(frame.area))
   setSourceData(map, 'story-annotation', annotationAreaData(frame.annotation))
-  drawAnnotationArea(map, frame.annotation)
+  drawAnnotationArea(map, frame.annotation, frame.lift)
   drawStory(map, frame)
 }
 
@@ -877,6 +927,7 @@ export function StoryMap({
   frameDuration = 500,
   frameLinear = false,
   styleUrl = STORY_MAP_STYLE,
+  flat = false,
   interactive = true,
   cameraPadding = CAMERA_PADDING,
   zoomOffset = 0,
@@ -887,6 +938,7 @@ export function StoryMap({
   areaEffect = null,
   cameraRequest = null,
   annotation = null,
+  annotations = null,
   onHandle,
 }: StoryMapProps) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -908,14 +960,25 @@ export function StoryMap({
     phase: framePhase,
     area: null,
     annotation: null,
+    lift: flat ? 0 : 1,
   })
   const appliedRegionRef = useRef<StoryMapRegion | null>(null)
   const appliedEffectRef = useRef<StoryAreaEffect | null>(null)
   const tweenRef = useRef<number | null>(null)
   const scaleTweenRef = useRef<number | null>(null)
   const annotationTweenRef = useRef<number | null>(null)
+  const liftTweenRef = useRef<number | null>(null)
   const mountOptionsRef = useRef({ interactive, cameraPadding, zoomOffset, fitParentHeight })
+  const flatRef = useRef(flat)
+  const pitchBeforeFlatRef = useRef<number | null>(null)
   const flyToSceneRef = useRef(flyToScene)
+  const annotationsRef = useRef(annotations)
+  const labelsRef = useRef<AnnotationLabels | null>(null)
+  const drawingRef = useRef<AnnotationDrawing | null>(null)
+
+  useEffect(() => {
+    annotationsRef.current = annotations
+  }, [annotations])
 
   useEffect(() => {
     flyToSceneRef.current = flyToScene
@@ -943,6 +1006,7 @@ export function StoryMap({
       zoom: camera.zoom + mountOptions.zoomOffset,
       pitch: camera.pitch,
       bearing: camera.bearing,
+      maxPitch: flatRef.current ? 0 : MAX_PITCH_3D,
       antialias: true,
       attributionControl: false,
       interactive: mountOptions.interactive,
@@ -977,9 +1041,11 @@ export function StoryMap({
 
     map.on('load', () => {
       mountStoryLayers(map, frameRef.current)
+      mountAnnotationLayers(map, frameRef.current.lift)
       syncDemoLayers(map, layersRef.current)
       setReady(true)
     })
+    labelsRef.current = new AnnotationLabels(map, () => annotationsRef.current?.onSelect)
 
     handleRef.current = {
       zoomIn: () => map.zoomIn({ duration: 280 }),
@@ -996,7 +1062,12 @@ export function StoryMap({
       if (tweenRef.current !== null) cancelAnimationFrame(tweenRef.current)
       if (scaleTweenRef.current !== null) cancelAnimationFrame(scaleTweenRef.current)
       if (annotationTweenRef.current !== null) cancelAnimationFrame(annotationTweenRef.current)
+      if (liftTweenRef.current !== null) cancelAnimationFrame(liftTweenRef.current)
       frame.annotation = null
+      drawingRef.current?.destroy()
+      drawingRef.current = null
+      labelsRef.current?.destroy()
+      labelsRef.current = null
       map.remove()
       mapRef.current = null
       handleRef.current = null
@@ -1120,7 +1191,9 @@ export function StoryMap({
     }
     if (region && regionChanged) {
       frame.region = region
-      frame.regionGeometry = region.columns.map(([lng, lat]) => ring(lng, lat, COLUMN_RADIUS_M, 14))
+      frame.regionGeometry = region.columns.map(([lng, lat]) =>
+        ring(lng, lat, region.columnRadiusM ?? COLUMN_RADIUS_M, 14),
+      )
       frame.scales = {
         ...frame.scales,
         regionColumns: filled(region.columns.length, 0),
@@ -1203,7 +1276,7 @@ export function StoryMap({
       // Let the agent rail finish resizing the map before framing the areas.
       window.setTimeout(() => {
         if (frameRef.current.annotation?.value !== annotation || mapRef.current !== map) return
-        const pitch = regionCamera?.pitch ?? map.getPitch()
+        const pitch = flatRef.current ? 0 : (regionCamera?.pitch ?? map.getPitch())
         const bearing = regionCamera?.bearing ?? map.getBearing()
         const padding = annotation.style === 'markers' ? MARKERS_FIT_PADDING : ANNOTATION_FIT_PADDING
         const fit = map.cameraForBounds(bounds, { padding, pitch, bearing })
@@ -1247,7 +1320,7 @@ export function StoryMap({
       const current = target ?? fading
       if (current) current.mix = target ? easeInOutCubic(t) : from * (1 - easeInOutCubic(t))
       if (t >= 1 && !target) frame.annotation = null
-      drawAnnotationArea(map, frame.annotation)
+      drawAnnotationArea(map, frame.annotation, frame.lift)
       drawStory(map, frame)
       annotationTweenRef.current = t < 1 ? requestAnimationFrame(step) : null
     }
@@ -1312,6 +1385,8 @@ export function StoryMap({
           })
           map.triggerRepaint()
         }),
+      finishDrawing: () => drawingRef.current?.finish(),
+      undoDrawing: () => drawingRef.current?.undo(),
     })
     return () => onHandle(null)
   }, [onHandle, ready])
@@ -1323,11 +1398,120 @@ export function StoryMap({
     setReady(false)
     map.once('style.load', () => {
       mountStoryLayers(map, frameRef.current)
+      mountAnnotationLayers(map, frameRef.current.lift)
       syncDemoLayers(map, layersRef.current)
       setReady(true)
     })
     map.setStyle(styleUrl)
   }, [ready, styleUrl])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready || flatRef.current === flat) return
+    flatRef.current = flat
+    if (flat) {
+      pitchBeforeFlatRef.current = map.getPitch()
+      map.easeTo({ pitch: 0, duration: DIMENSION_EASE_MS })
+      map.once('moveend', () => {
+        if (flatRef.current) map.setMaxPitch(0)
+      })
+      return
+    }
+    map.setMaxPitch(MAX_PITCH_3D)
+    // Back to the tilt the author left (e.g. after drawing), or the slide's own tilt when the map started flat.
+    const before = pitchBeforeFlatRef.current
+    pitchBeforeFlatRef.current = null
+    const pitch = before && before > 1 ? before : (appliedRegionRef.current ?? storySceneAt(sceneIndexRef.current)).camera.pitch
+    map.easeTo({ pitch, duration: DIMENSION_EASE_MS })
+  }, [flat, ready])
+
+  const annotationItems = annotations?.items
+  const annotationValidity = annotations?.validity ?? NO_VALIDITY
+  const selectedAnnotationId = annotations?.selectedId ?? null
+  const drawingTool = annotations?.drawing ?? null
+  const editingId = annotations?.editing?.id ?? null
+  const selectable = Boolean(annotations?.onSelect)
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const items = annotationItems ?? []
+    drawAnnotations(map, items, selectedAnnotationId, annotationValidity)
+    labelsRef.current?.sync(items, selectedAnnotationId, annotationValidity, selectable)
+  }, [annotationItems, annotationValidity, selectedAnnotationId, selectable, ready])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready || !selectable || drawingTool || editingId) return
+    const canvas = map.getCanvas()
+    const onClick = (event: mapboxgl.MapMouseEvent) => annotationsRef.current?.onSelect?.(annotationAt(map, event.point))
+    const onMove = (event: mapboxgl.MapMouseEvent) => {
+      canvas.style.cursor = annotationAt(map, event.point) ? 'pointer' : ''
+    }
+    map.on('click', onClick)
+    map.on('mousemove', onMove)
+    return () => {
+      map.off('click', onClick)
+      map.off('mousemove', onMove)
+      canvas.style.cursor = ''
+    }
+  }, [selectable, drawingTool, editingId, ready])
+
+  useEffect(() => {
+    const map = mapRef.current
+    const item = annotationsRef.current?.editing
+    if (!map || !ready || !editingId || !item || item.id !== editingId) return
+    const { distribution, junctions } = layersRef.current
+    const editing = startAnnotationEditing(map, item, {
+      snapLayers: { columns: distribution, junctions },
+      onChange: (shape) => annotationsRef.current?.onEdited?.(shape),
+    })
+    return () => editing.destroy()
+  }, [editingId, ready])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready || !drawingTool) return
+    const { distribution, junctions } = layersRef.current
+    const drawing = startAnnotationDrawing(map, drawingTool, {
+      snapLayers: { columns: distribution, junctions },
+      onProgress: (points) => annotationsRef.current?.onDrawProgress?.(points),
+      onComplete: (shape) => {
+        drawingRef.current = null
+        annotationsRef.current?.onDrawn?.(shape)
+      },
+      onCancel: () => {
+        drawingRef.current = null
+        annotationsRef.current?.onDrawCancel?.()
+      },
+    })
+    drawingRef.current = drawing
+    return () => {
+      drawing.destroy()
+      if (drawingRef.current === drawing) drawingRef.current = null
+    }
+  }, [drawingTool, ready])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const frame = frameRef.current
+    const from = frame.lift
+    const to = flat ? 0 : 1
+    if (from === to) return
+    if (liftTweenRef.current !== null) cancelAnimationFrame(liftTweenRef.current)
+    const start = performance.now()
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / DIMENSION_EASE_MS)
+      // Float error can dip a hair below 0, which Mapbox rejects as an opacity.
+      frame.lift = Math.max(0, Math.min(1, from + (to - from) * easeInOutCubic(t)))
+      drawAnnotationArea(map, frame.annotation, frame.lift)
+      setAnnotationLift(map, frame.lift)
+      drawStory(map, frame)
+      liftTweenRef.current = t < 1 ? requestAnimationFrame(step) : null
+    }
+    liftTweenRef.current = requestAnimationFrame(step)
+  }, [flat, ready])
 
   return (
     <div ref={rootRef} className={[styles.root, className].filter(Boolean).join(' ')}>
