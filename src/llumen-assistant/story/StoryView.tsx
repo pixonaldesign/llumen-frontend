@@ -318,6 +318,42 @@ const DEFAULT_GRID_COLUMNS: GridColumns = 8
 const GRID_CELL_SIZE = 184
 const GRID_CELL_GAP = 12
 const GRID_CARD_SPAN = 2
+
+/** Sidebar layout keeps the 184px cell; more columns widen the sidebar instead of shrinking cells. */
+const SIDEBAR_COLUMN_OPTIONS = [2, 3, 4] as const
+type SidebarColumns = (typeof SIDEBAR_COLUMN_OPTIONS)[number]
+const DEFAULT_SIDEBAR_COLUMNS: SidebarColumns = 2
+
+function ColumnsControl<T extends number>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: readonly T[]
+  value: T
+  onChange: (columns: T) => void
+}) {
+  return (
+    <div className={styles.gridColumnsControl} role="radiogroup" aria-label={label}>
+      <GridFour className={styles.gridColumnsIcon} size={18} weight="regular" aria-hidden />
+      {options.map((columns) => (
+        <button
+          key={columns}
+          type="button"
+          role="radio"
+          aria-checked={value === columns}
+          aria-label={`${columns} columns`}
+          className={`${styles.gridColumnsOption}${value === columns ? ` ${styles.gridColumnsOptionActive}` : ''}`}
+          onClick={() => onChange(columns)}
+        >
+          {columns}
+        </button>
+      ))}
+    </div>
+  )
+}
 /** Space kept clear around the grid: sides, top, and the floating width control above the toolbar. */
 const GRID_INSET_X = 20
 const GRID_INSET_TOP = 20
@@ -452,6 +488,7 @@ export function StoryView({
   const [regeneratingSlideId, setRegeneratingSlideId] = useState<string | null>(null)
   const [layoutBySlide, setLayoutBySlide] = useState<Record<string, StoryViewLayout>>({})
   const [gridColumnsBySlide, setGridColumnsBySlide] = useState<Record<string, GridColumns>>({})
+  const [sidebarColumnsBySlide, setSidebarColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
   const [comparisonBySlide, setComparisonBySlide] = useState<Record<string, ComparisonChoice>>({})
   const [comparisonPickerOpen, setComparisonPickerOpen] = useState(false)
   const [comparisonLegendOpen, setComparisonLegendOpen] = useState({ upper: false, lower: false })
@@ -792,7 +829,11 @@ export function StoryView({
       layers: { ...current.layers, [key]: !current.layers[key] },
     }))
   const placedCards = INSIGHT_CARD_IDS.filter((id) => !cardPrefs[id]?.deleted).length
-  const emptyGridCells = (GRID_ROWS - placedCards) * 2
+  const sidebarColumns =
+    viewLayout === 'sidebar'
+      ? (sidebarColumnsBySlide[slide.id] ?? DEFAULT_SIDEBAR_COLUMNS)
+      : DEFAULT_SIDEBAR_COLUMNS
+  const emptyGridCells = (GRID_ROWS - placedCards) * sidebarColumns
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const [bodySize, setBodySize] = useState({ width: 0, height: 0 })
@@ -2051,6 +2092,7 @@ export function StoryView({
                   ]
                     .filter(Boolean)
                     .join(' ')}
+                  style={{ '--sidebar-columns': sidebarColumns } as CSSProperties}
                   aria-label="Story insight"
                 >
                   {insightCards}
@@ -2236,22 +2278,20 @@ export function StoryView({
         ) : null}
 
         {storyMode === 'edit' && viewLayout === 'grid' ? (
-          <div className={styles.gridColumnsControl} role="radiogroup" aria-label="Grid width">
-            <GridFour className={styles.gridColumnsIcon} size={18} weight="regular" aria-hidden />
-            {GRID_COLUMN_OPTIONS.map((columns) => (
-              <button
-                key={columns}
-                type="button"
-                role="radio"
-                aria-checked={gridColumns === columns}
-                aria-label={`${columns} columns`}
-                className={`${styles.gridColumnsOption}${gridColumns === columns ? ` ${styles.gridColumnsOptionActive}` : ''}`}
-                onClick={() => setGridColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
-              >
-                {columns}
-              </button>
-            ))}
-          </div>
+          <ColumnsControl
+            label="Grid width"
+            options={GRID_COLUMN_OPTIONS}
+            value={gridColumns}
+            onChange={(columns) => setGridColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
+          />
+        ) : null}
+        {storyMode === 'edit' && viewLayout === 'sidebar' ? (
+          <ColumnsControl
+            label="Sidebar width"
+            options={SIDEBAR_COLUMN_OPTIONS}
+            value={sidebarColumns}
+            onChange={(columns) => setSidebarColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
+          />
         ) : null}
 
         {viewLayout === 'comparison' ? (
