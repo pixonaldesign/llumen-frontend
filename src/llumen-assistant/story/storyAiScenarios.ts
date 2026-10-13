@@ -9,7 +9,11 @@ import type { StoryLocation } from './storyAnnotations'
 
 export type StoryMapRegion = {
   id: string
+  /** The place the region's legend and summary talk about. */
+  label: string
   camera: StorySceneCamera
+  /** Column footprint; larger regions use wider columns so they still read at their zoom. */
+  columnRadiusM?: number
   columnRamp: [number, string][]
   columns: [number, number, number][]
   junctions: [number, number, number][]
@@ -147,6 +151,7 @@ export const MUSSAFAH_MAX_HEIGHT_M = 3000
 
 export const MUSSAFAH_REGION: StoryMapRegion = {
   id: 'mussafah',
+  label: MUSSAFAH_LABEL,
   camera: { center: [54.516, 24.343], zoom: 12.75, pitch: 58, bearing: -24 },
   columnRamp: [
     [150, '#2c18b4'],
@@ -188,6 +193,12 @@ export function busyJunctionCount(radii: number[]) {
 }
 
 export const MUSSAFAH_BUSY = busyJunctionCount(MUSSAFAH_REGION.junctions.map(([, , radius]) => radius))
+
+/** Over-capacity junctions in a region; generated regions keep Mussafah's share. */
+export function regionBusyJunctions(region: StoryMapRegion) {
+  if (region === MUSSAFAH_REGION) return MUSSAFAH_BUSY
+  return Math.round((region.junctions.length * MUSSAFAH_BUSY) / MUSSAFAH_REGION.junctions.length)
+}
 
 /** Insight numbers for the Mussafah 2023–2024 cards at a point of the timeline loop. */
 export function mussafahInsight(phase: number) {

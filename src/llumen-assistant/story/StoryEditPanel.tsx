@@ -43,12 +43,15 @@ import {
   BACKGROUND_MEDIA_PRESETS,
   BACKGROUND_MEDIA_TYPES,
   BACKGROUND_TABS,
+  BASEMAP_DIMENSIONS,
+  DEFAULT_BASEMAP_DIMENSION,
   DEFAULT_BACKGROUND_COLOR,
   colorBackground,
   mediaBackground,
   type BackgroundMediaSource,
   type BackgroundMediaType,
   type BackgroundTab,
+  type BasemapDimension,
   type StoryBackground,
 } from './storyBackground'
 import { InlineColorPicker } from './StoryCustomColorPicker'
@@ -80,6 +83,7 @@ export type StoryEditPanelProps = {
   /** Opens the slide editor directly, with no return to the slides list. */
   directSlideEditor?: boolean
   mapStyleId: string
+  mapDimension: BasemapDimension
   background: StoryBackground
   onBackgroundChange: (background: StoryBackground) => void
   /** Places the picked charts (STORY_CHARTS ids) into the slide's grid. */
@@ -115,6 +119,7 @@ export function StoryEditPanel({
   onClose,
   directSlideEditor = false,
   mapStyleId,
+  mapDimension,
   background,
   onBackgroundChange,
   onAddCharts,
@@ -281,6 +286,7 @@ export function StoryEditPanel({
         <BackgroundPicker
           background={background}
           basemapId={mapStyleId}
+          basemapDimension={mapDimension}
           onApply={(next) => {
             onBackgroundChange(next)
             onClose()
@@ -1295,11 +1301,13 @@ const MAP_STYLE_OPTIONS = [
 function BackgroundPicker({
   background,
   basemapId,
+  basemapDimension,
   onApply,
   onCancel,
 }: {
   background: StoryBackground
   basemapId: string
+  basemapDimension: BasemapDimension
   onApply: (background: StoryBackground) => void
   onCancel: () => void
 }) {
@@ -1308,6 +1316,8 @@ function BackgroundPicker({
     { id: string; name: string; description: string; url?: string; image?: string }[]
   >([...MAP_STYLE_OPTIONS])
   const [selectedId, setSelectedId] = useState(basemapId)
+  const [dimensions, setDimensions] = useState<Record<string, BasemapDimension>>({ [basemapId]: basemapDimension })
+  const dimensionOf = (id: string) => dimensions[id] ?? DEFAULT_BASEMAP_DIMENSION
   const [customOpen, setCustomOpen] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
   const [mediaType, setMediaType] = useState<BackgroundMediaType>(
@@ -1370,7 +1380,7 @@ function BackgroundPicker({
   const apply = () => {
     if (tab === 'basemap') {
       if (!selected?.url) return
-      onApply({ kind: 'basemap', id: selected.id, url: selected.url })
+      onApply({ kind: 'basemap', id: selected.id, url: selected.url, dimension: dimensionOf(selected.id) })
     } else if (tab === 'media') {
       onApply(
         background.kind === 'media' && background.src === mediaReady.src
@@ -1574,29 +1584,51 @@ function BackgroundPicker({
       <div className={styles.mapStyleStage}>
         <div className={styles.mapStyleGrid}>
           {stylesList.map((style) => (
-            <button
-              key={style.id}
-              type="button"
-              className={`${styles.assetCard} ${styles.mapStyleCard}${
-                selectedId === style.id ? ` ${styles.assetCardSelected}` : ''
-              }`}
-              aria-pressed={selectedId === style.id}
-              onClick={() => setSelectedId(style.id)}
-            >
-              <span className={styles.assetCardClip}>
-                <span className={styles.assetCardImage}>
-                  {style.image ? (
-                    <img src={style.image} alt="" />
-                  ) : (
-                    <Question className={styles.mapStyleEmpty} size={42} weight="regular" aria-hidden />
-                  )}
+            <div key={style.id} className={styles.mapStyleItem}>
+              <button
+                type="button"
+                className={`${styles.assetCard} ${styles.mapStyleCard}${
+                  selectedId === style.id ? ` ${styles.assetCardSelected}` : ''
+                }`}
+                aria-pressed={selectedId === style.id}
+                onClick={() => setSelectedId(style.id)}
+              >
+                <span className={styles.assetCardClip}>
+                  <span className={styles.assetCardImage}>
+                    {style.image ? (
+                      <img src={style.image} alt="" />
+                    ) : (
+                      <Question className={styles.mapStyleEmpty} size={42} weight="regular" aria-hidden />
+                    )}
+                  </span>
+                  <span className={styles.assetCardTitle}>
+                    <span className={styles.mapStyleCardName}>{style.name}</span>
+                    <span className={styles.mapStyleCardDesc}>{style.description}</span>
+                  </span>
                 </span>
-                <span className={styles.assetCardTitle}>
-                  <span className={styles.mapStyleCardName}>{style.name}</span>
-                  <span className={styles.mapStyleCardDesc}>{style.description}</span>
-                </span>
-              </span>
-            </button>
+              </button>
+              <div
+                className={`${styles.segmentedControl} ${styles.mapStyleDimension}`}
+                role="radiogroup"
+                aria-label={`${style.name} map view`}
+              >
+                {BASEMAP_DIMENSIONS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={dimensionOf(style.id) === item.id}
+                    className={`${styles.segmentedBtn}${dimensionOf(style.id) === item.id ? ` ${styles.segmentedBtnActive}` : ''}`}
+                    onClick={() => {
+                      setDimensions((current) => ({ ...current, [style.id]: item.id }))
+                      setSelectedId(style.id)
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

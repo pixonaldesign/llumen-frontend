@@ -4,6 +4,8 @@ import { CaretDown } from '@phosphor-icons/react'
 import styles from './StoryEditPanel.module.css'
 
 const OPTION_HEIGHT = 40
+/** Longer menus scroll past this height. */
+const MENU_MAX_HEIGHT = 336
 
 export function ConfigSelect<T extends string>({
   label,
@@ -11,6 +13,8 @@ export function ConfigSelect<T extends string>({
   options,
   onChange,
   hideLabel = false,
+  className,
+  triggerClassName,
 }: {
   label: string
   value: T
@@ -18,6 +22,9 @@ export function ConfigSelect<T extends string>({
   onChange: (value: T) => void
   /** Keeps the label for screen readers only. */
   hideLabel?: boolean
+  className?: string
+  /** Replaces the default boxed trigger style. */
+  triggerClassName?: string
 }) {
   const labelId = useId()
   const menuId = useId()
@@ -26,12 +33,13 @@ export function ConfigSelect<T extends string>({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const current = options.find((option) => option.value === value) ?? options[0]
+  const scrolls = options.length * OPTION_HEIGHT + 8 > MENU_MAX_HEIGHT
 
   const syncPosition = useCallback(() => {
     const trigger = triggerRef.current
     if (!trigger) return
     const rect = trigger.getBoundingClientRect()
-    const height = options.length * OPTION_HEIGHT + 8
+    const height = Math.min(MENU_MAX_HEIGHT, options.length * OPTION_HEIGHT + 8)
     const below = rect.bottom + 8
     setPosition({
       top: below + height > window.innerHeight - 8 ? Math.max(8, rect.top - 8 - height) : below,
@@ -67,14 +75,14 @@ export function ConfigSelect<T extends string>({
   }, [open, syncPosition])
 
   return (
-    <div className={styles.field}>
+    <div className={className ?? styles.field}>
       <span id={labelId} className={hideLabel ? styles.visuallyHidden : styles.label}>
         {label}
       </span>
       <button
         ref={triggerRef}
         type="button"
-        className={`${styles.logoSelect}${open ? ` ${styles.logoSelectOpen}` : ''}`}
+        className={`${triggerClassName ?? styles.logoSelect}${open ? ` ${styles.logoSelectOpen}` : ''}`}
         aria-labelledby={labelId}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -92,10 +100,15 @@ export function ConfigSelect<T extends string>({
             <div
               ref={menuRef}
               id={menuId}
-              className={styles.logoMenu}
+              className={`${styles.logoMenu}${scrolls ? ` ${styles.logoMenuScroll}` : ''}`}
               role="listbox"
               aria-labelledby={labelId}
-              style={{ top: position.top, left: position.left, width: position.width }}
+              style={{
+                top: position.top,
+                left: position.left,
+                width: position.width,
+                maxHeight: scrolls ? MENU_MAX_HEIGHT : undefined,
+              }}
             >
               {options.map((option) => (
                 <button

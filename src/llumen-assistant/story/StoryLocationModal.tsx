@@ -3,16 +3,18 @@ import { createPortal } from 'react-dom'
 import type { Feature, FeatureCollection, GeoJsonProperties } from 'geojson'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { MagnifyingGlass, MapPin, PencilSimple, Polygon, Trash, X } from '@phosphor-icons/react'
-import { MUSSAFAH_REGION } from './storyAiScenarios'
+import { MagnifyingGlass, PencilSimple, Polygon, Trash, X } from '@phosphor-icons/react'
 import {
   LOCATION_ANNOTATION_COLOR,
+  STORY_LOCATION_TYPES,
   STORY_LOCATIONS,
   drawnLocation,
-  locationColumnCount,
+  polygonCenter,
   type StoryLocation,
+  type StoryLocationOption,
+  type StoryLocationType,
 } from './storyAnnotations'
-import { DEMO_COLUMNS } from './storyDemoMapData'
+import { ConfigSelect } from './StoryConfigSelect'
 import { STORY_MAP_STYLE } from './StoryMap'
 import { traceStreets } from './storyStreetTrace'
 import styles from './StoryEditPanel.module.css'
@@ -24,9 +26,23 @@ const FIT_PADDING = 56
 const CLOSE_RADIUS_PX = 12
 /** Repeated clicks this close to the last vertex are ignored (double-click finishes instead). */
 const SAME_POINT_PX = 6
-const BRAND = '#70aeff'
 
 type Ring = [number, number][]
+type PickedLocation = StoryLocation | StoryLocationOption
+
+const ALL_TYPES = { id: 'all' as const, plural: 'All Location Types' }
+
+function typeOf(location: PickedLocation) {
+  return 'type' in location ? STORY_LOCATION_TYPES.find((option) => option.id === location.type) : undefined
+}
+
+/** Districts, zones and drawn areas snap to their streets; larger areas and corridors keep their outline. */
+function outlineOnStreets(location: PickedLocation): Promise<Ring> {
+  const type = 'type' in location ? location.type : null
+  return type === null || type === 'district' || type === 'zone'
+    ? traceStreets(location.polygon)
+    : Promise.resolve(location.polygon)
+}
 
 function collection(features: Feature[]): FeatureCollection {
   return { type: 'FeatureCollection', features }
@@ -62,46 +78,10 @@ function fitRing(map: mapboxgl.Map, ring: Ring) {
 
 function addLayers(map: mapboxgl.Map) {
   const empty = collection([])
-  map.addSource('location-districts', {
-    type: 'geojson',
-    data: collection(STORY_LOCATIONS.map((location) => polygonFeature(location.polygon, { id: location.id }))),
-  })
-  map.addSource('location-columns', {
-    type: 'geojson',
-    data: collection(
-      [...DEMO_COLUMNS, ...MUSSAFAH_REGION.columns].map(([lng, lat]) => ({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'Point', coordinates: [lng, lat] },
-      })),
-    ),
-  })
   map.addSource('location-selected', { type: 'geojson', data: empty })
   map.addSource('location-pending', { type: 'geojson', data: empty })
   map.addSource('location-draft', { type: 'geojson', data: empty })
 
-  map.addLayer({
-    id: 'location-districts-fill',
-    type: 'fill',
-    source: 'location-districts',
-    paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.06 },
-  })
-  map.addLayer({
-    id: 'location-districts-line',
-    type: 'line',
-    source: 'location-districts',
-    paint: { 'line-color': '#ffffff', 'line-opacity': 0.45, 'line-width': 1.2, 'line-dasharray': [2, 2] },
-  })
-  map.addLayer({
-    id: 'location-columns',
-    type: 'circle',
-    source: 'location-columns',
-    paint: {
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 1.2, 14, 3],
-      'circle-color': BRAND,
-      'circle-opacity': 0.7,
-    },
-  })
   map.addLayer({
     id: 'location-selected-fill',
     type: 'fill',
@@ -152,16 +132,32 @@ export function StoryLocationModal({
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const [ready, setReady] = useState(false)
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<StoryLocation | null>(null)
+  const [type, setType] = useState<StoryLocationType | 'all'>('all')
+  /** Parent location the list is narrowed to ('all' for none). */
+  const [parent, setParent] = useState('all')
+  const [selected, setSelected] = useState<PickedLocation | null>(null)
   /** `selected`, with its outline snapped to the streets once routing returns. */
-  const [traced, setTraced] = useState<StoryLocation | null>(null)
+  const [traced, setTraced] = useState<PickedLocation | null>(null)
+  const markerRef = useRef<mapboxgl.Marker | null>(null)
   const [drawing, setDrawing] = useState(false)
   const [points, setPoints] = useState<Ring>([])
 
+  const tab = STORY_LOCATION_TYPES.find((option) => option.id === type) ?? ALL_TYPES
+  const filterType = 'filterBy' in tab ? STORY_LOCATION_TYPES.find((option) => option.id === tab.filterBy) : undefined
+  const parents = filterType
+    ? STORY_LOCATIONS.filter(
+        (location) =>
+          location.type === filterType.id && STORY_LOCATIONS.some((child) => child.type === type && child.parent === location.id),
+      )
+    : []
   const q = query.trim().toLowerCase()
   const visible = STORY_LOCATIONS.filter(
-    (location) => !q || location.name.toLowerCase().includes(q) || location.description.toLowerCase().includes(q),
+    (location) =>
+      (type === 'all' || location.type === type) &&
+      (parent === 'all' || location.parent === parent) &&
+      (!q || location.label.toLowerCase().includes(q) || location.name.toLowerCase().includes(q)),
   )
+  const typeLabel = type === 'all' ? 'Locations' : tab.plural
 
   useEffect(() => {
     const el = mapElRef.current
@@ -184,7 +180,10 @@ export function StoryLocationModal({
       setReady(true)
     })
     mapRef.current = map
+    const resize = new ResizeObserver(() => map.resize())
+    resize.observe(el)
     return () => {
+      resize.disconnect()
       map.remove()
       mapRef.current = null
     }
@@ -196,7 +195,7 @@ export function StoryLocationModal({
   useEffect(() => {
     if (!selected) return
     let current = true
-    void traceStreets(selected.polygon).then((polygon) => {
+    void outlineOnStreets(selected).then((polygon) => {
       if (current) setTraced({ ...selected, polygon })
     })
     return () => {
@@ -214,6 +213,24 @@ export function StoryLocationModal({
 
   useEffect(() => {
     const map = mapRef.current
+    if (!map || !ready || !selected) return
+    const label = document.createElement('div')
+    label.className = styles.locationMapLabel
+    label.textContent = selected.name
+    const marker = new mapboxgl.Marker({ element: label }).setLngLat(polygonCenter(selected.polygon)).addTo(map)
+    markerRef.current = marker
+    return () => {
+      marker.remove()
+      markerRef.current = null
+    }
+  }, [ready, selected])
+
+  useEffect(() => {
+    if (location) markerRef.current?.setLngLat(polygonCenter(location.polygon))
+  }, [location])
+
+  useEffect(() => {
+    const map = mapRef.current
     if (!map || !ready) return
     setData(map, 'location-draft', draftData(points, null))
     map.getCanvas().style.cursor = drawing ? 'crosshair' : ''
@@ -226,12 +243,7 @@ export function StoryLocationModal({
       setSelected(drawnLocation(ring))
     }
     const onClick = (event: mapboxgl.MapMouseEvent) => {
-      if (!drawing) {
-        const id = map.queryRenderedFeatures(event.point, { layers: ['location-districts-fill'] })[0]?.properties?.id
-        const location = STORY_LOCATIONS.find((option) => option.id === id)
-        if (location) setSelected(location)
-        return
-      }
+      if (!drawing) return
       const pixel = (point: [number, number]) => map.project(point)
       if (points.length >= 3 && pixel(points[0]).dist(event.point) <= CLOSE_RADIUS_PX) {
         finish(points)
@@ -245,12 +257,7 @@ export function StoryLocationModal({
       if (drawing && points.length >= 3) finish(points)
     }
     const onMove = (event: mapboxgl.MapMouseEvent) => {
-      if (drawing) {
-        setData(map, 'location-draft', draftData(points, [event.lngLat.lng, event.lngLat.lat]))
-        return
-      }
-      const over = map.queryRenderedFeatures(event.point, { layers: ['location-districts-fill'] }).length > 0
-      map.getCanvas().style.cursor = over ? 'pointer' : ''
+      if (drawing) setData(map, 'location-draft', draftData(points, [event.lngLat.lng, event.lngLat.lat]))
     }
     map.on('click', onClick)
     map.on('dblclick', onDoubleClick)
@@ -293,7 +300,7 @@ export function StoryLocationModal({
     setDrawing(false)
   }
 
-  const columns = location ? locationColumnCount(location.polygon) : 0
+  const selectedType = selected ? (typeOf(selected)?.label ?? 'Drawn area') : ''
   const hint = drawing
     ? points.length < 3
       ? 'Click on the map to add points around the area'
@@ -302,7 +309,7 @@ export function StoryLocationModal({
       ? 'Tracing the area along its streets…'
       : location
         ? 'The area follows the streets around it'
-        : 'Pick an area, or draw one on the map'
+        : 'Pick a location from the list, or draw an area'
 
   return createPortal(
     <div className={styles.modalRoot}>
@@ -318,7 +325,7 @@ export function StoryLocationModal({
           <div className={styles.headerIdentity}>
             <div className={styles.headerCopy}>
               <h2 id="location-modal-title" className={styles.title}>
-                Location
+                Select Location
               </h2>
             </div>
           </div>
@@ -329,21 +336,60 @@ export function StoryLocationModal({
           </div>
         </header>
 
+        <div className={styles.locationTabs} role="tablist" aria-label="Location types">
+          {[ALL_TYPES, ...STORY_LOCATION_TYPES].map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="tab"
+              aria-selected={type === option.id}
+              className={`${styles.locationTab}${type === option.id ? ` ${styles.locationTabActive}` : ''}`}
+              onClick={() => {
+                setType(option.id)
+                setParent('all')
+              }}
+            >
+              {option.plural}
+            </button>
+          ))}
+        </div>
+
         <div className={styles.locationBody}>
           <aside className={styles.locationSide}>
-            <label className={`${styles.assetsSearch} ${styles.locationSearch}`}>
+            <label className={styles.locationSearch}>
               <MagnifyingGlass size={20} aria-hidden />
               <input
                 value={query}
-                placeholder="Search locations..."
-                aria-label="Search locations"
+                placeholder={`Search ${typeLabel}`}
+                aria-label={`Search ${typeLabel}`}
                 autoFocus
                 onChange={(event) => setQuery(event.target.value)}
               />
             </label>
+            {filterType ? (
+              <div className={styles.locationFilter}>
+                <span className={styles.locationFilterLabel} aria-hidden>
+                  Filter by
+                </span>
+                <ConfigSelect
+                  label={`Filter ${tab.plural.toLowerCase()} by ${filterType.label.toLowerCase()}`}
+                  hideLabel
+                  value={parent}
+                  options={[
+                    { value: 'all', label: `All ${filterType.plural}` },
+                    ...parents.map((option) => ({ value: option.id, label: option.name })),
+                  ]}
+                  onChange={setParent}
+                  className={styles.locationFilterField}
+                  triggerClassName={styles.locationFilterTrigger}
+                />
+              </div>
+            ) : null}
             <div className={styles.locationList} role="listbox" aria-label="Locations">
               {visible.length === 0 ? (
-                <p className={styles.locationEmpty}>No locations match “{query.trim()}”</p>
+                <p className={styles.locationEmpty}>
+                  {q ? `No ${typeLabel.toLowerCase()} match “${query.trim()}”` : `No ${typeLabel.toLowerCase()} here`}
+                </p>
               ) : null}
               {visible.map((location) => {
                 const active = selected?.id === location.id
@@ -360,14 +406,11 @@ export function StoryLocationModal({
                       setSelected(location)
                     }}
                     onDoubleClick={() => {
-                      void traceStreets(location.polygon).then((polygon) => onApply({ ...location, polygon }))
+                      void outlineOnStreets(location).then((polygon) => onApply({ ...location, polygon }))
                     }}
                   >
-                    <MapPin size={16} weight={active ? 'fill' : 'regular'} aria-hidden />
-                    <span className={styles.locationItemCopy}>
-                      <span className={styles.locationItemName}>{location.name}</span>
-                      <span className={styles.locationItemDesc}>{location.description}</span>
-                    </span>
+                    <span className={styles.locationItemName}>{location.label}</span>
+                    <span className={styles.locationItemDesc}>{typeOf(location)?.label}</span>
                   </button>
                 )
               })}
@@ -408,21 +451,23 @@ export function StoryLocationModal({
         </div>
 
         <footer className={`${styles.mapStyleFooter} ${styles.locationFooter}`}>
-          <p className={styles.locationSummary}>
-            {location ? (
-              <>
-                <b>{location.name}</b> · {columns} {columns === 1 ? 'column' : 'columns'}
-              </>
-            ) : selected ? (
-              <>
-                <b>{selected.name}</b> · tracing streets…
-              </>
-            ) : (
-              'No area selected'
-            )}
-          </p>
-          <button type="button" className={styles.secondaryBtn} onClick={onClose}>
-            Cancel
+          <div className={styles.locationSummary}>
+            <span className={styles.locationSummaryLabel}>Selected Location</span>
+            <span className={`${styles.locationSummaryValue}${selected ? '' : ` ${styles.locationSummaryEmpty}`}`}>
+              {location
+                ? `${location.name} (${selectedType})`
+                : selected
+                  ? `${selected.name} · tracing streets…`
+                  : 'None yet'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={styles.secondaryBtn}
+            onClick={clear}
+            disabled={!selected && points.length === 0 && !drawing}
+          >
+            Reset
           </button>
           <button
             type="button"

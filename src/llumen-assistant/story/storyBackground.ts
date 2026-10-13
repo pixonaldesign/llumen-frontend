@@ -53,7 +53,19 @@ export type BackgroundColor = {
   }
 }
 
-export type StoryBackground = { kind: 'basemap'; id: string; url: string } | BackgroundMedia | BackgroundColor
+/** 2D views the map straight down with tilting locked; 3D keeps each slide's tilted camera. */
+export type BasemapDimension = '2d' | '3d'
+
+export type BackgroundBasemap = { kind: 'basemap'; id: string; url: string; dimension: BasemapDimension }
+
+export type StoryBackground = BackgroundBasemap | BackgroundMedia | BackgroundColor
+
+export const DEFAULT_BASEMAP_DIMENSION: BasemapDimension = '3d'
+
+export const BASEMAP_DIMENSIONS: { id: BasemapDimension; label: string }[] = [
+  { id: '2d', label: '2D' },
+  { id: '3d', label: '3D' },
+]
 
 export const BACKGROUND_TABS: { id: BackgroundTab; label: string }[] = [
   { id: 'basemap', label: 'Basemap' },

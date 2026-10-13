@@ -21,7 +21,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
 }
 
-function Field({ label, value, children }: { label: string; value?: ReactNode; children: ReactNode }) {
+export function Field({ label, value, children }: { label: string; value?: ReactNode; children: ReactNode }) {
   return (
     <div className={styles.field}>
       <div className={styles.fieldHead}>
@@ -33,7 +33,7 @@ function Field({ label, value, children }: { label: string; value?: ReactNode; c
   )
 }
 
-function Segmented<T extends string | number>({
+export function Segmented<T extends string | number>({
   label,
   value,
   options,
@@ -80,7 +80,7 @@ function progress(value: number, min: number, max: number) {
   return max === min ? 0 : clamp((value - min) / (max - min), 0, 1)
 }
 
-function Slider({
+export function Slider({
   label,
   value,
   min,
@@ -203,7 +203,7 @@ function RangeSlider({
   )
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <label className={styles.toggleRow}>
       <span className={styles.fieldLabel}>{label}</span>

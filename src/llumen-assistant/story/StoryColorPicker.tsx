@@ -7,16 +7,23 @@ import styles from './StoryEditPanel.module.css'
 
 const POPOVER_WIDTH = 232
 const POPOVER_HEIGHT = 140
+const PALETTE_SWATCHES = ['#70aeff', '#4fc3e8', '#7dcea0', '#ffc401', '#f7a13b', '#f17474', '#c084fc']
 
 export function ColorPicker({
   label,
   value,
   variant,
+  swatches: paletteSwatches,
+  customOnly = false,
   onChange,
 }: {
   label: string
   value: string
-  variant: 'swatch' | 'chip'
+  variant: 'swatch' | 'chip' | 'palette'
+  /** Replaces the default palette row; a custom color outside it is added after these. */
+  swatches?: string[]
+  /** The trigger opens the custom color picker straight away instead of the swatch grid. */
+  customOnly?: boolean
   onChange: (value: string) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -72,6 +79,10 @@ export function ColorPicker({
       setCustomOpen(false)
       return
     }
+    if (customOnly) {
+      setCustomOpen(true)
+      return
+    }
     syncPosition()
     setOpen(true)
   }
@@ -81,10 +92,41 @@ export function ColorPicker({
   const expanded = open || customOpen
 
   const swatchStyle = { '--swatch': value } as CSSProperties
+  const paletteBase = paletteSwatches ?? PALETTE_SWATCHES
+  const palette = paletteBase.some((swatch) => swatch.toLowerCase() === value.toLowerCase())
+    ? paletteBase
+    : paletteSwatches
+      ? [...paletteBase, value]
+      : [...paletteBase.slice(0, -1), value]
 
   return (
     <>
-      {variant === 'swatch' ? (
+      {variant === 'palette' ? (
+        <div className={styles.colorPalette} role="group" aria-label={label}>
+          {palette.map((swatch) => (
+            <button
+              key={swatch}
+              type="button"
+              className={`${styles.colorDot}${swatch.toLowerCase() === value.toLowerCase() ? ` ${styles.colorDotSelected}` : ''}`}
+              style={{ '--swatch': swatch } as CSSProperties}
+              aria-label={swatch.toUpperCase()}
+              aria-pressed={swatch.toLowerCase() === value.toLowerCase()}
+              onClick={() => onChange(swatch)}
+            />
+          ))}
+          <button
+            ref={triggerRef}
+            type="button"
+            className={`${styles.colorPaletteMore}${expanded ? ` ${styles.colorPaletteMoreOpen}` : ''}`}
+            aria-label="All colors"
+            aria-haspopup="dialog"
+            aria-expanded={expanded}
+            onClick={toggle}
+          >
+            <Plus size={12} weight="bold" aria-hidden />
+          </button>
+        </div>
+      ) : variant === 'swatch' ? (
         <div className={styles.colorSwatchRow}>
           <button
             ref={triggerRef}

@@ -514,6 +514,31 @@
   background: #ffffff1a;
 }
 
+.logoMenu.logoMenuScroll {
+  padding-right: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb) transparent;
+}
+
+.logoMenuScroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.logoMenuScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.logoMenuScroll::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-full);
+  background: var(--lc-scrollbar-thumb);
+}
+
+.logoMenu.logoMenuScroll button {
+  width: calc(100% - 4px);
+}
+
 .settingGroup {
   display: flex;
   flex-direction: column;
@@ -1777,6 +1802,29 @@
   gap: 2px;
 }
 
+.mapStyleItem {
+  position: relative;
+}
+
+/* Sits on the card's title row; the name leaves room for it. */
+.mapStyleDimension {
+  position: absolute;
+  right: 12px;
+  bottom: 28px;
+  z-index: 3;
+  padding: 2px;
+}
+
+.mapStyleDimension .segmentedBtn {
+  height: 22px;
+  min-width: 32px;
+  padding: 0 var(--space-xs);
+}
+
+.mapStyleCard .mapStyleCardName {
+  padding-right: 84px;
+}
+
 .mapStyleCardName {
   color: #fff;
   font: var(--lc-font-small);
@@ -2296,6 +2344,51 @@
     0 0 0 3px var(--lc-bg-default);
 }
 
+.colorPalette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.colorPalette .colorDot {
+  width: 24px;
+  height: 24px;
+}
+
+.colorPaletteMore {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s,
+    border-color 0.12s;
+}
+
+.colorPaletteMore:hover,
+.colorPaletteMoreOpen {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.colorPaletteMore:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
 .colorHex {
   color: var(--lc-text-tertiary);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -2405,8 +2498,8 @@
 
 
 .panel.modal.locationModal {
-  width: min(1080px, calc(100vw - 64px));
-  height: min(680px, calc(100vh - 64px));
+  width: min(1480px, calc(100vw - 80px));
+  height: min(920px, calc(100vh - 80px));
 }
 
 .locationBody {
@@ -2415,20 +2508,146 @@
   min-height: 0;
 }
 
+.locationTabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-3xl);
+  padding: 0 var(--space-2xl);
+  border-bottom: 1px solid var(--lc-border-default);
+}
+
+.locationTab {
+  position: relative;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-body);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.locationTab:hover {
+  color: var(--lc-text-primary);
+}
+
+.locationTabActive {
+  color: var(--lc-text-primary);
+  font-weight: var(--lc-weight-medium);
+}
+
+.locationTabActive::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--lc-text-primary);
+}
+
+.locationTab:focus-visible {
+  outline: 2px solid var(--lc-text-brand);
+  outline-offset: -2px;
+}
+
 .locationSide {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  width: 300px;
+  width: 360px;
   min-height: 0;
   border-right: 1px solid var(--lc-border-default);
 }
 
 .locationSearch {
-  box-sizing: border-box;
-  width: auto;
-  margin: var(--space-xl) var(--space-xl) var(--space-md);
-  border-radius: var(--lc-ui-radius);
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl) var(--space-3xl);
+  border-bottom: 1px solid var(--lc-border-default);
+  color: var(--lc-text-secondary);
+}
+
+.locationSearch input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body-lg);
+  outline: none;
+}
+
+.locationSearch input::placeholder {
+  color: var(--lc-text-tertiary);
+}
+
+.locationSearch:focus-within {
+  color: var(--lc-text-primary);
+}
+
+.locationFilter {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--lc-border-default);
+}
+
+.locationFilterLabel {
+  display: flex;
+  align-items: center;
+  padding: var(--space-xl) var(--space-3xl);
+  border-right: 1px solid var(--lc-border-default);
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-body);
+  white-space: nowrap;
+}
+
+.locationFilterField {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.locationFilterTrigger {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-xl) var(--space-3xl);
+  border: none;
+  background: transparent;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.locationFilterTrigger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.locationFilterTrigger:hover {
+  background: var(--lc-bg-default-hover);
+}
+
+.locationFilterTrigger:focus-visible {
+  outline: 2px solid var(--lc-text-brand);
+  outline-offset: -2px;
 }
 
 .locationList {
@@ -2437,7 +2656,7 @@
   flex-direction: column;
   gap: 2px;
   min-height: 0;
-  padding: 0 0 var(--space-xl);
+  padding: var(--space-md) 0 var(--space-xl);
   overflow-y: auto;
   overflow-y: overlay;
   scrollbar-width: thin;
@@ -2467,10 +2686,11 @@
 
 .locationItem {
   display: flex;
-  align-items: center;
-  gap: var(--space-md);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
   margin: 0 var(--space-md);
-  padding: var(--space-md) var(--space-lg);
+  padding: var(--space-lg);
   border: 1px solid transparent;
   border-radius: var(--lc-ui-radius);
   background: transparent;
@@ -2483,24 +2703,14 @@
     color 0.15s;
 }
 
-.locationItem > svg {
-  flex-shrink: 0;
-}
-
 .locationItem:hover {
   background: var(--lc-bg-default-hover);
-  color: var(--lc-text-primary);
 }
 
 .locationItemActive,
 .locationItemActive:hover {
   border-color: var(--lc-border-brand-subtle);
   background: var(--lc-bg-brand-subtle);
-  color: var(--lc-text-primary);
-}
-
-.locationItemActive > svg {
-  color: var(--lc-text-brand);
 }
 
 .locationItem:focus-visible {
@@ -2508,22 +2718,17 @@
   outline-offset: -2px;
 }
 
-.locationItemCopy {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
 .locationItemName {
+  max-width: 100%;
   overflow: hidden;
-  font: var(--lc-font-body);
-  font-weight: var(--lc-weight-medium);
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body-lg);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .locationItemDesc {
-  color: var(--lc-text-tertiary);
+  color: var(--lc-text-secondary);
   font: var(--lc-font-small);
 }
 
@@ -2540,6 +2745,21 @@
 
 .locationMap :global(.mapboxgl-ctrl-bottom-left) {
   display: none;
+}
+
+.locationMapLabel {
+  padding: var(--space-xs) var(--space-lg);
+  border-radius: 20px;
+  background: rgba(85, 131, 225, 0.2);
+  color: var(--lc-text-primary);
+  font: var(--lc-font-small);
+  font-weight: var(--lc-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .locationTools {
@@ -2617,17 +2837,38 @@
 }
 
 .locationSummary {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: var(--space-xxs);
   min-width: 0;
-  margin: 0;
+}
+
+.locationSummaryLabel {
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
+  font-weight: var(--lc-weight-semibold);
+}
+
+.locationSummaryValue {
   overflow: hidden;
-  color: var(--lc-text-tertiary);
-  font: var(--lc-font-body);
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body-lg);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.locationSummary b {
-  color: var(--lc-text-primary);
-  font-weight: var(--lc-weight-medium);
+.locationSummaryEmpty {
+  color: var(--lc-text-tertiary);
+}
+
+.locationFooter .secondaryBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.locationFooter .secondaryBtn:disabled:hover {
+  border-color: var(--lc-border-default);
+  background: var(--lc-bg-default);
+  color: var(--lc-text-secondary);
 }
