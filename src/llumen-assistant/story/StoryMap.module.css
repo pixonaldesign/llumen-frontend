@@ -14,12 +14,433 @@
   height: 100%;
 }
 
-.canvas :global(.mapboxgl-ctrl-logo),
-.canvas :global(.mapboxgl-ctrl-attrib) {
-  display: none !important;
-}
-
 .controls {
   top: 160px;
   right: 20px;
+}
+
+/* Map annotations. Mapbox positions each marker root with `transform`, so only children animate. */
+
+.annotationPin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 24px;
+  cursor: default;
+}
+
+.annotationPin:hover,
+.annotationPinActive {
+  z-index: 3;
+}
+
+.annotationBadge {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  background: var(--annotation-color);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--annotation-color) 28%, transparent),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+  color: #1b1408;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  transform-origin: 50% 100%;
+  animation: annotationPinIn 420ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--annotation-delay, 0ms) both;
+  transition: scale 160ms ease;
+}
+
+/* `scale`, not `transform`: the entry animation holds `transform`. */
+.annotationPin:hover .annotationBadge,
+.annotationPinActive .annotationBadge {
+  scale: 1.15;
+}
+
+.annotationStem {
+  width: 1.5px;
+  height: 14px;
+  background: linear-gradient(var(--annotation-color), color-mix(in srgb, var(--annotation-color) 10%, transparent));
+  transform-origin: 50% 0;
+  animation: annotationStemIn 320ms ease-out var(--annotation-delay, 0ms) both;
+}
+
+.annotationTip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  width: 244px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+}
+
+.annotationPin:hover .annotationTip,
+.annotationPinActive .annotationTip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.annotationTipHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.annotationTipHead b {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotationTipRank {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--annotation-color) 22%, transparent);
+  color: var(--annotation-color);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.annotationTipMeta {
+  margin: 2px 0 8px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.annotationTipStats {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.annotationTipStats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.annotationTipStats dt {
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.annotationTipStats dd {
+  margin: 0;
+  white-space: nowrap;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 500;
+}
+
+.annotationTipFoot {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+}
+
+.annotationAreaMarker {
+  pointer-events: none;
+}
+
+.annotationArea {
+  display: block;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--annotation-color) 55%, transparent);
+  border-radius: 999px;
+  background: rgba(16, 19, 26, 0.86);
+  color: var(--annotation-color);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  animation: annotationAreaIn 480ms ease-out 260ms both;
+  backdrop-filter: blur(10px);
+}
+
+/* Marker annotations: schools and junctions pinned on the ground, anchored to their features. */
+
+.marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: default;
+}
+
+.marker:hover {
+  z-index: 3;
+}
+
+.marker .annotationTip {
+  margin-left: var(--marker-tip-shift, 0px);
+}
+
+.marker:hover .annotationTip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.markerSchool {
+  --annotation-color: #ffb547;
+}
+
+.markerJunction {
+  --annotation-color: #ff5a5f;
+}
+
+.markerPin {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px 3px 6px;
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  background: var(--annotation-color);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--annotation-color) 26%, transparent),
+    0 6px 14px rgba(0, 0, 0, 0.45);
+  color: #1b1408;
+  transform-origin: 50% 100%;
+  animation: annotationPinIn 420ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--annotation-delay, 0ms) both;
+  transition: scale 160ms ease;
+}
+
+.markerPin::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 5px solid transparent;
+  border-top: 6px solid var(--annotation-color);
+  transform: translateX(-50%);
+}
+
+.markerPinBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
+.markerShadow {
+  width: 10px;
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  animation: annotationAreaIn 300ms ease-out var(--annotation-delay, 0ms) both;
+}
+
+.markerJunctionDot {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  background: var(--annotation-color);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--annotation-color) 26%, transparent),
+    0 4px 10px rgba(0, 0, 0, 0.45);
+  color: #fff;
+  animation: annotationPinIn 380ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--annotation-delay, 0ms) both;
+  transition: scale 160ms ease;
+}
+
+/* `scale`, not `transform`: the entry animation holds `transform`. */
+.marker:hover .markerPin,
+.marker:hover .markerJunctionDot,
+.markerLinked .markerPin,
+.markerLinked .markerJunctionDot {
+  scale: 1.18;
+}
+
+.markerLinked .markerPin,
+.markerLinked .markerJunctionDot {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--annotation-color) 45%, transparent),
+    0 0 18px color-mix(in srgb, var(--annotation-color) 60%, transparent);
+}
+
+.markerJunctionList {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  list-style: none;
+}
+
+.markerJunctionList li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.markerJunctionList span {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.56);
+  overflow-wrap: anywhere;
+}
+
+.markerJunctionList b {
+  flex: none;
+  color: #ff8a8d;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 500;
+}
+
+.markerContext {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.markerValid {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.14);
+  color: #34d399;
+  font-weight: 600;
+}
+
+.markerValid::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Pinned emergency response above a walled-in area. */
+
+.annotationActionMarker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.annotationAction {
+  box-sizing: border-box;
+  width: 300px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(18, 22, 30, 0.82);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  color: #fff;
+  pointer-events: auto;
+  animation: annotationActionIn 520ms cubic-bezier(0.22, 1, 0.36, 1) 1100ms both;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+}
+
+.annotationActionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid rgba(109, 233, 225, 0.22);
+  border-radius: 999px;
+  background: rgba(109, 233, 225, 0.1);
+  color: #6de9e1;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.annotationActionText {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.annotationActionStem {
+  width: 2px;
+  height: 120px;
+  background: linear-gradient(rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
+  transform-origin: 50% 100%;
+  animation: annotationStemIn 420ms ease-out 900ms both;
+}
+
+.annotationLeaving > * {
+  opacity: 0 !important;
+  transition: opacity 240ms ease;
+}
+
+@keyframes annotationPinIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes annotationStemIn {
+  from {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes annotationActionIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes annotationAreaIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }

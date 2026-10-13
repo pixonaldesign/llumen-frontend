@@ -1,0 +1,42 @@
+@property --gb-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* Set --g1…--g4 on the element; it must be positioned (relative/absolute). */
+.gradientBorder::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--gb-width, 1px));
+  z-index: 0;
+  padding: var(--gb-width, 1px);
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--gb-angle),
+    var(--g1),
+    var(--g2),
+    var(--g3),
+    var(--g4),
+    var(--g1)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: gradientBorderSpin 6s linear infinite;
+}
+
+@keyframes gradientBorderSpin {
+  to {
+    --gb-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gradientBorder::before {
+    animation: none;
+  }
+}
