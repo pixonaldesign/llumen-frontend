@@ -15,7 +15,8 @@ import {
 } from '@phosphor-icons/react'
 import type { ConversationSource } from './conversationSources'
 import type { InlineContextItem } from './inlineContextData'
-import { SessionsPanel } from './SessionsPanel'
+import type { FindingToastItem } from './landing/findingDemoData'
+import { SessionsPanel, type SessionSummary } from './SessionsPanel'
 import { SourcesPopup } from './SourcesPanel'
 import styles from './compact-assistant.module.css'
 
@@ -37,6 +38,10 @@ export type PanelHeaderProps = {
   chatTitle?: string
   onChatTitleChange?: (title: string) => void
   onOpenSession?: (id: string) => void
+  sessions?: SessionSummary[]
+  activeSessionId?: string | null
+  onDeleteSession?: (id: string) => void
+  onOpenFinding?: (finding: FindingToastItem) => void
   onNewSession?: () => void
   /** Clear the active conversation (delete). */
   onDeleteConversation?: () => void
@@ -76,6 +81,10 @@ export function PanelHeader({
   chatTitle = 'New chat',
   onChatTitleChange,
   onOpenSession,
+  sessions,
+  activeSessionId,
+  onDeleteSession,
+  onOpenFinding,
   onNewSession,
   onDeleteConversation,
   onShareConversation,
@@ -361,6 +370,13 @@ export function PanelHeader({
             >
               <SessionsPanel
                 variant="dropdown"
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onDeleteSession={onDeleteSession}
+                onOpenFinding={(finding) => {
+                  onOpenFinding?.(finding)
+                  onSessionsOpenChange?.(false)
+                }}
                 onOpenSession={(id) => {
                   onOpenSession?.(id)
                   onSessionsOpenChange?.(false)

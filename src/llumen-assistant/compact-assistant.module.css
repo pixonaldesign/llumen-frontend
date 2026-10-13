@@ -2676,6 +2676,13 @@
   cursor: default;
 }
 
+.composerIconActionActive,
+.composerIconActionActive:hover:not(:disabled) {
+  border-radius: 6px;
+  background: rgba(112, 174, 255, 0.18);
+  color: #70aeff;
+}
+
 .composerIconAction:focus-visible {
   outline: 2px solid rgba(132, 177, 245, 0.8);
   outline-offset: 2px;
