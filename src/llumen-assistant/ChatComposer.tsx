@@ -3,7 +3,6 @@ import {
   File,
   Microphone,
   Paperclip,
-  Selection,
   X,
 } from '@phosphor-icons/react'
 import gsap from 'gsap'
@@ -400,9 +399,6 @@ export type ChatComposerProps = {
   /** Aurora border shimmer while the first finding reveal is on screen. */
   findingCue?: boolean
   findingCueColors?: { stop1: string; stop2: string; stop3: string }
-  /** Story select mode; the toggle only renders when `onSelectModeChange` is set. */
-  selectMode?: boolean
-  onSelectModeChange?: (on: boolean) => void
   /** Typed into the empty editor when it's clicked. */
   suggestedPrompt?: string
   /** Sending an unedited suggested prompt (even mid-typing) calls this instead of `onSend`. */
@@ -431,8 +427,6 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
     questionSlot = null,
     findingCue = false,
     findingCueColors,
-    selectMode = false,
-    onSelectModeChange,
     suggestedPrompt,
     onSendSuggested,
     onPickLocation,
@@ -1072,20 +1066,6 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
               >
                 <Paperclip size={18} weight="regular" aria-hidden />
               </button>
-              {onSelectModeChange ? (
-                <button
-                  type="button"
-                  className={`${styles.composerIconAction}${selectMode ? ` ${styles.composerIconActionActive}` : ''}`}
-                  aria-label={selectMode ? 'Exit select mode' : 'Select elements'}
-                  aria-pressed={selectMode}
-                  title="Select elements"
-                  disabled={editorDisabled}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => onSelectModeChange(!selectMode)}
-                >
-                  <Selection size={18} weight={selectMode ? 'bold' : 'regular'} aria-hidden />
-                </button>
-              ) : null}
               <button
                 ref={mentionBtnRef}
                 type="button"

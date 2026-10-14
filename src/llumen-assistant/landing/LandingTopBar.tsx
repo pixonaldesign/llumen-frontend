@@ -5,10 +5,12 @@ import {
   CaretDown,
   ChartBar,
   Cube,
-  GearSix,
   LockSimple,
   MagnifyingGlass,
+  Monitor,
+  Newspaper,
   Plus,
+  Sparkle,
   SquaresFour,
   User,
   Users,
@@ -77,6 +79,10 @@ export type LandingTopBarProps = {
   /** Category menu entries. Omit to use Finance, Operations, and the rest. */
   categories?: readonly string[]
   onWorkspaceChange?: (workspace: string) => void
+  /** Studio bar: show the workspace selector in place of the Llumen wordmark. */
+  workspaceInLogo?: boolean
+  /** Studio bar: show a Briefing tab, selected, before Studio. */
+  briefingTab?: boolean
 }
 
 export function LandingTopBar({
@@ -85,6 +91,8 @@ export function LandingTopBar({
   workspaces,
   categories,
   onWorkspaceChange,
+  workspaceInLogo = false,
+  briefingTab = false,
 }: LandingTopBarProps) {
   if (variant === 'studio') {
     return (
@@ -93,6 +101,8 @@ export function LandingTopBar({
         workspaces={workspaces}
         categories={categories}
         onWorkspaceChange={onWorkspaceChange}
+        workspaceInLogo={workspaceInLogo}
+        briefingTab={briefingTab}
       />
     )
   }
@@ -101,12 +111,13 @@ export function LandingTopBar({
 
 const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
 
-type CreateKind = 'asset' | 'dashboard' | 'data-app'
+type CreateKind = 'asset' | 'dashboard' | 'app' | 'agent'
 
 const CREATE_OPTIONS: readonly { kind: CreateKind; label: string; icon: ReactNode; active: boolean }[] = [
   { kind: 'asset', label: 'Asset', icon: <Cube size={20} weight="regular" aria-hidden />, active: true },
   { kind: 'dashboard', label: 'Dashboard', icon: <ChartBar size={20} weight="regular" aria-hidden />, active: false },
-  { kind: 'data-app', label: 'Data app', icon: <AppWindow size={20} weight="regular" aria-hidden />, active: false },
+  { kind: 'app', label: 'App', icon: <AppWindow size={20} weight="regular" aria-hidden />, active: false },
+  { kind: 'agent', label: 'Agent', icon: <Sparkle size={20} weight="regular" aria-hidden />, active: false },
 ]
 
 function CreateMenu({ triggerClassName }: { triggerClassName: string }) {
@@ -186,7 +197,7 @@ function CurrentBar() {
       </label>
       <div className={home.navActions}>
         <button type="button" className={home.pillBtn}>
-          <GearSix size={20} weight="regular" aria-hidden />
+          <Monitor size={20} weight="regular" aria-hidden />
           Studio
         </button>
         <CreateMenu triggerClassName={home.pillBtn} />
@@ -206,11 +217,15 @@ function StudioBar({
   workspaces,
   categories,
   onWorkspaceChange,
+  workspaceInLogo,
+  briefingTab,
 }: {
   workspace?: string
   workspaces?: readonly WorkspaceOption[]
   categories?: readonly string[]
   onWorkspaceChange?: (workspace: string) => void
+  workspaceInLogo: boolean
+  briefingTab: boolean
 }) {
   const workspaceOptions = workspaces ?? STUDIO_WORKSPACES
   const categoryOptions = categories ?? STUDIO_CATEGORIES
@@ -275,81 +290,100 @@ function StudioBar({
     }
   }, [menuOpen])
 
-  return (
-    <div className={styles.row}>
-      <a className={styles.logo} href="#top" aria-label="Llumen home">
-        <img className={home.logoMark} src={a.logoMark} alt="" />
-        <img className={home.logoWord} src={a.wordmark} alt="Llumen" />
-      </a>
-      <div className={styles.center}>
-        <div className={styles.workspaceWrap} ref={menuRef}>
-          <button
-            type="button"
-            className={styles.workspace}
-            aria-haspopup="listbox"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((value) => !value)}
-          >
-            <span className={styles.muted}>Workspace</span>
-            <span className={styles.muted}>/</span>
-            <span className={styles.workspaceName}>
-              {triggerLabel}
-              <CaretDown size={16} weight="bold" aria-hidden />
-            </span>
-          </button>
-          {menuOpen ? (
-            <div className={styles.menu}>
-              {workspaceOptions.length > 0 ? (
-                <div className={styles.segments} role="radiogroup" aria-label="Workspace scope">
-                  <div className={styles.thumb} ref={thumbRef} aria-hidden />
-                  {workspaceOptions.map((item) => {
-                    const isSelected = scope === item.icon
-                    const name = studioName(item.label)
-                    return (
-                      <button
-                        key={item.label}
-                        type="button"
-                        role="radio"
-                        aria-checked={isSelected}
-                        aria-label={isSelected ? undefined : name}
-                        className={`${styles.segment}${isSelected ? ` ${styles.segmentActive}` : ''}`}
-                        ref={(node) => {
-                          segmentRefs.current[item.icon] = node
-                        }}
-                        onClick={() => setScope(item.icon)}
-                      >
-                        <WorkspaceGlyph name={item.icon} />
-                        {isSelected ? <span>{name}</span> : null}
-                      </button>
-                    )
-                  })}
-                </div>
-              ) : null}
-              {workspaceOptions.length > 0 && listed.length > 0 ? (
-                <div className={styles.menuRule} role="separator" />
-              ) : null}
-              <div key={scope} className={styles.workspaceList} role="listbox" aria-label="Workspaces">
-              {listed.map((label) => {
-                const isSelected = label === committed
+  const workspaceSelector = (
+    <div className={styles.workspaceWrap} ref={menuRef}>
+      <button
+        type="button"
+        className={styles.workspace}
+        aria-haspopup="listbox"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((value) => !value)}
+      >
+        <span className={styles.muted}>Workspace</span>
+        <span className={styles.muted}>/</span>
+        <span className={styles.workspaceName}>
+          {triggerLabel}
+          <CaretDown size={16} weight="bold" aria-hidden />
+        </span>
+      </button>
+      {menuOpen ? (
+        <div className={styles.menu}>
+          {workspaceOptions.length > 0 ? (
+            <div className={styles.segments} role="radiogroup" aria-label="Workspace scope">
+              <div className={styles.thumb} ref={thumbRef} aria-hidden />
+              {workspaceOptions.map((item) => {
+                const isSelected = scope === item.icon
+                const name = studioName(item.label)
                 return (
                   <button
-                    key={label}
+                    key={item.label}
                     type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    className={`${styles.menuItem}${isSelected ? ` ${styles.menuItemActive}` : ''}`}
-                    onClick={() => choose(label)}
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={isSelected ? undefined : name}
+                    className={`${styles.segment}${isSelected ? ` ${styles.segmentActive}` : ''}`}
+                    ref={(node) => {
+                      segmentRefs.current[item.icon] = node
+                    }}
+                    onClick={() => setScope(item.icon)}
                   >
-                    {label}
+                    <WorkspaceGlyph name={item.icon} />
+                    {isSelected ? <span>{name}</span> : null}
                   </button>
                 )
               })}
-              </div>
             </div>
           ) : null}
+          {workspaceOptions.length > 0 && listed.length > 0 ? (
+            <div className={styles.menuRule} role="separator" />
+          ) : null}
+          <div key={scope} className={styles.workspaceList} role="listbox" aria-label="Workspaces">
+          {listed.map((label) => {
+            const isSelected = label === committed
+            return (
+              <button
+                key={label}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                className={`${styles.menuItem}${isSelected ? ` ${styles.menuItemActive}` : ''}`}
+                onClick={() => choose(label)}
+              >
+                {label}
+              </button>
+            )
+          })}
+          </div>
         </div>
+      ) : null}
+    </div>
+  )
+
+  return (
+    <div className={styles.row}>
+      {workspaceInLogo ? (
+        <div className={styles.lead}>
+          <a className={styles.logo} href="#top" aria-label="Llumen home">
+            <img className={home.logoMark} src={a.logoMark} alt="" />
+          </a>
+          {workspaceSelector}
+        </div>
+      ) : (
+        <a className={styles.logo} href="#top" aria-label="Llumen home">
+          <img className={home.logoMark} src={a.logoMark} alt="" />
+          <img className={home.logoWord} src={a.wordmark} alt="Llumen" />
+        </a>
+      )}
+      <div className={styles.center}>
+        {workspaceInLogo ? null : workspaceSelector}
+        {briefingTab ? (
+          <button type="button" className={`${styles.ghost} ${styles.ghostActive}`} aria-current="page">
+            <Newspaper size={20} weight="regular" aria-hidden />
+            Briefing
+          </button>
+        ) : null}
         <button type="button" className={styles.ghost}>
-          <GearSix size={20} weight="regular" aria-hidden />
+          <Monitor size={20} weight="regular" aria-hidden />
           Studio
         </button>
       </div>

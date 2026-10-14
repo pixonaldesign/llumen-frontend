@@ -53,6 +53,14 @@ export function CommandPalette({
     }
     return [
       {
+        id: 'briefing',
+        group: 'Landing',
+        label: 'Landing · Briefing',
+        hint: 'Findings as chat bubbles over the map',
+        active: landing === 'briefing',
+        run: choose(() => onLanding('briefing')),
+      },
+      {
         id: 'stories',
         group: 'Landing',
         label: 'Carousel · Stories',

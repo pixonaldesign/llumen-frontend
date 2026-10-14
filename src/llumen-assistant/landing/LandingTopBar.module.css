@@ -17,6 +17,14 @@
   color: inherit;
 }
 
+.lead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: start;
+  min-width: 0;
+}
+
 .center {
   display: flex;
   align-items: center;
@@ -45,6 +53,11 @@
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
+}
+
+.lead .workspace {
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .workspaceName {
@@ -78,6 +91,7 @@
   cursor: pointer;
 }
 
+.ghostActive,
 .ghost:hover,
 .icon:hover,
 .workspace:hover,

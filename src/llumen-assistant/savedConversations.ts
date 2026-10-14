@@ -1,4 +1,3 @@
-import type { AiApproach } from './aiApproach'
 import type { AssistantReplyPayload } from './assistantReplyTypes'
 import type { SessionSummary } from './SessionsPanel'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
@@ -17,12 +16,6 @@ export type SavedConversation = {
   story: StoryAiSnapshot | null
   /** Thumbnails and cameras for the map-state cards in this conversation's replies. */
   mapCaptures?: Record<string, StoryMapCapture>
-  /** AI approach the conversation was made in; older entries are approach 1. */
-  approach?: AiApproach
-}
-
-export function conversationApproach(conversation: SavedConversation): AiApproach {
-  return conversation.approach ?? 'approach-1'
 }
 
 /** Map-state card ids referenced by a conversation's replies. */

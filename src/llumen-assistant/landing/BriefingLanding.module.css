@@ -1,0 +1,495 @@
+.root {
+  /* How far Assets peeks over the findings; never reaches the composer, 260px under mid-height. */
+  --assets-peek: max(72px, min(200px, 16vh, calc(50dvh - 300px)));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: #fff;
+}
+
+/* Findings stage, then Assets, then Agents, each snapping to fill the page. */
+.page {
+  position: relative;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scroll-padding-top: var(--briefing-bar-h, 64px);
+  scrollbar-width: none;
+}
+
+.page::-webkit-scrollbar {
+  display: none;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  scroll-snap-align: start;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #060a14;
+  transform: scale(1);
+  filter: blur(0);
+  transition:
+    filter 700ms ease,
+    transform 700ms ease;
+}
+
+.mapBlur {
+  filter: blur(28px) saturate(1.15);
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
+.mapCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+.bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 20;
+}
+
+.scrim {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  height: 62%;
+  background: linear-gradient(to top, rgba(5, 10, 20, 0.82), rgba(5, 10, 20, 0.28) 58%, transparent);
+  pointer-events: none;
+}
+
+/* Blurs the map more strongly towards the bottom, under the greeting, finding and composer. */
+.fadeBlur {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  height: 62%;
+  backdrop-filter: blur(24px) saturate(1.1);
+  -webkit-backdrop-filter: blur(24px) saturate(1.1);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
+  pointer-events: none;
+}
+
+.chatDock {
+  position: absolute;
+  right: 0;
+  bottom: var(--feed-pad, 106px);
+  left: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.chatDock {
+  transition:
+    opacity 320ms ease,
+    transform 420ms ease;
+}
+
+/*
+ * Assets and Agents share one background that stays pinned to the page while they
+ * scroll over it, blending from the Assets palette to the Agents one (--agents-t).
+ * The block overlaps the bottom of the findings stage by the peek; the peek never
+ * reaches the composer, which sits 260px under mid-height.
+ */
+.lower {
+  --page-h: var(--briefing-page-h, 100dvh);
+  position: relative;
+  z-index: 1;
+  margin-top: calc(-1 * var(--assets-peek));
+  box-shadow: 0 -18px 48px rgba(5, 10, 20, 0.45);
+}
+
+.lowerBg {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  height: var(--page-h);
+  margin-bottom: calc(-1 * var(--page-h));
+  background: linear-gradient(180deg, #4a4969 0%, #7072ab 50%, #cd82a0 100%);
+  pointer-events: none;
+}
+
+.lowerBg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #2478a0 0%, #2d8fb8 45%, #67d1fb 80%, #9be2fe 100%);
+  opacity: var(--agents-t, 0);
+}
+
+/* Continues the Assets colour behind the blurred top bar once Assets fills the page. */
+.lower::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: var(--briefing-bar-h, 64px);
+  background: #4a4969;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms ease;
+}
+
+.lowerOpen::before {
+  opacity: 1;
+}
+
+.assets {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+  min-height: calc(var(--page-h) - var(--briefing-bar-h, 64px));
+  padding: 28px 32px var(--feed-pad, 106px);
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+
+.assets.assetsOpen {
+  cursor: default;
+}
+
+/* Snaps by its bottom edge so its top sits under the blurred top bar. */
+.agents {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+  min-height: var(--page-h);
+  padding: calc(var(--briefing-bar-h, 64px) + 28px) 32px var(--feed-pad, 106px);
+  scroll-snap-align: end;
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sectionLead {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.assetsTitle {
+  margin: 0;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.greeting {
+  box-sizing: border-box;
+  width: min(640px, calc(100vw - 48px));
+  margin: 0;
+  padding-inline: 4px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-shadow: 0 2px 18px rgba(5, 10, 20, 0.7);
+}
+
+.bubble {
+  position: relative;
+  box-sizing: border-box;
+  width: min(640px, calc(100vw - 48px));
+  overflow: hidden;
+  pointer-events: none;
+  transition: height 320ms ease;
+}
+
+.bubbleBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 4px 2px;
+  text-shadow: 0 2px 16px rgba(5, 10, 20, 0.6);
+  transition: opacity 160ms ease;
+}
+
+/* Centred in the gap between the composer's bottom (--dock-under) and the Assets peek. */
+.controlsDock {
+  position: absolute;
+  right: 0;
+  bottom: calc((var(--dock-under, 160px) + var(--assets-peek)) / 2);
+  left: 0;
+  z-index: 4;
+  display: flex;
+  justify-content: center;
+  transform: translateY(50%);
+  pointer-events: none;
+}
+
+/* Findings carousel: page dots, then previous / pause / next. */
+.carousel {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.carouselPill {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.dots {
+  padding: 0 8px;
+}
+
+.dot {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dot::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.45);
+  transition:
+    width 240ms ease,
+    height 240ms ease,
+    background-color 240ms ease;
+}
+
+.dot:hover::before {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.dotActive::before,
+.dotActive:hover::before {
+  width: 9px;
+  height: 9px;
+  background: #fff;
+}
+
+.carouselBtn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.carouselBtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.dot:focus-visible,
+.carouselBtn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+  border-radius: 999px;
+}
+
+.bubbleFade {
+  opacity: 0;
+}
+
+.bubble button {
+  pointer-events: auto;
+}
+
+.bubble .chart {
+  width: 100%;
+  box-sizing: border-box;
+  opacity: 1;
+  transform: none;
+}
+
+.bubbleMeta {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.bubbleText {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(640px, 100%);
+  padding: 22px 22px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  background: rgba(8, 12, 20, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0.35;
+  transform: translateY(18px);
+  transition:
+    opacity 520ms ease,
+    transform 520ms ease;
+}
+
+.chartLabel {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.chartValue {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.chartBar {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.chartSeg {
+  min-width: 0;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.legendName {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.legendVal {
+  font-family: var(--lc-font-mono);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.storyBtn {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.storyBtn:hover,
+.voteOn {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lower::before,
+  .chatDock,
+  .map,
+  .chart,
+  .bubble,
+  .bubbleBody {
+    transition: none;
+  }
+
+  .chart {
+    opacity: 1;
+    transform: none;
+  }
+}

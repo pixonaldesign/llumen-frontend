@@ -458,13 +458,6 @@
   cursor: default;
 }
 
-.iconActionActive,
-.iconActionActive:hover:not(:disabled) {
-  border-radius: 6px;
-  background: rgba(112, 174, 255, 0.18);
-  color: #70aeff;
-}
-
 .iconAction:focus-visible {
   outline: 2px solid rgba(109, 233, 225, 0.7);
   outline-offset: 2px;

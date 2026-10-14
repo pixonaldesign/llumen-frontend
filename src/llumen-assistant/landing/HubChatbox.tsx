@@ -10,7 +10,6 @@ import {
   ClockCounterClockwise,
   File,
   Paperclip,
-  Selection,
   X,
 } from '@phosphor-icons/react'
 import { BorderBeam } from 'border-beam'
@@ -227,9 +226,6 @@ export type HubChatboxProps = {
   /** Fade the toast ring out at the end of its second. Alert cue does not set this. */
   shimmerExit?: boolean
   findingCueColors?: { stop1: string; stop2: string; stop3: string }
-  /** Story select mode; the toggle only renders when `onSelectModeChange` is set. */
-  selectMode?: boolean
-  onSelectModeChange?: (on: boolean) => void
   /** Story components attached via "Add to chat"; sending routes to `onSubmitComponents`. */
   components?: HubChatComponent[]
   onRemoveComponent?: (id: string) => void
@@ -277,8 +273,6 @@ export function HubChatbox({
   orbCue = false,
   shimmerExit = false,
   findingCueColors,
-  selectMode = false,
-  onSelectModeChange,
   components = NO_COMPONENTS,
   onRemoveComponent,
   componentPrompt,
@@ -977,21 +971,6 @@ export function HubChatbox({
                 >
                   <Paperclip size={18} weight="regular" aria-hidden />
                 </button>
-                {onSelectModeChange ? (
-                  <button
-                    type="button"
-                    className={`${styles.iconAction}${selectMode ? ` ${styles.iconActionActive}` : ''}`}
-                    aria-label={selectMode ? 'Exit select mode' : 'Select elements'}
-                    aria-pressed={selectMode}
-                    title="Select elements"
-                    disabled={interactionLocked || !expanded}
-                    tabIndex={expanded ? 0 : -1}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => onSelectModeChange(!selectMode)}
-                  >
-                    <Selection size={18} weight={selectMode ? 'bold' : 'regular'} aria-hidden />
-                  </button>
-                ) : null}
                 <button
                   ref={mentionBtnRef}
                   type="button"

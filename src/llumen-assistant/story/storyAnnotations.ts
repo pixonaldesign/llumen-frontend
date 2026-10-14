@@ -1,5 +1,5 @@
 /**
- * Demo-only map annotations for the Approach 2 "top 10 schools" prompts. Annotations are
+ * Demo-only map annotations for the "top 10 schools" prompts. Annotations are
  * geographic (GeoJSON-style lng/lat geometry) and reference the column features they describe,
  * so the map can redraw them as the camera moves and drop them when that data isn't shown.
  */

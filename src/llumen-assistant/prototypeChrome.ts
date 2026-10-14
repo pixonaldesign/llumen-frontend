@@ -1,6 +1,6 @@
 /** Prototype switches opened from the Command-K palette. */
 
-export type LandingVariant = 'stories' | 'conversations' | 'feed' | 'feed-card' | 'feed-chat'
+export type LandingVariant = 'briefing' | 'stories' | 'conversations' | 'feed' | 'feed-card' | 'feed-chat'
 export type TopBarVariant = 'current' | 'studio'
 
 const LANDING_KEY = 'llumen.landingVariant'
@@ -8,6 +8,7 @@ const TOP_BAR_KEY = 'llumen.topBarVariant'
 
 function isLanding(value: string | null): value is LandingVariant {
   return (
+    value === 'briefing' ||
     value === 'stories' ||
     value === 'conversations' ||
     value === 'feed' ||

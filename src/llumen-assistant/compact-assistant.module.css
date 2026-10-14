@@ -239,6 +239,11 @@
   bottom: 88px;
 }
 
+/* Briefing: greeting, finding bubble and composer sit as one group around mid-height. */
+.composerDockCenter {
+  bottom: max(var(--space-3xl), calc(50dvh - 260px));
+}
+
 .composerDockShifted {
   left: var(--lc-rail-width, 400px);
 }
@@ -2674,13 +2679,6 @@
 .composerIconAction:disabled {
   opacity: 0.35;
   cursor: default;
-}
-
-.composerIconActionActive,
-.composerIconActionActive:hover:not(:disabled) {
-  border-radius: 6px;
-  background: rgba(112, 174, 255, 0.18);
-  color: #70aeff;
 }
 
 .composerIconAction:focus-visible {

@@ -15,7 +15,7 @@ export type HeaderOptionSwitcherProps<T extends string> = {
   variant?: 'accent' | 'filter'
 }
 
-/** Pill dropdown for comparing parallel prototypes (UX model, AI approach). */
+/** Pill dropdown for comparing parallel prototypes (e.g. the UX model). */
 export function HeaderOptionSwitcher<T extends string>({
   kicker,
   label,
