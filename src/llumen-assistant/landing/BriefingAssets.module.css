@@ -1,16 +1,17 @@
 /*
- * Bento grid: small cards take one cell, medium two, large three by two.
- * Everything starts hidden; [data-play='true'] runs the entrance, and leaving it
- * snaps back without transitions so the next entrance replays.
+ * Bento grid: small cards take one cell, medium two, large two by two, wide a full row. Rows have a fixed
+ * height because the grid scrolls inside the Assets section.
+ * Card surfaces always show so the first row peeks under the findings. Their charts
+ * start hidden; [data-play='true'] runs them, and leaving it snaps back without
+ * transitions so the next entrance replays.
  */
 .grid {
-  flex: 1 1 auto;
-  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(176px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(180px, 1fr));
   grid-auto-flow: dense;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 .small {
@@ -22,26 +23,19 @@
 }
 
 .large {
-  grid-column: span 3;
+  grid-column: span 2;
   grid-row: span 2;
+}
+
+.wide {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 1180px) {
   .grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: repeat(4, minmax(176px, 1fr));
-  }
-
-  .large {
-    grid-column: span 2;
-  }
-}
-
-@media (max-width: 720px) {
-  .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: none;
-    grid-auto-rows: 188px;
+    grid-auto-rows: clamp(220px, 26vh, 320px);
   }
 }
 
@@ -67,59 +61,11 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   color: #fff;
   container-type: inline-size;
-  opacity: 0;
-  transform: translateY(32px) scale(0.96);
-}
-
-/* Accent glow that blooms once the card has landed. */
-.card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 62%);
-  opacity: 0;
-  pointer-events: none;
 }
 
 .card > * {
   position: relative;
   z-index: 1;
-}
-
-.grid[data-play='true'] .card {
-  opacity: 1;
-  transform: none;
-  transition:
-    opacity 560ms ease var(--d),
-    transform 820ms cubic-bezier(0.16, 1, 0.3, 1) var(--d),
-    border-color 160ms ease;
-}
-
-.grid[data-play='true'] .card::before {
-  opacity: 1;
-  transition: opacity 1200ms ease var(--chart-d);
-}
-
-.card:has(.cardLink:hover) {
-  border-color: rgba(255, 255, 255, 0.32);
-}
-
-.card > .cardLink {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-
-.card > .cardLink:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: -2px;
 }
 
 .cardHead {
@@ -155,21 +101,83 @@
   min-height: 0;
 }
 
-.foot {
+/* Data-point tooltip, anchored above the hovered point (left/top set inline). */
+.tip {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(14, 14, 30, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+.tip span {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.tip strong {
+  font-family: var(--lc-font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.tipLeft {
+  transform: translate(calc(-100% - 12px), -50%);
+}
+
+.tipRight {
+  transform: translate(12px, -50%);
+}
+
+.tip .tipRow {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 11px;
-  line-height: 14px;
+  color: rgba(255, 255, 255, 0.75);
 }
 
-.foot::before {
-  content: '';
-  width: 6px;
-  height: 6px;
+.tipRow strong {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 12px;
+}
+
+.guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+}
+
+.hoverDot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--accent);
   border-radius: 999px;
-  background: var(--accent);
+  background: #fff;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+/* Hovering a bar, slice or row dims the others. */
+.hbars:hover .hbar:not(:hover) .fill,
+.vbars:hover .vcol:not(:hover) .vfill,
+.ringChart svg:hover .ringSeg:not(:hover) {
+  opacity: 0.4;
 }
 
 /* Shared chart reveal timing. */
@@ -262,7 +270,6 @@
   height: 10px;
   border-radius: 999px;
   background: var(--accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 28%, transparent);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.4);
 }
@@ -273,17 +280,6 @@
   transition:
     opacity 300ms ease calc(var(--chart-d) + 1450ms),
     transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--chart-d) + 1450ms);
-  animation: dotPulse 2200ms ease-out calc(var(--chart-d) + 1900ms) infinite;
-}
-
-@keyframes dotPulse {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
-  }
-  70%,
-  100% {
-    box-shadow: 0 0 0 14px transparent;
-  }
 }
 
 .threshold {
@@ -366,7 +362,9 @@
 
 .grid[data-play='true'] .fill {
   transform: none;
-  transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--chart-d) + var(--i, 0) * 90ms);
+  transition:
+    transform 900ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--chart-d) + var(--i, 0) * 90ms),
+    opacity 160ms ease;
 }
 
 .vbars {
@@ -407,12 +405,13 @@
 
 .vfillPeak {
   background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 30%, transparent));
-  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .grid[data-play='true'] .vfill {
   transform: none;
-  transition: transform 900ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--chart-d) + var(--i, 0) * 70ms);
+  transition:
+    transform 900ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--chart-d) + var(--i, 0) * 70ms),
+    opacity 160ms ease;
 }
 
 .vlabel {
@@ -471,7 +470,9 @@
 
 .grid[data-play='true'] .ringSeg {
   stroke-dasharray: var(--len) 100;
-  transition: stroke-dasharray 760ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--chart-d) + var(--i, 0) * 260ms);
+  transition:
+    stroke-dasharray 760ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--chart-d) + var(--i, 0) * 260ms),
+    opacity 160ms ease;
 }
 
 .ringCentre {
@@ -533,6 +534,16 @@
 
 .legendPct {
   font-family: var(--lc-font-mono);
+}
+
+.seriesLegend {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+}
+
+.seriesLegend .legendName {
+  flex: 0 1 auto;
 }
 
 @container (max-width: 180px) {
@@ -643,7 +654,6 @@
   stroke: var(--accent);
   stroke-dasharray: 0 100;
   opacity: 0;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 
 .grid[data-play='true'] .gaugeFill {
@@ -659,30 +669,6 @@
   font-family: var(--lc-font-mono);
   font-size: 20px;
   font-weight: 500;
-}
-
-/* Progress */
-.progress {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  justify-content: space-around;
-  gap: 8px;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.progressRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 12px;
-}
-
-.progressTrack {
-  grid-column: 1 / -1;
-  height: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {

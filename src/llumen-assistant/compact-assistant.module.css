@@ -239,9 +239,17 @@
   bottom: 88px;
 }
 
-/* Briefing: greeting, finding bubble and composer sit as one group around mid-height. */
+/*
+ * Briefing: the findings carousel holds the slot 260px under mid-height, and the composer is centred
+ * between that slot and the Assets peek (31px is half the collapsed composer), clear of the peek.
+ * --briefing-peek must match --assets-peek in landing/BriefingLanding.module.css.
+ */
 .composerDockCenter {
-  bottom: max(var(--space-3xl), calc(50dvh - 260px));
+  --briefing-peek: max(72px, min(200px, 16vh, calc(50dvh - 300px)));
+  bottom: max(
+    calc(var(--briefing-peek) + 16px),
+    calc((max(var(--space-3xl), calc(50dvh - 260px)) + var(--briefing-peek)) / 2 - 31px)
+  );
 }
 
 .composerDockShifted {

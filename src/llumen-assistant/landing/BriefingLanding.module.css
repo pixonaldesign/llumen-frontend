@@ -1,5 +1,5 @@
 .root {
-  /* How far Assets peeks over the findings; never reaches the composer, 260px under mid-height. */
+  /* How far Assets peeks over the findings. Keep in step with --briefing-peek in compact-assistant.module.css. */
   --assets-peek: max(72px, min(200px, 16vh, calc(50dvh - 300px)));
   position: relative;
   display: flex;
@@ -36,6 +36,54 @@
   overflow: hidden;
   isolation: isolate;
   scroll-snap-align: start;
+}
+
+.edgeArrow {
+  position: absolute;
+  /* Center within the visible Findings area: below the top bar and above the Assets preview. */
+  top: calc(50% + var(--briefing-bar-h, 64px) / 2 - var(--assets-peek) / 2);
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(4, 8, 14, 0.42);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  opacity: 0.62;
+  transform: translateY(-50%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition:
+    opacity 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.edgeArrowPrevious {
+  left: max(20px, env(safe-area-inset-left));
+}
+
+.edgeArrowNext {
+  right: max(20px, env(safe-area-inset-right));
+}
+
+.edgeArrow:hover,
+.edgeArrow:focus-visible {
+  background: rgba(4, 8, 14, 0.62);
+  color: #fff;
+  opacity: 1;
+  transform: translateY(-50%) scale(1.04);
+}
+
+.edgeArrow:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
 }
 
 .map {
@@ -88,18 +136,26 @@
   bottom: 0;
   left: 0;
   z-index: 2;
-  height: 62%;
-  backdrop-filter: blur(24px) saturate(1.1);
-  -webkit-backdrop-filter: blur(24px) saturate(1.1);
-  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
-  mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
+  height: 72%;
+  backdrop-filter: blur(34px) saturate(1.14);
+  -webkit-backdrop-filter: blur(34px) saturate(1.14);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 48%, rgba(0, 0, 0, 0.72) 68%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 48%, rgba(0, 0, 0, 0.72) 68%, transparent 100%);
   pointer-events: none;
 }
 
+/*
+ * Greeting and finding stack above the composer (--dock-top). The finding's actions row sits as far
+ * above the composer's top as the composer's centre sits above the Assets peek; 18px is half the row.
+ * The final 56px raises the complete insight group without moving the composer.
+ */
 .chatDock {
   position: absolute;
   right: 0;
-  bottom: var(--feed-pad, 106px);
+  bottom: calc(
+    var(--dock-top, 268px) + max(16px, var(--dock-under, 206px) + var(--dock-h, 62px) / 2 - var(--assets-peek) - 18px) +
+      56px
+  );
   left: 0;
   z-index: 4;
   display: flex;
@@ -107,6 +163,8 @@
   align-items: center;
   gap: 16px;
   pointer-events: none;
+  /* Wider than the 640px composer; stays clear of the 44px edge arrows (20px inset + 16px gap). */
+  --finding-w: min(800px, calc(100vw - 160px));
 }
 
 .chatDock {
@@ -126,16 +184,32 @@
   position: relative;
   z-index: 1;
   margin-top: calc(-1 * var(--assets-peek));
-  box-shadow: 0 -18px 48px rgba(5, 10, 20, 0.45);
 }
 
+/*
+ * While Assets only peeks, its colour fades in from clear over the stage's blurred map, so the
+ * cards sit on a seam infused between the two sections. --assets-t (0 at rest, 1 once Assets
+ * reaches the top bar) firms the seam up as Assets scrolls in.
+ */
 .lowerBg {
   position: sticky;
   top: 0;
   z-index: 0;
   height: var(--page-h);
   margin-bottom: calc(-1 * var(--page-h));
-  background: linear-gradient(180deg, #4a4969 0%, #7072ab 50%, #cd82a0 100%);
+  background: linear-gradient(180deg, #4a4969 0%, #605f9c 55%, #7b72a6 100%);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, var(--assets-t, 0)) 0,
+    rgba(0, 0, 0, calc(0.35 + 0.65 * var(--assets-t, 0))) calc(var(--assets-peek) * 0.5),
+    #000 calc(var(--assets-peek) * 1.4)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, var(--assets-t, 0)) 0,
+    rgba(0, 0, 0, calc(0.35 + 0.65 * var(--assets-t, 0))) calc(var(--assets-peek) * 0.5),
+    #000 calc(var(--assets-peek) * 1.4)
+  );
   pointer-events: none;
 }
 
@@ -165,21 +239,105 @@
   opacity: 1;
 }
 
+/*
+ * Peeking and while its charts load, the grid is centred at full width with no summary. Once
+ * [data-split='true'], the columns grow the summary into the left third and the grid moves into
+ * the right two thirds. The grid scrolls on its own and reaches the section's right edge so its
+ * scrollbar hugs it; the grid pads itself instead.
+ */
 .assets {
+  --assets-centred-w: 1480px;
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
+  column-gap: 0;
   box-sizing: border-box;
-  min-height: calc(var(--page-h) - var(--briefing-bar-h, 64px));
-  padding: 28px 32px var(--feed-pad, 106px);
+  height: calc(var(--page-h) - var(--briefing-bar-h, 64px));
+  padding: 28px 0 0;
   cursor: pointer;
   scroll-snap-align: start;
+  transition:
+    grid-template-columns 900ms cubic-bezier(0.65, 0, 0.35, 1),
+    column-gap 900ms cubic-bezier(0.65, 0, 0.35, 1),
+    padding 900ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.assets[data-split='true'] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  column-gap: 48px;
+  padding-left: 32px;
 }
 
 .assets.assetsOpen {
   cursor: default;
+}
+
+.assetsIntro {
+  min-width: 0;
+  min-height: 0;
+  padding-bottom: var(--feed-pad, 106px);
+  overflow: hidden;
+}
+
+.assetsSummary {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(20px, 1.45vw, 30px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+
+.assetsIntroTitle {
+  margin: 0 0 16px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.assetsIntroTitle,
+.assetsSummary {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.assets[data-split='true'] .assetsIntroTitle,
+.assets[data-split='true'] .assetsSummary {
+  --reveal-d: 520ms;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 600ms ease var(--reveal-d),
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-d);
+}
+
+.assets[data-split='true'] .assetsIntroTitle {
+  --reveal-d: 420ms;
+}
+
+.assetsScroll {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.assetsOpen .assetsScroll {
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+/* Fills the section so every asset fits without scrolling; scrolls only when rows hit their minimum. */
+.assetsScroll > * {
+  min-height: 100%;
+  padding: 0 max(32px, calc((100% - var(--assets-centred-w)) / 2)) var(--feed-pad, 106px);
+  transition: padding 900ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.assets[data-split='true'] .assetsScroll > * {
+  padding-inline: 0 32px;
 }
 
 /* Snaps by its bottom edge so its top sits under the blurred top bar. */
@@ -201,13 +359,6 @@
   gap: 4px;
 }
 
-.sectionLead {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 14px;
-  line-height: 20px;
-}
-
 .assetsTitle {
   margin: 0;
   color: #fff;
@@ -219,7 +370,7 @@
 
 .greeting {
   box-sizing: border-box;
-  width: min(640px, calc(100vw - 48px));
+  width: var(--finding-w);
   margin: 0;
   padding-inline: 4px;
   color: #fff;
@@ -230,10 +381,44 @@
   text-shadow: 0 2px 18px rgba(5, 10, 20, 0.7);
 }
 
+/* Greets above the first finding only; collapses away for the rest. */
+.greetingWrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  margin-bottom: 0;
+  opacity: 1;
+  transition:
+    grid-template-rows 320ms ease,
+    margin-bottom 320ms ease,
+    opacity 200ms ease;
+}
+
+.greetingWrap > .greeting {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.greetingWrap[data-shown='false'] {
+  grid-template-rows: 0fr;
+  margin-bottom: -16px;
+  opacity: 0;
+}
+
+/* The carousel rides on the actions row's right edge, outside the bubble so it doesn't fade between findings. */
+.findingRow {
+  position: relative;
+}
+
+.findingControls {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+}
+
 .bubble {
   position: relative;
   box-sizing: border-box;
-  width: min(640px, calc(100vw - 48px));
+  width: var(--finding-w);
   overflow: hidden;
   pointer-events: none;
   transition: height 320ms ease;
@@ -248,26 +433,20 @@
   transition: opacity 160ms ease;
 }
 
-/* Centred in the gap between the composer's bottom (--dock-under) and the Assets peek. */
-.controlsDock {
-  position: absolute;
-  right: 0;
-  bottom: calc((var(--dock-under, 160px) + var(--assets-peek)) / 2);
-  left: 0;
-  z-index: 4;
-  display: flex;
-  justify-content: center;
-  transform: translateY(50%);
-  pointer-events: none;
-}
-
-/* Findings carousel: page dots, then previous / pause / next. */
+/* Findings carousel: Apple TV-style progress dots plus a circular play/pause control. */
 .carousel {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   gap: 8px;
+  opacity: 0.62;
   pointer-events: auto;
+  transition: opacity 180ms ease;
+}
+
+.carousel:hover,
+.carousel:focus-within {
+  opacity: 1;
 }
 
 .carouselPill {
@@ -277,9 +456,15 @@
   box-sizing: border-box;
   padding: 0 3px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(4, 8, 14, 0.42);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+.playPill {
+  width: 34px;
+  padding: 0;
+  justify-content: center;
 }
 
 .dots {
@@ -296,47 +481,83 @@
   border: 0;
   background: transparent;
   cursor: pointer;
+  transition: width 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.dot::before {
-  content: '';
-  width: 5px;
-  height: 5px;
+.dotActive {
+  width: 38px;
+}
+
+.dotTrack {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.34);
   transition:
-    width 240ms ease,
-    height 240ms ease,
+    width 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
     background-color 240ms ease;
 }
 
-.dot:hover::before {
-  background: rgba(255, 255, 255, 0.75);
+.dot:hover .dotTrack {
+  background: rgba(255, 255, 255, 0.62);
 }
 
-.dotActive::before,
-.dotActive:hover::before {
-  width: 9px;
-  height: 9px;
-  background: #fff;
+.dotActive .dotTrack,
+.dotActive:hover .dotTrack {
+  width: 26px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.dotFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.86);
+  transform-origin: left center;
+  animation: dotFill linear forwards;
+  animation-play-state: paused;
+}
+
+.dotFill[data-running='true'] {
+  animation-play-state: running;
+}
+
+@keyframes dotFill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Still keeps time for autoplay, without the moving fill. */
+@keyframes dotHold {
+  from,
+  to {
+    transform: none;
+  }
 }
 
 .carouselBtn {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   margin: 0;
   padding: 0;
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.72);
   cursor: pointer;
 }
 
 .carouselBtn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .dot:focus-visible,
@@ -357,8 +578,6 @@
 .bubble .chart {
   width: 100%;
   box-sizing: border-box;
-  opacity: 1;
-  transform: none;
 }
 
 .bubbleMeta {
@@ -370,10 +589,11 @@
 
 .bubbleText {
   margin: 0;
-  color: rgba(255, 255, 255, 0.94);
-  font-size: 22px;
+  color: #fff;
+  font-size: 26px;
   font-weight: 400;
-  line-height: 1.35;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 .chart {
@@ -387,11 +607,54 @@
   background: rgba(8, 12, 20, 0.72);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  opacity: 0.35;
-  transform: translateY(18px);
+  opacity: 0;
+  transform: translateY(16px) scale(0.97);
+  transform-origin: 50% 100%;
+}
+
+/* Surface lands first (420ms, CHART_SURFACE_MS in the TSX); the chart inside plays after it. */
+.chart[data-play='true'] {
+  opacity: 1;
+  transform: none;
   transition:
-    opacity 520ms ease,
-    transform 520ms ease;
+    opacity 320ms ease,
+    transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.barChart .chartBar {
+  clip-path: inset(0 100% 0 0 round 999px);
+}
+
+.barChart[data-play='true'] .chartBar {
+  clip-path: inset(0 0 0 0 round 999px);
+  transition: clip-path 900ms cubic-bezier(0.65, 0, 0.35, 1) 380ms;
+}
+
+.barChart .chartValue,
+.barChart .legend li {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.barChart[data-play='true'] .chartValue,
+.barChart[data-play='true'] .legend li {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 360ms ease 380ms,
+    transform 360ms ease 380ms;
+}
+
+.barChart[data-play='true'] .legend li:nth-child(1) {
+  transition-delay: 760ms;
+}
+
+.barChart[data-play='true'] .legend li:nth-child(2) {
+  transition-delay: 860ms;
+}
+
+.barChart[data-play='true'] .legend li:nth-child(3) {
+  transition-delay: 960ms;
 }
 
 .chartLabel {
@@ -418,6 +681,79 @@
 
 .chartSeg {
   min-width: 0;
+}
+
+.lineValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.lineChart .chartValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.lineDelta {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(63, 210, 199, 0.18);
+  color: #9ff0e8;
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0;
+}
+
+.linePlot {
+  position: relative;
+  height: 112px;
+  margin-top: 4px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 100% 25%;
+}
+
+.lineSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  clip-path: inset(-8px 100% -8px 0);
+}
+
+.lineDot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(8, 12, 20, 0.72);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.3);
+}
+
+.lineAxis {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+}
+
+.lineChart[data-play='true'] .lineSvg {
+  clip-path: inset(-8px -8px -8px 0);
+  transition: clip-path 1300ms cubic-bezier(0.65, 0, 0.35, 1) 420ms;
+}
+
+.lineChart[data-play='true'] .lineDot {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 240ms ease 1620ms,
+    transform 480ms cubic-bezier(0.34, 1.56, 0.64, 1) 1620ms;
+}
+
+.lineChart[data-play='true'] .lineDelta {
+  opacity: 1;
+  transition: opacity 500ms ease 1320ms;
 }
 
 .legend {
@@ -479,17 +815,29 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .assets,
+  .assetsIntroTitle,
+  .assetsSummary,
+  .assetsScroll > * {
+    transition: none !important;
+  }
+
+  .dotFill {
+    animation-name: dotHold;
+  }
+
+  .dot,
+  .dotTrack {
+    transition: none;
+  }
+
   .lower::before,
   .chatDock,
   .map,
   .chart,
+  .chart *,
   .bubble,
   .bubbleBody {
-    transition: none;
-  }
-
-  .chart {
-    opacity: 1;
-    transform: none;
+    transition: none !important;
   }
 }

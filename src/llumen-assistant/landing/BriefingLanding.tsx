@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -10,6 +11,7 @@ import {
   type RefObject,
 } from 'react'
 import { ArrowLeft, ArrowRight, ChatText, Pause, Play, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
+import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { BriefingAssetGrid } from './BriefingAssets'
 import { BriefingMap } from './BriefingMap'
 import { BRIEFING_PLACES, type BriefingPlaceId } from './briefingMapPlaces'
@@ -22,7 +24,11 @@ import styles from './BriefingLanding.module.css'
 
 type ChartSeries = { name: string; value: string; pct: number; color: string }
 
-type FeedChart = { label: string; value: string; series: ChartSeries[] }
+type ChartLine = { name: string; color: string; points: number[] }
+
+type FeedChart =
+  | { kind: 'bar'; label: string; value: string; series: ChartSeries[] }
+  | { kind: 'line'; label: string; total: number; delta: string; axis: string[]; lines: ChartLine[] }
 
 type FeedStop = {
   id: string
@@ -37,22 +43,34 @@ type FeedStop = {
   chart?: FeedChart
 }
 
+/** Residents by age group, in thousands, 2016–2025. */
 const POPULATION: FeedChart = {
+  kind: 'line',
   label: 'Population',
-  value: '2,500,000',
-  series: [
+  total: 2500000,
+  delta: '+22% since 2016',
+  axis: ['2016', '2019', '2022', '2025'],
+  lines: [
     {
       name: 'Adults (20-59)',
-      value: '1,700,000 (68%)',
-      pct: 68,
-      color: '#3fa7a0',
+      color: '#3fd2c7',
+      points: [1390, 1430, 1470, 1500, 1520, 1550, 1590, 1630, 1670, 1700],
     },
-    { name: 'Youth (0-19)', value: '675,000 (27%)', pct: 27, color: '#9bbf6a' },
-    { name: 'Seniors (60+)', value: '125,000 (5%)', pct: 5, color: '#c56b3c' },
+    {
+      name: 'Youth (0-19)',
+      color: '#a6e06f',
+      points: [560, 575, 590, 600, 610, 620, 635, 650, 662, 675],
+    },
+    {
+      name: 'Seniors (60+)',
+      color: '#ff9f5a',
+      points: [70, 76, 82, 88, 94, 100, 106, 112, 118, 125],
+    },
   ],
 }
 
 const LAND_USE: FeedChart = {
+  kind: 'bar',
   label: 'Land use',
   value: '100%',
   series: [
@@ -71,34 +89,37 @@ const FEED_STOPS: FeedStop[] = [
     title: 'Island Bus Reliability Brief',
     before: 'Morning arrivals on the island bus routes are ',
     highlight: 'running 12 minutes late',
-    after: ' against the published timetable this week',
+    after:
+      ' against the published timetable this week, with Routes 54 and 65 driving most of the delay as roadworks on Al Salam Street slow the 7–9 am peak.',
     storyId: 'r1',
   },
   {
     id: 'proactive-ai',
     domain: 'Customer Success',
     title: 'Proactive Risk Digest',
-    before: 'Llumen flagged a clustered complaint pattern in MBZ City that typically precedes ',
+    before:
+      'Llumen flagged a cluster of 38 billing and connection complaints in MBZ City since Sunday, a pattern that typically precedes ',
     highlight: 'service-center delays of 40 minutes',
-    after: ' within 72 hours',
+    after: ' within 72 hours unless extra agents are scheduled for the weekend shift.',
   },
   {
     id: 'land-use',
     place: 'mussafah',
     domain: 'Planning',
     title: 'Land use mix',
-    before: 'Industrial parcels in Al Mussafah now cover nearly a third of the monitored belt, ',
+    before:
+      'Industrial parcels in Al Mussafah now cover nearly a third of the monitored belt after 14 new warehouse permits this year, ',
     highlight: 'outpacing open space',
-    after: ' along the southern approach roads.',
+    after: ' along the southern approach roads and pushing heavy-vehicle traffic closer to residential blocks.',
     chart: LAND_USE,
   },
   {
     id: 'population',
     domain: 'Operations',
     title: 'Population composition across the capital',
-    before: 'Working-age residents still account for most of the emirate, while the youth share is ',
+    before: 'Working-age residents still make up more than two thirds of the capital, while the youth share is ',
     highlight: 'holding at 27%',
-    after: ' of the recorded population.',
+    after: ' of the recorded population, keeping school-run and family-service demand steady in the newer suburbs.',
     chart: POPULATION,
   },
   {
@@ -108,7 +129,8 @@ const FEED_STOPS: FeedStop[] = [
     title: 'Coastal corridor air quality',
     before: 'Fine particulate readings along the coastal corridor are ',
     highlight: 'up 18% overnight',
-    after: ', with three districts crossing the sensitive-group threshold.',
+    after:
+      ', with three districts crossing the sensitive-group threshold as low winds trapped port and traffic emissions close to the shoreline.',
     storyId: 'r2',
   },
   {
@@ -118,27 +140,47 @@ const FEED_STOPS: FeedStop[] = [
     before:
       'Night-time temperatures along the corniche stayed above 32°C for a third consecutive week, with heat-related clinic visits ',
     highlight: 'up 22%',
-    after: ' versus the seasonal baseline',
+    after: ' versus the seasonal baseline, mostly outdoor workers and residents over 60 in older housing blocks.',
   },
   {
     id: 'al-ain',
     place: 'al-ain',
     domain: 'Environment',
     title: 'Al Ain station cluster',
-    before: 'Inland stations around Al Ain show a quieter profile, with dumping reports ',
+    before:
+      'Inland monitoring stations around Al Ain show a quieter profile than the coast, with illegal dumping reports ',
     highlight: 'down 12% this week',
-    after: ' against the coastal belt.',
+    after: ' after the new patrol schedule and camera coverage at the three busiest desert access roads.',
     storyId: 'r4',
   },
   {
     id: 'water-network',
     domain: 'Engineering',
     title: 'Water Network Pressure Review',
-    before: 'Several districts in Al Ain recorded overnight pressure drops that typically precede ',
+    before:
+      'Four districts in Al Ain recorded overnight pressure drops below 2 bar on the eastern trunk main, a pattern that typically precedes ',
     highlight: 'service interruptions of 4–6 hours',
-    after: ' within the next 48 hours',
+    after: ' within the next 48 hours if the valve inspection is not moved forward.',
   },
 ]
+
+/** One read-out across every asset in the grid; numbers match briefingAssetData. */
+const ASSETS_SUMMARY: { text: string; highlight?: boolean }[] = [
+  { text: 'The coastal corridor needs attention first: AQI has climbed to ' },
+  { text: '142, up 18% overnight', highlight: true },
+  { text: ', above the sensitive-groups line since 09:00. Heat-related clinic visits reached ' },
+  { text: '1,284 this week', highlight: true },
+  { text: ', 22% higher and peaking at 244 on Sunday, while bus delays sit on ' },
+  { text: 'Routes 54 and 65', highlight: true },
+  {
+    text: ' at 18 and 14 minutes late. Non-compliant facilities run 14% over their permit limits, Al Mussafah is now 31% industrial and adults make up 68% of residents. Network pressure in Al Ain holds at ',
+  },
+  { text: '62% of target', highlight: true },
+  { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
+]
+
+/** Once Assets has played, the charts load centred for this long before the grid moves aside for the summary. */
+const ASSETS_SPLIT_MS = 1700
 
 /** Page scroll past which the Assets section counts as open and the composer leaves the centre. */
 const ASSETS_OPEN_PX = 8
@@ -204,6 +246,8 @@ export function BriefingLanding({
     const blendTo = lower.offsetTop + agents.offsetTop
     const blend = Math.min(1, Math.max(0, (top - blendFrom) / Math.max(1, blendTo - blendFrom)))
     rootRef.current?.style.setProperty('--agents-t', blend.toFixed(3))
+    const reveal = Math.min(1, Math.max(0, top / Math.max(1, lower.offsetTop - bar)))
+    rootRef.current?.style.setProperty('--assets-t', reveal.toFixed(3))
     const assetsTop = lower.offsetTop - top
     setAssetsPlay((current) => {
       if (assetsTop > height * ASSETS_RESET_AT || blend > 0.97) return false
@@ -211,12 +255,6 @@ export function BriefingLanding({
       return current
     })
   }, [])
-
-  useEffect(() => {
-    if (paused || assetsOpen) return
-    const timer = window.setTimeout(() => setActive((index) => (index + 1) % FEED_STOPS.length), FEED_AUTOPLAY_MS)
-    return () => window.clearTimeout(timer)
-  }, [active, paused, assetsOpen])
 
   const stepFeed = useCallback((delta: number) => {
     setActive((index) => (index + delta + FEED_STOPS.length) % FEED_STOPS.length)
@@ -318,16 +356,33 @@ export function BriefingLanding({
                 count={FEED_STOPS.length}
                 active={active}
                 paused={paused}
+                running={!paused && !assetsOpen}
                 onSelect={setActive}
                 onStep={stepFeed}
                 onTogglePause={() => setPaused((value) => !value)}
               />
             }
           />
+          <button
+            type="button"
+            className={`${styles.edgeArrow} ${styles.edgeArrowPrevious}`}
+            aria-label="Previous finding"
+            onClick={() => stepFeed(-1)}
+          >
+            <ArrowLeft size={20} weight="regular" aria-hidden />
+          </button>
+          <button
+            type="button"
+            className={`${styles.edgeArrow} ${styles.edgeArrowNext}`}
+            aria-label="Next finding"
+            onClick={() => stepFeed(1)}
+          >
+            <ArrowRight size={20} weight="regular" aria-hidden />
+          </button>
         </div>
         <div ref={lowerRef} className={`${styles.lower}${assetsOpen ? ` ${styles.lowerOpen}` : ''}`}>
           <div className={styles.lowerBg} aria-hidden />
-          <AssetsSheet open={assetsOpen} play={assetsPlay} onOpen={showAssets} onOpenStory={onOpenStory} />
+          <AssetsSheet open={assetsOpen} play={assetsPlay} onOpen={showAssets} />
           <AgentsSection sectionRef={agentsRef} />
         </div>
       </div>
@@ -335,21 +390,34 @@ export function BriefingLanding({
   )
 }
 
-function AssetsSheet({
-  open,
-  play,
-  onOpen,
-  onOpenStory,
-}: {
-  open: boolean
-  play: boolean
-  onOpen: () => void
-  onOpenStory?: (storyId: string) => void
-}) {
+/**
+ * The grid peeks and plays its charts centred, then moves into the right two thirds while a
+ * one-paragraph summary appears in the left third. The grid scrolls on its own.
+ */
+function AssetsSheet({ open, play, onOpen }: { open: boolean; play: boolean; onOpen: () => void }) {
+  const revealScrollbar = useRevealScrollbarOnScroll()
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const [split, setSplit] = useState(false)
+  const setScroll = useCallback(
+    (el: HTMLDivElement | null) => {
+      scrollRef.current = el
+      revealScrollbar(el)
+    },
+    [revealScrollbar],
+  )
+  useEffect(() => {
+    if (!open && scrollRef.current) scrollRef.current.scrollTop = 0
+  }, [open])
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const timer = window.setTimeout(() => setSplit(play), play && !reduce ? ASSETS_SPLIT_MS : 0)
+    return () => window.clearTimeout(timer)
+  }, [play])
   return (
     <section
       className={`${styles.assets}${open ? ` ${styles.assetsOpen}` : ''}`}
       aria-labelledby="briefing-assets"
+      data-split={split}
       onClickCapture={(event) => {
         if (open) return
         event.preventDefault()
@@ -357,13 +425,25 @@ function AssetsSheet({
         onOpen()
       }}
     >
-      <header className={styles.sectionHead}>
-        <h2 id="briefing-assets" className={styles.assetsTitle}>
+      <div className={styles.assetsIntro} aria-hidden={!split}>
+        <h2 id="briefing-assets" className={styles.assetsIntroTitle}>
           Assets
         </h2>
-        <p className={styles.sectionLead}>What you follow, built in Asset builder</p>
-      </header>
-      <BriefingAssetGrid play={play} interactive={open} onOpenStory={onOpenStory} />
+        <p className={styles.assetsSummary}>
+          {ASSETS_SUMMARY.map((part) =>
+            part.highlight ? (
+              <span key={part.text} className={home.findingHighlight}>
+                {part.text}
+              </span>
+            ) : (
+              part.text
+            ),
+          )}
+        </p>
+      </div>
+      <div ref={setScroll} className={styles.assetsScroll}>
+        <BriefingAssetGrid play={play} />
+      </div>
     </section>
   )
 }
@@ -402,9 +482,7 @@ function ConversationalBubble({
   const [shown, setShown] = useState(stop)
   const [height, setHeight] = useState<number | null>(null)
   const [fading, setFading] = useState(false)
-  const [dock, setDock] = useState<{ bottom: number; under: number } | null>(null)
-  const finding = `${shown.before}${shown.highlight}${shown.after}`.trim()
-
+  const [dock, setDock] = useState<{ top: number; under: number; height: number } | null>(null)
   useEffect(() => {
     if (frozen) return
     const hub = document.querySelector('[data-lc-hub-chat]')
@@ -415,10 +493,13 @@ function ConversationalBubble({
     const place = () => {
       const rect = box.getBoundingClientRect()
       const next = {
-        bottom: window.innerHeight - rect.top + 20,
+        top: window.innerHeight - rect.top,
         under: window.innerHeight - rect.bottom,
+        height: rect.height,
       }
-      setDock((current) => (current?.bottom === next.bottom && current.under === next.under ? current : next))
+      setDock((current) =>
+        current?.top === next.top && current.under === next.under && current.height === next.height ? current : next,
+      )
     }
     const track = () => {
       window.cancelAnimationFrame(frame)
@@ -471,85 +552,129 @@ function ConversationalBubble({
   useLayoutEffect(() => {
     const inner = innerRef.current
     if (!inner) return
-    setHeight(inner.offsetHeight)
-  }, [shown])
+    const sync = () => setHeight((current) => (current === inner.offsetHeight ? current : inner.offsetHeight))
+    sync()
+    const resize = new ResizeObserver(sync)
+    resize.observe(inner)
+    return () => resize.disconnect()
+  }, [])
+
+  const greet = shown.id === FEED_STOPS[0].id
 
   return (
-    <>
-      <div className={styles.chatDock} style={dock ? { bottom: dock.bottom } : undefined}>
+    <div
+      className={styles.chatDock}
+      style={
+        dock
+          ? ({
+              ['--dock-top' as string]: `${dock.top}px`,
+              ['--dock-under' as string]: `${dock.under}px`,
+              ['--dock-h' as string]: `${dock.height}px`,
+            } as CSSProperties)
+          : undefined
+      }
+    >
+      <div className={styles.greetingWrap} data-shown={greet} aria-hidden={!greet}>
         <p className={styles.greeting}>
           Good morning, Omar,
           <br />
           here is what requires your attention today
         </p>
+      </div>
+      <div className={styles.findingRow}>
         <div className={styles.bubble} style={height != null ? { height } : undefined}>
           <div ref={innerRef} className={`${styles.bubbleBody}${fading ? ` ${styles.bubbleFade}` : ''}`}>
-            <p className={styles.bubbleMeta}>{shown.domain}</p>
-            <p className={styles.bubbleText}>
-              {shown.before}
-              <span className={home.findingHighlight}>{shown.highlight}</span>
-              {shown.after}
-            </p>
-            {shown.chart ? <FeedChartCard chart={shown.chart} /> : null}
-            <div className={home.actions}>
-              <SpecularActionButton
-                className={home.actionBtn}
-                enabled
-                onClick={() =>
-                  onTellMeMore?.({
-                    id: shown.id,
-                    title: shown.title,
-                    domain: shown.domain,
-                    finding,
-                  })
-                }
-              >
-                <ChatText size={20} weight="regular" aria-hidden />
-                <span>Tell Me More</span>
-              </SpecularActionButton>
-              {shown.storyId ? (
-                <button type="button" className={styles.storyBtn} onClick={() => onOpenStory?.(shown.storyId!)}>
-                  Open story
-                </button>
-              ) : null}
-              <div className={home.voteGroup}>
-                <button
-                  type="button"
-                  className={`${home.voteBtn}${vote === 'up' ? ` ${styles.voteOn}` : ''}`}
-                  aria-label="Helpful"
-                  aria-pressed={vote === 'up'}
-                  onClick={() => onVote('up')}
-                >
-                  <ThumbsUp size={18} weight="regular" />
-                </button>
-                <button
-                  type="button"
-                  className={`${home.voteBtn}${vote === 'down' ? ` ${styles.voteOn}` : ''}`}
-                  aria-label="Not helpful"
-                  aria-pressed={vote === 'down'}
-                  onClick={() => onVote('down')}
-                >
-                  <ThumbsDown size={18} weight="regular" />
-                </button>
-              </div>
-            </div>
+            <FindingBody
+              stop={shown}
+              vote={vote}
+              onVote={onVote}
+              onTellMeMore={onTellMeMore}
+              onOpenStory={onOpenStory}
+            />
           </div>
         </div>
+        <div className={styles.findingControls}>{controls}</div>
       </div>
-      <div
-        className={styles.controlsDock}
-        style={dock ? ({ ['--dock-under' as string]: `${dock.under}px` } as CSSProperties) : undefined}
-      >
-        {controls}
+    </div>
+  )
+}
+
+/** A finding's text, chart and actions. */
+function FindingBody({
+  stop,
+  vote,
+  onVote,
+  onTellMeMore,
+  onOpenStory,
+}: {
+  stop: FeedStop
+  vote: 'up' | 'down' | null
+  onVote: (value: 'up' | 'down') => void
+  onTellMeMore?: (item: LandingTellMeMorePayload) => void
+  onOpenStory?: (storyId: string) => void
+}) {
+  const finding = `${stop.before}${stop.highlight}${stop.after}`.trim()
+  return (
+    <>
+      <p className={styles.bubbleMeta}>{stop.domain}</p>
+      <p className={styles.bubbleText}>
+        {stop.before}
+        <span className={home.findingHighlight}>{stop.highlight}</span>
+        {stop.after}
+      </p>
+      {stop.chart ? <FeedChartCard key={stop.id} chart={stop.chart} /> : null}
+      <div className={home.actions}>
+        <SpecularActionButton
+          className={home.actionBtn}
+          enabled
+          onClick={() =>
+            onTellMeMore?.({
+              id: stop.id,
+              title: stop.title,
+              domain: stop.domain,
+              finding,
+            })
+          }
+        >
+          <ChatText size={20} weight="regular" aria-hidden />
+          <span>Tell Me More</span>
+        </SpecularActionButton>
+        {stop.storyId ? (
+          <button type="button" className={styles.storyBtn} onClick={() => onOpenStory?.(stop.storyId!)}>
+            View app
+          </button>
+        ) : null}
+        <div className={home.voteGroup}>
+          <button
+            type="button"
+            className={`${home.voteBtn}${vote === 'up' ? ` ${styles.voteOn}` : ''}`}
+            aria-label="Helpful"
+            aria-pressed={vote === 'up'}
+            onClick={() => onVote('up')}
+          >
+            <ThumbsUp size={18} weight="regular" />
+          </button>
+          <button
+            type="button"
+            className={`${home.voteBtn}${vote === 'down' ? ` ${styles.voteOn}` : ''}`}
+            aria-label="Not helpful"
+            aria-pressed={vote === 'down'}
+            onClick={() => onVote('down')}
+          >
+            <ThumbsDown size={18} weight="regular" />
+          </button>
+        </div>
       </div>
     </>
   )
 }
 
+/** The active dot stretches into a capsule whose fill is the autoplay clock: it advances when the fill completes. */
 function FeedCarousel({
   count,
   active,
   paused,
+  running,
   onSelect,
   onStep,
   onTogglePause,
@@ -557,6 +682,8 @@ function FeedCarousel({
   count: number
   active: number
   paused: boolean
+  /** False while paused or while Assets is open; the fill holds its progress. */
+  running: boolean
   onSelect: (index: number) => void
   onStep: (delta: number) => void
   onTogglePause: () => void
@@ -572,13 +699,22 @@ function FeedCarousel({
             aria-label={`Finding ${index + 1} of ${count}`}
             aria-current={index === active ? 'step' : undefined}
             onClick={() => onSelect(index)}
-          />
+          >
+            <span className={styles.dotTrack}>
+              {index === active ? (
+                <span
+                  key={active}
+                  className={styles.dotFill}
+                  data-running={running}
+                  style={{ animationDuration: `${FEED_AUTOPLAY_MS}ms` }}
+                  onAnimationEnd={() => onStep(1)}
+                />
+              ) : null}
+            </span>
+          </button>
         ))}
       </div>
-      <div className={styles.carouselPill}>
-        <button type="button" className={styles.carouselBtn} aria-label="Previous finding" onClick={() => onStep(-1)}>
-          <ArrowLeft size={16} weight="regular" />
-        </button>
+      <div className={`${styles.carouselPill} ${styles.playPill}`}>
         <button
           type="button"
           className={styles.carouselBtn}
@@ -587,17 +723,33 @@ function FeedCarousel({
         >
           {paused ? <Play size={16} weight="regular" /> : <Pause size={16} weight="regular" />}
         </button>
-        <button type="button" className={styles.carouselBtn} aria-label="Next finding" onClick={() => onStep(1)}>
-          <ArrowRight size={16} weight="regular" />
-        </button>
       </div>
     </div>
   )
 }
 
+/** Matches the card surface's entrance in CSS, so the chart inside starts once the card has landed. */
+const CHART_SURFACE_MS = 420
+
+/** Flips to true on the frame after mount so the card and its chart transition in. */
+function useChartPlay() {
+  const [play, setPlay] = useState(false)
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setPlay(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+  return play
+}
+
 function FeedChartCard({ chart }: { chart: FeedChart }) {
+  if (chart.kind === 'line') return <FeedLineChart chart={chart} />
+  return <FeedBarChart chart={chart} />
+}
+
+function FeedBarChart({ chart }: { chart: Extract<FeedChart, { kind: 'bar' }> }) {
+  const play = useChartPlay()
   return (
-    <div className={styles.chart}>
+    <div className={`${styles.chart} ${styles.barChart}`} data-play={play}>
       <p className={styles.chartLabel}>{chart.label}</p>
       <p className={styles.chartValue}>{chart.value}</p>
       <div className={styles.chartBar} aria-hidden>
@@ -605,17 +757,106 @@ function FeedChartCard({ chart }: { chart: FeedChart }) {
           <span key={row.name} className={styles.chartSeg} style={{ flex: `${row.pct} 0 0`, background: row.color }} />
         ))}
       </div>
-      <ul className={styles.legend}>
-        {chart.series.map((row) => (
-          <li key={row.name}>
-            <span className={styles.legendName}>
-              <span className={styles.legendDot} style={{ background: row.color }} />
-              {row.name}
-            </span>
-            <span className={styles.legendVal}>{row.value}</span>
-          </li>
-        ))}
-      </ul>
+      <FeedLegend rows={chart.series} />
     </div>
   )
+}
+
+const LINE_COUNT_MS = 1400
+
+/** After the card lands, total population draws in from the left and its end dot lands; the total counts up alongside. */
+function FeedLineChart({ chart }: { chart: Extract<FeedChart, { kind: 'line' }> }) {
+  const play = useChartPlay()
+  const [total, setTotal] = useState(0)
+  const fillId = `population${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+  useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let frame = window.requestAnimationFrame((start) => {
+      const tick = (now: number) => {
+        const t = reduce ? 1 : Math.min(1, Math.max(0, now - start - CHART_SURFACE_MS) / LINE_COUNT_MS)
+        setTotal(Math.round(chart.total * (1 - (1 - t) ** 3)))
+        if (t < 1) frame = window.requestAnimationFrame(tick)
+      }
+      frame = window.requestAnimationFrame(tick)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [chart.total])
+
+  const sums = chart.lines[0].points.map((_, i) => chart.lines.reduce((sum, line) => sum + line.points[i], 0))
+  const low = Math.min(...sums) * 0.94
+  const high = Math.max(...sums) * 1.02
+  const coords = sums.map((v, i): [number, number] => [
+    (i / (sums.length - 1)) * 100,
+    40 - ((v - low) / (high - low)) * 40,
+  ])
+  const line = smoothLine(coords)
+  const last = coords[coords.length - 1]
+  const color = chart.lines[0].color
+  return (
+    <div className={`${styles.chart} ${styles.lineChart}`} data-play={play}>
+      <p className={styles.chartLabel}>{chart.label}</p>
+      <div className={styles.lineValueRow}>
+        <p className={styles.chartValue}>{total.toLocaleString('en-US')}</p>
+        <span className={styles.lineDelta}>{chart.delta}</span>
+      </div>
+      <div className={styles.linePlot} aria-hidden>
+        <svg className={styles.lineSvg} viewBox="0 0 100 40" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor={color} stopOpacity="0.42" />
+              <stop offset="1" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={`${line} L100,40 L0,40 Z`} fill={`url(#${fillId})`} />
+          <path
+            d={line}
+            fill="none"
+            stroke={color}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        <span
+          className={styles.lineDot}
+          style={{ left: `${last[0]}%`, top: `${(last[1] / 40) * 100}%`, background: color }}
+        />
+      </div>
+      <div className={styles.lineAxis} aria-hidden>
+        {chart.axis.map((tick) => (
+          <span key={tick}>{tick}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FeedLegend({ rows }: { rows: { name: string; value: string; color: string }[] }) {
+  return (
+    <ul className={styles.legend}>
+      {rows.map((row) => (
+        <li key={row.name}>
+          <span className={styles.legendName}>
+            <span className={styles.legendDot} style={{ background: row.color }} />
+            {row.name}
+          </span>
+          <span className={styles.legendVal}>{row.value}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Catmull-Rom through the points, as cubic Béziers. */
+function smoothLine(points: [number, number][]) {
+  const f = (n: number) => n.toFixed(2)
+  let d = `M${f(points[0][0])},${f(points[0][1])}`
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[i - 1] ?? points[i]
+    const p1 = points[i]
+    const p2 = points[i + 1]
+    const p3 = points[i + 2] ?? p2
+    d += ` C${f(p1[0] + (p2[0] - p0[0]) / 6)},${f(p1[1] + (p2[1] - p0[1]) / 6)} ${f(p2[0] - (p3[0] - p1[0]) / 6)},${f(p2[1] - (p3[1] - p1[1]) / 6)} ${f(p2[0])},${f(p2[1])}`
+  }
+  return d
 }
