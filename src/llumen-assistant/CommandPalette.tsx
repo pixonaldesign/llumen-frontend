@@ -64,7 +64,7 @@ export function CommandPalette({
         id: 'stories',
         group: 'Landing',
         label: 'Carousel · Stories',
-        hint: 'Current landing, stories under the carousel',
+        hint: 'Stories under the carousel',
         active: landing === 'stories',
         run: choose(() => onLanding('stories')),
       },

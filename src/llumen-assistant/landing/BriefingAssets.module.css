@@ -1,8 +1,8 @@
 /*
- * Bento grid: small cards take one cell, medium two, large two by two, wide a full row. Rows have a fixed
- * height because the grid scrolls inside the Assets section.
- * Card surfaces always show so the first row peeks under the findings. Their charts
- * start hidden; [data-play='true'] runs them, and leaving it snaps back without
+ * Bento grid: small cards take one cell, medium two, large two by two, wide a full row. Rows share the
+ * section's height so the whole grid fits.
+ * Card surfaces always show so the first row peeks under the findings. Each card's chart
+ * starts hidden; [data-play='true'] on the card runs it, and leaving it snaps back without
  * transitions so the next entrance replays.
  */
 .grid {
@@ -53,7 +53,13 @@
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 20px;
-  background: linear-gradient(160deg, rgba(28, 28, 56, 0.64), rgba(28, 28, 56, 0.4));
+  /* Neutral glass over the map while peeking, tinting to the Assets palette as --assets-t reaches 1. */
+  --tint: calc(var(--assets-t, 1) * 100%);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, rgba(28, 28, 56, 0.64) var(--tint), rgba(6, 12, 20, 0.5)),
+    color-mix(in srgb, rgba(28, 28, 56, 0.4) var(--tint), rgba(6, 12, 20, 0.3))
+  );
   backdrop-filter: blur(24px) saturate(1.2);
   -webkit-backdrop-filter: blur(24px) saturate(1.2);
   box-shadow:
@@ -181,11 +187,11 @@
 }
 
 /* Shared chart reveal timing. */
-.grid[data-play='true'] .delta,
-.grid[data-play='true'] .threshold,
-.grid[data-play='true'] .hbarValue,
-.grid[data-play='true'] .ringCentre,
-.grid[data-play='true'] .legend {
+.card[data-play='true'] .delta,
+.card[data-play='true'] .threshold,
+.card[data-play='true'] .hbarValue,
+.card[data-play='true'] .ringCentre,
+.card[data-play='true'] .legend {
   opacity: 1;
   transition: opacity 500ms ease calc(var(--chart-d) + 700ms + var(--i, 0) * 90ms);
 }
@@ -251,7 +257,7 @@
   clip-path: inset(-12px 100% -12px 0);
 }
 
-.grid[data-play='true'] .plotSvg {
+.card[data-play='true'] .plotSvg {
   clip-path: inset(-12px -12px -12px 0);
   transition: clip-path 1500ms cubic-bezier(0.65, 0, 0.35, 1) var(--chart-d);
 }
@@ -274,7 +280,7 @@
   transform: translate(-50%, -50%) scale(0.4);
 }
 
-.grid[data-play='true'] .plotDot {
+.card[data-play='true'] .plotDot {
   opacity: 1;
   transform: translate(-50%, -50%);
   transition:
@@ -360,7 +366,7 @@
   transform-origin: left center;
 }
 
-.grid[data-play='true'] .fill {
+.card[data-play='true'] .fill {
   transform: none;
   transition:
     transform 900ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--chart-d) + var(--i, 0) * 90ms),
@@ -407,7 +413,7 @@
   background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 30%, transparent));
 }
 
-.grid[data-play='true'] .vfill {
+.card[data-play='true'] .vfill {
   transform: none;
   transition:
     transform 900ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--chart-d) + var(--i, 0) * 70ms),
@@ -468,7 +474,7 @@
   stroke-width: 50;
 }
 
-.grid[data-play='true'] .ringSeg {
+.card[data-play='true'] .ringSeg {
   stroke-dasharray: var(--len) 100;
   transition:
     stroke-dasharray 760ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--chart-d) + var(--i, 0) * 260ms),
@@ -587,7 +593,7 @@
   border-left: 0;
 }
 
-.grid[data-play='true'] .metric {
+.card[data-play='true'] .metric {
   opacity: 1;
   transform: none;
   transition:
@@ -656,7 +662,7 @@
   opacity: 0;
 }
 
-.grid[data-play='true'] .gaugeFill {
+.card[data-play='true'] .gaugeFill {
   stroke-dasharray: var(--len) 100;
   opacity: 1;
   transition:

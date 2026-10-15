@@ -72,9 +72,41 @@ export function StoryShader({
   from: string
   to: string
 }) {
+  return (
+    <ShaderCanvas
+      className={className}
+      fragment={FRAGMENT}
+      preset={PRESET_INDEX[preset]}
+      speed={speed}
+      from={from}
+      to={to}
+    />
+  )
+}
+
+/**
+ * Runs a full-screen fragment shader with uniforms resolution, time, colorA, colorB and an int
+ * preset. The fragment source is read once on mount.
+ */
+export function ShaderCanvas({
+  className,
+  fragment: fragmentSource,
+  preset,
+  speed,
+  from,
+  to,
+}: {
+  className?: string
+  fragment: string
+  preset: number
+  speed: number
+  from: string
+  to: string
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const settingsRef = useRef({ preset, speed, from, to })
   const redrawRef = useRef<(() => void) | null>(null)
+  const fragmentRef = useRef(fragmentSource)
 
   useEffect(() => {
     settingsRef.current = { preset, speed, from, to }
@@ -86,7 +118,7 @@ export function StoryShader({
     const gl = canvas?.getContext('webgl', { antialias: false, premultipliedAlpha: false })
     if (!canvas || !gl) return
     const vertex = compile(gl, gl.VERTEX_SHADER, VERTEX)
-    const fragment = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT)
+    const fragment = compile(gl, gl.FRAGMENT_SHADER, fragmentRef.current)
     const program = gl.createProgram()
     if (!vertex || !fragment || !program) return
     gl.attachShader(program, vertex)
@@ -125,6 +157,7 @@ export function StoryShader({
     let elapsed = 0
     let last = performance.now()
     let frame = 0
+    let visible = true
     const draw = (now: number) => {
       const current = settingsRef.current
       elapsed += ((now - last) / 1000) * current.speed
@@ -133,16 +166,30 @@ export function StoryShader({
       gl.uniform1f(uniforms.time, elapsed)
       gl.uniform3fv(uniforms.colorA, hexToRgb(current.from))
       gl.uniform3fv(uniforms.colorB, hexToRgb(current.to))
-      gl.uniform1i(uniforms.preset, PRESET_INDEX[current.preset])
+      gl.uniform1i(uniforms.preset, current.preset)
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-      if (!reduceMotion) frame = requestAnimationFrame(draw)
+      if (!reduceMotion && visible) frame = requestAnimationFrame(draw)
     }
     frame = requestAnimationFrame(draw)
     if (reduceMotion) redrawRef.current = () => draw(last)
 
+    // Animates only while on screen; resuming skips the hidden time instead of jumping ahead.
+    const visibility = new IntersectionObserver(([entry]) => {
+      const next = entry.isIntersecting
+      if (next === visible) return
+      visible = next
+      cancelAnimationFrame(frame)
+      if (visible && !reduceMotion) {
+        last = performance.now()
+        frame = requestAnimationFrame(draw)
+      }
+    })
+    visibility.observe(canvas)
+
     return () => {
       redrawRef.current = null
       cancelAnimationFrame(frame)
+      visibility.disconnect()
       observer.disconnect()
       gl.deleteBuffer(buffer)
       gl.deleteProgram(program)

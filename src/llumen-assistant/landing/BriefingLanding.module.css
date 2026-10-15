@@ -184,12 +184,14 @@
   position: relative;
   z-index: 1;
   margin-top: calc(-1 * var(--assets-peek));
+  /* Clear over the map it overlaps, then the map's base colour so nothing behind the page shows. */
+  background: linear-gradient(transparent var(--assets-peek), #060a14 var(--assets-peek));
 }
 
 /*
- * While Assets only peeks, its colour fades in from clear over the stage's blurred map, so the
- * cards sit on a seam infused between the two sections. --assets-t (0 at rest, 1 once Assets
- * reaches the top bar) firms the seam up as Assets scrolls in.
+ * While Assets only peeks, its cards sit straight on the stage's blurred map. The Assets colour
+ * fades in with --assets-t (0 at rest, 1 once Assets reaches the top bar), from a top edge that
+ * stays soft until it is solid at 1.
  */
 .lowerBg {
   position: sticky;
@@ -198,18 +200,10 @@
   height: var(--page-h);
   margin-bottom: calc(-1 * var(--page-h));
   background: linear-gradient(180deg, #4a4969 0%, #605f9c 55%, #7b72a6 100%);
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, var(--assets-t, 0)) 0,
-    rgba(0, 0, 0, calc(0.35 + 0.65 * var(--assets-t, 0))) calc(var(--assets-peek) * 0.5),
-    #000 calc(var(--assets-peek) * 1.4)
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, var(--assets-t, 0)) 0,
-    rgba(0, 0, 0, calc(0.35 + 0.65 * var(--assets-t, 0))) calc(var(--assets-peek) * 0.5),
-    #000 calc(var(--assets-peek) * 1.4)
-  );
+  --edge: calc(var(--assets-t, 0) * var(--assets-t, 0) * var(--assets-t, 0));
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--edge)) 0, #000 var(--assets-peek));
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--edge)) 0, #000 var(--assets-peek));
+  opacity: var(--assets-t, 0);
   pointer-events: none;
 }
 
@@ -217,11 +211,16 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #2478a0 0%, #2d8fb8 45%, #67d1fb 80%, #9be2fe 100%);
+  background:
+    radial-gradient(120% 70% at 50% 110%, rgba(38, 72, 150, 0.32), transparent 70%),
+    linear-gradient(180deg, #05070f 0%, #080d1c 55%, #0c1530 100%);
   opacity: var(--agents-t, 0);
 }
 
-/* Continues the Assets colour behind the blurred top bar once Assets fills the page. */
+/*
+ * Continues the Assets colour behind the blurred top bar, only in the last stretch before Assets
+ * fills the page, so it never shows as a strip over the map.
+ */
 .lower::before {
   content: '';
   position: absolute;
@@ -230,13 +229,8 @@
   left: 0;
   height: var(--briefing-bar-h, 64px);
   background: #4a4969;
-  opacity: 0;
+  opacity: calc((var(--assets-t, 0) - 0.85) / 0.15);
   pointer-events: none;
-  transition: opacity 320ms ease;
-}
-
-.lowerOpen::before {
-  opacity: 1;
 }
 
 /*
@@ -289,14 +283,19 @@
   line-height: 1.4;
 }
 
-.assetsIntroTitle {
-  margin: 0 0 16px;
+/* Section titles: Assets and Agents. */
+.eyebrow {
+  margin: 0;
   color: rgba(255, 255, 255, 0.62);
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.08em;
   line-height: 16px;
   text-transform: uppercase;
+}
+
+.assetsIntroTitle {
+  margin-bottom: 16px;
 }
 
 .assetsIntroTitle,
@@ -319,9 +318,11 @@
   --reveal-d: 420ms;
 }
 
+/* Rests 40px lower while peeking and rises into place as Assets scrolls in. */
 .assetsScroll {
   min-height: 0;
   overflow: hidden;
+  transform: translateY(calc((1 - var(--assets-t, 1)) * 40px));
 }
 
 .assetsOpen .assetsScroll {
@@ -351,21 +352,21 @@
   min-height: var(--page-h);
   padding: calc(var(--briefing-bar-h, 64px) + 28px) 32px var(--feed-pad, 106px);
   scroll-snap-align: end;
+  /* Keeps the snap area within the snapport (page minus the bar's scroll-padding); taller areas don't snap. */
+  scroll-margin-top: calc(-1 * var(--briefing-bar-h, 64px));
 }
 
 .sectionHead {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
-.assetsTitle {
+.sectionLead {
   margin: 0;
-  color: #fff;
-  font-size: 28px;
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .greeting {

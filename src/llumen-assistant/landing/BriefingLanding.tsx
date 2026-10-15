@@ -12,6 +12,7 @@ import {
 } from 'react'
 import { ArrowLeft, ArrowRight, ChatText, Pause, Play, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
+import { BriefingAgentGrid } from './BriefingAgents'
 import { BriefingAssetGrid } from './BriefingAssets'
 import { BriefingMap } from './BriefingMap'
 import { BRIEFING_PLACES, type BriefingPlaceId } from './briefingMapPlaces'
@@ -197,8 +198,13 @@ export type BriefingLandingProps = {
   onTellMeMore?: (item: LandingTellMeMorePayload) => void
   onOpenStory?: (storyId: string) => void
   reserveComposer?: boolean
-  /** Fires when the Assets sheet opens or closes, so the composer can leave the centre. */
-  onAssetsOpenChange?: (open: boolean) => void
+  /**
+   * Fires on every scroll frame with how far Assets has scrolled in (0 at rest, 1 once it reaches the
+   * top bar), so the composer can follow the scroll from the centre to the bottom.
+   */
+  onAssetsProgress?: (progress: number) => void
+  /** Fires with true on every scroll event of the Briefing page, and false once it ends (snap included). */
+  onScrollActivity?: (scrolling: boolean) => void
 }
 
 export function BriefingLanding({
@@ -206,7 +212,8 @@ export function BriefingLanding({
   onTellMeMore,
   onOpenStory,
   reserveComposer = true,
-  onAssetsOpenChange,
+  onAssetsProgress,
+  onScrollActivity,
 }: BriefingLandingProps) {
   const [active, setActive] = useState(0)
   const [assetsOpen, setAssetsOpen] = useState(false)
@@ -218,6 +225,7 @@ export function BriefingLanding({
   const [assetsPlay, setAssetsPlay] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
   const barRef = useRef<HTMLElement | null>(null)
+  const progressRef = useRef(onAssetsProgress)
   const [paused, setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 
   const stop = FEED_STOPS[active]
@@ -248,6 +256,7 @@ export function BriefingLanding({
     rootRef.current?.style.setProperty('--agents-t', blend.toFixed(3))
     const reveal = Math.min(1, Math.max(0, top / Math.max(1, lower.offsetTop - bar)))
     rootRef.current?.style.setProperty('--assets-t', reveal.toFixed(3))
+    progressRef.current?.(reveal)
     const assetsTop = lower.offsetTop - top
     setAssetsPlay((current) => {
       if (assetsTop > height * ASSETS_RESET_AT || blend > 0.97) return false
@@ -261,10 +270,10 @@ export function BriefingLanding({
   }, [])
 
   useEffect(() => {
-    onAssetsOpenChange?.(assetsOpen)
-  }, [assetsOpen, onAssetsOpenChange])
+    progressRef.current = onAssetsProgress
+  }, [onAssetsProgress])
 
-  useEffect(() => () => onAssetsOpenChange?.(false), [onAssetsOpenChange])
+  useEffect(() => () => progressRef.current?.(0), [])
 
   const showAssets = useCallback(() => {
     const page = pageRef.current
@@ -332,7 +341,15 @@ export function BriefingLanding({
       <header ref={barRef} className={`${home.nav} ${styles.bar}`}>
         <LandingTopBar variant={topBar} workspaceInLogo briefingTab />
       </header>
-      <div ref={pageRef} className={styles.page} onScroll={syncPage}>
+      <div
+        ref={pageRef}
+        className={styles.page}
+        onScroll={() => {
+          syncPage()
+          onScrollActivity?.(true)
+        }}
+        onScrollEnd={() => onScrollActivity?.(false)}
+      >
         <div className={styles.stage}>
           <div ref={mapRef} className={`${styles.map}${blurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
             <BriefingMap place={mapPlace} />
@@ -380,7 +397,7 @@ export function BriefingLanding({
             <ArrowRight size={20} weight="regular" aria-hidden />
           </button>
         </div>
-        <div ref={lowerRef} className={`${styles.lower}${assetsOpen ? ` ${styles.lowerOpen}` : ''}`}>
+        <div ref={lowerRef} className={styles.lower}>
           <div className={styles.lowerBg} aria-hidden />
           <AssetsSheet open={assetsOpen} play={assetsPlay} onOpen={showAssets} />
           <AgentsSection sectionRef={agentsRef} />
@@ -426,7 +443,7 @@ function AssetsSheet({ open, play, onOpen }: { open: boolean; play: boolean; onO
       }}
     >
       <div className={styles.assetsIntro} aria-hidden={!split}>
-        <h2 id="briefing-assets" className={styles.assetsIntroTitle}>
+        <h2 id="briefing-assets" className={`${styles.eyebrow} ${styles.assetsIntroTitle}`}>
           Assets
         </h2>
         <p className={styles.assetsSummary}>
@@ -452,10 +469,12 @@ function AgentsSection({ sectionRef }: { sectionRef: RefObject<HTMLElement | nul
   return (
     <section ref={sectionRef} className={styles.agents} aria-labelledby="briefing-agents">
       <header className={styles.sectionHead}>
-        <h2 id="briefing-agents" className={styles.assetsTitle}>
+        <h2 id="briefing-agents" className={styles.eyebrow}>
           Agents
         </h2>
+        <p className={styles.sectionLead}>Workflows that watch your data and report back</p>
       </header>
+      <BriefingAgentGrid />
     </section>
   )
 }

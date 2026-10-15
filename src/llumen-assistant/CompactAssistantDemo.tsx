@@ -145,6 +145,9 @@ type ChatMessage = SavedChatMessage
 const SUBCONTEXT_EXIT_MS = 280
 /** How long the AI mode bar's Update button spins before the story version is stored. */
 const STORY_UPDATE_MS = 1200
+/** Without `scrollend`, the Briefing composer stays shrunk until scrolling has been quiet this long. */
+const BRIEFING_SCROLL_IDLE_MS = 200
+const SUPPORTS_SCROLLEND = typeof window !== 'undefined' && 'onscrollend' in window
 /** Lets the rail open and start thinking before the attached charts animate to the new period. */
 
 /** Design-capture presets via `?preview=<name>` (used for Figma handoff). */
@@ -384,7 +387,26 @@ export function CompactAssistantDemo() {
   const [landingVariant, setLandingVariant] = useState<LandingVariant>(() => readLandingVariant())
   const [topBar, setTopBar] = useState<TopBarVariant>(() => readTopBarVariant())
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const [briefingAssetsOpen, setBriefingAssetsOpen] = useState(false)
+  const composerDockRef = useRef<HTMLDivElement>(null)
+  const onBriefingAssetsProgress = useCallback((progress: number) => {
+    composerDockRef.current?.style.setProperty('--briefing-assets-t', progress.toFixed(3))
+  }, [])
+  const briefingScrollIdleRef = useRef(0)
+  const onBriefingScroll = useCallback((scrolling: boolean) => {
+    const dock = composerDockRef.current
+    if (!dock) return
+    window.clearTimeout(briefingScrollIdleRef.current)
+    if (!scrolling) {
+      delete dock.dataset.scrolling
+      return
+    }
+    dock.dataset.scrolling = 'true'
+    if (SUPPORTS_SCROLLEND) return
+    briefingScrollIdleRef.current = window.setTimeout(() => {
+      delete dock.dataset.scrolling
+    }, BRIEFING_SCROLL_IDLE_MS)
+  }, [])
+  useEffect(() => () => window.clearTimeout(briefingScrollIdleRef.current), [])
   const findingPoolIndexRef = useRef(0)
   const alertPoolIndexRef = useRef(0)
   const [hubWorkToast, setHubWorkToast] = useState<HubWorkToast | null>(null)
@@ -2290,7 +2312,8 @@ export function CompactAssistantDemo() {
         onOpenStory={openStoryFromHome}
         onTellMeMore={onTellMeMore}
         reserveComposer={isHub}
-        onAssetsOpenChange={setBriefingAssetsOpen}
+        onAssetsProgress={onBriefingAssetsProgress}
+        onScrollActivity={onBriefingScroll}
       />
     ) : landingVariant === 'feed' || landingVariant === 'feed-card' || landingVariant === 'feed-chat' ? (
       <FeedLanding
@@ -2425,10 +2448,9 @@ export function CompactAssistantDemo() {
         ) : null}
         {showHub ? (
           <div
+            ref={composerDockRef}
             className={`${styles.composerDock}${storyActive ? ` ${styles.composerDockStory}` : ''}${
-              !storyActive && landingVariant === 'briefing' && !briefingAssetsOpen
-                ? ` ${styles.composerDockCenter}`
-                : ''
+              !storyActive && landingVariant === 'briefing' ? ` ${styles.composerDockCenter}` : ''
             }${hubSessionsRail ? ` ${styles.composerDockShifted}` : ''}`}
           >
             {toastOverHub ? noticeToast(true) : null}

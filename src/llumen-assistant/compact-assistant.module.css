@@ -243,13 +243,27 @@
  * Briefing: the findings carousel holds the slot 260px under mid-height, and the composer is centred
  * between that slot and the Assets peek (31px is half the collapsed composer), clear of the peek.
  * --briefing-peek must match --assets-peek in landing/BriefingLanding.module.css.
+ * --briefing-assets-t (set from the Briefing scroll) moves it to the usual bottom slot as Assets
+ * scrolls in, so it tracks the scroll instead of transitioning on its own.
  */
 .composerDockCenter {
   --briefing-peek: max(72px, min(200px, 16vh, calc(50dvh - 300px)));
-  bottom: max(
+  --briefing-centre: max(
     calc(var(--briefing-peek) + 16px),
     calc((max(var(--space-3xl), calc(50dvh - 260px)) + var(--briefing-peek)) / 2 - 31px)
   );
+  bottom: calc(
+    var(--briefing-centre) * (1 - var(--briefing-assets-t, 0)) + var(--space-3xl) * var(--briefing-assets-t, 0)
+  );
+  transition:
+    left var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    right var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Narrows while the Briefing page scrolls (data-scrolling is set from its scroll events). */
+.composerDockCenter[data-scrolling='true'] {
+  width: calc(min(640px, calc(100vw - 48px)) - 80px);
 }
 
 .composerDockShifted {

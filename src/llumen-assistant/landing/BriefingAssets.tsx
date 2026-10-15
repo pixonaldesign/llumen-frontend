@@ -13,6 +13,8 @@ import styles from './BriefingAssets.module.css'
 
 /** Charts play card by card, each starting a beat after the previous one. */
 const CARD_STAGGER_MS = 70
+/** The first row peeks under the findings, so its charts load with the page and stay loaded. */
+const PEEK_COUNT = 4
 const CHART_LAG_MS = 280
 const COUNT_MS = 1200
 /** Half a typical tooltip's width: keeps it inside the card, which clips its overflow. */
@@ -41,11 +43,21 @@ export function BriefingAssetGrid({
   play: boolean
 }) {
   const [reduce] = useState(prefersReducedMotion)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setMounted(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
   const playing = play || reduce
   return (
-    <div className={styles.grid} data-play={playing}>
+    <div className={styles.grid}>
       {BRIEFING_ASSETS.map((asset, index) => (
-        <AssetCard key={asset.id} asset={asset} play={playing} delay={reduce ? 0 : index * CARD_STAGGER_MS} />
+        <AssetCard
+          key={asset.id}
+          asset={asset}
+          play={playing || (mounted && index < PEEK_COUNT)}
+          delay={reduce ? 0 : index * CARD_STAGGER_MS}
+        />
       ))}
     </div>
   )
@@ -71,6 +83,7 @@ function AssetCard({ asset, play, delay }: Play & { asset: BriefingAsset }) {
   return (
     <article
       className={`${styles.card} ${SIZE_CLASS[asset.size]}`}
+      data-play={play}
       style={{ ['--accent' as string]: asset.accent, ['--d' as string]: `${delay}ms` } as CSSProperties}
     >
       <header className={styles.cardHead}>
