@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from 'react'
-import { AgentShader, type AgentShaderPattern } from './AgentShader'
+import { AgentShader, type AgentBeamOrigin } from './AgentShader'
 import styles from './BriefingAgents.module.css'
 
 type ShaderAgent = {
@@ -10,11 +10,12 @@ type ShaderAgent = {
   schedule: string
   nextRun: string
   summary: string
-  pattern: AgentShaderPattern
-  /** Shader colours over black: the glow, then its brightest core. */
-  glow: string
-  core: string
+  beamFrom: AgentBeamOrigin
 }
+
+/** Every agent shares one ice-blue beam over black; where it shines from tells them apart. */
+const BEAM_GLOW = '#163275'
+const BEAM_CORE = '#8fb8ff'
 
 /** Agents the user built in Agent builder. Thumbnails only for now; the builder itself is out of scope. */
 const FEATURED = {
@@ -35,9 +36,7 @@ const AGENTS: ShaderAgent[] = [
     schedule: 'Runs hourly',
     nextRun: 'Next run in 48 min',
     summary: 'Flags districts crossing the sensitive-groups AQI line and drafts an alert.',
-    pattern: 'smoke',
-    glow: '#1d6b5a',
-    core: '#7fd6b8',
+    beamFrom: 'top-left',
   },
   {
     id: 'heat-clinic-forecast',
@@ -47,9 +46,7 @@ const AGENTS: ShaderAgent[] = [
     schedule: 'Runs daily at 6:00 AM',
     nextRun: 'Next run tomorrow at 6:00 AM',
     summary: 'Forecasts heat-related clinic visits for the week from temperature and visit history.',
-    pattern: 'beam',
-    glow: '#8a3412',
-    core: '#f08a4b',
+    beamFrom: 'top-right',
   },
   {
     id: 'bus-delay-monitor',
@@ -59,9 +56,7 @@ const AGENTS: ShaderAgent[] = [
     schedule: 'Runs every 15 min',
     nextRun: 'Next run in 6 min',
     summary: 'Tracks island bus routes against the timetable and explains where delays start.',
-    pattern: 'ribbon',
-    glow: '#3d5a1c',
-    core: '#a8c86a',
+    beamFrom: 'right',
   },
   {
     id: 'permit-compliance-check',
@@ -71,9 +66,7 @@ const AGENTS: ShaderAgent[] = [
     schedule: 'Runs weekly on Monday',
     nextRun: 'Next run Monday at 8:00 AM',
     summary: 'Compares facility readings with their permit limits and lists the ones over.',
-    pattern: 'curtains',
-    glow: '#3b2590',
-    core: '#9b80ff',
+    beamFrom: 'left',
   },
   {
     id: 'water-leak-detector',
@@ -83,9 +76,7 @@ const AGENTS: ShaderAgent[] = [
     schedule: 'Runs every 30 min',
     nextRun: 'Next run in 22 min',
     summary: 'Spots unusual night-time flow in the water network and points to the likely pipe.',
-    pattern: 'ripples',
-    glow: '#7a2257',
-    core: '#f07ab8',
+    beamFrom: 'top',
   },
   {
     id: 'tourism-footfall-pulse',
@@ -95,9 +86,7 @@ const AGENTS: ShaderAgent[] = [
     schedule: 'Runs daily at 9:00 AM',
     nextRun: 'Next run tomorrow at 9:00 AM',
     summary: 'Compares hotel occupancy with weekend footfall at major sites and sums up the shift.',
-    pattern: 'orbs',
-    glow: '#7a5810',
-    core: '#f2c35a',
+    beamFrom: 'bottom-right',
   },
 ]
 
@@ -116,10 +105,17 @@ export function BriefingAgentGrid() {
           <p className={styles.summary}>{FEATURED.summary}</p>
         </div>
       </article>
-      {AGENTS.map((agent) => (
+      {AGENTS.map((agent, index) => (
         <article key={agent.id} className={styles.agent}>
           <div className={styles.thumb}>
-            <AgentShader className={styles.shader} pattern={agent.pattern} glow={agent.glow} core={agent.core} />
+            <AgentShader
+              className={styles.shader}
+              pattern="beam"
+              glow={BEAM_GLOW}
+              core={BEAM_CORE}
+              beamFrom={agent.beamFrom}
+              startTime={index * 1.7}
+            />
             <span className={styles.thumbTop}>{agent.nextRun}</span>
             <p className={styles.thumbSummary}>{agent.summary}</p>
           </div>

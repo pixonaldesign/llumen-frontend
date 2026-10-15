@@ -211,9 +211,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(120% 70% at 50% 110%, rgba(38, 72, 150, 0.32), transparent 70%),
-    linear-gradient(180deg, #05070f 0%, #080d1c 55%, #0c1530 100%);
+  background: linear-gradient(180deg, #3a3953 0%, #4c4b7c 55%, #625b85 100%);
   opacity: var(--agents-t, 0);
 }
 
@@ -354,6 +352,11 @@
   scroll-snap-align: end;
   /* Keeps the snap area within the snapport (page minus the bar's scroll-padding); taller areas don't snap. */
   scroll-margin-top: calc(-1 * var(--briefing-bar-h, 64px));
+}
+
+/* Apps follow Agents on the same background and snap the same way; the carousel takes the spare height. */
+.apps {
+  height: var(--page-h);
 }
 
 .sectionHead {

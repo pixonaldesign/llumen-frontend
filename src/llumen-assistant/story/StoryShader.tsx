@@ -95,6 +95,7 @@ export function ShaderCanvas({
   speed,
   from,
   to,
+  startTime = 0,
 }: {
   className?: string
   fragment: string
@@ -102,11 +103,13 @@ export function ShaderCanvas({
   speed: number
   from: string
   to: string
+  startTime?: number
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const settingsRef = useRef({ preset, speed, from, to })
   const redrawRef = useRef<(() => void) | null>(null)
   const fragmentRef = useRef(fragmentSource)
+  const startTimeRef = useRef(startTime)
 
   useEffect(() => {
     settingsRef.current = { preset, speed, from, to }
@@ -154,7 +157,7 @@ export function ShaderCanvas({
     observer.observe(canvas)
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    let elapsed = 0
+    let elapsed = startTimeRef.current
     let last = performance.now()
     let frame = 0
     let visible = true

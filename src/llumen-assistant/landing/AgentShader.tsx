@@ -11,6 +11,18 @@ const PATTERN_INDEX: Record<AgentShaderPattern, number> = {
   beam: 5,
 }
 
+/** Where the beam pattern shines from; it always aims at the lower middle of the card. */
+export type AgentBeamOrigin = 'top-right' | 'top-left' | 'left' | 'right' | 'top' | 'bottom-right'
+
+const BEAM_PRESET: Record<AgentBeamOrigin, number> = {
+  'top-right': 5,
+  'top-left': 6,
+  left: 7,
+  right: 8,
+  top: 9,
+  'bottom-right': 10,
+}
+
 /** Each pattern is a glow field v (0 dark to 1 bright) over black: colorA lights the glow, colorB its core. */
 const FRAGMENT = `
 precision mediump float;
@@ -51,9 +63,29 @@ void main() {
     q += 0.2 * vec2(sin(q.y * 5.0 - t * 1.1), cos(q.x * 4.0 + t));
     v = pow(0.5 + 0.5 * sin(q.x * 2.6 + q.y * 1.8), 3.0);
   } else {
-    vec2 d = p - vec2(aspect, 1.0);
-    float angle = atan(d.y, d.x) + 2.3 - 0.35 * sin(t * 0.6);
-    v = exp(-angle * angle * 5.0) * exp(-length(d) * 0.4) * 1.1 + 0.75 * glow(p, vec2(aspect, 1.0), 0.6);
+    // Origin c on the visible edge (the canvas overhangs the card by 12%) and the point it aims at.
+    vec2 c = vec2(aspect * 0.92, 0.92);
+    vec2 aim = vec2(aspect * 0.4, 0.0);
+    if (preset == 6) {
+      c = vec2(aspect * 0.08, 0.92);
+      aim = vec2(aspect * 0.6, 0.0);
+    } else if (preset == 7) {
+      c = vec2(aspect * 0.06, 0.62);
+      aim = vec2(aspect, 0.4);
+    } else if (preset == 8) {
+      c = vec2(aspect * 0.94, 0.62);
+      aim = vec2(0.0, 0.4);
+    } else if (preset == 9) {
+      c = vec2(aspect * 0.5, 0.98);
+      aim = vec2(aspect * 0.5, 0.0);
+    } else if (preset == 10) {
+      c = vec2(aspect * 0.92, 0.1);
+      aim = vec2(aspect * 0.2, 1.0);
+    }
+    vec2 d = p - c;
+    vec2 dir = normalize(aim - c);
+    float angle = atan(dir.x * d.y - dir.y * d.x, dot(dir, d)) - 0.35 * sin(t * 0.6);
+    v = exp(-angle * angle * 5.0) * exp(-length(d) * 0.4) * 1.1 + 0.75 * glow(p, c, 0.6);
   }
   vec3 col = colorA * smoothstep(0.0, 0.7, v);
   col = mix(col, colorB, smoothstep(0.5, 1.1, v));
@@ -66,20 +98,26 @@ export function AgentShader({
   pattern,
   glow,
   core,
+  beamFrom = 'top-right',
+  startTime,
 }: {
   className?: string
   pattern: AgentShaderPattern
   glow: string
   core: string
+  beamFrom?: AgentBeamOrigin
+  /** Shader time to start from, so cards sharing a pattern don't move in step. */
+  startTime?: number
 }) {
   return (
     <ShaderCanvas
       className={className}
       fragment={FRAGMENT}
-      preset={PATTERN_INDEX[pattern]}
+      preset={pattern === 'beam' ? BEAM_PRESET[beamFrom] : PATTERN_INDEX[pattern]}
       speed={0.4}
       from={glow}
       to={core}
+      startTime={startTime}
     />
   )
 }

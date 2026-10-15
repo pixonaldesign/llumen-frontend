@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, ArrowRight, ChatText, Pause, Play, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { BriefingAgentGrid } from './BriefingAgents'
+import { BriefingAppsCarousel } from './BriefingApps'
 import { BriefingAssetGrid } from './BriefingAssets'
 import { BriefingMap } from './BriefingMap'
 import { BRIEFING_PLACES, type BriefingPlaceId } from './briefingMapPlaces'
@@ -186,7 +187,10 @@ const ASSETS_SPLIT_MS = 1700
 /** Page scroll past which the Assets section counts as open and the composer leaves the centre. */
 const ASSETS_OPEN_PX = 8
 
-/** Assets play their entrance once their top passes this share of the page, and reset below the other. */
+/**
+ * Assets play their entrance once their top passes this share of the page, and reset only once
+ * scrolled back below the other; visiting Agents keeps them played.
+ */
 const ASSETS_PLAY_AT = 0.45
 const ASSETS_RESET_AT = 0.8
 
@@ -259,8 +263,8 @@ export function BriefingLanding({
     progressRef.current?.(reveal)
     const assetsTop = lower.offsetTop - top
     setAssetsPlay((current) => {
-      if (assetsTop > height * ASSETS_RESET_AT || blend > 0.97) return false
-      if (assetsTop < height * ASSETS_PLAY_AT && blend < 0.9) return true
+      if (assetsTop > height * ASSETS_RESET_AT) return false
+      if (assetsTop < height * ASSETS_PLAY_AT) return true
       return current
     })
   }, [])
@@ -401,6 +405,7 @@ export function BriefingLanding({
           <div className={styles.lowerBg} aria-hidden />
           <AssetsSheet open={assetsOpen} play={assetsPlay} onOpen={showAssets} />
           <AgentsSection sectionRef={agentsRef} />
+          <AppsSection />
         </div>
       </div>
     </div>
@@ -475,6 +480,20 @@ function AgentsSection({ sectionRef }: { sectionRef: RefObject<HTMLElement | nul
         <p className={styles.sectionLead}>Workflows that watch your data and report back</p>
       </header>
       <BriefingAgentGrid />
+    </section>
+  )
+}
+
+function AppsSection() {
+  return (
+    <section className={`${styles.agents} ${styles.apps}`} aria-labelledby="briefing-apps">
+      <header className={styles.sectionHead}>
+        <h2 id="briefing-apps" className={styles.eyebrow}>
+          Apps
+        </h2>
+        <p className={styles.sectionLead}>Dashboards and slides built from your data</p>
+      </header>
+      <BriefingAppsCarousel />
     </section>
   )
 }
