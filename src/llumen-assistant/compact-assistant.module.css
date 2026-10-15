@@ -266,6 +266,42 @@
   width: calc(min(640px, calc(100vw - 48px)) - 80px);
 }
 
+/*
+ * Findings style 2: the composer and its greeting (about 160px together, 80px is half) are centred in
+ * the left third of the findings area, between the top bar (64px) and the Assets peek. As Assets
+ * scrolls in, left, right and width ease to the centred bottom slot; the auto margins split the gap.
+ */
+.composerDockCenter[data-findings-style='2'] {
+  --side-w: min(560px, calc(100vw / 3 - 96px));
+  --centre-w: min(640px, calc(100vw - 48px));
+  --t: var(--briefing-assets-t, 0);
+  left: calc(48px * (1 - var(--t)));
+  right: calc((100vw - 48px - var(--side-w)) * (1 - var(--t)));
+  bottom: calc(
+    ((100dvh - 64px + var(--briefing-peek)) / 2 - 80px) * (1 - var(--t)) + var(--space-3xl) * var(--t)
+  );
+  width: calc(var(--side-w) * (1 - var(--t)) + var(--centre-w) * var(--t));
+  transition: none;
+}
+
+/* Findings style 3: the composer rises above the findings, which hang below it. */
+.composerDockCenter[data-findings-style='3'] {
+  bottom: calc(58dvh * (1 - var(--briefing-assets-t, 0)) + var(--space-3xl) * var(--briefing-assets-t, 0));
+}
+
+/*
+ * Findings style 4: the composer's top sits 200px down (62px is the collapsed composer), room for the
+ * top bar and its two-line greeting, plus --shift on tall screens. The findings stack moves down by the
+ * same --shift (BriefingLanding.module.css), so keep the two expressions in sync.
+ */
+.composerDockCenter[data-findings-style='4'] {
+  --shift: clamp(0px, calc((100dvh - 900px) / 3), 120px);
+  bottom: calc(
+    (100dvh - 200px - var(--shift) - 62px) * (1 - var(--briefing-assets-t, 0)) +
+      var(--space-3xl) * var(--briefing-assets-t, 0)
+  );
+}
+
 .composerDockShifted {
   left: var(--lc-rail-width, 400px);
 }

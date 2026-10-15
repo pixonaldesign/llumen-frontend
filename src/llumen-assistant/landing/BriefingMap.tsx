@@ -139,13 +139,27 @@ function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 
+/** `focusRight` moves the orbit centre into the right two thirds, clear of a left-hand panel. */
+function cameraPadding(el: HTMLElement, focusRight: boolean): mapboxgl.PaddingOptions {
+  return { ...CAMERA_PADDING, left: focusRight ? Math.round(el.clientWidth / 3) : 0 }
+}
+
 /** `blank` hides the columns and disks, leaving the bare base map (behind blurred stops). */
-export function BriefingMap({ place, blank = false }: { place: BriefingPlace; blank?: boolean }) {
+export function BriefingMap({
+  place,
+  blank = false,
+  focusRight = false,
+}: {
+  place: BriefingPlace
+  blank?: boolean
+  focusRight?: boolean
+}) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   /** The place the camera targets (or will, once the style loads). */
   const placeRef = useRef(place)
   const blankRef = useRef(blank)
+  const focusRightRef = useRef(focusRight)
   /** The place whose columns are on the map, and how far they've grown. */
   const drawnRef = useRef<Drawn>({ place, grow: 0 })
   const readyRef = useRef(false)
@@ -167,10 +181,13 @@ export function BriefingMap({ place, blank = false }: { place: BriefingPlace; bl
       antialias: true,
       attributionControl: false,
     })
-    map.setPadding(CAMERA_PADDING)
+    map.setPadding(cameraPadding(el, focusRightRef.current))
     mapRef.current = map
 
-    const observer = new ResizeObserver(() => map.resize())
+    const observer = new ResizeObserver(() => {
+      map.resize()
+      if (focusRightRef.current && !flyingRef.current) map.setPadding(cameraPadding(el, true))
+    })
     observer.observe(el)
 
     map.on('load', () => {
@@ -235,6 +252,29 @@ export function BriefingMap({ place, blank = false }: { place: BriefingPlace; bl
       readyRef.current = false
     }
   }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (focusRightRef.current === focusRight) return
+    focusRightRef.current = focusRight
+    if (!map || !readyRef.current) return
+    const padding = cameraPadding(map.getContainer(), focusRight)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      map.setPadding(padding)
+      return
+    }
+    /* A flight in progress restarts with the new padding; otherwise the camera glides over, orbit held. */
+    const flight = ++flightRef.current
+    flyingRef.current = true
+    if (map.isMoving()) {
+      map.flyTo({ ...placeRef.current.camera, padding, duration: FLY_MS, curve: 1.6, essential: true })
+    } else {
+      map.easeTo({ padding, duration: 900, essential: true })
+    }
+    map.once('moveend', () => {
+      if (flightRef.current === flight) flyingRef.current = false
+    })
+  }, [focusRight])
 
   useEffect(() => {
     const map = mapRef.current

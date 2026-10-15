@@ -20,7 +20,7 @@ import { BRIEFING_PLACES, type BriefingPlaceId } from './briefingMapPlaces'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar } from './LandingTopBar'
 import { SpecularActionButton } from './SpecularActionButton'
-import type { TopBarVariant } from '../prototypeChrome'
+import type { FindingsStyle, TopBarVariant } from '../prototypeChrome'
 import home from './LandingHome.module.css'
 import styles from './BriefingLanding.module.css'
 
@@ -273,6 +273,9 @@ export type BriefingLandingProps = {
   onAssetsProgress?: (progress: number) => void
   /** Fires with true on every scroll event of the Briefing page, and false once it ends (snap included). */
   onScrollActivity?: (scrolling: boolean) => void
+  /** Lays out the findings stage only; the composer dock follows it through the same value. */
+  findingsStyle?: FindingsStyle
+  onFindingsStyleChange?: (style: FindingsStyle) => void
 }
 
 export function BriefingLanding({
@@ -282,6 +285,8 @@ export function BriefingLanding({
   reserveComposer = true,
   onAssetsProgress,
   onScrollActivity,
+  findingsStyle = 1,
+  onFindingsStyleChange,
 }: BriefingLandingProps) {
   const [active, setActive] = useState(0)
   const [assetsOpen, setAssetsOpen] = useState(false)
@@ -396,6 +401,7 @@ export function BriefingLanding({
     <div
       ref={rootRef}
       className={styles.root}
+      data-findings-style={findingsStyle}
       style={{
         ['--feed-pad' as string]: reserveComposer ? '106px' : '48px',
         ...(frame
@@ -407,7 +413,13 @@ export function BriefingLanding({
       }}
     >
       <header ref={barRef} className={`${home.nav} ${styles.bar}`}>
-        <LandingTopBar variant={topBar} workspaceInLogo briefingTab />
+        <LandingTopBar
+          variant={topBar}
+          workspaceInLogo
+          briefingTab
+          findingsStyle={onFindingsStyleChange ? findingsStyle : undefined}
+          onFindingsStyleChange={onFindingsStyleChange}
+        />
       </header>
       <div
         ref={pageRef}
@@ -420,12 +432,14 @@ export function BriefingLanding({
       >
         <div className={styles.stage}>
           <div ref={mapRef} className={`${styles.map}${blurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
-            <BriefingMap place={mapPlace} blank={blurred} />
+            <BriefingMap place={mapPlace} blank={blurred} focusRight={findingsStyle === 2} />
           </div>
           <div className={styles.scrim} aria-hidden />
           <div className={styles.fadeBlur} aria-hidden />
+          <div className={styles.sidePanel} aria-hidden />
           <ConversationalBubble
             stop={stop}
+            findingsStyle={findingsStyle}
             frozen={assetsOpen}
             vote={votes[stop.id] ?? null}
             onVote={(value) =>
@@ -559,6 +573,7 @@ function AppsSection() {
 
 function ConversationalBubble({
   stop,
+  findingsStyle,
   frozen,
   vote,
   onVote,
@@ -567,6 +582,7 @@ function ConversationalBubble({
   controls,
 }: {
   stop: FeedStop
+  findingsStyle: FindingsStyle
   /** Stops following the composer, so the bubble scrolls away with the stage while the composer docks. */
   frozen: boolean
   vote: 'up' | 'down' | null
@@ -629,7 +645,7 @@ function ConversationalBubble({
       stage.disconnect()
       window.removeEventListener('resize', place)
     }
-  }, [frozen])
+  }, [frozen, findingsStyle])
 
   useEffect(() => {
     if (stop.id === shown.id) return
@@ -656,11 +672,12 @@ function ConversationalBubble({
     return () => resize.disconnect()
   }, [])
 
-  const greet = shown.id === FEED_STOPS[0].id
+  const askGreeting = findingsStyle !== 1
+  const greet = !askGreeting && shown.id === FEED_STOPS[0].id
 
   return (
     <div
-      className={styles.chatDock}
+      className={styles.dockLayer}
       style={
         dock
           ? ({
@@ -671,32 +688,41 @@ function ConversationalBubble({
           : undefined
       }
     >
-      <div className={styles.greetingWrap} data-shown={greet} aria-hidden={!greet}>
-        <p className={styles.greeting}>
+      {askGreeting ? (
+        <p className={styles.askGreeting}>
           Good morning, Omar,
           <br />
-          here is what requires your attention today
+          {findingsStyle === 4 ? 'what would you like to explore today?' : 'how can I help you today?'}
         </p>
-      </div>
-      <div className={styles.findingRow}>
-        <div className={styles.bubble} style={height != null ? { height } : undefined}>
-          <div ref={innerRef} className={`${styles.bubbleBody}${fading ? ` ${styles.bubbleFade}` : ''}`}>
-            <FindingBody
-              stop={shown}
-              vote={vote}
-              onVote={onVote}
-              onTellMeMore={onTellMeMore}
-              onOpenStory={onOpenStory}
-            />
-          </div>
+      ) : null}
+      <div className={styles.chatDock}>
+        <div className={styles.greetingWrap} data-shown={greet} aria-hidden={!greet}>
+          <p className={styles.greeting}>
+            Good morning, Omar,
+            <br />
+            here is what requires your attention today
+          </p>
         </div>
-        <div className={styles.findingControls}>{controls}</div>
+        <div className={styles.findingRow}>
+          <div className={styles.bubble} style={height != null ? { height } : undefined}>
+            <div ref={innerRef} className={`${styles.bubbleBody}${fading ? ` ${styles.bubbleFade}` : ''}`}>
+              <FindingBody
+                stop={shown}
+                vote={vote}
+                onVote={onVote}
+                onTellMeMore={onTellMeMore}
+                onOpenStory={onOpenStory}
+              />
+            </div>
+          </div>
+          <div className={styles.findingControls}>{controls}</div>
+        </div>
       </div>
     </div>
   )
 }
 
-/** A finding's chart (on top), text and actions. */
+/** A finding's chart (on top, or beside the text in findings style 3), text and actions. */
 function FindingBody({
   stop,
   vote,
@@ -713,13 +739,17 @@ function FindingBody({
   const finding = `${stop.before}${stop.highlight}${stop.after}`.trim()
   return (
     <>
-      {stop.chart ? <FeedChartCard key={stop.id} chart={stop.chart} /> : null}
-      <p className={styles.bubbleMeta}>{stop.domain}</p>
-      <p className={styles.bubbleText}>
-        {stop.before}
-        <span className={home.findingHighlight}>{stop.highlight}</span>
-        {stop.after}
-      </p>
+      <div className={styles.findingMain} data-chart={Boolean(stop.chart)}>
+        {stop.chart ? <FeedChartCard key={stop.id} chart={stop.chart} /> : null}
+        <div className={styles.findingCopy}>
+          <p className={styles.bubbleMeta}>{stop.domain}</p>
+          <p className={styles.bubbleText}>
+            {stop.before}
+            <span className={home.findingHighlight}>{stop.highlight}</span>
+            {stop.after}
+          </p>
+        </div>
+      </div>
       <div className={home.actions}>
         <SpecularActionButton
           className={home.actionBtn}

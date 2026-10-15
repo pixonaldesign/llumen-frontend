@@ -4,7 +4,9 @@ import {
   Bell,
   CaretDown,
   ChartBar,
+  Check,
   Cube,
+  Layout,
   LockSimple,
   MagnifyingGlass,
   Monitor,
@@ -16,7 +18,7 @@ import {
   Users,
 } from '@phosphor-icons/react'
 import { landingAssets as a } from './landingAssets'
-import type { TopBarVariant } from '../prototypeChrome'
+import type { FindingsStyle, TopBarVariant } from '../prototypeChrome'
 import home from './LandingHome.module.css'
 import styles from './LandingTopBar.module.css'
 
@@ -83,6 +85,9 @@ export type LandingTopBarProps = {
   workspaceInLogo?: boolean
   /** Studio bar: show a Briefing / Studio toggle, starting on Briefing, instead of the Studio button. */
   briefingTab?: boolean
+  /** Studio bar with the workspace in the logo: a findings layout menu beside the workspace. */
+  findingsStyle?: FindingsStyle
+  onFindingsStyleChange?: (style: FindingsStyle) => void
 }
 
 export function LandingTopBar({
@@ -93,6 +98,8 @@ export function LandingTopBar({
   onWorkspaceChange,
   workspaceInLogo = false,
   briefingTab = false,
+  findingsStyle,
+  onFindingsStyleChange,
 }: LandingTopBarProps) {
   if (variant === 'studio') {
     return (
@@ -103,10 +110,85 @@ export function LandingTopBar({
         onWorkspaceChange={onWorkspaceChange}
         workspaceInLogo={workspaceInLogo}
         briefingTab={briefingTab}
+        findingsStyle={findingsStyle}
+        onFindingsStyleChange={onFindingsStyleChange}
       />
     )
   }
   return <CurrentBar />
+}
+
+const FINDINGS_STYLES: readonly { style: FindingsStyle; label: string; hint: string }[] = [
+  { style: 1, label: 'Findings style 1', hint: 'Centred over the chat bar' },
+  { style: 2, label: 'Findings style 2', hint: 'Chat bar on the left' },
+  { style: 3, label: 'Findings style 3', hint: 'Chat bar above compact findings' },
+  { style: 4, label: 'Findings style 4', hint: 'Chat bar above the findings' },
+]
+
+function FindingsStyleMenu({ value, onChange }: { value: FindingsStyle; onChange: (style: FindingsStyle) => void }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointer = (event: PointerEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) return
+      setMenuOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
+
+  return (
+    <div className={styles.workspaceWrap} ref={menuRef}>
+      <button
+        type="button"
+        className={styles.workspace}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        <Layout size={18} weight="regular" aria-hidden />
+        <span className={styles.workspaceName}>
+          Findings style {value}
+          <CaretDown size={16} weight="bold" aria-hidden />
+        </span>
+      </button>
+      {menuOpen ? (
+        <div className={`${styles.menu} ${styles.stylesMenu}`} role="menu" aria-label="Findings style">
+          {FINDINGS_STYLES.map((option) => {
+            const selected = option.style === value
+            return (
+              <button
+                key={option.style}
+                type="button"
+                role="menuitemradio"
+                aria-checked={selected}
+                className={`${styles.menuItem} ${styles.styleItem}${selected ? ` ${styles.menuItemActive}` : ''}`}
+                onClick={() => {
+                  onChange(option.style)
+                  setMenuOpen(false)
+                }}
+              >
+                <span className={styles.styleText}>
+                  {option.label}
+                  <span className={styles.styleHint}>{option.hint}</span>
+                </span>
+                {selected ? <Check size={16} weight="bold" aria-hidden /> : null}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
@@ -219,6 +301,8 @@ function StudioBar({
   onWorkspaceChange,
   workspaceInLogo,
   briefingTab,
+  findingsStyle,
+  onFindingsStyleChange,
 }: {
   workspace?: string
   workspaces?: readonly WorkspaceOption[]
@@ -226,6 +310,8 @@ function StudioBar({
   onWorkspaceChange?: (workspace: string) => void
   workspaceInLogo: boolean
   briefingTab: boolean
+  findingsStyle?: FindingsStyle
+  onFindingsStyleChange?: (style: FindingsStyle) => void
 }) {
   const workspaceOptions = workspaces ?? STUDIO_WORKSPACES
   const categoryOptions = categories ?? STUDIO_CATEGORIES
@@ -339,21 +425,21 @@ function StudioBar({
             <div className={styles.menuRule} role="separator" />
           ) : null}
           <div key={scope} className={styles.workspaceList} role="listbox" aria-label="Workspaces">
-          {listed.map((label) => {
-            const isSelected = label === committed
-            return (
-              <button
-                key={label}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                className={`${styles.menuItem}${isSelected ? ` ${styles.menuItemActive}` : ''}`}
-                onClick={() => choose(label)}
-              >
-                {label}
-              </button>
-            )
-          })}
+            {listed.map((label) => {
+              const isSelected = label === committed
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`${styles.menuItem}${isSelected ? ` ${styles.menuItemActive}` : ''}`}
+                  onClick={() => choose(label)}
+                >
+                  {label}
+                </button>
+              )
+            })}
           </div>
         </div>
       ) : null}
@@ -368,6 +454,9 @@ function StudioBar({
             <img className={home.logoMark} src={a.logoMark} alt="" />
           </a>
           {workspaceSelector}
+          {findingsStyle && onFindingsStyleChange ? (
+            <FindingsStyleMenu value={findingsStyle} onChange={onFindingsStyleChange} />
+          ) : null}
         </div>
       ) : (
         <a className={styles.logo} href="#top" aria-label="Llumen home">

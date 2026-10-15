@@ -2,9 +2,19 @@
 
 export type LandingVariant = 'briefing' | 'stories' | 'conversations' | 'feed' | 'feed-card' | 'feed-chat'
 export type TopBarVariant = 'current' | 'studio'
+/**
+ * Briefing findings layouts: 1 centred over the composer, 2 composer on the left, 3 composer above
+ * smaller findings, 4 style 1's findings under the composer.
+ */
+export type FindingsStyle = 1 | 2 | 3 | 4
 
 const LANDING_KEY = 'llumen.landingVariant'
 const TOP_BAR_KEY = 'llumen.topBarVariant'
+const FINDINGS_STYLE_KEY = 'llumen.findingsStyle'
+
+function toFindingsStyle(value: string | null): FindingsStyle | null {
+  return value === '1' || value === '2' || value === '3' || value === '4' ? (Number(value) as FindingsStyle) : null
+}
 
 function isLanding(value: string | null): value is LandingVariant {
   return (
@@ -72,4 +82,25 @@ export function persistTopBarVariant(variant: TopBarVariant) {
     /* private mode */
   }
   writeParam('bar', variant, 'studio')
+}
+
+export function readFindingsStyle(): FindingsStyle {
+  if (typeof window === 'undefined') return 1
+  const fromUrl = toFindingsStyle(new URLSearchParams(window.location.search).get('findings'))
+  if (fromUrl) return fromUrl
+  try {
+    return toFindingsStyle(window.sessionStorage.getItem(FINDINGS_STYLE_KEY)) ?? 1
+  } catch {
+    return 1
+  }
+}
+
+export function persistFindingsStyle(style: FindingsStyle) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(FINDINGS_STYLE_KEY, String(style))
+  } catch {
+    /* private mode */
+  }
+  writeParam('findings', String(style), '1')
 }

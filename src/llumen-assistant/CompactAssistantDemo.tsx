@@ -56,10 +56,13 @@ import type { LandingTellMeMorePayload } from './landing/LandingHomeDefault'
 import { DUMPING_ALERT_BRIEFING, DUMPING_BRIEFING_SOURCES } from './landing/dumpingBriefing'
 import { CommandPalette } from './CommandPalette'
 import {
+  persistFindingsStyle,
   persistLandingVariant,
   persistTopBarVariant,
+  readFindingsStyle,
   readLandingVariant,
   readTopBarVariant,
+  type FindingsStyle,
   type LandingVariant,
   type TopBarVariant,
 } from './prototypeChrome'
@@ -386,6 +389,11 @@ export function CompactAssistantDemo() {
   const [auroraReplayKey, setAuroraReplayKey] = useState(0)
   const [landingVariant, setLandingVariant] = useState<LandingVariant>(() => readLandingVariant())
   const [topBar, setTopBar] = useState<TopBarVariant>(() => readTopBarVariant())
+  const [findingsStyle, setFindingsStyle] = useState<FindingsStyle>(() => readFindingsStyle())
+  const onFindingsStyleChange = useCallback((next: FindingsStyle) => {
+    persistFindingsStyle(next)
+    setFindingsStyle(next)
+  }, [])
   const [paletteOpen, setPaletteOpen] = useState(false)
   const composerDockRef = useRef<HTMLDivElement>(null)
   const onBriefingAssetsProgress = useCallback((progress: number) => {
@@ -2314,6 +2322,8 @@ export function CompactAssistantDemo() {
         reserveComposer={isHub}
         onAssetsProgress={onBriefingAssetsProgress}
         onScrollActivity={onBriefingScroll}
+        findingsStyle={findingsStyle}
+        onFindingsStyleChange={onFindingsStyleChange}
       />
     ) : landingVariant === 'feed' || landingVariant === 'feed-card' || landingVariant === 'feed-chat' ? (
       <FeedLanding
@@ -2452,6 +2462,7 @@ export function CompactAssistantDemo() {
             className={`${styles.composerDock}${storyActive ? ` ${styles.composerDockStory}` : ''}${
               !storyActive && landingVariant === 'briefing' ? ` ${styles.composerDockCenter}` : ''
             }${hubSessionsRail ? ` ${styles.composerDockShifted}` : ''}`}
+            data-findings-style={!storyActive && landingVariant === 'briefing' ? findingsStyle : undefined}
           >
             {toastOverHub ? noticeToast(true) : null}
             <HubChatbox

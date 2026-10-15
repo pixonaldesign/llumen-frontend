@@ -173,6 +173,221 @@
     transform 420ms ease;
 }
 
+/* Carries the composer measurements (--dock-*) for the finding and, in styles 2 and 3, the ask greeting. */
+.dockLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.findingMain,
+.findingCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Styles 2 and 3: a greeting that invites a question, just above the composer. */
+.askGreeting {
+  position: absolute;
+  bottom: calc(var(--dock-top, 268px) + 24px);
+  box-sizing: border-box;
+  margin: 0;
+  padding-inline: 4px;
+  color: #fff;
+  font-size: clamp(22px, 1.5vw, 30px);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  text-shadow: 0 2px 18px rgba(5, 10, 20, 0.6);
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes askIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Style 2: a blur that fades out left to right over the left third, behind the composer. */
+.sidePanel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  width: calc(100% / 3 + 240px);
+  background: linear-gradient(90deg, rgba(5, 10, 20, 0.6) 0%, rgba(5, 10, 20, 0.34) 55%, transparent 100%);
+  backdrop-filter: blur(32px) saturate(1.12);
+  -webkit-backdrop-filter: blur(32px) saturate(1.12);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 360px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 360px), transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+}
+
+/*
+ * Findings style 2: composer and greeting in the left third (positioned in compact-assistant.module.css),
+ * findings centred in the right two thirds between the top bar and the Assets peek.
+ */
+.root[data-findings-style='2'] .sidePanel {
+  opacity: 1;
+}
+
+.root[data-findings-style='2'] .askGreeting {
+  left: 48px;
+  width: min(560px, calc(100vw / 3 - 96px));
+}
+
+.root[data-findings-style='2'] .chatDock {
+  top: var(--briefing-bar-h, 64px);
+  bottom: var(--assets-peek);
+  left: calc(100% / 3);
+  justify-content: center;
+  --finding-w: min(760px, calc(100vw * 2 / 3 - 140px));
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.root[data-findings-style='2'] .edgeArrowPrevious {
+  left: calc(100% / 3);
+}
+
+/*
+ * Findings style 3: the composer and its greeting sit above (compact-assistant.module.css), and the
+ * finding hangs 96px under the composer as a compact glass tooltip with any chart beside its text.
+ * It fades as Assets scrolls in, since the composer then drops through it to the bottom slot.
+ */
+.root[data-findings-style='3'] .askGreeting,
+.root[data-findings-style='4'] .askGreeting {
+  right: 0;
+  left: 0;
+  width: min(640px, calc(100vw - 48px));
+  margin-inline: auto;
+  text-align: center;
+}
+
+.root[data-findings-style='3'] .chatDock {
+  top: calc(100% - var(--dock-under, 206px) + 96px);
+  bottom: auto;
+  --finding-w: min(880px, calc(100vw - 160px));
+  opacity: calc(1 - var(--assets-t, 0) * 2.5);
+  transition: transform 420ms ease;
+}
+
+/*
+ * Findings style 4: style 1's findings in style 1's place. --centre repeats --briefing-centre (the
+ * composer's style 1 bottom, compact-assistant.module.css), so the stack keeps the same bottom as
+ * when it rode on the centred composer, even though the composer and greeting now sit above. --shift
+ * lowers it together with the composer (compact-assistant.module.css); keep the two in sync.
+ */
+.root[data-findings-style='4'] .chatDock {
+  --centre: max(
+    calc(var(--assets-peek) + 16px),
+    calc((max(var(--space-3xl), calc(50dvh - 260px)) + var(--assets-peek)) / 2 - 31px)
+  );
+  --shift: clamp(0px, calc((100dvh - 900px) / 3), 120px);
+  bottom: calc(
+    var(--centre) + 62px + max(16px, var(--centre) + 31px - var(--assets-peek) - 18px) + 56px - var(--shift)
+  );
+  opacity: calc(1 - var(--assets-t, 0) * 2.5);
+  transition: transform 420ms ease;
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.root[data-findings-style='3'] .findingRow {
+  animation: tooltipIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+}
+
+.root[data-findings-style='3'] .bubble {
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03) 50%), rgba(10, 16, 26, 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+}
+
+.root[data-findings-style='3'] .bubbleBody {
+  gap: 14px;
+  padding: 18px 20px 16px;
+  text-shadow: none;
+  transition:
+    opacity 160ms ease,
+    transform 220ms ease;
+}
+
+.root[data-findings-style='3'] .bubbleFade {
+  transform: translateY(4px) scale(0.985);
+}
+
+.root[data-findings-style='3'] .bubbleText {
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.root[data-findings-style='3'] .findingControls {
+  right: 20px;
+  bottom: 15px;
+}
+
+.root[data-findings-style='3'] .findingMain[data-chart='true'] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 400px);
+  align-items: center;
+  gap: 32px;
+}
+
+/* No surface of its own: the chart sits straight on the tooltip, right of the text. */
+.root[data-findings-style='3'] .findingMain .chart {
+  order: 2;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.root[data-findings-style='3'] .chart::before {
+  display: none;
+}
+
+.root[data-findings-style='3'] .chartValue {
+  font-size: 28px;
+}
+
+.root[data-findings-style='3'] .linePlot {
+  height: 84px;
+}
+
+.root[data-findings-style='3'] .columnPlot {
+  height: 104px;
+  gap: 6px;
+}
+
+.root[data-findings-style='3'] .columnAxis {
+  gap: 6px;
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.root[data-findings-style='3'] .columnAxis span {
+  overflow: visible;
+  white-space: normal;
+}
+
 /*
  * Assets and Agents share one background that stays pinned to the page while they
  * scroll over it, blending from the Assets palette to the Agents one (--agents-t).
@@ -1020,7 +1235,14 @@
   .chart,
   .chart *,
   .bubble,
-  .bubbleBody {
+  .bubbleBody,
+  .sidePanel {
     transition: none !important;
+  }
+
+  .askGreeting,
+  .chatDock,
+  .findingRow {
+    animation: none !important;
   }
 }
