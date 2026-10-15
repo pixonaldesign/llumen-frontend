@@ -81,7 +81,7 @@ export type LandingTopBarProps = {
   onWorkspaceChange?: (workspace: string) => void
   /** Studio bar: show the workspace selector in place of the Llumen wordmark. */
   workspaceInLogo?: boolean
-  /** Studio bar: show a Briefing tab, selected, before Studio. */
+  /** Studio bar: show a Briefing / Studio toggle, starting on Briefing, instead of the Studio button. */
   briefingTab?: boolean
 }
 
@@ -236,6 +236,7 @@ function StudioBar({
   const committed = categoryOptions.find((label) => label === selected)
   const triggerLabel = committed ?? categoryOptions[0] ?? 'Finance'
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mode, setMode] = useState<'briefing' | 'studio'>('briefing')
   const menuRef = useRef<HTMLDivElement>(null)
   const thumbRef = useRef<HTMLDivElement>(null)
   const segmentRefs = useRef<Partial<Record<WorkspaceIcon, HTMLButtonElement | null>>>({})
@@ -377,15 +378,35 @@ function StudioBar({
       <div className={styles.center}>
         {workspaceInLogo ? null : workspaceSelector}
         {briefingTab ? (
-          <button type="button" className={`${styles.ghost} ${styles.ghostActive}`} aria-current="page">
-            <Newspaper size={20} weight="regular" aria-hidden />
-            Briefing
+          <div className={styles.modeToggle} role="radiogroup" aria-label="View" data-mode={mode}>
+            <span className={styles.modeThumb} aria-hidden />
+            <button
+              type="button"
+              role="radio"
+              aria-checked={mode === 'briefing'}
+              className={styles.modeOption}
+              onClick={() => setMode('briefing')}
+            >
+              <Newspaper size={20} weight="regular" aria-hidden />
+              Briefing
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={mode === 'studio'}
+              className={styles.modeOption}
+              onClick={() => setMode('studio')}
+            >
+              <Monitor size={20} weight="regular" aria-hidden />
+              Studio
+            </button>
+          </div>
+        ) : (
+          <button type="button" className={styles.ghost}>
+            <Monitor size={20} weight="regular" aria-hidden />
+            Studio
           </button>
-        ) : null}
-        <button type="button" className={styles.ghost}>
-          <Monitor size={20} weight="regular" aria-hidden />
-          Studio
-        </button>
+        )}
       </div>
       <div className={styles.actions}>
         <CreateMenu triggerClassName={styles.create} />

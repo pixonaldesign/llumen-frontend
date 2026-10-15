@@ -279,6 +279,16 @@
   font-weight: 400;
   letter-spacing: -0.01em;
   line-height: 1.4;
+  text-wrap: balance;
+}
+
+.assetsDetail {
+  max-width: 60ch;
+  margin: 20px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(15px, 0.95vw, 18px);
+  line-height: 1.6;
+  text-wrap: pretty;
 }
 
 /* Section titles: Assets and Agents. */
@@ -297,13 +307,15 @@
 }
 
 .assetsIntroTitle,
-.assetsSummary {
+.assetsSummary,
+.assetsDetail {
   opacity: 0;
   transform: translateY(14px);
 }
 
 .assets[data-split='true'] .assetsIntroTitle,
-.assets[data-split='true'] .assetsSummary {
+.assets[data-split='true'] .assetsSummary,
+.assets[data-split='true'] .assetsDetail {
   --reveal-d: 520ms;
   opacity: 1;
   transform: none;
@@ -314,6 +326,10 @@
 
 .assets[data-split='true'] .assetsIntroTitle {
   --reveal-d: 420ms;
+}
+
+.assets[data-split='true'] .assetsDetail {
+  --reveal-d: 660ms;
 }
 
 /* Rests 40px lower while peeking and rises into place as Assets scrolls in. */
@@ -582,6 +598,7 @@
 .bubble .chart {
   width: 100%;
   box-sizing: border-box;
+  margin-bottom: 8px;
 }
 
 .bubbleMeta {
@@ -600,20 +617,59 @@
   line-height: 1.3;
 }
 
+/*
+ * Liquid glass: a faint tint over a saturated blur, a specular rim brightest along the top-left and
+ * an inner sheen. Shadows stay inset because the bubble clips its overflow.
+ */
 .chart {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: min(640px, 100%);
   padding: 22px 22px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 22px;
-  background: rgba(8, 12, 20, 0.72);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  border: 0;
+  border-radius: 24px;
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.03) 42%,
+      rgba(255, 255, 255, 0.06) 100%
+    ),
+    rgba(10, 16, 26, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 24px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(28px) saturate(1.8) brightness(1.08);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8) brightness(1.08);
   opacity: 0;
-  transform: translateY(16px) scale(0.97);
-  transform-origin: 50% 100%;
+  transform: translateY(-12px) scale(0.97);
+  transform-origin: 50% 0;
+}
+
+.chart::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0.04) 60%,
+    rgba(255, 255, 255, 0.22) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 /* Surface lands first (420ms, CHART_SURFACE_MS in the TSX); the chart inside plays after it. */
@@ -729,7 +785,7 @@
   width: 9px;
   height: 9px;
   border-radius: 999px;
-  box-shadow: 0 0 0 3px rgba(8, 12, 20, 0.72);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.3);
 }
@@ -758,6 +814,128 @@
 .lineChart[data-play='true'] .lineDelta {
   opacity: 1;
   transition: opacity 500ms ease 1320ms;
+}
+
+.chartUnit {
+  margin-left: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.columnDelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 159, 90, 0.18);
+  color: #ffc9a0;
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0;
+}
+
+.thresholdKey {
+  width: 12px;
+  border-top: 1.5px dashed currentColor;
+}
+
+/* Columns stand on the plot's floor; each fills its slot and rises from the bottom. */
+.columnPlot {
+  position: relative;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  height: 140px;
+  margin-top: 8px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 100% 25%;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.columnBar {
+  width: 100%;
+  max-width: 44px;
+  border-radius: 8px 8px 3px 3px;
+  background: linear-gradient(180deg, rgba(159, 240, 232, 0.85), rgba(63, 210, 199, 0.22));
+  transform: scaleY(0);
+  transform-origin: 50% 100%;
+}
+
+.column[data-low='true'] .columnBar {
+  background: linear-gradient(180deg, #ffb27a, rgba(255, 159, 90, 0.3));
+  box-shadow: 0 0 18px rgba(255, 159, 90, 0.28);
+}
+
+.columnValue {
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+}
+
+.column[data-low='true'] .columnValue {
+  color: #ffc9a0;
+}
+
+.columnThreshold {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  border-top: 1.5px dashed rgba(255, 178, 122, 0.75);
+  clip-path: inset(-2px 100% -2px 0);
+  pointer-events: none;
+}
+
+.columnAxis {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.columnAxis span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.columnChart[data-play='true'] .columnBar {
+  transform: none;
+  transition: transform 720ms cubic-bezier(0.2, 0.8, 0.2, 1) calc(420ms + var(--i) * 70ms);
+}
+
+.columnChart[data-play='true'] .columnValue {
+  opacity: 1;
+  transition: opacity 320ms ease calc(820ms + var(--i) * 70ms);
+}
+
+.columnChart[data-play='true'] .columnThreshold {
+  clip-path: inset(-2px 0 -2px 0);
+  transition: clip-path 700ms cubic-bezier(0.65, 0, 0.35, 1) 1200ms;
+}
+
+.columnChart[data-play='true'] .columnDelta {
+  opacity: 1;
+  transition: opacity 500ms ease 1600ms;
 }
 
 .legend {
@@ -822,6 +1000,7 @@
   .assets,
   .assetsIntroTitle,
   .assetsSummary,
+  .assetsDetail,
   .assetsScroll > * {
     transition: none !important;
   }

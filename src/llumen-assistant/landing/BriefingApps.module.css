@@ -10,6 +10,10 @@
   min-height: 0;
 }
 
+.carousel .controls {
+  justify-content: flex-end;
+}
+
 .track {
   flex: 1 1 auto;
   height: auto;

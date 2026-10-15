@@ -56,26 +56,35 @@ function columnData(place: BriefingPlace, grow: number): GeoJSON.FeatureCollecti
   const geometry = columnGeometry(place)
   return {
     type: 'FeatureCollection',
-    features: grow <= 0 ? [] : place.columns.map(([, , height], index) => ({
-      type: 'Feature',
-      properties: { height: height * grow, color: rgbString(rampColor(place.ramp, height)) },
-      geometry: geometry[index],
-    })),
+    features:
+      grow <= 0
+        ? []
+        : place.columns.map(([, , height], index) => ({
+            type: 'Feature',
+            properties: { height: height * grow, color: rgbString(rampColor(place.ramp, height)) },
+            geometry: geometry[index],
+          })),
   }
 }
 
 function junctionData(place: BriefingPlace, grow: number): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
-    features: grow <= 0 ? [] : place.junctions.map(([lng, lat, radius]) => ({
-      type: 'Feature',
-      properties: { radius: radius * grow },
-      geometry: { type: 'Point', coordinates: [lng, lat] },
-    })),
+    features:
+      grow <= 0
+        ? []
+        : place.junctions.map(([lng, lat, radius]) => ({
+            type: 'Feature',
+            properties: { radius: radius * grow },
+            geometry: { type: 'Point', coordinates: [lng, lat] },
+          })),
   }
 }
 
-function drawPlace(map: mapboxgl.Map, place: BriefingPlace, grow: number) {
+type Drawn = { place: BriefingPlace; grow: number }
+
+function drawPlace(map: mapboxgl.Map, drawn: { current: Drawn }, place: BriefingPlace, grow: number) {
+  drawn.current = { place, grow }
   ;(map.getSource('briefing-columns') as mapboxgl.GeoJSONSource | undefined)?.setData(columnData(place, grow))
   ;(map.getSource('briefing-junctions') as mapboxgl.GeoJSONSource | undefined)?.setData(junctionData(place, grow))
 }
@@ -130,11 +139,15 @@ function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 
-export function BriefingMap({ place }: { place: BriefingPlace }) {
+/** `blank` hides the columns and disks, leaving the bare base map (behind blurred stops). */
+export function BriefingMap({ place, blank = false }: { place: BriefingPlace; blank?: boolean }) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
-  /** The place drawn (or about to be drawn once the style loads). */
+  /** The place the camera targets (or will, once the style loads). */
   const placeRef = useRef(place)
+  const blankRef = useRef(blank)
+  /** The place whose columns are on the map, and how far they've grown. */
+  const drawnRef = useRef<Drawn>({ place, grow: 0 })
   const readyRef = useRef(false)
   const flyingRef = useRef(false)
   const flightRef = useRef(0)
@@ -165,10 +178,12 @@ export function BriefingMap({ place }: { place: BriefingPlace }) {
       map.jumpTo(current.camera)
       mountLayers(map, current)
       readyRef.current = true
+      drawPlace(map, drawnRef, current, 0)
+      if (blankRef.current) return
       const start = performance.now()
       const grow = (now: number) => {
         const t = Math.min(1, (now - start) / GROW_MS)
-        drawPlace(map, placeRef.current, reduce ? 1 : easeOut(t))
+        drawPlace(map, drawnRef, current, reduce ? 1 : easeOut(t))
         if (t < 1 && !reduce) tweenRef.current = window.requestAnimationFrame(grow)
       }
       tweenRef.current = window.requestAnimationFrame(grow)
@@ -223,47 +238,58 @@ export function BriefingMap({ place }: { place: BriefingPlace }) {
 
   useEffect(() => {
     const map = mapRef.current
-    const previous = placeRef.current
-    if (previous === place) return
+    const moved = placeRef.current !== place
     placeRef.current = place
+    blankRef.current = blank
     if (!map || !readyRef.current) return
+
+    const target = blank ? 0 : 1
+    const { place: previous, grow: from } = drawnRef.current
+    const swapping = previous !== place
+    if (!moved && !swapping && from === target) return
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     window.cancelAnimationFrame(tweenRef.current)
-    holdUntilRef.current = 0
     if (reduce) {
-      map.jumpTo(place.camera)
+      if (moved) map.jumpTo(place.camera)
       paintDisks(map, place)
-      drawPlace(map, place, 1)
+      drawPlace(map, drawnRef, place, target)
       return
     }
 
-    const flight = ++flightRef.current
-    flyingRef.current = true
-    map.flyTo({ ...place.camera, duration: FLY_MS, curve: 1.6, essential: true })
-    map.once('moveend', () => {
-      if (flightRef.current === flight) flyingRef.current = false
-    })
+    if (moved) {
+      holdUntilRef.current = 0
+      const flight = ++flightRef.current
+      flyingRef.current = true
+      map.flyTo({ ...place.camera, duration: FLY_MS, curve: 1.6, essential: true })
+      map.once('moveend', () => {
+        if (flightRef.current === flight) flyingRef.current = false
+      })
+    }
 
+    /** A new place shrinks the old columns, then grows its own once the flight is underway. */
     const start = performance.now()
-    let swapped = false
+    const growFrom = swapping ? 0 : from
+    const delay = swapping ? GROW_DELAY_MS : 0
+    const span = target > growFrom ? GROW_MS : SHRINK_MS
+    let swapped = !swapping
     const tween = (now: number) => {
       const elapsed = now - start
-      if (elapsed < SHRINK_MS) {
-        drawPlace(map, previous, 1 - easeOut(elapsed / SHRINK_MS))
-      } else {
-        if (!swapped) {
-          swapped = true
-          paintDisks(map, place)
+      if (!swapped) {
+        if (elapsed < SHRINK_MS && from > 0) {
+          drawPlace(map, drawnRef, previous, from * (1 - easeOut(elapsed / SHRINK_MS)))
+          tweenRef.current = window.requestAnimationFrame(tween)
+          return
         }
-        const t = Math.max(0, Math.min(1, (elapsed - GROW_DELAY_MS) / GROW_MS))
-        drawPlace(map, place, easeOut(t))
-        if (t >= 1) return
+        swapped = true
+        paintDisks(map, place)
       }
-      tweenRef.current = window.requestAnimationFrame(tween)
+      const t = Math.max(0, Math.min(1, (elapsed - delay) / span))
+      drawPlace(map, drawnRef, place, growFrom + (target - growFrom) * easeOut(t))
+      if (t < 1) tweenRef.current = window.requestAnimationFrame(tween)
     }
     tweenRef.current = window.requestAnimationFrame(tween)
-  }, [place])
+  }, [place, blank])
 
   return <div ref={elRef} className={styles.mapCanvas} />
 }

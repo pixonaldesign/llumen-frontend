@@ -28,9 +28,22 @@ type ChartSeries = { name: string; value: string; pct: number; color: string }
 
 type ChartLine = { name: string; color: string; points: number[] }
 
+type ChartColumn = { name: string; value: number }
+
 type FeedChart =
   | { kind: 'bar'; label: string; value: string; series: ChartSeries[] }
   | { kind: 'line'; label: string; total: number; delta: string; axis: string[]; lines: ChartLine[] }
+  | {
+      kind: 'columns'
+      label: string
+      value: string
+      unit: string
+      delta: string
+      /** Columns under this read as alerts, and a dashed line marks it. */
+      threshold: number
+      max: number
+      columns: ChartColumn[]
+    }
 
 type FeedStop = {
   id: string
@@ -82,7 +95,28 @@ const LAND_USE: FeedChart = {
   ],
 }
 
-/** Map stops alternate with blurred ones; each map stop has its own place and palette. */
+/** Overnight minimum on the eastern trunk main, in bar, by Al Ain district. */
+const NETWORK_PRESSURE: FeedChart = {
+  kind: 'columns',
+  label: 'Lowest overnight pressure, eastern trunk main',
+  value: '1.6',
+  unit: 'bar',
+  delta: '4 districts below 2 bar',
+  threshold: 2,
+  max: 3.4,
+  columns: [
+    { name: 'Hili', value: 2.6 },
+    { name: 'Al Jimi', value: 1.8 },
+    { name: 'Al Muwaiji', value: 1.6 },
+    { name: 'Zakher', value: 2.4 },
+    { name: 'Al Towayya', value: 1.7 },
+    { name: 'Al Khabisi', value: 2.9 },
+    { name: 'Falaj Hazza', value: 1.9 },
+    { name: 'Al Mutaredh', value: 2.7 },
+  ],
+}
+
+/** Each map stop (its own place and palette) is followed by one or more blurred ones. */
 const FEED_STOPS: FeedStop[] = [
   {
     id: 'abu-dhabi',
@@ -108,11 +142,20 @@ const FEED_STOPS: FeedStop[] = [
     id: 'land-use',
     place: 'mussafah',
     domain: 'Planning',
-    title: 'Land use mix',
+    title: 'Industrial growth in Al Mussafah',
     before:
       'Industrial parcels in Al Mussafah now cover nearly a third of the monitored belt after 14 new warehouse permits this year, ',
     highlight: 'outpacing open space',
     after: ' along the southern approach roads and pushing heavy-vehicle traffic closer to residential blocks.',
+  },
+  {
+    id: 'land-use-mix',
+    domain: 'Planning',
+    title: 'Land use mix',
+    before: 'Residential blocks still hold the largest share of Al Mussafah at 42%, but open space has ',
+    highlight: 'shrunk to 27%',
+    after:
+      ', leaving the thinnest green buffer between the 31% industrial belt and the homes beside it since monitoring began.',
     chart: LAND_USE,
   },
   {
@@ -163,14 +206,23 @@ const FEED_STOPS: FeedStop[] = [
       'Four districts in Al Ain recorded overnight pressure drops below 2 bar on the eastern trunk main, a pattern that typically precedes ',
     highlight: 'service interruptions of 4–6 hours',
     after: ' within the next 48 hours if the valve inspection is not moved forward.',
+    chart: NETWORK_PRESSURE,
   },
 ]
 
 /** One read-out across every asset in the grid; numbers match briefingAssetData. */
-const ASSETS_SUMMARY: { text: string; highlight?: boolean }[] = [
-  { text: 'The coastal corridor needs attention first: AQI has climbed to ' },
-  { text: '142, up 18% overnight', highlight: true },
-  { text: ', above the sensitive-groups line since 09:00. Heat-related clinic visits reached ' },
+type SummaryPart = { text: string; highlight?: boolean }
+
+/** What is happening now, in two lines at most. */
+const ASSETS_STATEMENT: SummaryPart[] = [
+  { text: 'Coastal air quality crossed the sensitive\u2011groups line overnight, ' },
+  { text: 'up 18% to 142', highlight: true },
+  { text: '.' },
+]
+
+/** What the assets below say about it. */
+const ASSETS_DETAIL: SummaryPart[] = [
+  { text: 'AQI has stayed above the line since 09:00. Heat-related clinic visits reached ' },
   { text: '1,284 this week', highlight: true },
   { text: ', 22% higher and peaking at 244 on Sunday, while bus delays sit on ' },
   { text: 'Routes 54 and 65', highlight: true },
@@ -180,6 +232,18 @@ const ASSETS_SUMMARY: { text: string; highlight?: boolean }[] = [
   { text: '62% of target', highlight: true },
   { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
 ]
+
+function SummaryText({ parts }: { parts: SummaryPart[] }) {
+  return parts.map((part) =>
+    part.highlight ? (
+      <span key={part.text} className={home.findingHighlight}>
+        {part.text}
+      </span>
+    ) : (
+      part.text
+    ),
+  )
+}
 
 /** Once Assets has played, the charts load centred for this long before the grid moves aside for the summary. */
 const ASSETS_SPLIT_MS = 1700
@@ -356,7 +420,7 @@ export function BriefingLanding({
       >
         <div className={styles.stage}>
           <div ref={mapRef} className={`${styles.map}${blurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
-            <BriefingMap place={mapPlace} />
+            <BriefingMap place={mapPlace} blank={blurred} />
           </div>
           <div className={styles.scrim} aria-hidden />
           <div className={styles.fadeBlur} aria-hidden />
@@ -452,15 +516,10 @@ function AssetsSheet({ open, play, onOpen }: { open: boolean; play: boolean; onO
           Assets
         </h2>
         <p className={styles.assetsSummary}>
-          {ASSETS_SUMMARY.map((part) =>
-            part.highlight ? (
-              <span key={part.text} className={home.findingHighlight}>
-                {part.text}
-              </span>
-            ) : (
-              part.text
-            ),
-          )}
+          <SummaryText parts={ASSETS_STATEMENT} />
+        </p>
+        <p className={styles.assetsDetail}>
+          <SummaryText parts={ASSETS_DETAIL} />
         </p>
       </div>
       <div ref={setScroll} className={styles.assetsScroll}>
@@ -637,7 +696,7 @@ function ConversationalBubble({
   )
 }
 
-/** A finding's text, chart and actions. */
+/** A finding's chart (on top), text and actions. */
 function FindingBody({
   stop,
   vote,
@@ -654,13 +713,13 @@ function FindingBody({
   const finding = `${stop.before}${stop.highlight}${stop.after}`.trim()
   return (
     <>
+      {stop.chart ? <FeedChartCard key={stop.id} chart={stop.chart} /> : null}
       <p className={styles.bubbleMeta}>{stop.domain}</p>
       <p className={styles.bubbleText}>
         {stop.before}
         <span className={home.findingHighlight}>{stop.highlight}</span>
         {stop.after}
       </p>
-      {stop.chart ? <FeedChartCard key={stop.id} chart={stop.chart} /> : null}
       <div className={home.actions}>
         <SpecularActionButton
           className={home.actionBtn}
@@ -781,7 +840,47 @@ function useChartPlay() {
 
 function FeedChartCard({ chart }: { chart: FeedChart }) {
   if (chart.kind === 'line') return <FeedLineChart chart={chart} />
+  if (chart.kind === 'columns') return <FeedColumnChart chart={chart} />
   return <FeedBarChart chart={chart} />
+}
+
+/** After the card lands the columns rise left to right, then their values, the threshold line and the alert pill. */
+function FeedColumnChart({ chart }: { chart: Extract<FeedChart, { kind: 'columns' }> }) {
+  const play = useChartPlay()
+  return (
+    <div className={`${styles.chart} ${styles.columnChart}`} data-play={play}>
+      <p className={styles.chartLabel}>{chart.label}</p>
+      <div className={styles.lineValueRow}>
+        <p className={styles.chartValue}>
+          {chart.value}
+          <span className={styles.chartUnit}>{chart.unit}</span>
+        </p>
+        <span className={styles.columnDelta}>
+          <span className={styles.thresholdKey} aria-hidden />
+          {chart.delta}
+        </span>
+      </div>
+      <div className={styles.columnPlot} aria-hidden>
+        <span className={styles.columnThreshold} style={{ bottom: `${(chart.threshold / chart.max) * 100}%` }} />
+        {chart.columns.map((column, index) => (
+          <div
+            key={column.name}
+            className={styles.column}
+            data-low={column.value < chart.threshold}
+            style={{ ['--i' as string]: index }}
+          >
+            <span className={styles.columnValue}>{column.value.toFixed(1)}</span>
+            <span className={styles.columnBar} style={{ height: `${(column.value / chart.max) * 100}%` }} />
+          </div>
+        ))}
+      </div>
+      <div className={styles.columnAxis} aria-hidden>
+        {chart.columns.map((column) => (
+          <span key={column.name}>{column.name}</span>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function FeedBarChart({ chart }: { chart: Extract<FeedChart, { kind: 'bar' }> }) {

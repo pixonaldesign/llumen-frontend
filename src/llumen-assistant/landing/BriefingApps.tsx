@@ -127,7 +127,7 @@ export function BriefingAppsCarousel() {
         })}
       </div>
 
-      <div className={home.controls}>
+      <div className={`${home.controls} ${styles.controls}`}>
         <div className={home.progress} role="tablist" aria-label="Apps">
           {tickerSlots(active, count).map(({ index, edge }) => {
             const app = APPS[index]
