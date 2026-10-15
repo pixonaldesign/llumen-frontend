@@ -1,0 +1,241 @@
+/*
+ * Agents grid: the featured agent spans all three rows on the left, six more sit two by three on the
+ * right. The grid fills the section; thumbnails take whatever height their text leaves.
+ */
+.grid {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  min-height: 0;
+}
+
+@media (max-width: 1180px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-rows: minmax(280px, auto);
+  }
+
+  .featured {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
+
+.featured,
+.agent {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  color: #fff;
+}
+
+.featured {
+  grid-row: 1 / span 3;
+  gap: 18px;
+}
+
+.agent {
+  gap: 6px;
+}
+
+.featuredThumb,
+.thumb {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  background: #0b0c10;
+  box-shadow: 0 18px 44px rgba(4, 12, 24, 0.28);
+}
+
+.thumb {
+  margin-bottom: 8px;
+}
+
+.featuredText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.featuredName {
+  margin: 0;
+  font-size: clamp(26px, 2vw, 36px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.name {
+  margin: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.summary {
+  max-width: 62ch;
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+/* Workflow snapshot: the dotted canvas fills the thumbnail and fades into a vignette at its edges. */
+.featuredThumb {
+  flex: 0 1 auto;
+  aspect-ratio: 16 / 10;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.09) 0.9px, transparent 1.2px) 0 0 / 18px 18px,
+    #0b0c10;
+}
+
+.featuredThumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(11, 12, 16, 0.85) 100%);
+  pointer-events: none;
+}
+
+.snapshot {
+  position: absolute;
+  inset: 0 3%;
+  width: 94%;
+  height: 100%;
+}
+
+.edge {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 1.3;
+}
+
+/* A faint dash travels each edge, like data moving through the run. */
+.edgeFlow {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-dasharray: 3 14;
+  stroke-linecap: round;
+  stroke-width: 1.6;
+  animation: edgeFlow 1.6s linear infinite;
+}
+
+@keyframes edgeFlow {
+  to {
+    stroke-dashoffset: -17;
+  }
+}
+
+.port {
+  fill: #2a2b31;
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 1;
+}
+
+.nodeTitle {
+  fill: #fff;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.nodeSub {
+  fill: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
+.panelLabel {
+  fill: rgba(255, 255, 255, 0.55);
+  font-size: 9px;
+}
+
+.panelValue {
+  fill: #fff;
+  font-family: var(--lc-font-mono);
+  font-size: 14px;
+}
+
+.chip {
+  font-size: 8.5px;
+  font-weight: 500;
+}
+
+/* Shader thumbnails: light glowing out of black, blurred past their edges so it reads as soft light. */
+.agent .thumb {
+  background: #000;
+}
+
+.shader {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  filter: blur(16px);
+}
+
+.thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
+  pointer-events: none;
+}
+
+.thumbTop,
+.thumbSummary {
+  position: absolute;
+  z-index: 1;
+  left: 20px;
+  color: #fff;
+}
+
+.thumbTop {
+  top: 16px;
+  padding: 5px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.36);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.thumbSummary {
+  right: 20px;
+  bottom: 20px;
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: clamp(20px, 1.5vw, 28px);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.22;
+  text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edgeFlow {
+    animation: none;
+  }
+}

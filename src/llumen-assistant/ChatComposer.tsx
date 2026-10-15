@@ -51,6 +51,9 @@ const MAX_COMPOSER_PX = 120
 const MIN_EDITOR_PX = 36
 const COMPOSER_HEIGHT_DURATION = 0.38
 const COMPOSER_HEIGHT_EASE = 'power2.inOut'
+/** Characters per tick and tick length when a suggested prompt types itself in. */
+const TYPE_STEP = 2
+const TYPE_INTERVAL_MS = 14
 
 type ComposerContext = {
   id: string
@@ -119,6 +122,13 @@ function serializeComposer(root: HTMLElement): string {
 function editorIsEmpty(root: HTMLElement): boolean {
   const text = root.innerText.replace(/\u00a0/g, ' ').replace(/\n/g, '').trim()
   return text.length === 0 && !root.querySelector('[data-inline-mention]')
+}
+
+/** Whether the editor holds anything besides mention chips. */
+function hasFreeText(root: HTMLElement): boolean {
+  const copy = root.cloneNode(true) as HTMLElement
+  copy.querySelectorAll('[data-inline-mention]').forEach((chip) => chip.remove())
+  return (copy.textContent ?? '').replace(/\u00a0/g, ' ').trim().length > 0
 }
 
 function getMentionTrigger(editor: HTMLElement): { query: string; triggerLength: number } | null {
@@ -389,6 +399,12 @@ export type ChatComposerProps = {
   /** Aurora border shimmer while the first finding reveal is on screen. */
   findingCue?: boolean
   findingCueColors?: { stop1: string; stop2: string; stop3: string }
+  /** Typed into the empty editor when it's clicked. */
+  suggestedPrompt?: string
+  /** Sending an unedited suggested prompt (even mid-typing) calls this instead of `onSend`. */
+  onSendSuggested?: () => void
+  /** Adds "Location" to the @ menu; picking it removes the trigger and calls this. */
+  onPickLocation?: () => void
 }
 
 export type ChatComposerHandle = {
@@ -411,6 +427,9 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
     questionSlot = null,
     findingCue = false,
     findingCueColors,
+    suggestedPrompt,
+    onSendSuggested,
+    onPickLocation,
   },
   ref,
 ) {
@@ -422,6 +441,9 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
   const slashMenuRef = useRef<HTMLDivElement>(null)
   const mentionBtnRef = useRef<HTMLButtonElement>(null)
   const fileCounterRef = useRef(0)
+  const typingTimerRef = useRef<number | null>(null)
+  /** The editor holds the suggested prompt (or part of it) and the user hasn't edited it. */
+  const suggestionTypedRef = useRef(false)
   const uid = useId()
   const [contexts, setContexts] = useState<ComposerContext[]>([])
   const [mentionMenu, setMentionMenu] = useState<MentionMenuState | null>(null)
@@ -430,9 +452,10 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
   const chatScrollRef = useRevealScrollbarOnScroll()
   const hasContexts = contexts.length > 0
 
+  const locationContext = onPickLocation !== undefined
   const filteredCategories = useMemo(
-    () => filterCategories(mentionMenu?.query ?? ''),
-    [mentionMenu?.query],
+    () => filterCategories(mentionMenu?.query ?? '', { location: locationContext }),
+    [locationContext, mentionMenu?.query],
   )
   const filteredItems = useMemo(() => {
     if (!mentionMenu?.categoryId) return []
@@ -471,6 +494,45 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
     syncEditorHeight()
   }, [onChange, syncEditorHeight])
 
+  const stopTyping = useCallback(() => {
+    if (typingTimerRef.current === null) return
+    window.clearInterval(typingTimerRef.current)
+    typingTimerRef.current = null
+  }, [])
+
+  useEffect(() => stopTyping, [stopTyping])
+
+  const typeSuggestedPrompt = () => {
+    const editor = editorRef.current
+    const prompt = suggestedPrompt
+    if (!editor || !prompt || editorDisabled || typingTimerRef.current !== null || hasFreeText(editor)) return
+    // Mention chips stay; the prompt is typed after them.
+    const chips = [...editor.querySelectorAll('[data-inline-mention]')]
+    editor.replaceChildren()
+    for (const chip of chips) editor.append(chip, '\u00a0')
+    const node = document.createTextNode('')
+    editor.append(node)
+    suggestionTypedRef.current = true
+    let length = 0
+    typingTimerRef.current = window.setInterval(() => {
+      length = Math.min(prompt.length, length + TYPE_STEP)
+      node.data = prompt.slice(0, length)
+      if (document.activeElement === editor) placeCaretAt(node, node.data.length)
+      emitChange()
+      if (length >= prompt.length) stopTyping()
+    }, TYPE_INTERVAL_MS)
+  }
+
+  const submit = () => {
+    if (suggestionTypedRef.current && suggestedPrompt && onSendSuggested) {
+      stopTyping()
+      suggestionTypedRef.current = false
+      onSendSuggested()
+      return
+    }
+    onSend()
+  }
+
   const closeMentionMenu = useCallback(() => {
     setMentionMenu(null)
   }, [])
@@ -498,7 +560,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
       const listLength =
         stage === 'items' && categoryId
           ? filterItems(categoryId, trigger.query).length
-          : filterCategories(trigger.query).length
+          : filterCategories(trigger.query, { location: locationContext }).length
       return {
         stage: categoryId ? 'items' : 'categories',
         categoryId,
@@ -508,7 +570,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
         position: getCaretMenuPosition(editor),
       }
     })
-  }, [])
+  }, [locationContext])
 
   const refreshSlashMenu = useCallback(() => {
     const editor = editorRef.current
@@ -625,6 +687,16 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
     (categoryId: InlineContextCategoryId) => {
       const editor = editorRef.current
       const prev = mentionMenu
+      if (categoryId === 'location') {
+        if (editor && prev) {
+          editor.focus()
+          deleteTriggerBeforeCaret(prev.triggerLength)
+          emitChange()
+        }
+        closeMentionMenu()
+        onPickLocation?.()
+        return
+      }
       if (!prev || !editor) {
         setMentionMenu((m) =>
           m
@@ -668,7 +740,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
         position: getCaretMenuPosition(editor),
       })
     },
-    [emitChange, mentionMenu],
+    [closeMentionMenu, emitChange, mentionMenu, onPickLocation],
   )
 
   const openContextMentionPicker = useCallback(() => {
@@ -689,13 +761,15 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
     const el = editorRef.current
     if (!el) return
     if (value === '' && !editorIsEmpty(el)) {
+      stopTyping()
+      suggestionTypedRef.current = false
       el.innerHTML = ''
       setEditorEmpty(true)
       closeMentionMenu()
       closeSlashMenu()
       syncEditorHeight()
     }
-  }, [value, closeMentionMenu, closeSlashMenu, syncEditorHeight])
+  }, [value, closeMentionMenu, closeSlashMenu, syncEditorHeight, stopTyping])
 
   useLayoutEffect(() => {
     const el = chatBoxRef.current
@@ -765,6 +839,8 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
   }, [mentionMenu, slashMenu, closeMentionMenu, closeSlashMenu])
 
   const onEditorInput = (_e: FormEvent<HTMLDivElement>) => {
+    stopTyping()
+    suggestionTypedRef.current = false
     emitChange()
     const editor = editorRef.current
     if (editor && getSlashTrigger(editor)) {
@@ -883,7 +959,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (sendState === 'stop') return
-      if (sendState === 'active') onSend()
+      if (sendState === 'active') submit()
     }
   }
 
@@ -957,6 +1033,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
           suppressContentEditableWarning
           onInput={onEditorInput}
           onKeyDown={onKeyDown}
+          onPointerDown={typeSuggestedPrompt}
           onClick={() => {
             requestAnimationFrame(() => {
               const editor = editorRef.current
@@ -1016,7 +1093,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
             state={sendState}
             onClick={() => {
               if (sendState === 'stop') onStop()
-              else onSend()
+              else submit()
             }}
           />
         </div>

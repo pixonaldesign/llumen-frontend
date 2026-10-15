@@ -1,0 +1,146 @@
+/*
+ * Apps carousel: the Stories carousel's track, cards and controls (LandingHome.module.css), filled
+ * with full-bleed app thumbnails. The track takes the section's spare height instead of 60vh.
+ */
+.carousel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.carousel .controls {
+  justify-content: flex-end;
+}
+
+.track {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 280px;
+}
+
+.app {
+  border-radius: 20px;
+  background: #0b0d12;
+  box-shadow: 0 18px 44px rgba(4, 8, 20, 0.3);
+}
+
+/* Anchored top-left so peeks show the app's title and filters, like the start of a page. */
+.shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left top;
+  transform-origin: left top;
+  transition: transform 1.2s cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The hero drifts in slowly for the length of its autoplay turn. */
+.appHero .shot {
+  transform: scale(1.06);
+  transition: transform 7s linear;
+}
+
+/*
+ * Progressive blur under the text: sibling layers (a nested backdrop-filter can't see the image),
+ * each masked to fade in, so the blur builds up toward the bottom edge.
+ */
+.blur {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.blurSoft {
+  height: 50%;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 55%);
+}
+
+.blurStrong {
+  height: 35%;
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 70%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 70%);
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(0deg, rgba(4, 6, 12, 0.88) 0%, rgba(4, 6, 12, 0.5) 22%, transparent 48%),
+    linear-gradient(90deg, rgba(4, 6, 12, 0.32) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.app:not(.appHero) .scrim {
+  background:
+    linear-gradient(0deg, rgba(4, 6, 12, 0.9) 0%, rgba(4, 6, 12, 0.55) 30%, transparent 60%), rgba(4, 6, 12, 0.18);
+}
+
+.info {
+  position: absolute;
+  z-index: 1;
+  right: 28px;
+  bottom: 26px;
+  left: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  color: #fff;
+}
+
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.36);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.name {
+  max-width: 24ch;
+  margin: 4px 0 0;
+  font-size: clamp(24px, 1.9vw, 34px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.app:not(.appHero) .name {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.meta {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shot,
+  .appHero .shot {
+    transform: none;
+    transition: none;
+  }
+}

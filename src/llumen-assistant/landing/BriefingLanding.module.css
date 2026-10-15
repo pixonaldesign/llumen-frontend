@@ -1,0 +1,1248 @@
+.root {
+  /* How far Assets peeks over the findings. Keep in step with --briefing-peek in compact-assistant.module.css. */
+  --assets-peek: max(72px, min(200px, 16vh, calc(50dvh - 300px)));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: #fff;
+}
+
+/* Findings stage, then Assets, then Agents, each snapping to fill the page. */
+.page {
+  position: relative;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scroll-padding-top: var(--briefing-bar-h, 64px);
+  scrollbar-width: none;
+}
+
+.page::-webkit-scrollbar {
+  display: none;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  scroll-snap-align: start;
+}
+
+.edgeArrow {
+  position: absolute;
+  /* Center within the visible Findings area: below the top bar and above the Assets preview. */
+  top: calc(50% + var(--briefing-bar-h, 64px) / 2 - var(--assets-peek) / 2);
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(4, 8, 14, 0.42);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  opacity: 0.62;
+  transform: translateY(-50%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition:
+    opacity 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.edgeArrowPrevious {
+  left: max(20px, env(safe-area-inset-left));
+}
+
+.edgeArrowNext {
+  right: max(20px, env(safe-area-inset-right));
+}
+
+.edgeArrow:hover,
+.edgeArrow:focus-visible {
+  background: rgba(4, 8, 14, 0.62);
+  color: #fff;
+  opacity: 1;
+  transform: translateY(-50%) scale(1.04);
+}
+
+.edgeArrow:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #060a14;
+  transform: scale(1);
+  filter: blur(0);
+  transition:
+    filter 700ms ease,
+    transform 700ms ease;
+}
+
+.mapBlur {
+  filter: blur(28px) saturate(1.15);
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
+.mapCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+.bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 20;
+}
+
+.scrim {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  height: 62%;
+  background: linear-gradient(to top, rgba(5, 10, 20, 0.82), rgba(5, 10, 20, 0.28) 58%, transparent);
+  pointer-events: none;
+}
+
+/* Blurs the map more strongly towards the bottom, under the greeting, finding and composer. */
+.fadeBlur {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  height: 72%;
+  backdrop-filter: blur(34px) saturate(1.14);
+  -webkit-backdrop-filter: blur(34px) saturate(1.14);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 48%, rgba(0, 0, 0, 0.72) 68%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 48%, rgba(0, 0, 0, 0.72) 68%, transparent 100%);
+  pointer-events: none;
+}
+
+/*
+ * Greeting and finding stack above the composer (--dock-top). The finding's actions row sits as far
+ * above the composer's top as the composer's centre sits above the Assets peek; 18px is half the row.
+ * The final 56px raises the complete insight group without moving the composer.
+ */
+.chatDock {
+  position: absolute;
+  right: 0;
+  bottom: calc(
+    var(--dock-top, 268px) + max(16px, var(--dock-under, 206px) + var(--dock-h, 62px) / 2 - var(--assets-peek) - 18px) +
+      56px
+  );
+  left: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  pointer-events: none;
+  /* Wider than the 640px composer; stays clear of the 44px edge arrows (20px inset + 16px gap). */
+  --finding-w: min(800px, calc(100vw - 160px));
+}
+
+.chatDock {
+  transition:
+    opacity 320ms ease,
+    transform 420ms ease;
+}
+
+/* Carries the composer measurements (--dock-*) for the finding and, in styles 2 and 3, the ask greeting. */
+.dockLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.findingMain,
+.findingCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Styles 2 and 3: a greeting that invites a question, just above the composer. */
+.askGreeting {
+  position: absolute;
+  bottom: calc(var(--dock-top, 268px) + 24px);
+  box-sizing: border-box;
+  margin: 0;
+  padding-inline: 4px;
+  color: #fff;
+  font-size: clamp(22px, 1.5vw, 30px);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  text-shadow: 0 2px 18px rgba(5, 10, 20, 0.6);
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes askIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Style 2: a blur that fades out left to right over the left third, behind the composer. */
+.sidePanel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  width: calc(100% / 3 + 240px);
+  background: linear-gradient(90deg, rgba(5, 10, 20, 0.6) 0%, rgba(5, 10, 20, 0.34) 55%, transparent 100%);
+  backdrop-filter: blur(32px) saturate(1.12);
+  -webkit-backdrop-filter: blur(32px) saturate(1.12);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 360px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 360px), transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+}
+
+/*
+ * Findings style 2: composer and greeting in the left third (positioned in compact-assistant.module.css),
+ * findings centred in the right two thirds between the top bar and the Assets peek.
+ */
+.root[data-findings-style='2'] .sidePanel {
+  opacity: 1;
+}
+
+.root[data-findings-style='2'] .askGreeting {
+  left: 48px;
+  width: min(560px, calc(100vw / 3 - 96px));
+}
+
+.root[data-findings-style='2'] .chatDock {
+  top: var(--briefing-bar-h, 64px);
+  bottom: var(--assets-peek);
+  left: calc(100% / 3);
+  justify-content: center;
+  --finding-w: min(760px, calc(100vw * 2 / 3 - 140px));
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.root[data-findings-style='2'] .edgeArrowPrevious {
+  left: calc(100% / 3);
+}
+
+/*
+ * Findings style 3: the composer and its greeting sit above (compact-assistant.module.css), and the
+ * finding hangs 96px under the composer as a compact glass tooltip with any chart beside its text.
+ * It fades as Assets scrolls in, since the composer then drops through it to the bottom slot.
+ */
+.root[data-findings-style='3'] .askGreeting,
+.root[data-findings-style='4'] .askGreeting {
+  right: 0;
+  left: 0;
+  width: min(640px, calc(100vw - 48px));
+  margin-inline: auto;
+  text-align: center;
+}
+
+.root[data-findings-style='3'] .chatDock {
+  top: calc(100% - var(--dock-under, 206px) + 96px);
+  bottom: auto;
+  --finding-w: min(880px, calc(100vw - 160px));
+  opacity: calc(1 - var(--assets-t, 0) * 2.5);
+  transition: transform 420ms ease;
+}
+
+/*
+ * Findings style 4: style 1's findings in style 1's place. --centre repeats --briefing-centre (the
+ * composer's style 1 bottom, compact-assistant.module.css), so the stack keeps the same bottom as
+ * when it rode on the centred composer, even though the composer and greeting now sit above. --shift
+ * lowers it together with the composer (compact-assistant.module.css); keep the two in sync.
+ */
+.root[data-findings-style='4'] .chatDock {
+  --centre: max(
+    calc(var(--assets-peek) + 16px),
+    calc((max(var(--space-3xl), calc(50dvh - 260px)) + var(--assets-peek)) / 2 - 31px)
+  );
+  --shift: clamp(0px, calc((100dvh - 900px) / 3), 120px);
+  bottom: calc(
+    var(--centre) + 62px + max(16px, var(--centre) + 31px - var(--assets-peek) - 18px) + 56px - var(--shift)
+  );
+  opacity: calc(1 - var(--assets-t, 0) * 2.5);
+  transition: transform 420ms ease;
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.root[data-findings-style='3'] .findingRow {
+  animation: tooltipIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+}
+
+.root[data-findings-style='3'] .bubble {
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03) 50%), rgba(10, 16, 26, 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+}
+
+.root[data-findings-style='3'] .bubbleBody {
+  gap: 14px;
+  padding: 18px 20px 16px;
+  text-shadow: none;
+  transition:
+    opacity 160ms ease,
+    transform 220ms ease;
+}
+
+.root[data-findings-style='3'] .bubbleFade {
+  transform: translateY(4px) scale(0.985);
+}
+
+.root[data-findings-style='3'] .bubbleText {
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.root[data-findings-style='3'] .findingControls {
+  right: 20px;
+  bottom: 15px;
+}
+
+.root[data-findings-style='3'] .findingMain[data-chart='true'] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 400px);
+  align-items: center;
+  gap: 32px;
+}
+
+/* No surface of its own: the chart sits straight on the tooltip, right of the text. */
+.root[data-findings-style='3'] .findingMain .chart {
+  order: 2;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.root[data-findings-style='3'] .chart::before {
+  display: none;
+}
+
+.root[data-findings-style='3'] .chartValue {
+  font-size: 28px;
+}
+
+.root[data-findings-style='3'] .linePlot {
+  height: 84px;
+}
+
+.root[data-findings-style='3'] .columnPlot {
+  height: 104px;
+  gap: 6px;
+}
+
+.root[data-findings-style='3'] .columnAxis {
+  gap: 6px;
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.root[data-findings-style='3'] .columnAxis span {
+  overflow: visible;
+  white-space: normal;
+}
+
+/*
+ * Assets and Agents share one background that stays pinned to the page while they
+ * scroll over it, blending from the Assets palette to the Agents one (--agents-t).
+ * The block overlaps the bottom of the findings stage by the peek; the peek never
+ * reaches the composer, which sits 260px under mid-height.
+ */
+.lower {
+  --page-h: var(--briefing-page-h, 100dvh);
+  position: relative;
+  z-index: 1;
+  margin-top: calc(-1 * var(--assets-peek));
+  /* Clear over the map it overlaps, then the map's base colour so nothing behind the page shows. */
+  background: linear-gradient(transparent var(--assets-peek), #060a14 var(--assets-peek));
+}
+
+/*
+ * While Assets only peeks, its cards sit straight on the stage's blurred map. The Assets colour
+ * fades in with --assets-t (0 at rest, 1 once Assets reaches the top bar), from a top edge that
+ * stays soft until it is solid at 1.
+ */
+.lowerBg {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  height: var(--page-h);
+  margin-bottom: calc(-1 * var(--page-h));
+  background: linear-gradient(180deg, #4a4969 0%, #605f9c 55%, #7b72a6 100%);
+  --edge: calc(var(--assets-t, 0) * var(--assets-t, 0) * var(--assets-t, 0));
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--edge)) 0, #000 var(--assets-peek));
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--edge)) 0, #000 var(--assets-peek));
+  opacity: var(--assets-t, 0);
+  pointer-events: none;
+}
+
+.lowerBg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #3a3953 0%, #4c4b7c 55%, #625b85 100%);
+  opacity: var(--agents-t, 0);
+}
+
+/*
+ * Continues the Assets colour behind the blurred top bar, only in the last stretch before Assets
+ * fills the page, so it never shows as a strip over the map.
+ */
+.lower::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: var(--briefing-bar-h, 64px);
+  background: #4a4969;
+  opacity: calc((var(--assets-t, 0) - 0.85) / 0.15);
+  pointer-events: none;
+}
+
+/*
+ * Peeking and while its charts load, the grid is centred at full width with no summary. Once
+ * [data-split='true'], the columns grow the summary into the left third and the grid moves into
+ * the right two thirds. The grid scrolls on its own and reaches the section's right edge so its
+ * scrollbar hugs it; the grid pads itself instead.
+ */
+.assets {
+  --assets-centred-w: 1480px;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
+  column-gap: 0;
+  box-sizing: border-box;
+  height: calc(var(--page-h) - var(--briefing-bar-h, 64px));
+  padding: 28px 0 0;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition:
+    grid-template-columns 900ms cubic-bezier(0.65, 0, 0.35, 1),
+    column-gap 900ms cubic-bezier(0.65, 0, 0.35, 1),
+    padding 900ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.assets[data-split='true'] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  column-gap: 48px;
+  padding-left: 32px;
+}
+
+.assets.assetsOpen {
+  cursor: default;
+}
+
+.assetsIntro {
+  min-width: 0;
+  min-height: 0;
+  padding-bottom: var(--feed-pad, 106px);
+  overflow: hidden;
+}
+
+.assetsSummary {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(20px, 1.45vw, 30px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+.assetsDetail {
+  max-width: 60ch;
+  margin: 20px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(15px, 0.95vw, 18px);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* Section titles: Assets and Agents. */
+.eyebrow {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.assetsIntroTitle {
+  margin-bottom: 16px;
+}
+
+.assetsIntroTitle,
+.assetsSummary,
+.assetsDetail {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.assets[data-split='true'] .assetsIntroTitle,
+.assets[data-split='true'] .assetsSummary,
+.assets[data-split='true'] .assetsDetail {
+  --reveal-d: 520ms;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 600ms ease var(--reveal-d),
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-d);
+}
+
+.assets[data-split='true'] .assetsIntroTitle {
+  --reveal-d: 420ms;
+}
+
+.assets[data-split='true'] .assetsDetail {
+  --reveal-d: 660ms;
+}
+
+/* Rests 40px lower while peeking and rises into place as Assets scrolls in. */
+.assetsScroll {
+  min-height: 0;
+  overflow: hidden;
+  transform: translateY(calc((1 - var(--assets-t, 1)) * 40px));
+}
+
+.assetsOpen .assetsScroll {
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+/* Fills the section so every asset fits without scrolling; scrolls only when rows hit their minimum. */
+.assetsScroll > * {
+  min-height: 100%;
+  padding: 0 max(32px, calc((100% - var(--assets-centred-w)) / 2)) var(--feed-pad, 106px);
+  transition: padding 900ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.assets[data-split='true'] .assetsScroll > * {
+  padding-inline: 0 32px;
+}
+
+/* Snaps by its bottom edge so its top sits under the blurred top bar. */
+.agents {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+  min-height: var(--page-h);
+  padding: calc(var(--briefing-bar-h, 64px) + 28px) 32px var(--feed-pad, 106px);
+  scroll-snap-align: end;
+  /* Keeps the snap area within the snapport (page minus the bar's scroll-padding); taller areas don't snap. */
+  scroll-margin-top: calc(-1 * var(--briefing-bar-h, 64px));
+}
+
+/* Apps follow Agents on the same background and snap the same way; the carousel takes the spare height. */
+.apps {
+  height: var(--page-h);
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLead {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.greeting {
+  box-sizing: border-box;
+  width: var(--finding-w);
+  margin: 0;
+  padding-inline: 4px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-shadow: 0 2px 18px rgba(5, 10, 20, 0.7);
+}
+
+/* Greets above the first finding only; collapses away for the rest. */
+.greetingWrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  margin-bottom: 0;
+  opacity: 1;
+  transition:
+    grid-template-rows 320ms ease,
+    margin-bottom 320ms ease,
+    opacity 200ms ease;
+}
+
+.greetingWrap > .greeting {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.greetingWrap[data-shown='false'] {
+  grid-template-rows: 0fr;
+  margin-bottom: -16px;
+  opacity: 0;
+}
+
+/* The carousel rides on the actions row's right edge, outside the bubble so it doesn't fade between findings. */
+.findingRow {
+  position: relative;
+}
+
+.findingControls {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+}
+
+.bubble {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--finding-w);
+  overflow: hidden;
+  pointer-events: none;
+  transition: height 320ms ease;
+}
+
+.bubbleBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 4px 2px;
+  text-shadow: 0 2px 16px rgba(5, 10, 20, 0.6);
+  transition: opacity 160ms ease;
+}
+
+/* Findings carousel: Apple TV-style progress dots plus a circular play/pause control. */
+.carousel {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.62;
+  pointer-events: auto;
+  transition: opacity 180ms ease;
+}
+
+.carousel:hover,
+.carousel:focus-within {
+  opacity: 1;
+}
+
+.carouselPill {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: rgba(4, 8, 14, 0.42);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.playPill {
+  width: 34px;
+  padding: 0;
+  justify-content: center;
+}
+
+.dots {
+  padding: 0 8px;
+}
+
+.dot {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: width 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dotActive {
+  width: 38px;
+}
+
+.dotTrack {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.34);
+  transition:
+    width 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 240ms ease;
+}
+
+.dot:hover .dotTrack {
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.dotActive .dotTrack,
+.dotActive:hover .dotTrack {
+  width: 26px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.dotFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.86);
+  transform-origin: left center;
+  animation: dotFill linear forwards;
+  animation-play-state: paused;
+}
+
+.dotFill[data-running='true'] {
+  animation-play-state: running;
+}
+
+@keyframes dotFill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Still keeps time for autoplay, without the moving fill. */
+@keyframes dotHold {
+  from,
+  to {
+    transform: none;
+  }
+}
+
+.carouselBtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.carouselBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.dot:focus-visible,
+.carouselBtn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+  border-radius: 999px;
+}
+
+.bubbleFade {
+  opacity: 0;
+}
+
+.bubble button {
+  pointer-events: auto;
+}
+
+.bubble .chart {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+.bubbleMeta {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.bubbleText {
+  margin: 0;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+/*
+ * Liquid glass: a faint tint over a saturated blur, a specular rim brightest along the top-left and
+ * an inner sheen. Shadows stay inset because the bubble clips its overflow.
+ */
+.chart {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(640px, 100%);
+  padding: 22px 22px 18px;
+  border: 0;
+  border-radius: 24px;
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.03) 42%,
+      rgba(255, 255, 255, 0.06) 100%
+    ),
+    rgba(10, 16, 26, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 24px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(28px) saturate(1.8) brightness(1.08);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8) brightness(1.08);
+  opacity: 0;
+  transform: translateY(-12px) scale(0.97);
+  transform-origin: 50% 0;
+}
+
+.chart::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0.04) 60%,
+    rgba(255, 255, 255, 0.22) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Surface lands first (420ms, CHART_SURFACE_MS in the TSX); the chart inside plays after it. */
+.chart[data-play='true'] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 320ms ease,
+    transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.barChart .chartBar {
+  clip-path: inset(0 100% 0 0 round 999px);
+}
+
+.barChart[data-play='true'] .chartBar {
+  clip-path: inset(0 0 0 0 round 999px);
+  transition: clip-path 900ms cubic-bezier(0.65, 0, 0.35, 1) 380ms;
+}
+
+.barChart .chartValue,
+.barChart .legend li {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.barChart[data-play='true'] .chartValue,
+.barChart[data-play='true'] .legend li {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 360ms ease 380ms,
+    transform 360ms ease 380ms;
+}
+
+.barChart[data-play='true'] .legend li:nth-child(1) {
+  transition-delay: 760ms;
+}
+
+.barChart[data-play='true'] .legend li:nth-child(2) {
+  transition-delay: 860ms;
+}
+
+.barChart[data-play='true'] .legend li:nth-child(3) {
+  transition-delay: 960ms;
+}
+
+.chartLabel {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.chartValue {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.chartBar {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.chartSeg {
+  min-width: 0;
+}
+
+.lineValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.lineChart .chartValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.lineDelta {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(63, 210, 199, 0.18);
+  color: #9ff0e8;
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0;
+}
+
+.linePlot {
+  position: relative;
+  height: 112px;
+  margin-top: 4px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 100% 25%;
+}
+
+.lineSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  clip-path: inset(-8px 100% -8px 0);
+}
+
+.lineDot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.3);
+}
+
+.lineAxis {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+}
+
+.lineChart[data-play='true'] .lineSvg {
+  clip-path: inset(-8px -8px -8px 0);
+  transition: clip-path 1300ms cubic-bezier(0.65, 0, 0.35, 1) 420ms;
+}
+
+.lineChart[data-play='true'] .lineDot {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 240ms ease 1620ms,
+    transform 480ms cubic-bezier(0.34, 1.56, 0.64, 1) 1620ms;
+}
+
+.lineChart[data-play='true'] .lineDelta {
+  opacity: 1;
+  transition: opacity 500ms ease 1320ms;
+}
+
+.chartUnit {
+  margin-left: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.columnDelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 159, 90, 0.18);
+  color: #ffc9a0;
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0;
+}
+
+.thresholdKey {
+  width: 12px;
+  border-top: 1.5px dashed currentColor;
+}
+
+/* Columns stand on the plot's floor; each fills its slot and rises from the bottom. */
+.columnPlot {
+  position: relative;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  height: 140px;
+  margin-top: 8px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 100% 25%;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.columnBar {
+  width: 100%;
+  max-width: 44px;
+  border-radius: 8px 8px 3px 3px;
+  background: linear-gradient(180deg, rgba(159, 240, 232, 0.85), rgba(63, 210, 199, 0.22));
+  transform: scaleY(0);
+  transform-origin: 50% 100%;
+}
+
+.column[data-low='true'] .columnBar {
+  background: linear-gradient(180deg, #ffb27a, rgba(255, 159, 90, 0.3));
+  box-shadow: 0 0 18px rgba(255, 159, 90, 0.28);
+}
+
+.columnValue {
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+}
+
+.column[data-low='true'] .columnValue {
+  color: #ffc9a0;
+}
+
+.columnThreshold {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  border-top: 1.5px dashed rgba(255, 178, 122, 0.75);
+  clip-path: inset(-2px 100% -2px 0);
+  pointer-events: none;
+}
+
+.columnAxis {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.columnAxis span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.columnChart[data-play='true'] .columnBar {
+  transform: none;
+  transition: transform 720ms cubic-bezier(0.2, 0.8, 0.2, 1) calc(420ms + var(--i) * 70ms);
+}
+
+.columnChart[data-play='true'] .columnValue {
+  opacity: 1;
+  transition: opacity 320ms ease calc(820ms + var(--i) * 70ms);
+}
+
+.columnChart[data-play='true'] .columnThreshold {
+  clip-path: inset(-2px 0 -2px 0);
+  transition: clip-path 700ms cubic-bezier(0.65, 0, 0.35, 1) 1200ms;
+}
+
+.columnChart[data-play='true'] .columnDelta {
+  opacity: 1;
+  transition: opacity 500ms ease 1600ms;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.legendName {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.legendVal {
+  font-family: var(--lc-font-mono);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.storyBtn {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.storyBtn:hover,
+.voteOn {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assets,
+  .assetsIntroTitle,
+  .assetsSummary,
+  .assetsDetail,
+  .assetsScroll > * {
+    transition: none !important;
+  }
+
+  .dotFill {
+    animation-name: dotHold;
+  }
+
+  .dot,
+  .dotTrack {
+    transition: none;
+  }
+
+  .lower::before,
+  .chatDock,
+  .map,
+  .chart,
+  .chart *,
+  .bubble,
+  .bubbleBody,
+  .sidePanel {
+    transition: none !important;
+  }
+
+  .askGreeting,
+  .chatDock,
+  .findingRow {
+    animation: none !important;
+  }
+}

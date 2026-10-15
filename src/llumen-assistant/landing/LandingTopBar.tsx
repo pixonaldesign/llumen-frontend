@@ -4,17 +4,21 @@ import {
   Bell,
   CaretDown,
   ChartBar,
+  Check,
   Cube,
-  GearSix,
+  Layout,
   LockSimple,
   MagnifyingGlass,
+  Monitor,
+  Newspaper,
   Plus,
+  Sparkle,
   SquaresFour,
   User,
   Users,
 } from '@phosphor-icons/react'
 import { landingAssets as a } from './landingAssets'
-import type { TopBarVariant } from '../prototypeChrome'
+import type { FindingsStyle, TopBarVariant } from '../prototypeChrome'
 import home from './LandingHome.module.css'
 import styles from './LandingTopBar.module.css'
 
@@ -77,6 +81,13 @@ export type LandingTopBarProps = {
   /** Category menu entries. Omit to use Finance, Operations, and the rest. */
   categories?: readonly string[]
   onWorkspaceChange?: (workspace: string) => void
+  /** Studio bar: show the workspace selector in place of the Llumen wordmark. */
+  workspaceInLogo?: boolean
+  /** Studio bar: show a Briefing / Studio toggle, starting on Briefing, instead of the Studio button. */
+  briefingTab?: boolean
+  /** Studio bar with the workspace in the logo: a findings layout menu beside the workspace. */
+  findingsStyle?: FindingsStyle
+  onFindingsStyleChange?: (style: FindingsStyle) => void
 }
 
 export function LandingTopBar({
@@ -85,6 +96,10 @@ export function LandingTopBar({
   workspaces,
   categories,
   onWorkspaceChange,
+  workspaceInLogo = false,
+  briefingTab = false,
+  findingsStyle,
+  onFindingsStyleChange,
 }: LandingTopBarProps) {
   if (variant === 'studio') {
     return (
@@ -93,20 +108,98 @@ export function LandingTopBar({
         workspaces={workspaces}
         categories={categories}
         onWorkspaceChange={onWorkspaceChange}
+        workspaceInLogo={workspaceInLogo}
+        briefingTab={briefingTab}
+        findingsStyle={findingsStyle}
+        onFindingsStyleChange={onFindingsStyleChange}
       />
     )
   }
   return <CurrentBar />
 }
 
+const FINDINGS_STYLES: readonly { style: FindingsStyle; label: string; hint: string }[] = [
+  { style: 1, label: 'Findings style 1', hint: 'Centred over the chat bar' },
+  { style: 2, label: 'Findings style 2', hint: 'Chat bar on the left' },
+  { style: 3, label: 'Findings style 3', hint: 'Chat bar above compact findings' },
+  { style: 4, label: 'Findings style 4', hint: 'Chat bar above the findings' },
+]
+
+function FindingsStyleMenu({ value, onChange }: { value: FindingsStyle; onChange: (style: FindingsStyle) => void }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointer = (event: PointerEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) return
+      setMenuOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
+
+  return (
+    <div className={styles.workspaceWrap} ref={menuRef}>
+      <button
+        type="button"
+        className={styles.workspace}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        <Layout size={18} weight="regular" aria-hidden />
+        <span className={styles.workspaceName}>
+          Findings style {value}
+          <CaretDown size={16} weight="bold" aria-hidden />
+        </span>
+      </button>
+      {menuOpen ? (
+        <div className={`${styles.menu} ${styles.stylesMenu}`} role="menu" aria-label="Findings style">
+          {FINDINGS_STYLES.map((option) => {
+            const selected = option.style === value
+            return (
+              <button
+                key={option.style}
+                type="button"
+                role="menuitemradio"
+                aria-checked={selected}
+                className={`${styles.menuItem} ${styles.styleItem}${selected ? ` ${styles.menuItemActive}` : ''}`}
+                onClick={() => {
+                  onChange(option.style)
+                  setMenuOpen(false)
+                }}
+              >
+                <span className={styles.styleText}>
+                  {option.label}
+                  <span className={styles.styleHint}>{option.hint}</span>
+                </span>
+                {selected ? <Check size={16} weight="bold" aria-hidden /> : null}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
 
-type CreateKind = 'asset' | 'dashboard' | 'data-app'
+type CreateKind = 'asset' | 'dashboard' | 'app' | 'agent'
 
 const CREATE_OPTIONS: readonly { kind: CreateKind; label: string; icon: ReactNode; active: boolean }[] = [
   { kind: 'asset', label: 'Asset', icon: <Cube size={20} weight="regular" aria-hidden />, active: true },
   { kind: 'dashboard', label: 'Dashboard', icon: <ChartBar size={20} weight="regular" aria-hidden />, active: false },
-  { kind: 'data-app', label: 'Data app', icon: <AppWindow size={20} weight="regular" aria-hidden />, active: false },
+  { kind: 'app', label: 'App', icon: <AppWindow size={20} weight="regular" aria-hidden />, active: false },
+  { kind: 'agent', label: 'Agent', icon: <Sparkle size={20} weight="regular" aria-hidden />, active: false },
 ]
 
 function CreateMenu({ triggerClassName }: { triggerClassName: string }) {
@@ -186,7 +279,7 @@ function CurrentBar() {
       </label>
       <div className={home.navActions}>
         <button type="button" className={home.pillBtn}>
-          <GearSix size={20} weight="regular" aria-hidden />
+          <Monitor size={20} weight="regular" aria-hidden />
           Studio
         </button>
         <CreateMenu triggerClassName={home.pillBtn} />
@@ -206,11 +299,19 @@ function StudioBar({
   workspaces,
   categories,
   onWorkspaceChange,
+  workspaceInLogo,
+  briefingTab,
+  findingsStyle,
+  onFindingsStyleChange,
 }: {
   workspace?: string
   workspaces?: readonly WorkspaceOption[]
   categories?: readonly string[]
   onWorkspaceChange?: (workspace: string) => void
+  workspaceInLogo: boolean
+  briefingTab: boolean
+  findingsStyle?: FindingsStyle
+  onFindingsStyleChange?: (style: FindingsStyle) => void
 }) {
   const workspaceOptions = workspaces ?? STUDIO_WORKSPACES
   const categoryOptions = categories ?? STUDIO_CATEGORIES
@@ -221,6 +322,7 @@ function StudioBar({
   const committed = categoryOptions.find((label) => label === selected)
   const triggerLabel = committed ?? categoryOptions[0] ?? 'Finance'
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mode, setMode] = useState<'briefing' | 'studio'>('briefing')
   const menuRef = useRef<HTMLDivElement>(null)
   const thumbRef = useRef<HTMLDivElement>(null)
   const segmentRefs = useRef<Partial<Record<WorkspaceIcon, HTMLButtonElement | null>>>({})
@@ -275,83 +377,125 @@ function StudioBar({
     }
   }, [menuOpen])
 
-  return (
-    <div className={styles.row}>
-      <a className={styles.logo} href="#top" aria-label="Llumen home">
-        <img className={home.logoMark} src={a.logoMark} alt="" />
-        <img className={home.logoWord} src={a.wordmark} alt="Llumen" />
-      </a>
-      <div className={styles.center}>
-        <div className={styles.workspaceWrap} ref={menuRef}>
-          <button
-            type="button"
-            className={styles.workspace}
-            aria-haspopup="listbox"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((value) => !value)}
-          >
-            <span className={styles.muted}>Workspace</span>
-            <span className={styles.muted}>/</span>
-            <span className={styles.workspaceName}>
-              {triggerLabel}
-              <CaretDown size={16} weight="bold" aria-hidden />
-            </span>
-          </button>
-          {menuOpen ? (
-            <div className={styles.menu}>
-              {workspaceOptions.length > 0 ? (
-                <div className={styles.segments} role="radiogroup" aria-label="Workspace scope">
-                  <div className={styles.thumb} ref={thumbRef} aria-hidden />
-                  {workspaceOptions.map((item) => {
-                    const isSelected = scope === item.icon
-                    const name = studioName(item.label)
-                    return (
-                      <button
-                        key={item.label}
-                        type="button"
-                        role="radio"
-                        aria-checked={isSelected}
-                        aria-label={isSelected ? undefined : name}
-                        className={`${styles.segment}${isSelected ? ` ${styles.segmentActive}` : ''}`}
-                        ref={(node) => {
-                          segmentRefs.current[item.icon] = node
-                        }}
-                        onClick={() => setScope(item.icon)}
-                      >
-                        <WorkspaceGlyph name={item.icon} />
-                        {isSelected ? <span>{name}</span> : null}
-                      </button>
-                    )
-                  })}
-                </div>
-              ) : null}
-              {workspaceOptions.length > 0 && listed.length > 0 ? (
-                <div className={styles.menuRule} role="separator" />
-              ) : null}
-              <div key={scope} className={styles.workspaceList} role="listbox" aria-label="Workspaces">
-              {listed.map((label) => {
-                const isSelected = label === committed
+  const workspaceSelector = (
+    <div className={styles.workspaceWrap} ref={menuRef}>
+      <button
+        type="button"
+        className={styles.workspace}
+        aria-haspopup="listbox"
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen((value) => !value)}
+      >
+        <span className={styles.muted}>Workspace</span>
+        <span className={styles.muted}>/</span>
+        <span className={styles.workspaceName}>
+          {triggerLabel}
+          <CaretDown size={16} weight="bold" aria-hidden />
+        </span>
+      </button>
+      {menuOpen ? (
+        <div className={styles.menu}>
+          {workspaceOptions.length > 0 ? (
+            <div className={styles.segments} role="radiogroup" aria-label="Workspace scope">
+              <div className={styles.thumb} ref={thumbRef} aria-hidden />
+              {workspaceOptions.map((item) => {
+                const isSelected = scope === item.icon
+                const name = studioName(item.label)
                 return (
                   <button
-                    key={label}
+                    key={item.label}
                     type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    className={`${styles.menuItem}${isSelected ? ` ${styles.menuItemActive}` : ''}`}
-                    onClick={() => choose(label)}
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={isSelected ? undefined : name}
+                    className={`${styles.segment}${isSelected ? ` ${styles.segmentActive}` : ''}`}
+                    ref={(node) => {
+                      segmentRefs.current[item.icon] = node
+                    }}
+                    onClick={() => setScope(item.icon)}
                   >
-                    {label}
+                    <WorkspaceGlyph name={item.icon} />
+                    {isSelected ? <span>{name}</span> : null}
                   </button>
                 )
               })}
-              </div>
             </div>
           ) : null}
+          {workspaceOptions.length > 0 && listed.length > 0 ? (
+            <div className={styles.menuRule} role="separator" />
+          ) : null}
+          <div key={scope} className={styles.workspaceList} role="listbox" aria-label="Workspaces">
+            {listed.map((label) => {
+              const isSelected = label === committed
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`${styles.menuItem}${isSelected ? ` ${styles.menuItemActive}` : ''}`}
+                  onClick={() => choose(label)}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
         </div>
-        <button type="button" className={styles.ghost}>
-          <GearSix size={20} weight="regular" aria-hidden />
-          Studio
-        </button>
+      ) : null}
+    </div>
+  )
+
+  return (
+    <div className={styles.row}>
+      {workspaceInLogo ? (
+        <div className={styles.lead}>
+          <a className={styles.logo} href="#top" aria-label="Llumen home">
+            <img className={home.logoMark} src={a.logoMark} alt="" />
+          </a>
+          {workspaceSelector}
+          {findingsStyle && onFindingsStyleChange ? (
+            <FindingsStyleMenu value={findingsStyle} onChange={onFindingsStyleChange} />
+          ) : null}
+        </div>
+      ) : (
+        <a className={styles.logo} href="#top" aria-label="Llumen home">
+          <img className={home.logoMark} src={a.logoMark} alt="" />
+          <img className={home.logoWord} src={a.wordmark} alt="Llumen" />
+        </a>
+      )}
+      <div className={styles.center}>
+        {workspaceInLogo ? null : workspaceSelector}
+        {briefingTab ? (
+          <div className={styles.modeToggle} role="radiogroup" aria-label="View" data-mode={mode}>
+            <span className={styles.modeThumb} aria-hidden />
+            <button
+              type="button"
+              role="radio"
+              aria-checked={mode === 'briefing'}
+              className={styles.modeOption}
+              onClick={() => setMode('briefing')}
+            >
+              <Newspaper size={20} weight="regular" aria-hidden />
+              Briefing
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={mode === 'studio'}
+              className={styles.modeOption}
+              onClick={() => setMode('studio')}
+            >
+              <Monitor size={20} weight="regular" aria-hidden />
+              Studio
+            </button>
+          </div>
+        ) : (
+          <button type="button" className={styles.ghost}>
+            <Monitor size={20} weight="regular" aria-hidden />
+            Studio
+          </button>
+        )}
       </div>
       <div className={styles.actions}>
         <CreateMenu triggerClassName={styles.create} />

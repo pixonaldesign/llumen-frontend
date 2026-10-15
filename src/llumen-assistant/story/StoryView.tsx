@@ -91,30 +91,17 @@ import {
   type StorySlide,
 } from './storyDemoData'
 import { StoryMap, STORY_MAP_STYLE, type StoryMapHandle, type StoryMapLayerVisibility } from './StoryMap'
-import type { AssistantReplyPayload } from '../assistantReplyTypes'
-import { StorySelectLayer, type StorySelectArea, type StorySelection } from './StorySelectLayer'
 import {
-  AREA_FILTER_LABELS,
-  AREA_PROMPT,
-  MUSSAFAH_LABEL,
   MUSSAFAH_LOAD_X,
-  MUSSAFAH_MAX_HEIGHT_M,
   MUSSAFAH_PERIOD,
-  MUSSAFAH_REGION,
   MUSSAFAH_VOLUME_X,
-  areaFilterEffect,
-  countInPolygon,
   mussafahInsight,
-  mussafahPrompt,
   regionBusyJunctions,
-  regionColumnHeights,
-  regionJunctionRadii,
   type StoryAiSnapshot,
   type StoryAreaEffect,
   type StoryMapCapture,
   type StoryMapRegion,
 } from './storyAiScenarios'
-import { areaFilterReply, mussafahReply, withMapState } from './storySelectionReplies'
 import {
   PERIOD_LOAD_X,
   PERIOD_VOLUME_LEGEND,
@@ -122,7 +109,6 @@ import {
   periodScene,
   type ChatComponent,
 } from './storyChartPeriod'
-import { DEMO_COLUMNS, DEMO_JUNCTIONS } from './storyDemoMapData'
 import { locationAnnotation, schoolMarkersAnnotation, snapshotRegion, topSchoolsAnnotation } from './storyAnnotations'
 import { StoryComparisonModal } from './StoryComparisonModal'
 import { comparisonOptions, comparisonPhase, type ComparisonMapOption } from './storyComparison'
@@ -141,7 +127,6 @@ import {
 } from './storyMapAnnotations'
 import annotationStyles from './StoryAnnotations.module.css'
 import {
-  COLUMN_MAX_HEIGHT_M,
   sceneAtPhase,
   sceneState,
   storySceneAt,
@@ -173,11 +158,6 @@ export type StoryViewProps = {
   findingUnread?: boolean
   /** Reopens findings that were dismissed before every entry was seen. */
   onRestoreFindings?: (sourceRect: DOMRect) => void
-  /** Select mode: pick insight components or drag an area on the map to prompt about. */
-  selectMode?: boolean
-  onSelectModeChange?: (on: boolean) => void
-  /** A select-mode prompt was sent; the story already applied its changes. */
-  onSelectionPrompt?: (request: { prompt: string; reply: AssistantReplyPayload; snapshot: StoryAiSnapshot }) => void
   /**
    * A new `token` animates the story to `snapshot` (a saved conversation's changes),
    * or back to its original slides when `snapshot` is null.
@@ -190,19 +170,15 @@ export type StoryViewProps = {
   }
   /** Map screenshot for a reply's map-state card, taken after the prompt's animation settles; without it replies get no card. */
   onMapCapture?: (stateId: string, capture: StoryMapCapture) => void
-  /** Status bar for the AI-changed story; hidden while select mode shows its own banner. */
+  /** Status bar for the AI-changed story. */
   aiModeBar?: ReactNode
-  /** Top-right of the story header (e.g. the AI approach switcher). */
+  /** Top-right of the story header. */
   headerEnd?: ReactNode
   /** Shows "Add to chat" beside a hovered chart card; `sourceRect` is the clicked button. */
   onAddToChat?: (component: ChatComponent, sourceRect: DOMRect) => void
   /** Reports the slide on screen, so prompts sent from outside the story can use its data. */
   onSlideIndexChange?: (index: number) => void
 }
-
-/** How long a prompt's camera flight and column animation take before the map is captured. */
-const REGION_CAPTURE_DELAY_MS = 4900
-const AREA_CAPTURE_DELAY_MS = 2300
 
 export type { StoryAiSnapshot }
 
@@ -242,9 +218,9 @@ const INSIGHT_CARD_LABELS: Record<InsightCardId, string> = {
   groundwater: 'Average Junction Load',
   biodiversity: 'Junction Traffic Status',
   sites: 'Live Junction Data',
+  deviation: 'Permit Limit Deviation Rate',
 }
 
-const DEFAULT_FOCUS_CARDS: ChartCardId[] = ['emissions', 'groundwater']
 const CHART_CARD_ORDER: ChartCardId[] = ['emissions', 'groundwater', 'biodiversity', 'sites']
 
 function isChartCardId(id: string): id is ChartCardId {
@@ -303,10 +279,13 @@ const VIEW_LAYOUTS: { id: StoryViewLayout; label: string; icon: ComponentType<Ic
 const LAYOUT_MENU_WIDTH = 200
 const LAYOUT_MENU_HEIGHT = 132
 
-const INSIGHT_CARD_IDS = ['summary', 'emissions', 'groundwater', 'biodiversity', 'sites'] as const
+const INSIGHT_CARD_IDS = ['summary', 'emissions', 'groundwater', 'biodiversity', 'sites', 'deviation'] as const
 
-/** Edit-mode grid: one row per visual plus 3 empty rows; each row holds 2 cells. */
-const GRID_ROWS = INSIGHT_CARD_IDS.length + 3
+/** Cards one cell wide; they keep that cell when the grid gains columns instead of stretching. */
+const ONE_CELL_CARDS: ReadonlySet<InsightCardId> = new Set<InsightCardId>(['deviation'])
+
+/** Edit-mode grid: a row per full-width card, rows of one-cell cards, then 3 empty rows. */
+const EMPTY_GRID_ROWS = 3
 
 /**
  * Grid layout spans the full page width with square cells. At 12 columns a cell is about the
@@ -318,6 +297,42 @@ const DEFAULT_GRID_COLUMNS: GridColumns = 8
 const GRID_CELL_SIZE = 184
 const GRID_CELL_GAP = 12
 const GRID_CARD_SPAN = 2
+
+/** Sidebar layout keeps the 184px cell; more columns widen the sidebar instead of shrinking cells. */
+const SIDEBAR_COLUMN_OPTIONS = [2, 3, 4] as const
+type SidebarColumns = (typeof SIDEBAR_COLUMN_OPTIONS)[number]
+const DEFAULT_SIDEBAR_COLUMNS: SidebarColumns = 2
+
+function ColumnsControl<T extends number>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: readonly T[]
+  value: T
+  onChange: (columns: T) => void
+}) {
+  return (
+    <div className={styles.gridColumnsControl} role="radiogroup" aria-label={label}>
+      <GridFour className={styles.gridColumnsIcon} size={18} weight="regular" aria-hidden />
+      {options.map((columns) => (
+        <button
+          key={columns}
+          type="button"
+          role="radio"
+          aria-checked={value === columns}
+          aria-label={`${columns} columns`}
+          className={`${styles.gridColumnsOption}${value === columns ? ` ${styles.gridColumnsOptionActive}` : ''}`}
+          onClick={() => onChange(columns)}
+        >
+          {columns}
+        </button>
+      ))}
+    </div>
+  )
+}
 /** Space kept clear around the grid: sides, top, and the floating width control above the toolbar. */
 const GRID_INSET_X = 20
 const GRID_INSET_TOP = 20
@@ -330,7 +345,7 @@ const CHART_CARD_BY_ASSET: Record<string, ChartCardId> = {
   'chart-sites': 'sites',
 }
 
-type InsightCardId = 'summary' | ChartCardId
+type InsightCardId = 'summary' | 'deviation' | ChartCardId
 
 type InsightCardPrefs = {
   hidden?: boolean
@@ -375,9 +390,6 @@ export function StoryView({
   agentOpen = false,
   findingUnread = false,
   onRestoreFindings,
-  selectMode = false,
-  onSelectModeChange,
-  onSelectionPrompt,
   aiState,
   onMapCapture,
   aiModeBar,
@@ -452,6 +464,7 @@ export function StoryView({
   const [regeneratingSlideId, setRegeneratingSlideId] = useState<string | null>(null)
   const [layoutBySlide, setLayoutBySlide] = useState<Record<string, StoryViewLayout>>({})
   const [gridColumnsBySlide, setGridColumnsBySlide] = useState<Record<string, GridColumns>>({})
+  const [sidebarColumnsBySlide, setSidebarColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
   const [comparisonBySlide, setComparisonBySlide] = useState<Record<string, ComparisonChoice>>({})
   const [comparisonPickerOpen, setComparisonPickerOpen] = useState(false)
   const [comparisonLegendOpen, setComparisonLegendOpen] = useState({ upper: false, lower: false })
@@ -467,9 +480,8 @@ export function StoryView({
   const [aiRegion, setAiRegion] = useState<StoryMapRegion | null>(null)
   const [areaEffect, setAreaEffect] = useState<StoryAreaEffect | null>(null)
   const [flashedFilters, setFlashedFilters] = useState<{ ids: string[]; key: number } | null>(null)
-  /** Filters as they were before the first select-mode prompt, restored when `aiState` resets. */
+  /** Filters as they were before the first AI prompt, restored when `aiState` resets. */
   const [filtersBeforeAi, setFiltersBeforeAi] = useState<Record<string, StoryFilter[]> | null>(null)
-  const [aiFilterLabels, setAiFilterLabels] = useState<Record<string, string>>({})
   const [restoredCards, setRestoredCards] = useState<{ ids: InsightCardId[]; key: number } | null>(null)
   const [cameraRequest, setCameraRequest] = useState<{ camera: NonNullable<StoryAiSnapshot['camera']> } | null>(null)
   const [periodCards, setPeriodCards] = useState<ChartCardId[]>([])
@@ -501,7 +513,6 @@ export function StoryView({
       setAreaEffect(snapshot?.areaEffect ?? null)
       setFiltersBySlide(nextFilters)
       setFiltersBeforeAi(snapshot ? base : null)
-      setAiFilterLabels(snapshot?.filterLabels ?? {})
       setCameraRequest(snapshot?.camera ? { camera: snapshot.camera } : null)
       setPeriodCards(snapshot?.periodCards ?? [])
       setAnnotationRequest(snapshot?.annotation ?? null)
@@ -791,8 +802,16 @@ export function StoryView({
       ...current,
       layers: { ...current.layers, [key]: !current.layers[key] },
     }))
-  const placedCards = INSIGHT_CARD_IDS.filter((id) => !cardPrefs[id]?.deleted).length
-  const emptyGridCells = (GRID_ROWS - placedCards) * 2
+  const placedIds = INSIGHT_CARD_IDS.filter((id) => !cardPrefs[id]?.deleted)
+  const placedOneCell = placedIds.filter((id) => ONE_CELL_CARDS.has(id)).length
+  const placedFull = placedIds.length - placedOneCell
+  const sidebarColumns =
+    viewLayout === 'sidebar'
+      ? (sidebarColumnsBySlide[slide.id] ?? DEFAULT_SIDEBAR_COLUMNS)
+      : DEFAULT_SIDEBAR_COLUMNS
+  const sidebarRows =
+    INSIGHT_CARD_IDS.length - ONE_CELL_CARDS.size + Math.ceil(ONE_CELL_CARDS.size / sidebarColumns) + EMPTY_GRID_ROWS
+  const emptyGridCells = sidebarRows * sidebarColumns - placedFull * sidebarColumns - placedOneCell
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const [bodySize, setBodySize] = useState({ width: 0, height: 0 })
@@ -800,12 +819,13 @@ export function StoryView({
   const gridWidth = bodySize.width - 2 * GRID_INSET_X
   const gridCell =
     gridWidth > 0 ? (gridWidth - (gridColumns - 1) * GRID_CELL_GAP) / gridColumns : GRID_CELL_SIZE
+  const gridCellsUsed = placedFull * GRID_CARD_SPAN + placedOneCell
   const gridRows = Math.max(
     1,
-    Math.ceil((placedCards * GRID_CARD_SPAN) / gridColumns),
+    Math.ceil(gridCellsUsed / gridColumns),
     Math.ceil((bodySize.height - GRID_INSET_TOP + GRID_CELL_GAP) / (gridCell + GRID_CELL_GAP)),
   )
-  const gridLayoutEmptyCells = Math.max(0, gridColumns * gridRows - placedCards * GRID_CARD_SPAN)
+  const gridLayoutEmptyCells = Math.max(0, gridColumns * gridRows - gridCellsUsed)
 
   useEffect(() => {
     const body = bodyRef.current
@@ -905,7 +925,7 @@ export function StoryView({
     }
   }, [openCardMenu])
 
-  const canAddToChat = Boolean(onAddToChat) && !selectMode
+  const canAddToChat = Boolean(onAddToChat)
   const addCardToChat = (id: ChartCardId, button: HTMLElement) => {
     onAddToChat?.({ id, label: INSIGHT_CARD_LABELS[id] }, button.getBoundingClientRect())
     button.blur()
@@ -919,7 +939,7 @@ export function StoryView({
     style?: CSSProperties,
   ) => {
     const prefs = cardPrefs[id] ?? {}
-    const focused = aiFocus !== null && id !== 'summary' && aiFocus.cards.includes(id)
+    const focused = aiFocus !== null && isChartCardId(id) && aiFocus.cards.includes(id)
     if (aiFocus && id !== 'summary' && !focused) return null
     if (!focused && (prefs.deleted || (prefs.hidden && storyMode !== 'edit'))) return null
     const restored = !focused && restoredCards !== null && restoredCards.ids.includes(id)
@@ -934,8 +954,6 @@ export function StoryView({
     return (
       <section
         key={focused ? `${id}-${aiFocus.key}` : restored ? `${id}-restored-${restoredCards.key}` : id}
-        data-select-id={id}
-        data-select-label={INSIGHT_CARD_LABELS[id]}
         className={[
           className,
           styles.insightCard,
@@ -1696,141 +1714,18 @@ export function StoryView({
           kpi={chartKpi('sites')}
         />,
       )}
+      {insightCard(
+        'deviation',
+        styles.kpiCellCard,
+        'Permit limit deviation rate',
+        <>
+          <p className={styles.kpiCellLabel}>Permit limit deviation rate</p>
+          <p className={styles.kpiCellValue}>+14%</p>
+          <p className={styles.kpiCellNote}>average non-compliant facility is going 14% over their legal limit</p>
+        </>,
+      )}
     </>
   )
-
-  const exitSelectMode = useCallback(() => onSelectModeChange?.(false), [onSelectModeChange])
-
-  const relabelFilters = (labels: Record<string, string>) => {
-    setFiltersBeforeAi((before) => before ?? filtersBySlide)
-    setAiFilterLabels((current) => ({ ...current, ...labels }))
-    setRestoredCards(null)
-    setFiltersBySlide((current) => relabelFilterMap(current, slides, story.filters, labels))
-    setFlashedFilters({ ids: Object.keys(labels), key: Date.now() })
-  }
-
-  /** Viewport corners of a select-layer rectangle, projected onto the main map. */
-  const areaPolygon = (area: StorySelectArea): [number, number][] | null => {
-    const handle = mapHandleRef.current
-    const base = rootRef.current?.getBoundingClientRect()
-    if (!handle || !base) return null
-    const left = base.left + area.left
-    const top = base.top + area.top
-    const right = left + area.width
-    const bottom = top + area.height
-    return [
-      handle.unproject(left, top),
-      handle.unproject(right, top),
-      handle.unproject(right, bottom),
-      handle.unproject(left, bottom),
-    ]
-  }
-
-  const describeArea = (area: StorySelectArea) => {
-    const polygon = areaPolygon(area)
-    if (!polygon) return ''
-    const columns =
-      (aiRegion ? 0 : countInPolygon(DEMO_COLUMNS, polygon)) +
-      (aiRegion ? countInPolygon(aiRegion.columns, polygon) : 0)
-    const disks =
-      (aiRegion ? 0 : countInPolygon(DEMO_JUNCTIONS, polygon)) +
-      (aiRegion ? countInPolygon(aiRegion.junctions, polygon) : 0)
-    return `${columns} columns · ${disks} disks`
-  }
-
-  const suggestSelectionPrompt = (selection: StorySelection) =>
-    selection.area
-      ? AREA_PROMPT
-      : mussafahPrompt(
-          (selection.targets.some((target) => isChartCardId(target.id))
-            ? selection.targets.filter((target) => isChartCardId(target.id))
-            : selection.targets
-          ).map((target) => target.label),
-        )
-
-  const submitSelection = (selection: StorySelection, prompt: string) => {
-    if (selection.area) {
-      const polygon = areaPolygon(selection.area)
-      if (!polygon) return
-      const state = sceneState(scene)
-      const { effect, stats } = areaFilterEffect({
-        polygon,
-        columns: aiRegion ? [] : DEMO_COLUMNS,
-        junctions: aiRegion ? [] : DEMO_JUNCTIONS,
-        heights: aiRegion ? [] : state.heights,
-        radii: aiRegion ? [] : state.radii,
-        regionColumns: aiRegion?.columns ?? [],
-        regionJunctions: aiRegion?.junctions ?? [],
-        regionHeights: aiRegion ? regionColumnHeights(aiRegion, framePhase) : [],
-        regionRadii: aiRegion ? regionJunctionRadii(aiRegion, framePhase) : [],
-        load: regionInsight?.load ?? insight.groundwaterValue,
-        maxHeight: aiRegion ? MUSSAFAH_MAX_HEIGHT_M : COLUMN_MAX_HEIGHT_M,
-      })
-      setAreaEffect(effect)
-      relabelFilters(AREA_FILTER_LABELS)
-      const snapshot: StoryAiSnapshot = {
-        cards: aiFocus?.cards ?? null,
-        region: aiRegion !== null,
-        areaEffect: effect,
-        filterLabels: { ...aiFilterLabels, ...AREA_FILTER_LABELS },
-      }
-      const reply = areaFilterReply(stats)
-      const stateId = `map-state-${Date.now()}`
-      const mapChanged = Boolean(onMapCapture) && (stats.columns > 0 || stats.junctions > 0)
-      onSelectionPrompt?.({
-        prompt,
-        reply: mapChanged
-          ? withMapState(reply, {
-              stateId,
-              snapshot,
-              title: `${Object.values(AREA_FILTER_LABELS).join(' · ')} in the selected area`,
-              tag: aiRegion ? aiRegion.label : 'Abu Dhabi',
-              meta: `${stats.columns} columns / ${stats.junctions} disks`,
-            })
-          : reply,
-        snapshot,
-      })
-      if (mapChanged) captureMapState(stateId, AREA_CAPTURE_DELAY_MS)
-    } else {
-      const picked = selection.targets.map((target) => target.id).filter(isChartCardId)
-      const cards = picked.length > 0 ? picked : DEFAULT_FOCUS_CARDS
-      const labels = { loc: MUSSAFAH_LABEL, year: MUSSAFAH_PERIOD }
-      setAiFocus({ cards, key: Date.now() })
-      setAiRegion(MUSSAFAH_REGION)
-      setAreaEffect(null)
-      setRegeneratingSlideId(slide.id)
-      relabelFilters(labels)
-      const snapshot: StoryAiSnapshot = {
-        cards,
-        region: true,
-        areaEffect: null,
-        filterLabels: { ...aiFilterLabels, ...labels },
-      }
-      const stateId = `map-state-${Date.now()}`
-      const reply = mussafahReply(cards.map((id) => INSIGHT_CARD_LABELS[id]))
-      onSelectionPrompt?.({
-        prompt,
-        reply: onMapCapture
-          ? withMapState(reply, {
-              stateId,
-              snapshot,
-              title: `${MUSSAFAH_LABEL} · ${MUSSAFAH_PERIOD}`,
-              tag: MUSSAFAH_LABEL,
-              meta: `${MUSSAFAH_REGION.columns.length} columns / ${MUSSAFAH_REGION.junctions.length} junctions`,
-            })
-          : reply,
-        snapshot,
-      })
-      if (onMapCapture) captureMapState(stateId, REGION_CAPTURE_DELAY_MS)
-    }
-    onSelectModeChange?.(false)
-  }
-
-  const captureMapState = (stateId: string, delay: number) => {
-    window.setTimeout(() => {
-      void mapHandleRef.current?.capture().then((capture) => onMapCapture?.(stateId, capture))
-    }, delay)
-  }
 
   return (
     <div
@@ -2051,6 +1946,7 @@ export function StoryView({
                   ]
                     .filter(Boolean)
                     .join(' ')}
+                  style={{ '--sidebar-columns': sidebarColumns } as CSSProperties}
                   aria-label="Story insight"
                 >
                   {insightCards}
@@ -2236,22 +2132,20 @@ export function StoryView({
         ) : null}
 
         {storyMode === 'edit' && viewLayout === 'grid' ? (
-          <div className={styles.gridColumnsControl} role="radiogroup" aria-label="Grid width">
-            <GridFour className={styles.gridColumnsIcon} size={18} weight="regular" aria-hidden />
-            {GRID_COLUMN_OPTIONS.map((columns) => (
-              <button
-                key={columns}
-                type="button"
-                role="radio"
-                aria-checked={gridColumns === columns}
-                aria-label={`${columns} columns`}
-                className={`${styles.gridColumnsOption}${gridColumns === columns ? ` ${styles.gridColumnsOptionActive}` : ''}`}
-                onClick={() => setGridColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
-              >
-                {columns}
-              </button>
-            ))}
-          </div>
+          <ColumnsControl
+            label="Grid width"
+            options={GRID_COLUMN_OPTIONS}
+            value={gridColumns}
+            onChange={(columns) => setGridColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
+          />
+        ) : null}
+        {storyMode === 'edit' && viewLayout === 'sidebar' ? (
+          <ColumnsControl
+            label="Sidebar width"
+            options={SIDEBAR_COLUMN_OPTIONS}
+            value={sidebarColumns}
+            onChange={(columns) => setSidebarColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
+          />
         ) : null}
 
         {viewLayout === 'comparison' ? (
@@ -2676,19 +2570,21 @@ export function StoryView({
             aria-label="Card actions"
             style={{ top: openCardMenu.top, left: openCardMenu.left }}
           >
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setCardMenu(null)
-                setDirectSlideEditor(false)
-                setEditSection(null)
-                setCardConfig({ slideId: slide.id, cardId: openCardMenu.cardId })
-              }}
-            >
-              <GearSix size={16} weight="regular" aria-hidden />
-              Configure
-            </button>
+            {openCardMenu.cardId === 'summary' || isChartCardId(openCardMenu.cardId) ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setCardMenu(null)
+                  setDirectSlideEditor(false)
+                  setEditSection(null)
+                  setCardConfig({ slideId: slide.id, cardId: openCardMenu.cardId })
+                }}
+              >
+                <GearSix size={16} weight="regular" aria-hidden />
+                Configure
+              </button>
+            ) : null}
             <button
               type="button"
               role="menuitem"
@@ -2751,7 +2647,7 @@ export function StoryView({
           }}
           onClose={() => setCardConfig(null)}
         />
-      ) : openCardConfig ? (
+      ) : openCardConfig && isChartCardId(openCardConfig.cardId) ? (
         <StoryCardConfigModal
           key={`${openCardConfig.slideId}-${openCardConfig.cardId}`}
           initial={cardPrefs[openCardConfig.cardId]?.kpi ?? DEFAULT_CHART_KPI[openCardConfig.cardId]}
@@ -2762,17 +2658,7 @@ export function StoryView({
           onClose={() => setCardConfig(null)}
         />
       ) : null}
-      {selectMode ? (
-        <StorySelectLayer
-          rootRef={rootRef}
-          onExit={exitSelectMode}
-          suggestPrompt={suggestSelectionPrompt}
-          describeArea={describeArea}
-          onSubmit={submitSelection}
-        />
-      ) : (
-        aiModeBar
-      )}
+      {aiModeBar}
       <ShareModal
         open={shareOpen}
         title={`Share “${storyTitle}”`}

@@ -1,0 +1,686 @@
+/*
+ * Bento grid: small cards take one cell, medium two, large two by two, wide a full row. Rows share the
+ * section's height so the whole grid fits.
+ * Card surfaces always show so the first row peeks under the findings. Each card's chart
+ * starts hidden; [data-play='true'] on the card runs it, and leaving it snaps back without
+ * transitions so the next entrance replays.
+ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(180px, 1fr));
+  grid-auto-flow: dense;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.small {
+  grid-column: span 1;
+}
+
+.medium {
+  grid-column: span 2;
+}
+
+.large {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1180px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-rows: clamp(220px, 26vh, 320px);
+  }
+}
+
+.card {
+  --d: 0ms;
+  --chart-d: calc(var(--d) + 280ms);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 16px 18px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  /* Neutral glass over the map while peeking, tinting to the Assets palette as --assets-t reaches 1. */
+  --tint: calc(var(--assets-t, 1) * 100%);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, rgba(28, 28, 56, 0.64) var(--tint), rgba(6, 12, 20, 0.5)),
+    color-mix(in srgb, rgba(28, 28, 56, 0.4) var(--tint), rgba(6, 12, 20, 0.3))
+  );
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow:
+    0 18px 44px rgba(24, 18, 52, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: #fff;
+  container-type: inline-size;
+}
+
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.cardHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.category {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  line-height: 14px;
+  text-transform: uppercase;
+}
+
+.cardTitle {
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+/* Data-point tooltip, anchored above the hovered point (left/top set inline). */
+.tip {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(14, 14, 30, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+.tip span {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.tip strong {
+  font-family: var(--lc-font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.tipLeft {
+  transform: translate(calc(-100% - 12px), -50%);
+}
+
+.tipRight {
+  transform: translate(12px, -50%);
+}
+
+.tip .tipRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.tipRow strong {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 12px;
+}
+
+.guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+}
+
+.hoverDot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  background: #fff;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+/* Hovering a bar, slice or row dims the others. */
+.hbars:hover .hbar:not(:hover) .fill,
+.vbars:hover .vcol:not(:hover) .vfill,
+.ringChart svg:hover .ringSeg:not(:hover) {
+  opacity: 0.4;
+}
+
+/* Shared chart reveal timing. */
+.card[data-play='true'] .delta,
+.card[data-play='true'] .threshold,
+.card[data-play='true'] .hbarValue,
+.card[data-play='true'] .ringCentre,
+.card[data-play='true'] .legend {
+  opacity: 1;
+  transition: opacity 500ms ease calc(var(--chart-d) + 700ms + var(--i, 0) * 90ms);
+}
+
+.valueRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.value {
+  margin: 0;
+  font-family: var(--lc-font-mono);
+  font-size: clamp(26px, 11cqi, 44px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.35);
+}
+
+.valueLarge {
+  font-size: clamp(36px, 9cqi, 72px);
+}
+
+.unit {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
+.delta {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: color-mix(in srgb, var(--accent) 65%, #fff);
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0;
+}
+
+.caption {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* Area chart: the line and fill wipe in from the left, then the live dot pulses. */
+.plot {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 60px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 100% 25%;
+}
+
+.plotSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  clip-path: inset(-12px 100% -12px 0);
+}
+
+.card[data-play='true'] .plotSvg {
+  clip-path: inset(-12px -12px -12px 0);
+  transition: clip-path 1500ms cubic-bezier(0.65, 0, 0.35, 1) var(--chart-d);
+}
+
+.plotLine {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.plotDot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.4);
+}
+
+.card[data-play='true'] .plotDot {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 300ms ease calc(var(--chart-d) + 1450ms),
+    transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--chart-d) + 1450ms);
+}
+
+.threshold {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.4);
+  opacity: 0;
+}
+
+.threshold span {
+  position: absolute;
+  right: 0;
+  bottom: 4px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+}
+
+/* Bars grow from their baseline, one after another. */
+.hbars {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-content: space-around;
+  align-items: center;
+  gap: 8px 12px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hbar {
+  display: contents;
+}
+
+.hbarLabel {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbarValue {
+  color: #fff;
+  font-family: var(--lc-font-mono);
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+  opacity: 0;
+}
+
+.track {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 45%, transparent), var(--accent));
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.card[data-play='true'] .fill {
+  transform: none;
+  transition:
+    transform 900ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--chart-d) + var(--i, 0) * 90ms),
+    opacity 160ms ease;
+}
+
+.vbars {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 8px;
+  min-height: 0;
+}
+
+.vcol {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vtrack {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.vfill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 60%, transparent),
+    color-mix(in srgb, var(--accent) 14%, transparent)
+  );
+  transform: scaleY(0);
+  transform-origin: center bottom;
+}
+
+.vfillPeak {
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 30%, transparent));
+}
+
+.card[data-play='true'] .vfill {
+  transform: none;
+  transition:
+    transform 900ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--chart-d) + var(--i, 0) * 70ms),
+    opacity 160ms ease;
+}
+
+.vlabel {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* Donut and pie: each slice sweeps in after the one before it. */
+.ring {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+@container (min-width: 300px) {
+  .ring {
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+  }
+}
+
+.ringChart {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 64px;
+  align-self: stretch;
+}
+
+.ringChart svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ringTrack {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 14;
+}
+
+.ringSeg {
+  fill: none;
+  stroke-width: 14;
+  stroke-dasharray: 0 100;
+}
+
+.pieSeg {
+  stroke-width: 50;
+}
+
+.card[data-play='true'] .ringSeg {
+  stroke-dasharray: var(--len) 100;
+  transition:
+    stroke-dasharray 760ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--chart-d) + var(--i, 0) * 260ms),
+    opacity 160ms ease;
+}
+
+.ringCentre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ringCentre strong {
+  font-family: var(--lc-font-mono);
+  font-size: clamp(16px, 11cqi, 30px);
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.ringCentre span {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  opacity: 0;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.legendDot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.legendName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.75);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legendPct {
+  font-family: var(--lc-font-mono);
+}
+
+.seriesLegend {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+}
+
+.seriesLegend .legendName {
+  flex: 0 1 auto;
+}
+
+@container (max-width: 180px) {
+  .legend {
+    display: none;
+  }
+}
+
+/* KPI */
+.kpiValue {
+  font-size: clamp(32px, 22cqi, 64px);
+}
+
+.spark {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 20px;
+}
+
+.metrics {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  min-height: 0;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.metric:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.card[data-play='true'] .metric {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 500ms ease calc(var(--chart-d) + var(--i, 0) * 120ms),
+    transform 700ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--chart-d) + var(--i, 0) * 120ms);
+}
+
+.metricLabel {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+}
+
+.metricValue {
+  font-family: var(--lc-font-mono);
+  font-size: clamp(20px, 7cqi, 40px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.metricValue small {
+  margin-left: 2px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.5em;
+}
+
+.metricDelta {
+  color: color-mix(in srgb, var(--accent) 75%, #fff);
+  font-size: 11px;
+}
+
+.metricDeltaBad {
+  color: #ffa596;
+}
+
+/* Gauge */
+.gauge {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 56px;
+}
+
+.gauge svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.gaugeTrack,
+.gaugeFill {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+
+.gaugeTrack {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.gaugeFill {
+  stroke: var(--accent);
+  stroke-dasharray: 0 100;
+  opacity: 0;
+}
+
+.card[data-play='true'] .gaugeFill {
+  stroke-dasharray: var(--len) 100;
+  opacity: 1;
+  transition:
+    stroke-dasharray 1300ms cubic-bezier(0.65, 0, 0.35, 1) var(--chart-d),
+    opacity 1ms linear var(--chart-d);
+}
+
+.gaugeText {
+  fill: #fff;
+  font-family: var(--lc-font-mono);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grid *,
+  .grid *::before {
+    transition: none !important;
+    animation: none !important;
+  }
+}
