@@ -3,7 +3,6 @@ import {
   AppWindow,
   Bell,
   CaretDown,
-  ChartBar,
   Check,
   Cube,
   Layout,
@@ -19,6 +18,7 @@ import {
 } from '@phosphor-icons/react'
 import { landingAssets as a } from './landingAssets'
 import type { FindingsStyle, TopBarVariant } from '../prototypeChrome'
+import { SearchOverlay } from './SearchOverlay'
 import home from './LandingHome.module.css'
 import styles from './LandingTopBar.module.css'
 
@@ -193,11 +193,10 @@ function FindingsStyleMenu({ value, onChange }: { value: FindingsStyle; onChange
 
 const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
 
-type CreateKind = 'asset' | 'dashboard' | 'app' | 'agent'
+type CreateKind = 'asset' | 'app' | 'agent'
 
 const CREATE_OPTIONS: readonly { kind: CreateKind; label: string; icon: ReactNode; active: boolean }[] = [
   { kind: 'asset', label: 'Asset', icon: <Cube size={20} weight="regular" aria-hidden />, active: true },
-  { kind: 'dashboard', label: 'Dashboard', icon: <ChartBar size={20} weight="regular" aria-hidden />, active: false },
   { kind: 'app', label: 'App', icon: <AppWindow size={20} weight="regular" aria-hidden />, active: false },
   { kind: 'agent', label: 'Agent', icon: <Sparkle size={20} weight="regular" aria-hidden />, active: false },
 ]
@@ -322,6 +321,7 @@ function StudioBar({
   const committed = categoryOptions.find((label) => label === selected)
   const triggerLabel = committed ?? categoryOptions[0] ?? 'Finance'
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const [mode, setMode] = useState<'briefing' | 'studio'>('briefing')
   const menuRef = useRef<HTMLDivElement>(null)
   const thumbRef = useRef<HTMLDivElement>(null)
@@ -499,9 +499,17 @@ function StudioBar({
       </div>
       <div className={styles.actions}>
         <CreateMenu triggerClassName={styles.create} />
-        <button type="button" className={styles.icon} aria-label="Search">
+        <button
+          type="button"
+          className={styles.icon}
+          aria-label="Search"
+          aria-haspopup="dialog"
+          aria-expanded={searchOpen}
+          onClick={() => setSearchOpen(true)}
+        >
           <MagnifyingGlass size={20} weight="regular" />
         </button>
+        {searchOpen ? <SearchOverlay onClose={() => setSearchOpen(false)} /> : null}
         <button type="button" className={styles.icon} aria-label="Notifications">
           <Bell size={20} weight="regular" />
         </button>
