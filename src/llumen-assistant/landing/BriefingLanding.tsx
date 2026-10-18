@@ -261,6 +261,28 @@ const ASSETS_RESET_AT = 0.8
 /** The findings carousel advances on its own after this long on a stop. */
 const FEED_AUTOPLAY_MS = 9000
 
+/** One-section glide; longer jumps (Home, End) take up to the max. */
+const PAGE_GLIDE_MS = 900
+const PAGE_GLIDE_MAX_MS = 1400
+/** Wheel travel that starts a glide, and the quiet gap that ends a gesture (trackpad inertia included). */
+const WHEEL_STEP_PX = 24
+const WHEEL_GESTURE_GAP_MS = 160
+
+function easeInOutCubic(t: number) {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
+}
+
+/** True when an element between target and page can still scroll in the wheel's direction. */
+function innerScrolls(target: Element, page: Element, deltaY: number) {
+  for (let el: Element | null = target; el && el !== page; el = el.parentElement) {
+    const { overflowY } = getComputedStyle(el)
+    if (!/(auto|scroll|overlay)/.test(overflowY) || el.scrollHeight <= el.clientHeight + 1) continue
+    if (deltaY > 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1) return true
+    if (deltaY < 0 && el.scrollTop > 0) return true
+  }
+  return false
+}
+
 export type BriefingLandingProps = {
   topBar: TopBarVariant
   onTellMeMore?: (item: LandingTellMeMorePayload) => void
@@ -299,6 +321,7 @@ export function BriefingLanding({
   const mapRef = useRef<HTMLDivElement>(null)
   const barRef = useRef<HTMLElement | null>(null)
   const progressRef = useRef(onAssetsProgress)
+  const scrollActivityRef = useRef(onScrollActivity)
   const [paused, setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 
   const stop = FEED_STOPS[active]
@@ -344,36 +367,157 @@ export function BriefingLanding({
 
   useEffect(() => {
     progressRef.current = onAssetsProgress
-  }, [onAssetsProgress])
+    scrollActivityRef.current = onScrollActivity
+  }, [onAssetsProgress, onScrollActivity])
 
   useEffect(() => () => progressRef.current?.(0), [])
 
-  const showAssets = useCallback(() => {
+  const pagingRef = useRef({ frame: 0, to: null as number | null, locked: false, lastWheel: 0, wheel: 0 })
+
+  /** Section tops: the findings, Assets under the bar, then Agents and every later section by its bottom edge. */
+  const sectionStops = useCallback(() => {
     const page = pageRef.current
     const lower = lowerRef.current
-    if (!page || !lower) return
-    page.scrollTo({
-      top: lower.offsetTop - (barRef.current?.offsetHeight ?? 0),
-      behavior: 'smooth',
-    })
+    if (!page || !lower) return [0]
+    const max = page.scrollHeight - page.clientHeight
+    const stops = [0, lower.offsetTop - (barRef.current?.offsetHeight ?? 0)]
+    for (let section = agentsRef.current as Element | null; section; section = section.nextElementSibling) {
+      if (!(section instanceof HTMLElement)) continue
+      stops.push(lower.offsetTop + section.offsetTop + section.offsetHeight - page.clientHeight)
+    }
+    return stops
+      .map((stop) => Math.min(max, Math.max(0, stop)))
+      .sort((a, b) => a - b)
+      .filter((stop, index, all) => index === 0 || stop - all[index - 1] > 2)
   }, [])
 
+  const glideTo = useCallback((target: number) => {
+    const page = pageRef.current
+    if (!page) return
+    const paging = pagingRef.current
+    window.cancelAnimationFrame(paging.frame)
+    const from = page.scrollTop
+    const distance = target - from
+    if (Math.abs(distance) < 1 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      page.scrollTop = target
+      paging.to = null
+      return
+    }
+    const pages = Math.abs(distance) / Math.max(1, page.clientHeight)
+    const duration = Math.min(PAGE_GLIDE_MAX_MS, PAGE_GLIDE_MS + (pages - 1) * 260)
+    const start = performance.now()
+    paging.to = target
+    scrollActivityRef.current?.(true)
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration)
+      page.scrollTop = from + distance * easeInOutCubic(t)
+      if (t < 1) {
+        paging.frame = window.requestAnimationFrame(tick)
+        return
+      }
+      paging.to = null
+      scrollActivityRef.current?.(false)
+    }
+    paging.frame = window.requestAnimationFrame(tick)
+  }, [])
+
+  const stepSection = useCallback(
+    (direction: 1 | -1) => {
+      const page = pageRef.current
+      if (!page) return
+      const stops = sectionStops()
+      const from = pagingRef.current.to ?? page.scrollTop
+      const next =
+        direction > 0 ? stops.find((stop) => stop > from + 2) : [...stops].reverse().find((stop) => stop < from - 2)
+      if (next !== undefined) glideTo(next)
+    },
+    [glideTo, sectionStops],
+  )
+
+  /** After a touch drag or scrollbar drag, glide to the nearest section. */
+  const settlePage = useCallback(() => {
+    const page = pageRef.current
+    if (!page || pagingRef.current.to !== null) return
+    const top = page.scrollTop
+    const nearest = sectionStops().reduce((best, stop) => (Math.abs(stop - top) < Math.abs(best - top) ? stop : best))
+    if (Math.abs(nearest - top) > 2) glideTo(nearest)
+  }, [glideTo, sectionStops])
+
+  useEffect(() => {
+    const paging = pagingRef.current
+    return () => window.cancelAnimationFrame(paging.frame)
+  }, [])
+
+  const showAssets = useCallback(() => {
+    const lower = lowerRef.current
+    if (lower) glideTo(lower.offsetTop - (barRef.current?.offsetHeight ?? 0))
+  }, [glideTo])
+
   /*
-   * The page scrolls natively everywhere, so the wheel over the findings snaps to Assets.
-   * Keep wheels away from the map (it would zoom) unless it is a pinch.
+   * Wheels page between sections with an eased glide (one gesture, one section), except where an inner
+   * scroller (the Assets grid) can still move. Keep wheels away from the map (it would zoom) unless it
+   * is a pinch.
    */
   useEffect(() => {
     const root = rootRef.current
-    if (!root) return
+    const page = pageRef.current
+    if (!root || !page) return
     const onWheel = (event: WheelEvent) => {
-      const target = event.target instanceof Node ? event.target : null
+      const target = event.target instanceof Element ? event.target : null
       if (target && barRef.current?.contains(target)) return
       if (event.ctrlKey && target && mapRef.current?.contains(target)) return
       event.stopPropagation()
+      if (event.ctrlKey || !target || !page.contains(target) || innerScrolls(target, page, event.deltaY)) return
+      event.preventDefault()
+      const paging = pagingRef.current
+      const now = performance.now()
+      const gap = now - paging.lastWheel
+      paging.lastWheel = now
+      if (paging.to !== null) return
+      if (gap > WHEEL_GESTURE_GAP_MS) {
+        paging.locked = false
+        paging.wheel = 0
+      }
+      if (paging.locked) return
+      paging.wheel += event.deltaY * (event.deltaMode === 1 ? 16 : 1)
+      if (Math.abs(paging.wheel) < WHEEL_STEP_PX) return
+      paging.locked = true
+      stepSection(paging.wheel > 0 ? 1 : -1)
+      paging.wheel = 0
     }
-    root.addEventListener('wheel', onWheel, { capture: true })
+    root.addEventListener('wheel', onWheel, { capture: true, passive: false })
     return () => root.removeEventListener('wheel', onWheel, { capture: true })
-  }, [])
+  }, [stepSection])
+
+  useEffect(() => {
+    const page = pageRef.current
+    if (!page) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.metaKey || event.ctrlKey) return
+      const target = event.target instanceof HTMLElement ? event.target : null
+      const onPage = !target || target === document.body || page.contains(target)
+      if (!onPage || target?.isContentEditable || target?.closest('input, textarea, select')) return
+      if (event.key === ' ' && target && target !== document.body && target.closest('button, a')) return
+      const keys: Record<string, 1 | -1 | 'first' | 'last'> = {
+        ArrowDown: 1,
+        PageDown: 1,
+        ArrowUp: -1,
+        PageUp: -1,
+        Home: 'first',
+        End: 'last',
+        ' ': event.shiftKey ? -1 : 1,
+      }
+      const move = keys[event.key]
+      if (move === undefined) return
+      event.preventDefault()
+      if (move === 'first' || move === 'last') {
+        const stops = sectionStops()
+        glideTo(move === 'first' ? stops[0] : stops[stops.length - 1])
+      } else stepSection(move)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [glideTo, sectionStops, stepSection])
 
   const [frame, setFrame] = useState<{ bar: number; page: number } | null>(null)
   useLayoutEffect(() => {
@@ -428,7 +572,11 @@ export function BriefingLanding({
           syncPage()
           onScrollActivity?.(true)
         }}
-        onScrollEnd={() => onScrollActivity?.(false)}
+        onScrollEnd={() => {
+          if (pagingRef.current.to !== null) return
+          onScrollActivity?.(false)
+          settlePage()
+        }}
       >
         <div className={styles.stage}>
           <div ref={mapRef} className={`${styles.map}${blurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>

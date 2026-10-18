@@ -10,7 +10,7 @@
   color: #fff;
 }
 
-/* Findings stage, then Assets, then Agents, each snapping to fill the page. */
+/* Findings stage, then Assets, Agents and Apps, each filling the page; BriefingLanding glides between them. */
 .page {
   position: relative;
   flex: 1 1 auto;
@@ -19,7 +19,6 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scroll-snap-type: y mandatory;
   scroll-padding-top: var(--briefing-bar-h, 64px);
   scrollbar-width: none;
 }
@@ -35,7 +34,6 @@
   height: 100%;
   overflow: hidden;
   isolation: isolate;
-  scroll-snap-align: start;
 }
 
 .edgeArrow {
@@ -287,6 +285,14 @@
   justify-content: center;
   animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* A quieter carousel: fainter pill surfaces with a lighter blur. */
+.root[data-findings-style='5'] .carouselPill {
+  background: rgba(4, 8, 14, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 /*
  * Findings style 3: the composer and its greeting sit above (compact-assistant.module.css), and the
  * finding hangs 96px under the composer as a compact glass tooltip with any chart beside its text.
@@ -495,7 +501,6 @@
   height: calc(var(--page-h) - var(--briefing-bar-h, 64px));
   padding: 28px 0 0;
   cursor: pointer;
-  scroll-snap-align: start;
   transition:
     grid-template-columns 900ms cubic-bezier(0.65, 0, 0.35, 1),
     column-gap 900ms cubic-bezier(0.65, 0, 0.35, 1),
@@ -602,7 +607,7 @@
   padding-inline: 0 32px;
 }
 
-/* Snaps by its bottom edge so its top sits under the blurred top bar. */
+/* The glide stops at its bottom edge, so its top sits under the blurred top bar. */
 .agents {
   position: relative;
   z-index: 1;
@@ -612,9 +617,6 @@
   box-sizing: border-box;
   min-height: var(--page-h);
   padding: calc(var(--briefing-bar-h, 64px) + 28px) 32px var(--feed-pad, 106px);
-  scroll-snap-align: end;
-  /* Keeps the snap area within the snapport (page minus the bar's scroll-padding); taller areas don't snap. */
-  scroll-margin-top: calc(-1 * var(--briefing-bar-h, 64px));
 }
 
 /* Apps follow Agents on the same background and snap the same way; the carousel takes the spare height. */
