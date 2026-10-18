@@ -2873,6 +2873,10 @@
   background: var(--lc-bg-default-hover);
 }
 
+.locationItemHover {
+  background: var(--lc-bg-default-hover);
+}
+
 .locationItemActive,
 .locationItemActive:hover {
   border-color: var(--lc-border-brand-subtle);
@@ -2926,6 +2930,11 @@
   pointer-events: none;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+.locationMapLabelHover {
+  background: rgba(20, 22, 28, 0.6);
+  color: var(--lc-text-secondary);
 }
 
 .locationTools {

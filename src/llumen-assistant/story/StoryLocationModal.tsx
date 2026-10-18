@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Feature, FeatureCollection, GeoJsonProperties } from 'geojson'
 import mapboxgl from 'mapbox-gl'
@@ -28,6 +28,8 @@ const FIT_PADDING = 56
 const CLOSE_RADIUS_PX = 12
 /** Repeated clicks this close to the last vertex are ignored (double-click finishes instead). */
 const SAME_POINT_PX = 6
+/** Street traces requested at once while a level's outlines load. */
+const TRACE_CONCURRENCY = 4
 
 type Ring = [number, number][]
 type PickedLocation = StoryLocation | StoryLocationOption
@@ -201,12 +203,55 @@ function fitRing(map: mapboxgl.Map, ring: Ring) {
   map.fitBounds(bounds, { padding: FIT_PADDING, duration: 900, maxZoom: 14 })
 }
 
+/** The outline the map draws for an area: its street trace once that arrives, for levels that follow streets. */
+function shownOutline(option: StoryLocationOption, followsStreets: boolean, outlines: Record<string, Ring>) {
+  return followsStreets ? (outlines[option.id] as Ring | undefined) : option.polygon
+}
+
+/** Rough area in square degrees, enough to rank overlapping outlines. */
+function ringArea(ring: Ring) {
+  let sum = 0
+  for (let i = 0; i < ring.length; i++) {
+    const [x1, y1] = ring[i]
+    const [x2, y2] = ring[(i + 1) % ring.length]
+    sum += x1 * y2 - x2 * y1
+  }
+  return Math.abs(sum) / 2
+}
+
 function addLayers(map: mapboxgl.Map) {
   const empty = collection([])
+  map.addSource('location-options', { type: 'geojson', data: empty })
+  map.addSource('location-hover', { type: 'geojson', data: empty })
   map.addSource('location-selected', { type: 'geojson', data: empty })
   map.addSource('location-pending', { type: 'geojson', data: empty })
   map.addSource('location-draft', { type: 'geojson', data: empty })
 
+  map.addLayer({
+    id: 'location-options-fill',
+    type: 'fill',
+    source: 'location-options',
+    paint: { 'fill-color': '#ffffff', 'fill-opacity': ['case', ['get', 'outlined'], 0.03, 0] },
+  })
+  map.addLayer({
+    id: 'location-options-line',
+    type: 'line',
+    source: 'location-options',
+    filter: ['==', ['get', 'outlined'], true],
+    paint: { 'line-color': '#ffffff', 'line-width': 1, 'line-opacity': 0.28 },
+  })
+  map.addLayer({
+    id: 'location-hover-fill',
+    type: 'fill',
+    source: 'location-hover',
+    paint: { 'fill-color': LOCATION_ANNOTATION_COLOR, 'fill-opacity': 0.1 },
+  })
+  map.addLayer({
+    id: 'location-hover-line',
+    type: 'line',
+    source: 'location-hover',
+    paint: { 'line-color': LOCATION_ANNOTATION_COLOR, 'line-width': 1.5, 'line-opacity': 0.85 },
+  })
   map.addLayer({
     id: 'location-selected-fill',
     type: 'fill',
@@ -279,13 +324,24 @@ export function StoryLocationModal({
       )
     : []
   const q = query.trim().toLowerCase()
-  const visible = locations.filter(
-    (location) =>
-      (type === 'all' || location.type === type) &&
-      (parent === 'all' || location.parent === parent) &&
-      (!q || location.label.toLowerCase().includes(q) || location.name.toLowerCase().includes(q)),
+  const visible = useMemo(
+    () =>
+      locations.filter(
+        (location) =>
+          (type === 'all' || location.type === type) &&
+          (parent === 'all' || location.parent === parent) &&
+          (!q || location.label.toLowerCase().includes(q) || location.name.toLowerCase().includes(q)),
+      ),
+    [locations, type, parent, q],
   )
   const typeLabel = type === 'all' ? 'Locations' : tab.plural
+  /** With one level picked, the map highlights that level's areas under the pointer and picks them on click. */
+  const interactive = type !== 'all' && !drawing
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const hovered = interactive ? visible.find((option) => option.id === hoveredId) : undefined
+  const followsStreets = levels.find((level) => level.id === type)?.followsStreets ?? false
+  /** Street-traced outlines of the picked level's areas, by id, filled in as routing returns. */
+  const [outlines, setOutlines] = useState<Record<string, Ring>>({})
 
   useEffect(() => {
     const el = mapElRef.current
@@ -358,10 +414,93 @@ export function StoryLocationModal({
   }, [location])
 
   useEffect(() => {
+    if (!interactive || !followsStreets) return
+    let stopped = false
+    const queue = [...visible]
+    const trace = async () => {
+      for (let option = queue.shift(); option && !stopped; option = queue.shift()) {
+        const { id } = option
+        const polygon = await traceStreets(option.polygon)
+        setOutlines((prev) => (prev[id] ? prev : { ...prev, [id]: polygon }))
+      }
+    }
+    for (let worker = 0; worker < TRACE_CONCURRENCY; worker += 1) void trace()
+    return () => {
+      stopped = true
+    }
+  }, [interactive, followsStreets, visible])
+
+  useEffect(() => {
+    if (!hovered || !followsStreets || outlines[hovered.id]) return
+    const { id, polygon } = hovered
+    void traceStreets(polygon).then((traced) => setOutlines((prev) => (prev[id] ? prev : { ...prev, [id]: traced })))
+  }, [hovered, followsStreets, outlines])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const options = interactive
+      ? visible.map((option) => {
+          const outline = shownOutline(option, followsStreets, outlines)
+          const ring = outline ?? option.polygon
+          return polygonFeature(ring, { id: option.id, area: ringArea(ring), outlined: outline !== undefined })
+        })
+      : []
+    setData(map, 'location-options', collection(options))
+  }, [ready, interactive, visible, followsStreets, outlines])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready || !interactive) return
+    const optionAt = (point: mapboxgl.Point) => {
+      const hits = map.queryRenderedFeatures(point, { layers: ['location-options-fill'] })
+      const smallest = hits.sort((a, b) => Number(a.properties?.area) - Number(b.properties?.area))[0]
+      return smallest ? String(smallest.properties?.id) : null
+    }
+    const onMove = (event: mapboxgl.MapMouseEvent) => setHoveredId(optionAt(event.point))
+    const onLeave = () => setHoveredId(null)
+    const onClick = (event: mapboxgl.MapMouseEvent) => {
+      const id = optionAt(event.point)
+      const option = id ? locations.find((candidate) => candidate.id === id) : undefined
+      if (option) setSelected(option)
+    }
+    map.on('mousemove', onMove)
+    map.on('mouseout', onLeave)
+    map.on('click', onClick)
+    return () => {
+      map.off('mousemove', onMove)
+      map.off('mouseout', onLeave)
+      map.off('click', onClick)
+    }
+  }, [ready, interactive, locations])
+
+  const hoverShown = hovered && hovered.id !== selected?.id ? hovered : null
+  const hoverOutline = hoverShown ? shownOutline(hoverShown, followsStreets, outlines) : undefined
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    setData(map, 'location-hover', collection(hoverOutline ? [polygonFeature(hoverOutline)] : []))
+  }, [ready, hoverOutline])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    map.getCanvas().style.cursor = drawing ? 'crosshair' : hovered ? 'pointer' : ''
+    if (!hoverShown) return
+    const label = document.createElement('div')
+    label.className = `${styles.locationMapLabel} ${styles.locationMapLabelHover}`
+    label.textContent = hoverShown.name
+    const marker = new mapboxgl.Marker({ element: label }).setLngLat(polygonCenter(hoverShown.polygon)).addTo(map)
+    return () => {
+      marker.remove()
+    }
+  }, [ready, drawing, hovered, hoverShown])
+
+  useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
     setData(map, 'location-draft', draftData(points, null))
-    map.getCanvas().style.cursor = drawing ? 'crosshair' : ''
     if (drawing) map.doubleClickZoom.disable()
     else map.doubleClickZoom.enable()
 
@@ -447,7 +586,9 @@ export function StoryLocationModal({
       ? 'Tracing the area along its streets…'
       : location
         ? 'The area follows the streets around it'
-        : 'Pick a location from the list, or draw an area'
+        : interactive
+          ? `Hover the map to find ${tab.plural.toLowerCase()}, then click one to select it`
+          : 'Pick a location from the list, or draw an area'
 
   return createPortal(
     <div className={styles.modalRoot}>
@@ -541,7 +682,11 @@ export function StoryLocationModal({
                     type="button"
                     role="option"
                     aria-selected={active}
-                    className={`${styles.locationItem}${active ? ` ${styles.locationItemActive}` : ''}`}
+                    className={`${styles.locationItem}${active ? ` ${styles.locationItemActive}` : ''}${
+                      hovered?.id === location.id ? ` ${styles.locationItemHover}` : ''
+                    }`}
+                    onMouseEnter={() => setHoveredId(location.id)}
+                    onMouseLeave={() => setHoveredId(null)}
                     onClick={() => {
                       setDrawing(false)
                       setPoints([])
