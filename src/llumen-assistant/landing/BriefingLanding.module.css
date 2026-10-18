@@ -256,6 +256,38 @@
 }
 
 /*
+ * Findings style 5: the composer column (greeting and composer) and the finding sit side by side,
+ * --s5-gap apart, as one block centred on the page. The composer's copy of these variables is in
+ * compact-assistant.module.css; keep the two in sync.
+ */
+.root[data-findings-style='5'] {
+  --s5-side: min(560px, calc(100vw / 3 - 96px));
+  --s5-finding: min(760px, calc(100vw * 2 / 3 - 140px));
+  --s5-gap: 160px;
+  --s5-left: max(48px, calc((100vw - var(--s5-side) - var(--s5-gap) - var(--s5-finding)) / 2));
+}
+
+.root[data-findings-style='5'] .sidePanel {
+  width: calc(var(--s5-left) + var(--s5-side) + 200px);
+  opacity: 1;
+}
+
+.root[data-findings-style='5'] .askGreeting {
+  left: var(--s5-left);
+  width: var(--s5-side);
+}
+
+.root[data-findings-style='5'] .chatDock {
+  top: var(--briefing-bar-h, 64px);
+  right: auto;
+  bottom: var(--assets-peek);
+  left: calc(var(--s5-left) + var(--s5-side) + var(--s5-gap));
+  align-items: flex-start;
+  --finding-w: var(--s5-finding);
+  justify-content: center;
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/*
  * Findings style 3: the composer and its greeting sit above (compact-assistant.module.css), and the
  * finding hangs 96px under the composer as a compact glass tooltip with any chart beside its text.
  * It fades as Assets scrolls in, since the composer then drops through it to the bottom slot.

@@ -6,14 +6,16 @@ export type TopBarVariant = 'current' | 'studio'
  * Briefing findings layouts: 1 centred over the composer, 2 composer on the left, 3 composer above
  * smaller findings, 4 style 1's findings under the composer.
  */
-export type FindingsStyle = 1 | 2 | 3 | 4
+export type FindingsStyle = 1 | 2 | 3 | 4 | 5
 
 const LANDING_KEY = 'llumen.landingVariant'
 const TOP_BAR_KEY = 'llumen.topBarVariant'
 const FINDINGS_STYLE_KEY = 'llumen.findingsStyle'
 
 function toFindingsStyle(value: string | null): FindingsStyle | null {
-  return value === '1' || value === '2' || value === '3' || value === '4' ? (Number(value) as FindingsStyle) : null
+  return value === '1' || value === '2' || value === '3' || value === '4' || value === '5'
+    ? (Number(value) as FindingsStyle)
+    : null
 }
 
 function isLanding(value: string | null): value is LandingVariant {

@@ -123,6 +123,7 @@ const FINDINGS_STYLES: readonly { style: FindingsStyle; label: string; hint: str
   { style: 2, label: 'Findings style 2', hint: 'Chat bar on the left' },
   { style: 3, label: 'Findings style 3', hint: 'Chat bar above compact findings' },
   { style: 4, label: 'Findings style 4', hint: 'Chat bar above the findings' },
+  { style: 5, label: 'Findings style 5', hint: 'Chat bar on the left' },
 ]
 
 function FindingsStyleMenu({ value, onChange }: { value: FindingsStyle; onChange: (style: FindingsStyle) => void }) {

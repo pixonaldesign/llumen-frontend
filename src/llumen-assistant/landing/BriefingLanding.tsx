@@ -432,7 +432,7 @@ export function BriefingLanding({
       >
         <div className={styles.stage}>
           <div ref={mapRef} className={`${styles.map}${blurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
-            <BriefingMap place={mapPlace} blank={blurred} focusRight={findingsStyle === 2} />
+            <BriefingMap place={mapPlace} blank={blurred} focusRight={findingsStyle === 2 || findingsStyle === 5} />
           </div>
           <div className={styles.scrim} aria-hidden />
           <div className={styles.fadeBlur} aria-hidden />
@@ -459,25 +459,30 @@ export function BriefingLanding({
                 onSelect={setActive}
                 onStep={stepFeed}
                 onTogglePause={() => setPaused((value) => !value)}
+                arrows={findingsStyle === 5}
               />
             }
           />
-          <button
-            type="button"
-            className={`${styles.edgeArrow} ${styles.edgeArrowPrevious}`}
-            aria-label="Previous finding"
-            onClick={() => stepFeed(-1)}
-          >
-            <ArrowLeft size={20} weight="regular" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className={`${styles.edgeArrow} ${styles.edgeArrowNext}`}
-            aria-label="Next finding"
-            onClick={() => stepFeed(1)}
-          >
-            <ArrowRight size={20} weight="regular" aria-hidden />
-          </button>
+          {findingsStyle === 5 ? null : (
+            <>
+              <button
+                type="button"
+                className={`${styles.edgeArrow} ${styles.edgeArrowPrevious}`}
+                aria-label="Previous finding"
+                onClick={() => stepFeed(-1)}
+              >
+                <ArrowLeft size={20} weight="regular" aria-hidden />
+              </button>
+              <button
+                type="button"
+                className={`${styles.edgeArrow} ${styles.edgeArrowNext}`}
+                aria-label="Next finding"
+                onClick={() => stepFeed(1)}
+              >
+                <ArrowRight size={20} weight="regular" aria-hidden />
+              </button>
+            </>
+          )}
         </div>
         <div ref={lowerRef} className={styles.lower}>
           <div className={styles.lowerBg} aria-hidden />
@@ -805,6 +810,7 @@ function FeedCarousel({
   onSelect,
   onStep,
   onTogglePause,
+  arrows = false,
 }: {
   count: number
   active: number
@@ -814,9 +820,18 @@ function FeedCarousel({
   onSelect: (index: number) => void
   onStep: (delta: number) => void
   onTogglePause: () => void
+  /** Previous and next buttons on either side of the dots, in place of the stage's edge arrows. */
+  arrows?: boolean
 }) {
   return (
     <div className={styles.carousel} role="group" aria-label="Findings">
+      {arrows ? (
+        <div className={`${styles.carouselPill} ${styles.playPill}`}>
+          <button type="button" className={styles.carouselBtn} aria-label="Previous finding" onClick={() => onStep(-1)}>
+            <ArrowLeft size={16} weight="regular" aria-hidden />
+          </button>
+        </div>
+      ) : null}
       <div className={`${styles.carouselPill} ${styles.dots}`}>
         {Array.from({ length: count }, (_, index) => (
           <button
@@ -841,6 +856,13 @@ function FeedCarousel({
           </button>
         ))}
       </div>
+      {arrows ? (
+        <div className={`${styles.carouselPill} ${styles.playPill}`}>
+          <button type="button" className={styles.carouselBtn} aria-label="Next finding" onClick={() => onStep(1)}>
+            <ArrowRight size={16} weight="regular" aria-hidden />
+          </button>
+        </div>
+      ) : null}
       <div className={`${styles.carouselPill} ${styles.playPill}`}>
         <button
           type="button"
