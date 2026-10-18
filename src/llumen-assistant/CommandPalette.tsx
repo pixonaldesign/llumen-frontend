@@ -61,6 +61,14 @@ export function CommandPalette({
         run: choose(() => onLanding('briefing')),
       },
       {
+        id: 'briefing-2',
+        group: 'Landing',
+        label: 'Landing · Briefing 2',
+        hint: 'Full-screen findings feed, with My Assets',
+        active: landing === 'briefing-2',
+        run: choose(() => onLanding('briefing-2')),
+      },
+      {
         id: 'stories',
         group: 'Landing',
         label: 'Carousel · Stories',

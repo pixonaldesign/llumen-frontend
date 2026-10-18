@@ -17,6 +17,7 @@ import styles from './compact-assistant.module.css'
 import { llumenAssets } from './assets'
 import LandingHomeDefault from './landing/LandingHomeDefault'
 import { BriefingLanding } from './landing/BriefingLanding'
+import { Briefing2Landing } from './landing/Briefing2Landing'
 import { FeedLanding } from './landing/FeedLanding'
 import { OverlayScrollThumb } from './landing/OverlayScrollThumb'
 import { type LandingContextChip } from './landing/LandingChatbox'
@@ -2341,6 +2342,13 @@ export function CompactAssistantDemo() {
         onScrollActivity={onBriefingScroll}
         findingsStyle={findingsStyle}
         onFindingsStyleChange={onFindingsStyleChange}
+      />
+    ) : landingVariant === 'briefing-2' ? (
+      <Briefing2Landing
+        topBar={topBar}
+        onOpenStory={openStoryFromHome}
+        onTellMeMore={onTellMeMore}
+        reserveComposer={isHub}
       />
     ) : landingVariant === 'feed' || landingVariant === 'feed-card' || landingVariant === 'feed-chat' ? (
       <FeedLanding

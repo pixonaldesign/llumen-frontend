@@ -263,6 +263,8 @@
   --s5-finding: min(760px, calc(100vw * 2 / 3 - 140px));
   --s5-gap: 160px;
   --s5-left: max(48px, calc((100vw - var(--s5-side) - var(--s5-gap) - var(--s5-finding)) / 2));
+  /* The block sits this far below centre, leaving the map's visuals clear above it. */
+  --s5-drop: 80px;
 }
 
 .root[data-findings-style='5'] .sidePanel {
@@ -276,7 +278,7 @@
 }
 
 .root[data-findings-style='5'] .chatDock {
-  top: var(--briefing-bar-h, 64px);
+  top: calc(var(--briefing-bar-h, 64px) + 2 * var(--s5-drop));
   right: auto;
   bottom: var(--assets-peek);
   left: calc(var(--s5-left) + var(--s5-side) + var(--s5-gap));

@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   AppWindow,
   Bell,
   CaretDown,
+  ChartPieSlice,
   Check,
   Cube,
   Layout,
@@ -72,6 +73,14 @@ export function WorkspaceGlyph({ name }: { name: WorkspaceIcon }) {
   return icon[name]
 }
 
+export type TopBarView = 'briefing' | 'assets' | 'studio'
+
+const TOP_BAR_VIEWS: readonly { view: TopBarView; label: string; icon: ReactNode }[] = [
+  { view: 'briefing', label: 'Briefing', icon: <Newspaper size={20} weight="regular" aria-hidden /> },
+  { view: 'assets', label: 'My Assets', icon: <ChartPieSlice size={20} weight="regular" aria-hidden /> },
+  { view: 'studio', label: 'Studio', icon: <Monitor size={20} weight="regular" aria-hidden /> },
+]
+
 export type LandingTopBarProps = {
   variant: TopBarVariant
   /** Active workspace label. Omit to keep selection inside the studio bar. */
@@ -85,6 +94,11 @@ export type LandingTopBarProps = {
   workspaceInLogo?: boolean
   /** Studio bar: show a Briefing / Studio toggle, starting on Briefing, instead of the Studio button. */
   briefingTab?: boolean
+  /** With briefingTab: a My Assets option between Briefing and Studio. */
+  myAssetsTab?: boolean
+  /** Selected toggle option. Omit to keep the selection inside the studio bar. */
+  view?: TopBarView
+  onViewChange?: (view: TopBarView) => void
   /** Studio bar with the workspace in the logo: a findings layout menu beside the workspace. */
   findingsStyle?: FindingsStyle
   onFindingsStyleChange?: (style: FindingsStyle) => void
@@ -98,6 +112,9 @@ export function LandingTopBar({
   onWorkspaceChange,
   workspaceInLogo = false,
   briefingTab = false,
+  myAssetsTab = false,
+  view,
+  onViewChange,
   findingsStyle,
   onFindingsStyleChange,
 }: LandingTopBarProps) {
@@ -110,6 +127,9 @@ export function LandingTopBar({
         onWorkspaceChange={onWorkspaceChange}
         workspaceInLogo={workspaceInLogo}
         briefingTab={briefingTab}
+        myAssetsTab={myAssetsTab}
+        view={view}
+        onViewChange={onViewChange}
         findingsStyle={findingsStyle}
         onFindingsStyleChange={onFindingsStyleChange}
       />
@@ -301,6 +321,9 @@ function StudioBar({
   onWorkspaceChange,
   workspaceInLogo,
   briefingTab,
+  myAssetsTab,
+  view,
+  onViewChange,
   findingsStyle,
   onFindingsStyleChange,
 }: {
@@ -310,6 +333,9 @@ function StudioBar({
   onWorkspaceChange?: (workspace: string) => void
   workspaceInLogo: boolean
   briefingTab: boolean
+  myAssetsTab: boolean
+  view?: TopBarView
+  onViewChange?: (view: TopBarView) => void
   findingsStyle?: FindingsStyle
   onFindingsStyleChange?: (style: FindingsStyle) => void
 }) {
@@ -323,7 +349,13 @@ function StudioBar({
   const triggerLabel = committed ?? categoryOptions[0] ?? 'Finance'
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [mode, setMode] = useState<'briefing' | 'studio'>('briefing')
+  const [ownMode, setOwnMode] = useState<TopBarView>('briefing')
+  const mode = view ?? ownMode
+  const modes = TOP_BAR_VIEWS.filter((option) => myAssetsTab || option.view !== 'assets')
+  const setMode = (next: TopBarView) => {
+    if (view === undefined) setOwnMode(next)
+    onViewChange?.(next)
+  }
   const menuRef = useRef<HTMLDivElement>(null)
   const thumbRef = useRef<HTMLDivElement>(null)
   const segmentRefs = useRef<Partial<Record<WorkspaceIcon, HTMLButtonElement | null>>>({})
@@ -468,28 +500,31 @@ function StudioBar({
       <div className={styles.center}>
         {workspaceInLogo ? null : workspaceSelector}
         {briefingTab ? (
-          <div className={styles.modeToggle} role="radiogroup" aria-label="View" data-mode={mode}>
+          <div
+            className={styles.modeToggle}
+            role="radiogroup"
+            aria-label="View"
+            style={
+              {
+                '--modes': modes.length,
+                '--mode-index': Math.max(0, modes.findIndex((option) => option.view === mode)),
+              } as CSSProperties
+            }
+          >
             <span className={styles.modeThumb} aria-hidden />
-            <button
-              type="button"
-              role="radio"
-              aria-checked={mode === 'briefing'}
-              className={styles.modeOption}
-              onClick={() => setMode('briefing')}
-            >
-              <Newspaper size={20} weight="regular" aria-hidden />
-              Briefing
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={mode === 'studio'}
-              className={styles.modeOption}
-              onClick={() => setMode('studio')}
-            >
-              <Monitor size={20} weight="regular" aria-hidden />
-              Studio
-            </button>
+            {modes.map((option) => (
+              <button
+                key={option.view}
+                type="button"
+                role="radio"
+                aria-checked={mode === option.view}
+                className={styles.modeOption}
+                onClick={() => setMode(option.view)}
+              >
+                {option.icon}
+                {option.label}
+              </button>
+            ))}
           </div>
         ) : (
           <button type="button" className={styles.ghost}>

@@ -1,6 +1,13 @@
 /** Prototype switches opened from the Command-K palette. */
 
-export type LandingVariant = 'briefing' | 'stories' | 'conversations' | 'feed' | 'feed-card' | 'feed-chat'
+export type LandingVariant =
+  | 'briefing'
+  | 'briefing-2'
+  | 'stories'
+  | 'conversations'
+  | 'feed'
+  | 'feed-card'
+  | 'feed-chat'
 export type TopBarVariant = 'current' | 'studio'
 /**
  * Briefing findings layouts: 1 centred over the composer, 2 composer on the left, 3 composer above
@@ -21,6 +28,7 @@ function toFindingsStyle(value: string | null): FindingsStyle | null {
 function isLanding(value: string | null): value is LandingVariant {
   return (
     value === 'briefing' ||
+    value === 'briefing-2' ||
     value === 'stories' ||
     value === 'conversations' ||
     value === 'feed' ||

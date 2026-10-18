@@ -295,13 +295,15 @@
   --s5-finding: min(760px, calc(100vw * 2 / 3 - 140px));
   --s5-gap: 160px;
   --s5-left: max(48px, calc((100vw - var(--s5-side) - var(--s5-gap) - var(--s5-finding)) / 2));
+  --s5-drop: 80px;
   --centre-w: min(640px, calc(100vw - 48px));
   --t: var(--briefing-assets-t, 0);
   --at: clamp(0, calc((var(--t) - 0.5) * 1000), 1);
   left: calc(var(--s5-left) * (1 - var(--at)));
   right: calc((100vw - var(--s5-left) - var(--s5-side)) * (1 - var(--at)));
   bottom: calc(
-    ((100dvh - 64px + var(--briefing-peek)) / 2 - 80px) * (1 - var(--at)) + var(--space-3xl) * var(--at)
+    ((100dvh - 64px + var(--briefing-peek)) / 2 - 80px - var(--s5-drop)) * (1 - var(--at)) +
+      var(--space-3xl) * var(--at)
   );
   width: calc(var(--s5-side) * (1 - var(--at)) + var(--centre-w) * var(--at));
   opacity: max(calc(1 - var(--t) * 2), calc(var(--t) * 2 - 1));
