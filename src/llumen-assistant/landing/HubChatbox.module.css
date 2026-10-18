@@ -65,6 +65,15 @@
   transform-origin: center center;
 }
 
+/* The Add context menu takes the chat box's glass. The attribute outranks the shared menu's own surface. */
+.contextMenu[data-lc-inline-context-menu] {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(14, 16, 20, 0.78);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
 .box[data-finding-cue='true'] {
   border-color: transparent;
 }
@@ -356,12 +365,18 @@
   line-height: 22px;
   outline: none;
   overflow-y: auto;
+  /* Scrolls by wheel and caret; no visible bar inside the field. */
+  scrollbar-width: none;
   white-space: pre-wrap;
   word-break: break-word;
   opacity: 1;
   transition:
     transform 220ms var(--lc-ease),
     opacity 280ms var(--lc-ease);
+}
+
+.input::-webkit-scrollbar {
+  display: none;
 }
 
 .composerEditor {

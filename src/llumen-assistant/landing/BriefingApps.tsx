@@ -14,6 +14,8 @@ type BriefingApp = {
   /** Widgets on a dashboard, slides in a deck. */
   parts: number
   updated: string
+  /** Shown under the thumbnail, clamped to two lines. */
+  description: string
   /** Figma frame (Llumen EAD) exported to public/llumen-assets/apps. */
   image: string
 }
@@ -27,6 +29,8 @@ const APPS: BriefingApp[] = [
     workspace: 'Environment',
     parts: 9,
     updated: 'Updated 2 hours ago',
+    description:
+      'Tracks 450 monitoring wells for water quality, contaminant exceedances and falling groundwater levels, on a live map of abstraction and land use.',
     image: `${appsBase}/app-2.jpg`,
   },
   {
@@ -36,6 +40,8 @@ const APPS: BriefingApp[] = [
     workspace: 'Policy',
     parts: 12,
     updated: 'Updated yesterday',
+    description:
+      'Follows 72 environmental policies from issue to rollout, with compliance by sector, implementation maturity and the outcomes they drive.',
     image: `${appsBase}/app-1.jpg`,
   },
   {
@@ -45,6 +51,8 @@ const APPS: BriefingApp[] = [
     workspace: 'Environment',
     parts: 7,
     updated: 'Updated 3 days ago',
+    description:
+      'Monitors 175 km² of mangrove canopy, regeneration and stress hotspots along the coast, so restoration teams can see where to act first.',
     image: `${appsBase}/app-4.jpg`,
   },
   {
@@ -54,6 +62,8 @@ const APPS: BriefingApp[] = [
     workspace: 'Sustainability',
     parts: 16,
     updated: 'Updated last week',
+    description:
+      'Measures the single-use plastics policy across environmental, social and economic impact, from carbon avoided to public awareness.',
     image: `${appsBase}/app-3.jpg`,
   },
 ]
@@ -108,20 +118,23 @@ export function BriefingAppsCarousel() {
               aria-hidden={offstage}
               onClick={!expanded && !offstage ? () => goTo(index) : undefined}
             >
-              <img className={styles.shot} src={app.image} alt="" draggable={false} />
-              <div className={`${styles.blur} ${styles.blurSoft}`} aria-hidden />
-              <div className={`${styles.blur} ${styles.blurStrong}`} aria-hidden />
-              <div className={styles.scrim} aria-hidden />
-              <div className={styles.info}>
-                <span className={styles.kind}>
-                  <KindIcon size={14} weight="regular" aria-hidden />
-                  {app.kind}
-                </span>
-                <h3 className={styles.name}>{app.name}</h3>
-                <p className={styles.meta}>
-                  {app.workspace} · {app.parts} {app.kind === 'Slides' ? 'slides' : 'widgets'} · {app.updated}
-                </p>
+              <div className={styles.frame}>
+                <img className={styles.shot} src={app.image} alt="" draggable={false} />
+                <div className={`${styles.blur} ${styles.blurSoft}`} aria-hidden />
+                <div className={`${styles.blur} ${styles.blurStrong}`} aria-hidden />
+                <div className={styles.scrim} aria-hidden />
+                <div className={styles.info}>
+                  <span className={styles.kind}>
+                    <KindIcon size={14} weight="regular" aria-hidden />
+                    {app.kind}
+                  </span>
+                  <h3 className={styles.name}>{app.name}</h3>
+                  <p className={styles.meta}>
+                    {app.workspace} · {app.parts} {app.kind === 'Slides' ? 'slides' : 'widgets'} · {app.updated}
+                  </p>
+                </div>
               </div>
+              <p className={styles.description}>{app.description}</p>
             </article>
           )
         })}

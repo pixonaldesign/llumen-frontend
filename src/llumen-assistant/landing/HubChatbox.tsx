@@ -24,6 +24,8 @@ import {
   type InlineContextItem,
 } from '../inlineContextData'
 import { SlashCommandMenu } from '../SlashCommandMenu'
+import { StoryLocationModal } from '../story/StoryLocationModal'
+import { locationPrompt, type StoryLocation } from '../story/storyAnnotations'
 import { FINDING_DISMISS_MS } from './findingAuroraSettings'
 import {
   filterSlashCommands,
@@ -232,6 +234,11 @@ export type HubChatboxProps = {
   /** Typed into the empty editor on the first click while components are attached. */
   componentPrompt?: string
   onSubmitComponents?: (text: string, components: HubChatComponent[]) => void
+  /**
+   * Story only: once a location pill is in the editor, the first click types its prompt and sending
+   * runs the location demo here instead of `onSubmit`.
+   */
+  onSubmitLocation?: (location: StoryLocation) => void
 }
 
 export type HubChatComponent = { id: string; label: string }
@@ -277,6 +284,7 @@ export function HubChatbox({
   onRemoveComponent,
   componentPrompt,
   onSubmitComponents,
+  onSubmitLocation,
 }: HubChatboxProps) {
   const [focused, setFocused] = useState(false)
   const [editorEmpty, setEditorEmpty] = useState(true)
@@ -287,6 +295,8 @@ export function HubChatbox({
   const [mentionCategory, setMentionCategory] = useState<InlineContextCategoryId | null>(null)
   const [mentionIndex, setMentionIndex] = useState(0)
   const [mentionPos, setMentionPos] = useState({ left: 0, bottom: 0 })
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
+  const [pickedLocation, setPickedLocation] = useState<StoryLocation | null>(null)
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const fileCounterRef = useRef(0)
   const uid = useId()
@@ -312,14 +322,14 @@ export function HubChatbox({
   }, [workToast, onDismissWork])
   // Story opens straight into the full chat. Landing rests on the bar until the field is used.
   const engaged =
-    !editorEmpty || files.length > 0 || mentionOpen || Boolean(slashMenu) || toasting
+    !editorEmpty || files.length > 0 || mentionOpen || locationPickerOpen || Boolean(slashMenu) || toasting
   const expanded = placement === 'story' || focused || engaged
   const idle = !expanded && !toasting
   const canSend = !toasting && (!editorEmpty || files.length > 0 || components.length > 0)
   const componentsKey = components.map((item) => item.id).join('|')
   const interactionLocked = exiting || morphingOut || toasting
   const slashCommands = useMemo(() => filterSlashCommands(slashMenu?.query ?? ''), [slashMenu?.query])
-  const categories = useMemo(() => filterCategories(''), [])
+  const categories = useMemo(() => filterCategories('', { location: true }), [])
   const items = useMemo(
     () => (mentionCategory ? filterItems(mentionCategory, '') : []),
     [mentionCategory],
@@ -339,19 +349,35 @@ export function HubChatbox({
     typingRef.current = null
   }
 
-  const fillComponentPrompt = () => {
+  /** The picked location, while its pill is still in the editor and the story can run its demo. */
+  const locationInEditor = () => {
     const editor = editorRef.current
-    if (!editor || !componentPrompt || components.length === 0 || interactionLocked) return
-    if (typedKeyRef.current === componentsKey) return
+    if (!editor || !onSubmitLocation || !pickedLocation) return null
+    return editor.querySelector(`[data-inline-mention="${CSS.escape(pickedLocation.id)}"]`) ? pickedLocation : null
+  }
+  const locationKey = (location: StoryLocation) => `location:${location.id}`
+
+  /** Typed on the first click: the attached components' re-plot, or the picked location's demo prompt. */
+  const autoPrompt = () => {
+    if (componentPrompt && components.length > 0) return { key: componentsKey, text: componentPrompt }
+    const location = locationInEditor()
+    return location ? { key: locationKey(location), text: locationPrompt(location) } : null
+  }
+
+  const fillAutoPrompt = () => {
+    const editor = editorRef.current
+    const auto = autoPrompt()
+    if (!editor || !auto || interactionLocked) return
+    if (typedKeyRef.current === auto.key) return
     // Mention pills may stay; retype over our own earlier prompt, never over the user's text.
     const freeText = editorFreeText(editor)
     const ownNode = typedNodeRef.current && editor.contains(typedNodeRef.current) ? typedNodeRef.current : null
     const untouched =
       freeText === '' || typingRef.current !== null || (ownNode !== null && freeText === autoTextRef.current)
     if (!untouched) return
-    typedKeyRef.current = componentsKey
+    typedKeyRef.current = auto.key
     stopTyping()
-    const full = componentPrompt
+    const full = auto.text
     autoTextRef.current = full
     let node = ownNode
     if (!node) {
@@ -583,9 +609,21 @@ export function HubChatbox({
   }
 
   const selectCategory = (id: InlineContextCategoryId) => {
+    if (id === 'location') {
+      closeMention()
+      setLocationPickerOpen(true)
+      return
+    }
     setMentionCategory(id)
     setMentionStage('items')
     setMentionIndex(0)
+  }
+
+  const applyLocation = (location: StoryLocation) => {
+    setLocationPickerOpen(false)
+    setPickedLocation(location)
+    typedKeyRef.current = ''
+    insertInlineMention({ id: location.id, name: location.name, categoryId: 'location' })
   }
 
   const collapse = useCallback(() => {
@@ -636,10 +674,16 @@ export function HubChatbox({
       label: file.name,
       categoryId: 'assets' as const,
     }))
+    const location = locationInEditor()
     if (components.length > 0 && onSubmitComponents) {
       onSubmitComponents(text || componentPrompt || '', components)
       typedKeyRef.current = ''
       autoTextRef.current = ''
+    } else if (location && onSubmitLocation && typedKeyRef.current === locationKey(location)) {
+      onSubmitLocation(location)
+      typedKeyRef.current = ''
+      autoTextRef.current = ''
+      setPickedLocation(null)
     } else {
       onSubmit(text, fileChips)
     }
@@ -830,7 +874,7 @@ export function HubChatbox({
                 syncEditor()
                 refreshSlashMenu()
               }}
-              onPointerDown={fillComponentPrompt}
+              onPointerDown={fillAutoPrompt}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               onClick={() => {
@@ -1059,6 +1103,7 @@ export function HubChatbox({
         ? createPortal(
             <InlineContextMenu
               menuRef={mentionMenuRef}
+              className={styles.contextMenu}
               position={mentionPos}
               stage={mentionStage}
               categoryId={mentionCategory}
@@ -1078,6 +1123,9 @@ export function HubChatbox({
             document.body,
           )
         : null}
+      {locationPickerOpen ? (
+        <StoryLocationModal onApply={applyLocation} onClose={() => setLocationPickerOpen(false)} />
+      ) : null}
     </div>
   )
 }

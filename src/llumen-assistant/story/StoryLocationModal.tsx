@@ -1,18 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Feature, FeatureCollection, GeoJsonProperties } from 'geojson'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { MagnifyingGlass, PencilSimple, Polygon, Trash, X } from '@phosphor-icons/react'
+import { CaretDown, Check, MagnifyingGlass, PencilSimple, Polygon, Trash, X } from '@phosphor-icons/react'
+import {
+  LOCATION_BREAKDOWNS,
+  lastLocationBreakdown,
+  rememberLocationBreakdown,
+  type LocationBreakdown,
+} from './locationBreakdowns'
 import {
   LOCATION_ANNOTATION_COLOR,
-  STORY_LOCATION_TYPES,
-  STORY_LOCATIONS,
   drawnLocation,
   polygonCenter,
   type StoryLocation,
   type StoryLocationOption,
-  type StoryLocationType,
 } from './storyAnnotations'
 import { ConfigSelect } from './StoryConfigSelect'
 import { STORY_MAP_STYLE } from './StoryMap'
@@ -20,7 +23,6 @@ import { traceStreets } from './storyStreetTrace'
 import styles from './StoryEditPanel.module.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
-const START_CAMERA = { center: [54.425, 24.415] as [number, number], zoom: 10.35 }
 const FIT_PADDING = 56
 /** Clicking within this many pixels of the first vertex closes the polygon. */
 const CLOSE_RADIUS_PX = 12
@@ -32,16 +34,139 @@ type PickedLocation = StoryLocation | StoryLocationOption
 
 const ALL_TYPES = { id: 'all' as const, plural: 'All Location Types' }
 
-function typeOf(location: PickedLocation) {
-  return 'type' in location ? STORY_LOCATION_TYPES.find((option) => option.id === location.type) : undefined
+function typeOf(location: PickedLocation, breakdown: LocationBreakdown) {
+  return 'type' in location ? breakdown.levels.find((level) => level.id === location.type) : undefined
 }
 
-/** Districts, zones and drawn areas snap to their streets; larger areas and corridors keep their outline. */
-function outlineOnStreets(location: PickedLocation): Promise<Ring> {
-  const type = 'type' in location ? location.type : null
-  return type === null || type === 'district' || type === 'zone'
-    ? traceStreets(location.polygon)
-    : Promise.resolve(location.polygon)
+/** Small levels and drawn areas snap to their streets; larger areas and corridors keep their outline. */
+function outlineOnStreets(location: PickedLocation, breakdown: LocationBreakdown): Promise<Ring> {
+  const follows = 'type' in location ? typeOf(location, breakdown)?.followsStreets : true
+  return follows ? traceStreets(location.polygon) : Promise.resolve(location.polygon)
+}
+
+/** A drawn area, named after the nearest place in the breakdown it was drawn in. */
+function drawnIn(ring: Ring, breakdown: LocationBreakdown): StoryLocation {
+  const drawn = drawnLocation(ring)
+  if (breakdown.id === 'itc') return drawn
+  const [lng, lat] = polygonCenter(ring)
+  const distance = (option: StoryLocationOption) => {
+    const [x, y] = polygonCenter(option.polygon)
+    return (x - lng) ** 2 + (y - lat) ** 2
+  }
+  const nearest = [...breakdown.locations].sort((a, b) => distance(a) - distance(b))[0]
+  return nearest ? { ...drawn, name: `Drawn area near ${nearest.name}` } : drawn
+}
+
+/** Picks whose boundaries the list uses: each authority breaks its territory into its own levels. */
+function BreakdownMenu({
+  value,
+  onChange,
+}: {
+  value: LocationBreakdown
+  onChange: (breakdown: LocationBreakdown) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const syncPosition = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (rect) setPosition({ top: rect.bottom + 8, left: rect.left })
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.stopImmediatePropagation()
+      setOpen(false)
+      triggerRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown, true)
+    window.addEventListener('resize', syncPosition)
+    window.addEventListener('scroll', syncPosition, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown, true)
+      window.removeEventListener('resize', syncPosition)
+      window.removeEventListener('scroll', syncPosition, true)
+    }
+  }, [open, syncPosition])
+
+  return (
+    <div className={styles.breakdown}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`${styles.breakdownTrigger}${open ? ` ${styles.breakdownTriggerOpen}` : ''}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Location breakdown: ${value.area}, ${value.source}`}
+        onClick={() => {
+          if (!open) syncPosition()
+          setOpen((next) => !next)
+        }}
+      >
+        <span className={styles.breakdownCode} aria-hidden>
+          {value.code}
+        </span>
+        <span className={styles.breakdownName}>{value.area}</span>
+        <span className={styles.breakdownSource}>{value.source}</span>
+        <CaretDown size={14} weight="bold" aria-hidden />
+      </button>
+      {open
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className={styles.breakdownMenu}
+              role="listbox"
+              aria-label="Location breakdown"
+              style={{ top: position.top, left: position.left }}
+            >
+              <p className={styles.breakdownMenuTitle}>Location breakdown</p>
+              {LOCATION_BREAKDOWNS.map((breakdown) => {
+                const selected = breakdown.id === value.id
+                return (
+                  <button
+                    key={breakdown.id}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    className={`${styles.breakdownOption}${selected ? ` ${styles.breakdownOptionActive}` : ''}`}
+                    onClick={() => {
+                      onChange(breakdown)
+                      setOpen(false)
+                    }}
+                  >
+                    <span className={styles.breakdownCode} aria-hidden>
+                      {breakdown.code}
+                    </span>
+                    <span className={styles.breakdownOptionText}>
+                      <span className={styles.breakdownOptionName}>
+                        {breakdown.area}
+                        <span className={styles.breakdownSource}>{breakdown.source}</span>
+                      </span>
+                      <span className={styles.breakdownOptionLevels}>
+                        {breakdown.levels.map((level) => level.plural).join(' › ')}
+                      </span>
+                    </span>
+                    {selected ? <Check size={16} weight="bold" aria-hidden /> : null}
+                  </button>
+                )
+              })}
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  )
 }
 
 function collection(features: Feature[]): FeatureCollection {
@@ -132,7 +257,9 @@ export function StoryLocationModal({
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const [ready, setReady] = useState(false)
   const [query, setQuery] = useState('')
-  const [type, setType] = useState<StoryLocationType | 'all'>('all')
+  const [breakdown, setBreakdown] = useState(lastLocationBreakdown)
+  /** The breakdown level the list shows ('all' for every level). */
+  const [type, setType] = useState('all')
   /** Parent location the list is narrowed to ('all' for none). */
   const [parent, setParent] = useState('all')
   const [selected, setSelected] = useState<PickedLocation | null>(null)
@@ -142,16 +269,17 @@ export function StoryLocationModal({
   const [drawing, setDrawing] = useState(false)
   const [points, setPoints] = useState<Ring>([])
 
-  const tab = STORY_LOCATION_TYPES.find((option) => option.id === type) ?? ALL_TYPES
-  const filterType = 'filterBy' in tab ? STORY_LOCATION_TYPES.find((option) => option.id === tab.filterBy) : undefined
+  const { levels, locations } = breakdown
+  const tab = levels.find((level) => level.id === type) ?? ALL_TYPES
+  const filterType = 'filterBy' in tab ? levels.find((level) => level.id === tab.filterBy) : undefined
   const parents = filterType
-    ? STORY_LOCATIONS.filter(
+    ? locations.filter(
         (location) =>
-          location.type === filterType.id && STORY_LOCATIONS.some((child) => child.type === type && child.parent === location.id),
+          location.type === filterType.id && locations.some((child) => child.type === type && child.parent === location.id),
       )
     : []
   const q = query.trim().toLowerCase()
-  const visible = STORY_LOCATIONS.filter(
+  const visible = locations.filter(
     (location) =>
       (type === 'all' || location.type === type) &&
       (parent === 'all' || location.parent === parent) &&
@@ -166,7 +294,7 @@ export function StoryLocationModal({
     const map = new mapboxgl.Map({
       container: el,
       style: STORY_MAP_STYLE,
-      ...START_CAMERA,
+      ...lastLocationBreakdown().camera,
       pitch: 0,
       bearing: 0,
       dragRotate: false,
@@ -195,13 +323,13 @@ export function StoryLocationModal({
   useEffect(() => {
     if (!selected) return
     let current = true
-    void outlineOnStreets(selected).then((polygon) => {
+    void outlineOnStreets(selected, breakdown).then((polygon) => {
       if (current) setTraced({ ...selected, polygon })
     })
     return () => {
       current = false
     }
-  }, [selected])
+  }, [selected, breakdown])
 
   useEffect(() => {
     const map = mapRef.current
@@ -240,7 +368,7 @@ export function StoryLocationModal({
     const finish = (ring: Ring) => {
       setPoints([])
       setDrawing(false)
-      setSelected(drawnLocation(ring))
+      setSelected(drawnIn(ring, breakdown))
     }
     const onClick = (event: mapboxgl.MapMouseEvent) => {
       if (!drawing) return
@@ -267,7 +395,7 @@ export function StoryLocationModal({
       map.off('dblclick', onDoubleClick)
       map.off('mousemove', onMove)
     }
-  }, [drawing, points, ready])
+  }, [drawing, points, ready, breakdown])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -290,7 +418,7 @@ export function StoryLocationModal({
   }
   const finishDrawing = () => {
     if (points.length < 3) return
-    setSelected(drawnLocation(points))
+    setSelected(drawnIn(points, breakdown))
     setPoints([])
     setDrawing(false)
   }
@@ -299,8 +427,18 @@ export function StoryLocationModal({
     setPoints([])
     setDrawing(false)
   }
+  const changeBreakdown = (next: LocationBreakdown) => {
+    if (next.id === breakdown.id) return
+    rememberLocationBreakdown(next.id)
+    setBreakdown(next)
+    setType('all')
+    setParent('all')
+    setQuery('')
+    clear()
+    mapRef.current?.flyTo({ ...next.camera, duration: 1600, essential: true })
+  }
 
-  const selectedType = selected ? (typeOf(selected)?.label ?? 'Drawn area') : ''
+  const selectedType = selected ? (typeOf(selected, breakdown)?.label ?? 'Drawn area') : ''
   const hint = drawing
     ? points.length < 3
       ? 'Click on the map to add points around the area'
@@ -336,22 +474,26 @@ export function StoryLocationModal({
           </div>
         </header>
 
-        <div className={styles.locationTabs} role="tablist" aria-label="Location types">
-          {[ALL_TYPES, ...STORY_LOCATION_TYPES].map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              role="tab"
-              aria-selected={type === option.id}
-              className={`${styles.locationTab}${type === option.id ? ` ${styles.locationTabActive}` : ''}`}
-              onClick={() => {
-                setType(option.id)
-                setParent('all')
-              }}
-            >
-              {option.plural}
-            </button>
-          ))}
+        <div className={styles.locationTabsRow}>
+          <BreakdownMenu value={breakdown} onChange={changeBreakdown} />
+          <span className={styles.locationTabsDivider} aria-hidden />
+          <div className={styles.locationTabs} role="tablist" aria-label={`${breakdown.source} location types`}>
+            {[ALL_TYPES, ...levels].map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="tab"
+                aria-selected={type === option.id}
+                className={`${styles.locationTab}${type === option.id ? ` ${styles.locationTabActive}` : ''}`}
+                onClick={() => {
+                  setType(option.id)
+                  setParent('all')
+                }}
+              >
+                {option.plural}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className={styles.locationBody}>
@@ -406,11 +548,11 @@ export function StoryLocationModal({
                       setSelected(location)
                     }}
                     onDoubleClick={() => {
-                      void outlineOnStreets(location).then((polygon) => onApply({ ...location, polygon }))
+                      void outlineOnStreets(location, breakdown).then((polygon) => onApply({ ...location, polygon }))
                     }}
                   >
                     <span className={styles.locationItemName}>{location.label}</span>
-                    <span className={styles.locationItemDesc}>{typeOf(location)?.label}</span>
+                    <span className={styles.locationItemDesc}>{typeOf(location, breakdown)?.label}</span>
                   </button>
                 )
               })}

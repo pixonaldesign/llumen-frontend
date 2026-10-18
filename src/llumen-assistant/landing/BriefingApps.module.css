@@ -20,10 +20,39 @@
   min-height: 280px;
 }
 
+/* The card is a column: the thumbnail frame takes the spare height, the description sits under it. */
 .app {
+  flex-direction: column;
+  gap: 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.frame {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   background: #0b0d12;
   box-shadow: 0 18px 44px rgba(4, 8, 20, 0.3);
+}
+
+.description {
+  display: -webkit-box;
+  flex: none;
+  min-height: 40px;
+  max-width: 72ch;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 20px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* Anchored top-left so peeks show the app's title and filters, like the start of a page. */

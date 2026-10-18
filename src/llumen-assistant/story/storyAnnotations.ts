@@ -176,10 +176,11 @@ export type StoryLocation = {
 export type StoryLocationType = 'emirate' | 'region' | 'district' | 'zone' | 'corridor'
 
 export type StoryLocationOption = StoryLocation & {
-  type: StoryLocationType
+  /** A level of the location breakdown it belongs to (ITC: emirate, region, district, zone, corridor). */
+  type: string
   /** How the list shows it; zones are listed by number. */
   label: string
-  /** The region a district or corridor sits in, or the district a zone sits in. */
+  /** The area one level up it sits in (ITC: a district's region, a zone's district), by id. */
   parent: string | null
 }
 
@@ -364,7 +365,7 @@ function convexHull(points: [number, number][]) {
 }
 
 /** Rounded outline around the points: the convex hull of a circle drawn around each one. */
-function paddedOutline(points: [number, number][], paddingM = AREA_PADDING_M) {
+export function paddedOutline(points: [number, number][], paddingM = AREA_PADDING_M) {
   const sides = 20
   const ring: [number, number][] = []
   for (const [lng, lat] of points) {

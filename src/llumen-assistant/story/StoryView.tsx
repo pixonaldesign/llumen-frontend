@@ -46,7 +46,6 @@ import {
   Plus,
   Selection,
   Sidebar,
-  Sparkle,
   Student,
   SquaresFour,
   Toolbox,
@@ -982,14 +981,6 @@ export function StoryView({
               onClick={(event) => addCardToChat(id, event.currentTarget)}
             >
               <ChatCircleText size={16} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className={`${styles.cardAction} ${styles.cardActionIcon}`}
-              aria-label={`Generate from ${title}`}
-              title="Generate"
-            >
-              <Sparkle size={16} aria-hidden />
             </button>
             {storyMode === 'edit' ? (
               <button

@@ -163,6 +163,15 @@
   padding-bottom: 20px;
 }
 
+/*
+ * Briefing findings style 5: the composer sits in a column beside the findings, so the copy leaves it
+ * and sits low on the aurora, 56px above the viewport edge (bottom padding is 12px). The Assets peek
+ * is hidden while a finding shows, so the copy can sit over it.
+ */
+.copy[data-findings-bottom='true'] {
+  bottom: 44px;
+}
+
 .close {
   position: relative;
   display: inline-flex;

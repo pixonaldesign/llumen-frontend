@@ -161,6 +161,8 @@ export type FindingRevealProps = {
   pageColumnAnchor?: boolean
   /** Story ribbon sits above the viewport edge. Pad the finding to meet it. */
   storyMode?: boolean
+  /** Briefing findings style 5: sit at the bottom of the findings section, under the composer and findings. */
+  findingsBottom?: boolean
   /** Increment to play the exit, then call onClose. */
   dismissSignal?: number
   /** Shortcut: show a little of the aurora, hold, then open the mask fully. */
@@ -185,6 +187,7 @@ export function FindingReveal({
   railOpen = false,
   pageColumnAnchor = false,
   storyMode = false,
+  findingsBottom = false,
   dismissSignal = 0,
   stagedReveal = false,
   revealNonce = 0,
@@ -332,6 +335,7 @@ export function FindingReveal({
           className={styles.copy}
           data-rail={railOpen ? 'true' : 'false'}
           data-story={storyMode ? 'true' : 'false'}
+          data-findings-bottom={findingsBottom ? 'true' : 'false'}
           data-exiting={exiting ? 'true' : 'false'}
           style={veilStyle}
         >

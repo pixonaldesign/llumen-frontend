@@ -286,6 +286,16 @@
   animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* The carousel leads the finding; View takes its old place at the far end of the actions row. */
+.findingNav {
+  pointer-events: auto;
+}
+
+.root[data-findings-style='5'] .storyBtn {
+  order: 1;
+  margin-left: auto;
+}
+
 /* A quieter carousel: fainter pill surfaces with a lighter blur. */
 .root[data-findings-style='5'] .carouselPill {
   background: rgba(4, 8, 14, 0.16);
@@ -452,7 +462,7 @@
   z-index: 0;
   height: var(--page-h);
   margin-bottom: calc(-1 * var(--page-h));
-  background: linear-gradient(180deg, #4a4969 0%, #605f9c 55%, #7b72a6 100%);
+  background: linear-gradient(180deg, #3d4350 0%, #4b5261 55%, #59606f 100%);
   --edge: calc(var(--assets-t, 0) * var(--assets-t, 0) * var(--assets-t, 0));
   -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--edge)) 0, #000 var(--assets-peek));
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--edge)) 0, #000 var(--assets-peek));
@@ -464,7 +474,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #3a3953 0%, #4c4b7c 55%, #625b85 100%);
+  background: linear-gradient(180deg, #30353f 0%, #3c424e 55%, #484f5c 100%);
   opacity: var(--agents-t, 0);
 }
 
@@ -479,7 +489,7 @@
   bottom: 100%;
   left: 0;
   height: var(--briefing-bar-h, 64px);
-  background: #4a4969;
+  background: #3d4350;
   opacity: calc((var(--assets-t, 0) - 0.85) / 0.15);
   pointer-events: none;
 }
@@ -558,7 +568,96 @@
   margin-bottom: 16px;
 }
 
+.assetsFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.filterWrap {
+  position: relative;
+}
+
+.filterPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  line-height: normal;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.filterPill:hover,
+.filterPill[aria-expanded='true'] {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.filterPill:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.filterPill > svg:last-child {
+  opacity: 0.7;
+}
+
+.filterMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  min-width: 200px;
+  padding: 6px 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(10, 16, 28, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.filterMenuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: calc(100% - 12px);
+  margin: 0 6px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filterMenuItem:hover,
+.filterMenuItemActive {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .assetsIntroTitle,
+.assetsFilters,
 .assetsSummary,
 .assetsDetail {
   opacity: 0;
@@ -566,6 +665,7 @@
 }
 
 .assets[data-split='true'] .assetsIntroTitle,
+.assets[data-split='true'] .assetsFilters,
 .assets[data-split='true'] .assetsSummary,
 .assets[data-split='true'] .assetsDetail {
   --reveal-d: 520ms;
@@ -578,6 +678,10 @@
 
 .assets[data-split='true'] .assetsIntroTitle {
   --reveal-d: 420ms;
+}
+
+.assets[data-split='true'] .assetsFilters {
+  --reveal-d: 470ms;
 }
 
 .assets[data-split='true'] .assetsDetail {
@@ -1228,6 +1332,7 @@
 .storyBtn {
   display: inline-flex;
   align-items: center;
+  gap: 10px;
   height: 36px;
   margin: 0;
   padding: 8px 12px;
@@ -1248,6 +1353,7 @@
 @media (prefers-reduced-motion: reduce) {
   .assets,
   .assetsIntroTitle,
+  .assetsFilters,
   .assetsSummary,
   .assetsDetail,
   .assetsScroll > * {

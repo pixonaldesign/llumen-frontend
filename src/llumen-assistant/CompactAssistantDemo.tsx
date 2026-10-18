@@ -1361,12 +1361,14 @@ export function CompactAssistantDemo() {
   const railComponentPrompt =
     railComponentsInDraft.length > 0 ? periodPrompt(railComponentsInDraft.map((item) => item.label)) : undefined
 
-  /** The top 10 schools (in a picked location, when set) are annotated as the reply's chart appears. */
-  const submitStoryAnnotation = useCallback(
-    () => {
+  /**
+   * The top 10 schools (in `location`, when set) are annotated as the reply's chart appears. From the hub
+   * the reply opens in the rail; from the rail it is already open.
+   */
+  const runStoryAnnotation = useCallback(
+    (location: StoryLocation | null, fromHub: boolean) => {
       if (streaming) return
       const slide = storySlideIndex
-      const location = locationInDraft ? storyLocation : null
       const region = location ? locationRegion(location) : null
       const annotation = location ? locationAnnotation(slide, location) : topSchoolsAnnotation(slide)
       const conversationId = activeConversationId ?? uid()
@@ -1397,6 +1399,14 @@ export function CompactAssistantDemo() {
       setDraft('')
       setStoryLocation(null)
       setActiveConversationId(conversationId)
+      if (fromHub) {
+        clearStream()
+        setLandingChips([])
+        setHubRailMode('thread')
+        setSessionsOpen(false)
+        setOpen(true)
+        setExpanded(false)
+      }
       if (!titleEditedRef.current && !messages.some((msg) => msg.role === 'assistant')) {
         setChatTitle(titleFromReply(reply))
       }
@@ -1415,15 +1425,22 @@ export function CompactAssistantDemo() {
     [
       activeConversationId,
       activeStoryId,
-      locationInDraft,
+      clearStream,
       messages,
       ownsStoryAi,
       startAssistantReply,
       storyAi.snapshot,
-      storyLocation,
       storySlideIndex,
       streaming,
     ],
+  )
+  const submitStoryAnnotation = useCallback(
+    () => runStoryAnnotation(locationInDraft ? storyLocation : null, false),
+    [locationInDraft, runStoryAnnotation, storyLocation],
+  )
+  const submitHubLocation = useCallback(
+    (location: StoryLocation) => runStoryAnnotation(location, true),
+    [runStoryAnnotation],
   )
 
   const openLocationPicker = useCallback(() => setLocationPickerOpen(true), [])
@@ -2429,6 +2446,7 @@ export function CompactAssistantDemo() {
             railOpen={open}
             pageColumnAnchor={railComposerOpen && !showHub}
             storyMode={storyActive}
+            findingsBottom={!storyActive && landingVariant === 'briefing' && findingsStyle === 5}
             stagedReveal={stagedReveal}
             revealNonce={revealNonce}
           />
@@ -2520,6 +2538,7 @@ export function CompactAssistantDemo() {
                   hubChatComponents.length > 0 ? periodPrompt(hubChatComponents.map((item) => item.label)) : undefined
                 }
                 onSubmitComponents={submitStoryComponents}
+                onSubmitLocation={storyActive && !streaming ? submitHubLocation : undefined}
               />
           </div>
         ) : null}

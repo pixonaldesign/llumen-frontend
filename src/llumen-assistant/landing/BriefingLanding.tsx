@@ -10,7 +10,20 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
-import { ArrowLeft, ArrowRight, ChatText, Pause, Play, ThumbsDown, ThumbsUp } from '@phosphor-icons/react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  CalendarBlank,
+  CaretDown,
+  ChatText,
+  Check,
+  MapPin,
+  Pause,
+  Play,
+  ThumbsDown,
+  ThumbsUp,
+} from '@phosphor-icons/react'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { BriefingAgentGrid } from './BriefingAgents'
 import { BriefingAppsCarousel } from './BriefingApps'
@@ -251,6 +264,9 @@ const ASSETS_SPLIT_MS = 1700
 /** Page scroll past which the Assets section counts as open and the composer leaves the centre. */
 const ASSETS_OPEN_PX = 8
 
+/** The Agents section is hidden for now; Apps follows Assets directly. */
+const SHOW_AGENTS = false
+
 /**
  * Assets play their entrance once their top passes this share of the page, and reset only once
  * scrolled back below the other; visiting Agents keeps them played.
@@ -316,7 +332,8 @@ export function BriefingLanding({
   const rootRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
   const lowerRef = useRef<HTMLDivElement>(null)
-  const agentsRef = useRef<HTMLElement>(null)
+  /** The first section after Assets: Agents, or Apps while Agents is hidden. */
+  const afterAssetsRef = useRef<HTMLElement>(null)
   const [assetsPlay, setAssetsPlay] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
   const barRef = useRef<HTMLElement | null>(null)
@@ -341,13 +358,13 @@ export function BriefingLanding({
     const open = top > ASSETS_OPEN_PX
     setAssetsOpen((current) => (current === open ? current : open))
     const lower = lowerRef.current
-    const agents = agentsRef.current
-    if (!lower || !agents) return
+    const next = afterAssetsRef.current
+    if (!lower || !next) return
     const height = page.clientHeight
     const bar = barRef.current?.offsetHeight ?? 0
-    const assetsEnd = lower.offsetTop + agents.offsetTop - height
+    const assetsEnd = lower.offsetTop + next.offsetTop - height
     const blendFrom = Math.max(lower.offsetTop - bar, assetsEnd)
-    const blendTo = lower.offsetTop + agents.offsetTop
+    const blendTo = lower.offsetTop + next.offsetTop
     const blend = Math.min(1, Math.max(0, (top - blendFrom) / Math.max(1, blendTo - blendFrom)))
     rootRef.current?.style.setProperty('--agents-t', blend.toFixed(3))
     const reveal = Math.min(1, Math.max(0, top / Math.max(1, lower.offsetTop - bar)))
@@ -374,14 +391,14 @@ export function BriefingLanding({
 
   const pagingRef = useRef({ frame: 0, to: null as number | null, locked: false, lastWheel: 0, wheel: 0 })
 
-  /** Section tops: the findings, Assets under the bar, then Agents and every later section by its bottom edge. */
+  /** Section tops: the findings, Assets under the bar, then every later section by its bottom edge. */
   const sectionStops = useCallback(() => {
     const page = pageRef.current
     const lower = lowerRef.current
     if (!page || !lower) return [0]
     const max = page.scrollHeight - page.clientHeight
     const stops = [0, lower.offsetTop - (barRef.current?.offsetHeight ?? 0)]
-    for (let section = agentsRef.current as Element | null; section; section = section.nextElementSibling) {
+    for (let section = afterAssetsRef.current as Element | null; section; section = section.nextElementSibling) {
       if (!(section instanceof HTMLElement)) continue
       stops.push(lower.offsetTop + section.offsetTop + section.offsetHeight - page.clientHeight)
     }
@@ -635,10 +652,111 @@ export function BriefingLanding({
         <div ref={lowerRef} className={styles.lower}>
           <div className={styles.lowerBg} aria-hidden />
           <AssetsSheet open={assetsOpen} play={assetsPlay} onOpen={showAssets} />
-          <AgentsSection sectionRef={agentsRef} />
-          <AppsSection />
+          {SHOW_AGENTS ? <AgentsSection sectionRef={afterAssetsRef} /> : null}
+          <AppsSection sectionRef={SHOW_AGENTS ? undefined : afterAssetsRef} />
         </div>
       </div>
+    </div>
+  )
+}
+
+const ASSET_LOCATIONS = ['Abu Dhabi Emirate', 'Abu Dhabi City', 'Al Ain', 'Al Dhafra'] as const
+const ASSET_PERIODS = ['Today', 'Last 7 days', 'Last 30 days', 'This year'] as const
+
+function FilterSelect<T extends string>({
+  label,
+  icon,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  icon: ReactNode
+  options: readonly T[]
+  value: T
+  onChange: (value: T) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (event: PointerEvent) => {
+      if (wrapRef.current?.contains(event.target as Node)) return
+      setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div className={styles.filterWrap} ref={wrapRef}>
+      <button
+        type="button"
+        className={styles.filterPill}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${label}: ${value}`}
+        onClick={() => setOpen((next) => !next)}
+      >
+        {icon}
+        <span>{value}</span>
+        <CaretDown size={14} weight="bold" aria-hidden />
+      </button>
+      {open ? (
+        <div className={styles.filterMenu} role="menu" aria-label={label}>
+          {options.map((option) => {
+            const selected = option === value
+            return (
+              <button
+                key={option}
+                type="button"
+                role="menuitemradio"
+                aria-checked={selected}
+                className={`${styles.filterMenuItem}${selected ? ` ${styles.filterMenuItemActive}` : ''}`}
+                onClick={() => {
+                  onChange(option)
+                  setOpen(false)
+                }}
+              >
+                {option}
+                {selected ? <Check size={16} weight="bold" aria-hidden /> : null}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** Global filters for the Assets section: location and time. */
+function AssetsFilters() {
+  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Abu Dhabi Emirate')
+  const [period, setPeriod] = useState<(typeof ASSET_PERIODS)[number]>('Last 7 days')
+  return (
+    <div className={styles.assetsFilters} role="group" aria-label="Filters">
+      <FilterSelect
+        label="Location"
+        icon={<MapPin size={18} weight="regular" aria-hidden />}
+        options={ASSET_LOCATIONS}
+        value={location}
+        onChange={setLocation}
+      />
+      <FilterSelect
+        label="Time"
+        icon={<CalendarBlank size={18} weight="regular" aria-hidden />}
+        options={ASSET_PERIODS}
+        value={period}
+        onChange={setPeriod}
+      />
     </div>
   )
 }
@@ -682,6 +800,7 @@ function AssetsSheet({ open, play, onOpen }: { open: boolean; play: boolean; onO
         <h2 id="briefing-assets" className={`${styles.eyebrow} ${styles.assetsIntroTitle}`}>
           Assets
         </h2>
+        <AssetsFilters />
         <p className={styles.assetsSummary}>
           <SummaryText parts={ASSETS_STATEMENT} />
         </p>
@@ -710,9 +829,9 @@ function AgentsSection({ sectionRef }: { sectionRef: RefObject<HTMLElement | nul
   )
 }
 
-function AppsSection() {
+function AppsSection({ sectionRef }: { sectionRef?: RefObject<HTMLElement | null> }) {
   return (
-    <section className={`${styles.agents} ${styles.apps}`} aria-labelledby="briefing-apps">
+    <section ref={sectionRef} className={`${styles.agents} ${styles.apps}`} aria-labelledby="briefing-apps">
       <header className={styles.sectionHead}>
         <h2 id="briefing-apps" className={styles.eyebrow}>
           Apps
@@ -826,6 +945,7 @@ function ConversationalBubble({
   }, [])
 
   const askGreeting = findingsStyle !== 1
+  const navAbove = findingsStyle === 5
   const greet = !askGreeting && shown.id === FEED_STOPS[0].id
 
   return (
@@ -856,6 +976,7 @@ function ConversationalBubble({
             here is what requires your attention today
           </p>
         </div>
+        {navAbove ? <div className={styles.findingNav}>{controls}</div> : null}
         <div className={styles.findingRow}>
           <div className={styles.bubble} style={height != null ? { height } : undefined}>
             <div ref={innerRef} className={`${styles.bubbleBody}${fading ? ` ${styles.bubbleFade}` : ''}`}>
@@ -868,7 +989,7 @@ function ConversationalBubble({
               />
             </div>
           </div>
-          <div className={styles.findingControls}>{controls}</div>
+          {navAbove ? null : <div className={styles.findingControls}>{controls}</div>}
         </div>
       </div>
     </div>
@@ -921,7 +1042,8 @@ function FindingBody({
         </SpecularActionButton>
         {stop.storyId ? (
           <button type="button" className={styles.storyBtn} onClick={() => onOpenStory?.(stop.storyId!)}>
-            View app
+            <ArrowUpRight size={20} weight="regular" aria-hidden />
+            View
           </button>
         ) : null}
         <div className={home.voteGroup}>
