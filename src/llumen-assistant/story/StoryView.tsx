@@ -89,7 +89,13 @@ import {
   type StoryFilter,
   type StorySlide,
 } from './storyDemoData'
-import { StoryMap, STORY_MAP_STYLE, type StoryMapHandle, type StoryMapLayerVisibility } from './StoryMap'
+import {
+  StoryMap,
+  STORY_MAP_STYLE,
+  type StoryMapActionTooltip,
+  type StoryMapHandle,
+  type StoryMapLayerVisibility,
+} from './StoryMap'
 import {
   MUSSAFAH_LOAD_X,
   MUSSAFAH_PERIOD,
@@ -485,6 +491,8 @@ export function StoryView({
   const [cameraRequest, setCameraRequest] = useState<{ camera: NonNullable<StoryAiSnapshot['camera']> } | null>(null)
   const [periodCards, setPeriodCards] = useState<ChartCardId[]>([])
   const [annotationRequest, setAnnotationRequest] = useState<StoryAiSnapshot['annotation'] | null>(null)
+  /** The annotation whose recommended action was pinned in edit mode; a new annotation starts unpinned. */
+  const [pinnedActionFor, setPinnedActionFor] = useState<StoryAiSnapshot['annotation'] | null>(null)
   // Starts below any token so a story opened with a saved snapshot replays its changes on mount.
   const [appliedAiToken, setAppliedAiToken] = useState(-1)
   if (aiState && aiState.token !== appliedAiToken) {
@@ -600,6 +608,14 @@ export function StoryView({
     if (annotation.layer === 'region') return aiRegion ? annotation : null
     return from === activeSlideIndex && !aiRegion ? annotation : null
   }, [activeSlideIndex, aiRegion, annotationRequest])
+  const actionTooltip = useMemo<StoryMapActionTooltip>(
+    () => ({
+      mode: storyMode,
+      pinned: annotationRequest !== null && pinnedActionFor === annotationRequest,
+      onPinnedChange: (pinned) => setPinnedActionFor(pinned ? annotationRequest : null),
+    }),
+    [annotationRequest, pinnedActionFor, storyMode],
+  )
   useEffect(() => {
     onSlideIndexChange?.(activeSlideIndex)
   }, [activeSlideIndex, onSlideIndexChange])
@@ -1741,6 +1757,7 @@ export function StoryView({
           cameraRequest={cameraRequest}
           areaEffect={areaEffect}
           annotation={mapAnnotation}
+          actionTooltip={actionTooltip}
           annotations={{
             items: mapAnnotationItems,
             validity: annotationStates,
