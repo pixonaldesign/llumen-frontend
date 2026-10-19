@@ -15,6 +15,8 @@ export type TopBarVariant = 'current' | 'studio'
  */
 export type FindingsStyle = 1 | 2 | 3 | 4 | 5
 
+export const DEFAULT_FINDINGS_STYLE: FindingsStyle = 5
+
 const LANDING_KEY = 'llumen.landingVariant'
 const TOP_BAR_KEY = 'llumen.topBarVariant'
 const FINDINGS_STYLE_KEY = 'llumen.findingsStyle'
@@ -95,13 +97,13 @@ export function persistTopBarVariant(variant: TopBarVariant) {
 }
 
 export function readFindingsStyle(): FindingsStyle {
-  if (typeof window === 'undefined') return 1
+  if (typeof window === 'undefined') return DEFAULT_FINDINGS_STYLE
   const fromUrl = toFindingsStyle(new URLSearchParams(window.location.search).get('findings'))
   if (fromUrl) return fromUrl
   try {
-    return toFindingsStyle(window.sessionStorage.getItem(FINDINGS_STYLE_KEY)) ?? 1
+    return toFindingsStyle(window.sessionStorage.getItem(FINDINGS_STYLE_KEY)) ?? DEFAULT_FINDINGS_STYLE
   } catch {
-    return 1
+    return DEFAULT_FINDINGS_STYLE
   }
 }
 
@@ -112,5 +114,5 @@ export function persistFindingsStyle(style: FindingsStyle) {
   } catch {
     /* private mode */
   }
-  writeParam('findings', String(style), '1')
+  writeParam('findings', String(style), String(DEFAULT_FINDINGS_STYLE))
 }

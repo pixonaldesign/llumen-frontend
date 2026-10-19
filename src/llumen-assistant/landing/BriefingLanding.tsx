@@ -34,7 +34,7 @@ import { BRIEFING_PLACES } from './briefingMapPlaces'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar } from './LandingTopBar'
 import { SpecularActionButton } from './SpecularActionButton'
-import type { FindingsStyle, TopBarVariant } from '../prototypeChrome'
+import { DEFAULT_FINDINGS_STYLE, type FindingsStyle, type TopBarVariant } from '../prototypeChrome'
 import home from './LandingHome.module.css'
 import styles from './BriefingLanding.module.css'
 
@@ -129,6 +129,8 @@ export type BriefingLandingProps = {
   /** Lays out the findings stage only; the composer dock follows it through the same value. */
   findingsStyle?: FindingsStyle
   onFindingsStyleChange?: (style: FindingsStyle) => void
+  /** An alert aurora holds the middle of the findings stage: the greeting and finding step aside, and the carousel waits. */
+  alert?: boolean
 }
 
 export function BriefingLanding({
@@ -138,8 +140,9 @@ export function BriefingLanding({
   reserveComposer = true,
   onAssetsProgress,
   onScrollActivity,
-  findingsStyle = 1,
+  findingsStyle = DEFAULT_FINDINGS_STYLE,
   onFindingsStyleChange,
+  alert = false,
 }: BriefingLandingProps) {
   const [active, setActive] = useState(0)
   const [assetsOpen, setAssetsOpen] = useState(false)
@@ -378,6 +381,7 @@ export function BriefingLanding({
       ref={rootRef}
       className={styles.root}
       data-findings-style={findingsStyle}
+      data-alert={alert}
       style={{
         ['--feed-pad' as string]: reserveComposer ? '106px' : '48px',
         ...(frame
@@ -435,7 +439,7 @@ export function BriefingLanding({
                 count={FEED_STOPS.length}
                 active={active}
                 paused={paused}
-                running={!paused && !assetsOpen}
+                running={!paused && !assetsOpen && !alert}
                 onSelect={setActive}
                 onStep={stepFeed}
                 onTogglePause={() => setPaused((value) => !value)}

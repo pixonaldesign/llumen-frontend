@@ -1,0 +1,146 @@
+/* The AI bar grown to full screen: a clip-path window opens from the bar, so the layout inside never reflows. */
+.stage {
+  --ask-header-h: 56px;
+  --ask-chat-w: 100%;
+  --ask-move: 760ms;
+
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  color: var(--lc-text-primary);
+  background: rgba(6, 9, 18, 0.9);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+}
+
+.stage[data-map='true'] {
+  --ask-chat-w: var(--lc-rail-width);
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.backdropShader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 1200ms var(--lc-ease);
+}
+
+.backdropShaderActive {
+  opacity: 0.85;
+}
+
+.header,
+.body {
+  animation: stageContentIn 420ms var(--lc-ease) 300ms backwards;
+}
+
+.stage[data-closing='true'] .header,
+.stage[data-closing='true'] .body {
+  animation: stageContentOut 180ms ease forwards;
+}
+
+@keyframes stageContentIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stageContentOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Spans the chat column only, so the map can run to the top edge beside it. */
+.header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  width: var(--ask-chat-w);
+  height: var(--ask-header-h);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--lc-border-subtle);
+  transition: width var(--ask-move) var(--lc-ease);
+}
+
+.body {
+  position: absolute;
+  top: var(--ask-header-h);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.chat {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--ask-chat-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transition: width var(--ask-move) var(--lc-ease);
+}
+
+/* Full bleed beside the chat column, up through the header row to the top edge. */
+.mapPane {
+  position: absolute;
+  top: calc(-1 * var(--ask-header-h));
+  right: 0;
+  bottom: 0;
+  left: var(--lc-rail-width);
+  overflow: hidden;
+  background: #0e1014;
+  opacity: 0;
+  transform: translateX(100%);
+  pointer-events: none;
+  transition:
+    transform var(--ask-move) var(--lc-ease),
+    opacity 320ms ease;
+}
+
+.stage[data-map='true'] .mapPane {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.mapPane .mapControls {
+  top: 16px;
+  right: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header,
+  .body {
+    animation: none;
+  }
+
+  .header,
+  .chat,
+  .mapPane {
+    transition: none;
+  }
+}

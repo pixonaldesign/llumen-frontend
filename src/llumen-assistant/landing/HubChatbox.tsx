@@ -239,6 +239,10 @@ export type HubChatboxProps = {
    * runs the location demo here instead of `onSubmit`.
    */
   onSubmitLocation?: (location: StoryLocation) => void
+  /** Typed into the empty editor on the first click when nothing else is attached. */
+  demoPrompt?: string
+  /** A new token types `text` into the bar, then sends it. */
+  typeRequest?: { token: number; text: string } | null
 }
 
 export type HubChatComponent = { id: string; label: string }
@@ -247,6 +251,8 @@ const NO_COMPONENTS: HubChatComponent[] = []
 
 const TYPE_STEP = 2
 const TYPE_INTERVAL_MS = 14
+/** Pause on the finished prompt before a typed request sends itself. */
+const TYPED_SEND_DELAY_MS = 420
 
 function placeCaretAtEnd(editor: HTMLElement) {
   const sel = window.getSelection()
@@ -285,6 +291,8 @@ export function HubChatbox({
   componentPrompt,
   onSubmitComponents,
   onSubmitLocation,
+  demoPrompt,
+  typeRequest = null,
 }: HubChatboxProps) {
   const [focused, setFocused] = useState(false)
   const [editorEmpty, setEditorEmpty] = useState(true)
@@ -357,11 +365,27 @@ export function HubChatbox({
   }
   const locationKey = (location: StoryLocation) => `location:${location.id}`
 
-  /** Typed on the first click: the attached components' re-plot, or the picked location's demo prompt. */
+  /** Typed on the first click: the attached components' re-plot, the picked location's prompt, or the demo prompt. */
   const autoPrompt = () => {
     if (componentPrompt && components.length > 0) return { key: componentsKey, text: componentPrompt }
     const location = locationInEditor()
-    return location ? { key: locationKey(location), text: locationPrompt(location) } : null
+    if (location) return { key: locationKey(location), text: locationPrompt(location) }
+    return demoPrompt ? { key: 'demo', text: demoPrompt } : null
+  }
+
+  const typeInto = (target: Text, full: string, onDone?: () => void) => {
+    const editor = editorRef.current
+    let length = 0
+    const timer = window.setInterval(() => {
+      length = Math.min(full.length, length + TYPE_STEP)
+      target.data = full.slice(0, length)
+      if (editor && document.activeElement === editor) placeCaretAtEnd(editor)
+      syncEditor()
+      if (length < full.length) return
+      stopTyping()
+      onDone?.()
+    }, TYPE_INTERVAL_MS)
+    typingRef.current = { timer, full }
   }
 
   const fillAutoPrompt = () => {
@@ -389,16 +413,7 @@ export function HubChatbox({
       editor.append(node)
       typedNodeRef.current = node
     }
-    const target = node
-    let length = 0
-    const timer = window.setInterval(() => {
-      length = Math.min(full.length, length + TYPE_STEP)
-      target.data = full.slice(0, length)
-      if (document.activeElement === editor) placeCaretAtEnd(editor)
-      syncEditor()
-      if (length >= full.length) stopTyping()
-    }, TYPE_INTERVAL_MS)
-    typingRef.current = { timer, full }
+    typeInto(node, full)
   }
 
   const closeMention = useCallback(() => {
@@ -686,6 +701,8 @@ export function HubChatbox({
       setPickedLocation(null)
     } else {
       onSubmit(text, fileChips)
+      typedKeyRef.current = ''
+      autoTextRef.current = ''
     }
     if (editor) {
       editor.innerHTML = ''
@@ -696,6 +713,33 @@ export function HubChatbox({
     closeSlash()
     syncEditor()
   }
+
+  const sendRef = useRef(send)
+  useEffect(() => {
+    sendRef.current = send
+  })
+
+  const typeRequestRef = useRef(0)
+  const typedSendTimerRef = useRef(0)
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!typeRequest || typeRequest.token === typeRequestRef.current || !editor || interactionLocked) return
+    typeRequestRef.current = typeRequest.token
+    stopTyping()
+    window.clearTimeout(typedSendTimerRef.current)
+    editor.innerHTML = ''
+    insertedChipIdsRef.current.clear()
+    const node = document.createTextNode('')
+    editor.append(node)
+    typedNodeRef.current = node
+    typedKeyRef.current = `request:${typeRequest.token}`
+    autoTextRef.current = typeRequest.text
+    editor.focus()
+    typeInto(node, typeRequest.text, () => {
+      typedSendTimerRef.current = window.setTimeout(() => sendRef.current(), TYPED_SEND_DELAY_MS)
+    })
+  })
+  useEffect(() => () => window.clearTimeout(typedSendTimerRef.current), [])
 
   const openChatButton = (tabIndex?: number) =>
     onOpenChat ? (

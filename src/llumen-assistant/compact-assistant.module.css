@@ -307,7 +307,22 @@
   );
   width: calc(var(--s5-side) * (1 - var(--at)) + var(--centre-w) * var(--at));
   opacity: max(calc(1 - var(--t) * 2), calc(var(--t) * 2 - 1));
-  transition: width 360ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 320ms ease;
+}
+
+/*
+ * After its border cue, the composer steps aside for the alert aurora in the middle of the findings.
+ * It fades through filter, since opacity already follows the scroll and must not lag behind it.
+ */
+.composerDockCenter[data-findings-style='5'][data-alert='true'] {
+  filter: opacity(0);
+  visibility: hidden;
+  transition:
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 320ms ease,
+    visibility 0s linear 320ms;
 }
 
 /* Styles 2 and 5 own the width, so they narrow the centred slot themselves while the page scrolls. */
@@ -336,6 +351,69 @@
 
 .composerDockShifted {
   left: var(--lc-rail-width, 400px);
+}
+
+/* The bar became the full-screen stage, which grows from and shrinks back onto this spot. */
+.composerDock[data-ask='true'] {
+  visibility: hidden;
+  transition: none;
+}
+
+/*
+ * Landing ask stage: the transcript spans the column so its scrollbar hugs the edge,
+ * while turns and the composer keep a reading width in the middle.
+ */
+.landingAskHeader {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding-left: var(--lc-transcript-gutter);
+  box-sizing: border-box;
+}
+
+.landingAskHeader .headerRow {
+  padding-right: var(--lc-transcript-gutter);
+}
+
+.landingAskChat {
+  --ask-read-w: 800px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: var(--space-xl);
+  box-sizing: border-box;
+}
+
+.landingAskChat .msgTurn {
+  max-width: var(--ask-read-w);
+  margin-inline: auto;
+}
+
+/* Turns fade out just above the composer instead of scrolling on underneath it. */
+.landingAskChat .middle:not(.middleEmpty) > .transcript {
+  padding-top: var(--space-xl);
+  --ask-fade-end: calc(100% - var(--lc-composer-reserve, 200px));
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(var(--ask-fade-end) - 32px), transparent var(--ask-fade-end));
+  mask-image: linear-gradient(to bottom, #000 calc(var(--ask-fade-end) - 32px), transparent var(--ask-fade-end));
+}
+
+.landingAskChat .middle:not(.middleEmpty) > .composerFindingDock {
+  justify-self: center;
+  align-self: end;
+}
+
+.landingAskChat .middleEmpty .composerFindingDock {
+  align-self: center;
+}
+
+.landingAskChat .middleEmpty .composerFindingDock,
+.landingAskChat .middle:not(.middleEmpty) > .composerFindingDock {
+  width: min(
+    calc(var(--ask-read-w) - var(--space-xl) - var(--lc-transcript-gutter) - var(--lc-transcript-scrollbar-inset)),
+    calc(100% - 2 * var(--space-xl))
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {

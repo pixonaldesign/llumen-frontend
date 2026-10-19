@@ -163,15 +163,6 @@
   padding-bottom: 20px;
 }
 
-/*
- * Briefing findings style 5: the composer sits in a column beside the findings, so the copy leaves it
- * and sits low on the aurora, 56px above the viewport edge (bottom padding is 12px). The Assets peek
- * is hidden while a finding shows, so the copy can sit over it.
- */
-.copy[data-findings-bottom='true'] {
-  bottom: 44px;
-}
-
 .close {
   position: relative;
   display: inline-flex;
@@ -536,6 +527,144 @@
   }
 }
 
+/*
+ * Centre mode (Briefing findings style 5, on the findings section). Everything spans the section under
+ * the 64px top bar: a line draws across its middle and fades as the aurora and its frost open up and
+ * down from it, and the copy sits there in place of the composer and findings, which fade out meanwhile.
+ */
+.centreLine {
+  position: fixed;
+  top: calc(64px + (100dvh - 64px) / 2 - 1px);
+  left: 0;
+  right: 0;
+  z-index: 6;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--line-1) 18%,
+    var(--line-2) 50%,
+    var(--line-3) 82%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: centreLineIn 1.8s var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.centreLine::after {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
+  background: inherit;
+  filter: blur(10px);
+  opacity: 0.8;
+}
+
+.centreLine[data-exiting='true'] {
+  animation: findingFade 480ms var(--lc-ease, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+@keyframes centreLineIn {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  30% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+.veil[data-centre='true'],
+.aurora[data-centre='true'] {
+  top: 64px;
+  height: auto;
+}
+
+.veil[data-centre='true'] {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(4, 6, 12, 0.1) 22%,
+    rgba(4, 6, 12, 0.46) 50%,
+    rgba(4, 6, 12, 0.1) 78%,
+    transparent 100%
+  );
+}
+
+.veil[data-centre='true'] .veilBlur[data-level='1'] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 6%, #000 28%, #000 72%, transparent 94%);
+  mask-image: linear-gradient(to bottom, transparent 6%, #000 28%, #000 72%, transparent 94%);
+}
+
+.veil[data-centre='true'] .veilBlur[data-level='2'] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 16%, #000 34%, #000 66%, transparent 84%);
+  mask-image: linear-gradient(to bottom, transparent 16%, #000 34%, #000 66%, transparent 84%);
+}
+
+.veil[data-centre='true'] .veilBlur[data-level='3'] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 26%, #000 40%, #000 60%, transparent 74%);
+  mask-image: linear-gradient(to bottom, transparent 26%, #000 40%, #000 60%, transparent 74%);
+}
+
+.veil[data-centre='true'] .veilBlur[data-level='4'] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 34%, #000 45%, #000 55%, transparent 66%);
+  mask-image: linear-gradient(to bottom, transparent 34%, #000 45%, #000 55%, transparent 66%);
+}
+
+/* --aurora-reveal is how far the band reaches above and below the line. */
+.veil[data-centre='true'][data-ready='true'],
+.aurora[data-centre='true'][data-ready='true'] {
+  --aurora-reveal: 60%;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent calc(50% - var(--aurora-reveal)),
+    #000 calc(50% - var(--aurora-reveal) * 0.55),
+    #000 calc(50% + var(--aurora-reveal) * 0.55),
+    transparent calc(50% + var(--aurora-reveal))
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent calc(50% - var(--aurora-reveal)),
+    #000 calc(50% - var(--aurora-reveal) * 0.55),
+    #000 calc(50% + var(--aurora-reveal) * 0.55),
+    transparent calc(50% + var(--aurora-reveal))
+  );
+  animation: auroraCentreReveal 1.6s var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1)) 320ms both;
+}
+
+.veil[data-centre='true'][data-ready='true'][data-exiting='true'],
+.aurora[data-centre='true'][data-ready='true'][data-exiting='true'] {
+  animation: findingFade 480ms var(--lc-ease, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+@keyframes auroraCentreReveal {
+  from {
+    --aurora-reveal: 0%;
+  }
+  to {
+    --aurora-reveal: 60%;
+  }
+}
+
+@keyframes findingFade {
+  to {
+    opacity: 0;
+  }
+}
+
+.copy[data-centre='true'] {
+  top: 64px;
+  bottom: 0;
+  align-items: center;
+  width: min(720px, calc(100vw - 48px));
+  padding: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .veil[data-ready='true']:not([data-exiting='true']),
   .aurora[data-ready='true']:not([data-exiting='true']) {
@@ -543,6 +672,10 @@
     opacity: 1;
     -webkit-mask-image: none;
     mask-image: none;
+  }
+
+  .centreLine {
+    display: none;
   }
 
   .copyCluster,

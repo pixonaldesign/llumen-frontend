@@ -462,6 +462,9 @@ const DISTRICT_OPTIONS = [
   ),
 ].sort(byLabel)
 
+/** The district the landing AI bar's demo prompt asks about, without going through the picker. */
+export const MUSSAFAH_LOCATION = DISTRICT_OPTIONS.find((district) => district.name === MUSSAFAH_LABEL) as StoryLocationOption
+
 const ZONE_OPTIONS = DISTRICT_OPTIONS.filter((district) => district.id !== 'district-abu-dhabi-island').flatMap(
   (district, order) =>
     zoneOutlines(district.polygon, order + 1).map((polygon, index) => {

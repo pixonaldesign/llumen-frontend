@@ -1345,7 +1345,9 @@ export function StoryMap({
       setHovered(pin)
     }
     const onLeave = () => {
-      map.getCanvas().style.cursor = ''
+      // Also runs on unmount, after the map (and its canvas) is already removed.
+      const canvas = map.getCanvas() as HTMLCanvasElement | undefined
+      if (canvas) canvas.style.cursor = ''
       setHovered(null)
     }
     const layer = annotation.layer === 'region' ? 'story-region-columns' : 'story-columns'
