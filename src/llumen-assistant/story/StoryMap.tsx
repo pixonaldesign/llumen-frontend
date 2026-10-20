@@ -288,10 +288,12 @@ type ActionPin = {
 
 /** How the recommended-action card behaves in the story's edit and view modes. */
 export type StoryMapActionTooltip = {
-  /** Edit always shows the card with a pin toggle; view shows it on hover unless it was pinned, and closing unpins it. */
+  /** Edit always shows the card with a pin toggle; view shows it on hover unless it was pinned, and Close hides it. */
   mode: 'edit' | 'view'
   pinned: boolean
   onPinnedChange: (pinned: boolean) => void
+  /** View mode's Close; the card stays pinned in edit mode. */
+  onClose: () => void
 }
 
 /** Everything one overlay draw needs; tweens update fields and redraw. */
@@ -841,8 +843,12 @@ function wireActionPin(pin: ActionPin, tooltip: () => StoryMapActionTooltip | nu
     event.stopPropagation()
     const current = tooltip()
     if (!current) return
-    current.onPinnedChange(current.mode === 'edit' ? !current.pinned : false)
-    if (current.mode === 'view') pin.hover(false)
+    if (current.mode === 'edit') {
+      current.onPinnedChange(!current.pinned)
+      return
+    }
+    current.onClose()
+    pin.hover(false)
   })
 }
 

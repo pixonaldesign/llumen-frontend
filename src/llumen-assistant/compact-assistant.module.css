@@ -1051,6 +1051,12 @@
   opacity: 1;
 }
 
+.saveToAssetsBtn:disabled,
+.saveToAssetsBtn:disabled:hover {
+  color: var(--lc-text-primary);
+  cursor: default;
+}
+
 .mapDescriptionPopover {
   position: absolute;
   top: calc(100% + 10px);

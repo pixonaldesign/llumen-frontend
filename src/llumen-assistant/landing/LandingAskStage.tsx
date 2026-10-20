@@ -1,4 +1,6 @@
 import {
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -11,6 +13,8 @@ import {
 } from 'react'
 import { MeshGradient } from '@paper-design/shaders-react'
 import gsap from 'gsap'
+import { MapBleedHeader, type DetailTab } from '../ComponentDetailPanel'
+import detailStyles from '../compact-assistant.module.css'
 import { MESH_COLORS_LUMEN_DARK, MESH_FRAME_PANEL } from '../paperMeshConstants'
 import {
   locationAnnotation,
@@ -23,28 +27,39 @@ import { StoryMap, type StoryMapAnnotationLayer, type StoryMapHandle } from '../
 import styles from './LandingAskStage.module.css'
 import { findingAreas, findingRegion, findingSceneIndex, isFindingPlace } from './landingFindingExperiences'
 
+/** Loads the asset builder's styles only once Data or Source is opened. */
+const LandingAssetPanels = lazy(() => import('./LandingAssetPanels'))
+
 const MORPH_IN_S = 0.68
 const MORPH_OUT_S = 0.5
 /** The AI bar's corner radius, so the stage starts and ends on the bar's own shape. */
 const BAR_RADIUS_PX = 24
-const MAP_PADDING = { top: 40, right: 40, bottom: 40, left: 40 }
+/** The top inset clears the asset header that floats over the map. */
+const MAP_PADDING = { top: 200, right: 40, bottom: 40, left: 40 }
 
-function clipFor(rect: DOMRect, radius: number) {
-  const right = Math.max(0, window.innerWidth - rect.right)
-  const bottom = Math.max(0, window.innerHeight - rect.bottom)
-  return `inset(${rect.top}px ${right}px ${bottom}px ${rect.left}px round ${radius}px)`
+/** Clips `box` (the stage's own rect, full screen or shrunk) down to `rect`. */
+function clipFor(rect: DOMRect, radius: number, box: DOMRect) {
+  const top = Math.max(0, rect.top - box.top)
+  const right = Math.max(0, box.right - rect.right)
+  const bottom = Math.max(0, box.bottom - rect.bottom)
+  const left = Math.max(0, rect.left - box.left)
+  return `inset(${top}px ${right}px ${bottom}px ${left}px round ${radius}px)`
 }
 
-const FULL_CLIP = 'inset(0px 0px 0px 0px round 0px)'
+/** Matches `.stage[data-shrunk='true']`'s corner radius. */
+const SHRUNK_RADIUS_PX = 16
+const fullClip = (radius: number) => `inset(0px 0px 0px 0px round ${radius}px)`
 
 const ESCAPE_OWNERS = '[data-lc-sessions-menu], [data-lc-conversation-menu], [data-lc-share-modal]'
 
 export type LandingAskStageHandle = { close: () => void }
 
 export type LandingAskStageProps = {
-  /** The AI bar the stage grows out of. */
+  /** What the stage grows out of: the AI bar, or a finding's Tell Me More. */
   origin: DOMRect
-  /** Where the stage shrinks back to on close; the bar may have changed size since. */
+  /** `origin`'s corner radius; the AI bar's by default. */
+  originRadius?: number
+  /** The bar the stage shrinks back into on close (it may have changed size since); null goes back to `origin`. */
   returnTo: () => DOMRect | null
   title: string
   header: ReactNode
@@ -53,6 +68,8 @@ export type LandingAskStageProps = {
   thinking: boolean
   /** The map slides in from the right and the chat moves to the left column. */
   mapOpen: boolean
+  /** A centred window over the landing instead of full screen. */
+  shrunk?: boolean
   chat: ReactNode
   map: ReactNode
   onClosed: () => void
@@ -60,12 +77,14 @@ export type LandingAskStageProps = {
 
 export function LandingAskStage({
   origin,
+  originRadius = BAR_RADIUS_PX,
   returnTo,
   title,
   header,
   handleRef,
   thinking,
   mapOpen,
+  shrunk = false,
   chat,
   map,
   onClosed,
@@ -79,9 +98,9 @@ export function LandingAskStage({
     if (!el || reduceMotion) return
     const tween = gsap.fromTo(
       el,
-      { clipPath: clipFor(origin, BAR_RADIUS_PX) },
+      { clipPath: clipFor(origin, originRadius, el.getBoundingClientRect()) },
       {
-        clipPath: FULL_CLIP,
+        clipPath: fullClip(0),
         duration: MORPH_IN_S,
         ease: 'power3.inOut',
         onComplete: () => {
@@ -92,7 +111,7 @@ export function LandingAskStage({
     return () => {
       tween.kill()
     }
-  }, [origin, reduceMotion])
+  }, [origin, originRadius, reduceMotion])
 
   const close = useCallback(() => {
     if (closing) return
@@ -102,18 +121,21 @@ export function LandingAskStage({
       onClosed()
       return
     }
+    const bar = returnTo()
     gsap.killTweensOf(el)
     gsap.fromTo(
       el,
-      { clipPath: FULL_CLIP },
+      { clipPath: fullClip(shrunk ? SHRUNK_RADIUS_PX : 0) },
       {
-        clipPath: clipFor(returnTo() ?? origin, BAR_RADIUS_PX),
+        clipPath: bar
+          ? clipFor(bar, BAR_RADIUS_PX, el.getBoundingClientRect())
+          : clipFor(origin, originRadius, el.getBoundingClientRect()),
         duration: MORPH_OUT_S,
         ease: 'power3.inOut',
         onComplete: onClosed,
       },
     )
-  }, [closing, onClosed, origin, reduceMotion, returnTo])
+  }, [closing, onClosed, origin, originRadius, reduceMotion, returnTo, shrunk])
 
   useImperativeHandle(handleRef, () => ({ close }), [close])
 
@@ -134,6 +156,7 @@ export function LandingAskStage({
       ref={stageRef}
       className={styles.stage}
       data-map={mapOpen ? 'true' : 'false'}
+      data-shrunk={shrunk ? 'true' : 'false'}
       data-closing={closing ? 'true' : 'false'}
       role="dialog"
       aria-modal="true"
@@ -159,6 +182,88 @@ export function LandingAskStage({
           {map}
         </section>
       </div>
+    </div>
+  )
+}
+
+export type LandingAskAssetProps = {
+  /** The map state on show; a new one brings the Asset tab back. */
+  stateId: string | null
+  title: string
+  /** District named in the Source query. */
+  place: string
+  caption?: string
+  analysis?: string
+  onShowInConversation?: () => void
+  onCollapse: () => void
+  /** The map; it stays mounted under the Data and Source panels. */
+  children: ReactNode
+}
+
+/** The reply's map as an asset: a header with insight actions, and Asset / Data / Source tabs. */
+export function LandingAskAsset({
+  stateId,
+  title,
+  place,
+  caption,
+  analysis,
+  onShowInConversation,
+  onCollapse,
+  children,
+}: LandingAskAssetProps) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
+  const [tab, setTab] = useState<DetailTab>('component')
+  const [tabFor, setTabFor] = useState(stateId)
+  if (tabFor !== stateId) {
+    setTabFor(stateId)
+    setTab('component')
+  }
+
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    const header = headerRef.current
+    if (!root || !header) return
+    const measure = () => {
+      const tabs = header.querySelector('[role="tablist"]')
+      if (!tabs) return
+      const bottom = tabs.getBoundingClientRect().bottom - root.getBoundingClientRect().top
+      root.style.setProperty('--asset-header-h', `${Math.round(bottom)}px`)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(header)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div ref={rootRef} className={styles.asset}>
+      <div className={detailStyles.mapBleedStage}>{children}</div>
+      <MapBleedHeader
+        key={stateId}
+        headerRef={headerRef}
+        title={title}
+        aiGenerated
+        caption={caption}
+        analysis={analysis}
+        onShowInConversation={onShowInConversation}
+        onClose={onCollapse}
+        activeTab={tab}
+        onTabChange={setTab}
+        saveDisabled
+      />
+      {tab !== 'component' ? (
+        <div
+          className={detailStyles.mapBleedSecondary}
+          role="tabpanel"
+          id={`component-detail-panel-${tab}`}
+          aria-labelledby={`component-detail-tab-${tab}`}
+        >
+          <Suspense fallback={null}>
+            <LandingAssetPanels panel={tab === 'query-results' ? 'data' : 'source'} place={place} />
+          </Suspense>
+        </div>
+      ) : null}
     </div>
   )
 }

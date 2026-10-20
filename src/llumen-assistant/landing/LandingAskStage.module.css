@@ -3,6 +3,7 @@
   --ask-header-h: 56px;
   --ask-chat-w: 100%;
   --ask-move: 760ms;
+  --ask-resize: 420ms;
 
   position: fixed;
   inset: 0;
@@ -12,6 +13,23 @@
   background: rgba(6, 9, 18, 0.9);
   -webkit-backdrop-filter: blur(28px);
   backdrop-filter: blur(28px);
+  transition:
+    inset var(--ask-resize) var(--lc-ease),
+    border-radius var(--ask-resize) var(--lc-ease),
+    box-shadow var(--ask-resize) var(--lc-ease);
+}
+
+/* Shrink: the same layout as a centred window, with the landing showing around it. */
+.stage[data-shrunk='true'] {
+  /* The landing top bar's height, so the window clears it. */
+  --ask-top-bar-h: 61px;
+  --ask-shrunk-gap: 24px;
+
+  inset: calc(var(--ask-top-bar-h) + var(--ask-shrunk-gap)) 9vw var(--ask-shrunk-gap);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
 .stage[data-map='true'] {
@@ -127,9 +145,16 @@
   pointer-events: auto;
 }
 
+.asset {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Below the asset header's tabs (--asset-header-h is measured to their bottom edge). */
 .mapPane .mapControls {
-  top: 16px;
-  right: 16px;
+  top: calc(var(--asset-header-h, 0px) + 16px);
+  right: 32px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -138,6 +163,7 @@
     animation: none;
   }
 
+  .stage,
   .header,
   .chat,
   .mapPane {

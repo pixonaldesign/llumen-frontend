@@ -493,6 +493,11 @@ export function StoryView({
   const [annotationRequest, setAnnotationRequest] = useState<StoryAiSnapshot['annotation'] | null>(null)
   /** The annotation whose recommended action was pinned in edit mode; a new annotation starts unpinned. */
   const [pinnedActionFor, setPinnedActionFor] = useState<StoryAiSnapshot['annotation'] | null>(null)
+  /** Closed in view mode on `slide`: it stays pinned in edit mode, and shows pinned again once the slide changes. */
+  const [closedAction, setClosedAction] = useState<{
+    annotation: StoryAiSnapshot['annotation'] | null
+    slide: number
+  } | null>(null)
   // Starts below any token so a story opened with a saved snapshot replays its changes on mount.
   const [appliedAiToken, setAppliedAiToken] = useState(-1)
   if (aiState && aiState.token !== appliedAiToken) {
@@ -559,6 +564,7 @@ export function StoryView({
   const layoutMenuRef = useRef<HTMLButtonElement>(null)
 
   const activeSlideIndex = Math.min(slideIndex, slides.length - 1)
+  if (closedAction && closedAction.slide !== activeSlideIndex) setClosedAction(null)
   const slide = slides[activeSlideIndex]
   const [timelineSlideId, setTimelineSlideId] = useState(slide.id)
   if (timelineSlideId !== slide.id) {
@@ -611,10 +617,17 @@ export function StoryView({
   const actionTooltip = useMemo<StoryMapActionTooltip>(
     () => ({
       mode: storyMode,
-      pinned: annotationRequest !== null && pinnedActionFor === annotationRequest,
-      onPinnedChange: (pinned) => setPinnedActionFor(pinned ? annotationRequest : null),
+      pinned:
+        annotationRequest !== null &&
+        pinnedActionFor === annotationRequest &&
+        (storyMode === 'edit' || closedAction?.annotation !== annotationRequest),
+      onPinnedChange: (pinned) => {
+        setPinnedActionFor(pinned ? annotationRequest : null)
+        setClosedAction(null)
+      },
+      onClose: () => setClosedAction({ annotation: annotationRequest, slide: activeSlideIndex }),
     }),
-    [annotationRequest, pinnedActionFor, storyMode],
+    [activeSlideIndex, annotationRequest, closedAction, pinnedActionFor, storyMode],
   )
   useEffect(() => {
     onSlideIndexChange?.(activeSlideIndex)

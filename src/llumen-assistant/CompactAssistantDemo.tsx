@@ -55,7 +55,7 @@ import {
 import type { HubChatComponent, HubWorkToast } from './landing/HubChatbox'
 import type { LandingTellMeMorePayload } from './landing/LandingHomeDefault'
 import { DUMPING_ALERT_BRIEFING, DUMPING_BRIEFING_SOURCES } from './landing/dumpingBriefing'
-import { LandingAskMap, LandingAskStage, type LandingAskStageHandle } from './landing/LandingAskStage'
+import { LandingAskAsset, LandingAskMap, LandingAskStage, type LandingAskStageHandle } from './landing/LandingAskStage'
 import { findingReply, tellMeMorePrompt } from './landing/landingAskReplies'
 import { findingExperience } from './landing/landingFindingExperiences'
 import { CommandPalette } from './CommandPalette'
@@ -351,6 +351,9 @@ type LandingAskMapState = {
 
 const LANDING_MAP_CLOSED: LandingAskMapState = { open: false, snapshot: null, capture: null }
 
+/** A stage grown out of a finding closes back into it, not the AI bar. */
+const noLandingBar = () => null
+
 type LandingAskSubject = { finding: LandingTellMeMorePayload } | { location: StoryLocation } | null
 
 /** Typed into the landing AI bar on first click: the story builder's location prompt, already set to Mussafah. */
@@ -361,6 +364,25 @@ function lastMapState(messages: ChatMessage[]): { stateId: string; snapshot: Sto
     .flatMap((message) => (message.role === 'assistant' ? (message.reply?.createdComponents ?? []) : []))
     .flatMap((component) => (component.preview?.kind === 'story-map-state' ? [component.preview] : []))
     .at(-1)
+}
+
+/** The map card a reply attached for this state, with the reply's opening paragraph as its insight. */
+function mapStateAsset(messages: ChatMessage[], stateId: string | null) {
+  if (!stateId) return null
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue
+    const component = message.reply?.createdComponents?.find((item) => item.id === stateId)
+    if (component?.preview?.kind !== 'story-map-state') continue
+    const opening = message.reply?.blocks?.find((block) => block.type === 'text')
+    return {
+      stateId,
+      title: component.title,
+      place: component.preview.tag,
+      caption: component.preview.meta,
+      analysis: opening?.type === 'text' ? opening.content : undefined,
+    }
+  }
+  return null
 }
 
 export function CompactAssistantDemo() {
@@ -452,8 +474,12 @@ export function CompactAssistantDemo() {
   const hubWorkUserTextRef = useRef('')
   const [hubStoryOpen, setHubStoryOpen] = useState(false)
   const [hubMorphFrom, setHubMorphFrom] = useState<DOMRect | null>(null)
-  /** A landing AI bar prompt: the bar grows to full screen from `origin` and holds the conversation. */
-  const [landingAsk, setLandingAsk] = useState<{ origin: DOMRect } | null>(null)
+  /**
+   * A landing AI bar prompt: the bar grows to full screen from `origin` and holds the conversation. A finding's
+   * Tell Me More grows it out of the finding instead (`radius` set), and it closes back there.
+   */
+  const [landingAsk, setLandingAsk] = useState<{ origin: DOMRect; radius?: number } | null>(null)
+  const [landingAskShrunk, setLandingAskShrunk] = useState(false)
   const [landingAskMap, setLandingAskMap] = useState<LandingAskMapState>(LANDING_MAP_CLOSED)
   /** The reply's map-state card brings in the map; until then its annotation waits here. */
   const landingAskPendingRef = useRef<{
@@ -464,9 +490,6 @@ export function CompactAssistantDemo() {
   } | null>(null)
   const landingAskMapTimer = useRef(0)
   const landingAskStageRef = useRef<LandingAskStageHandle>(null)
-  /** Typed into the hub bar and sent (Tell Me More). */
-  const [hubTypeRequest, setHubTypeRequest] = useState<{ token: number; text: string } | null>(null)
-  const pendingFindingRef = useRef<LandingTellMeMorePayload | null>(null)
   /** Story chart cards attached to the hub chatbox via "Add to chat". */
   const [storyChatComponents, setStoryChatComponents] = useState<ChatComponent[]>([])
   /** Charts added while the chat panel is open; they live as pills in the rail composer. */
@@ -1902,8 +1925,6 @@ export function CompactAssistantDemo() {
 
   /** Home cards always open the story as authored; AI versions come back only through their conversation. */
   const openStoryFromHome = useCallback((storyId: string) => {
-    setHubTypeRequest(null)
-    pendingFindingRef.current = null
     setActiveMapStateId(null)
     setStoryAi((current) => ({ token: current.token + 1, snapshot: null, storyId: null, conversationId: null }))
     setActiveStoryId(storyId)
@@ -2066,23 +2087,30 @@ export function CompactAssistantDemo() {
     [],
   )
 
-  const openLandingAsk = useCallback(() => {
-    const origin = landingBarRect() ?? new DOMRect(window.innerWidth / 2 - 320, window.innerHeight - 104, 640, 72)
-    window.clearTimeout(landingAskMapTimer.current)
-    landingAskPendingRef.current = null
-    setLandingAskMap(LANDING_MAP_CLOSED)
-    setLandingAsk((current) => current ?? { origin })
-    setLandingChips([])
-    setHubWorkToast(null)
-    setHubTypeRequest(null)
-  }, [landingBarRect])
+  const openLandingAsk = useCallback(
+    (from?: LandingTellMeMorePayload['origin']) => {
+      const origin = from
+        ? { origin: from.rect, radius: from.radius }
+        : {
+            origin:
+              landingBarRect() ?? new DOMRect(window.innerWidth / 2 - 320, window.innerHeight - 104, 640, 72),
+          }
+      window.clearTimeout(landingAskMapTimer.current)
+      landingAskPendingRef.current = null
+      setLandingAskMap(LANDING_MAP_CLOSED)
+      setLandingAsk((current) => current ?? origin)
+      setLandingChips([])
+      setHubWorkToast(null)
+    },
+    [landingBarRect],
+  )
 
   /**
    * A schools prompt (city-wide, or in a location as the story builder asks it) or a finding's Tell Me More,
    * annotated on the map that joins the reply.
    */
   const runLandingAsk = useCallback(
-    (prompt: string, subject: LandingAskSubject) => {
+    (prompt: string, subject: LandingAskSubject, from?: LandingTellMeMorePayload['origin']) => {
       const slide = 0
       const finding = subject && 'finding' in subject ? subject.finding : null
       const location = subject && 'location' in subject ? subject.location : null
@@ -2130,7 +2158,7 @@ export function CompactAssistantDemo() {
         map = { snapshot, captureDelay: region ? REGION_ANNOTATION_CAPTURE_DELAY_MS : ANNOTATION_CAPTURE_DELAY_MS }
       }
       resetConversation()
-      openLandingAsk()
+      openLandingAsk(from)
       setActiveConversationId(uid())
       setActiveMapStateId(map ? stateId : null)
       setChatTitle(finding ? truncateTitle(finding.title) : titleFromReply(reply))
@@ -2163,6 +2191,7 @@ export function CompactAssistantDemo() {
     window.clearTimeout(landingAskMapTimer.current)
     landingAskPendingRef.current = null
     setLandingAsk(null)
+    setLandingAskShrunk(false)
     setLandingAskMap(LANDING_MAP_CLOSED)
     setSessionsOpen(false)
     resetConversation()
@@ -2173,6 +2202,13 @@ export function CompactAssistantDemo() {
     landingAskPendingRef.current = null
     setLandingAskMap(LANDING_MAP_CLOSED)
   }, [])
+
+  /** The asset header's collapse: the map slides away and the chat takes the width; its map card brings it back. */
+  const collapseLandingAskMap = useCallback(() => {
+    setLandingAskMap((current) => ({ ...current, open: false }))
+  }, [])
+
+  const landingAskAsset = useMemo(() => mapStateAsset(messages, activeMapStateId), [messages, activeMapStateId])
 
   /** New chat inside the stage: the chat empties and the map slides away; the stage stays up. */
   const newLandingAsk = useCallback(() => {
@@ -2228,14 +2264,7 @@ export function CompactAssistantDemo() {
       }
       const slash = parseSlashCommand(text)
       if (landingTakeover) {
-        const finding = pendingFindingRef.current
-        pendingFindingRef.current = null
-        setHubTypeRequest(null)
         const prompt = text.trim()
-        if (!slash && chips.length === 0 && finding && prompt === tellMeMorePrompt(finding)) {
-          runLandingAsk(prompt, { finding })
-          return
-        }
         if (!slash && chips.length === 0 && prompt === LANDING_DEMO_PROMPT) {
           runLandingAsk(prompt, { location: MUSSAFAH_LOCATION })
           return
@@ -2290,10 +2319,8 @@ export function CompactAssistantDemo() {
   const onTellMeMore = useCallback(
     (item: LandingTellMeMorePayload) => {
       if (landingTakeover && !landingAsk) {
-        // The alert or toast gives the bar back, then the prompt types itself in and sends.
         if (findingToastsRef.current.length > 0) dismissFindings('all')
-        pendingFindingRef.current = item
-        setHubTypeRequest((current) => ({ token: (current?.token ?? 0) + 1, text: tellMeMorePrompt(item) }))
+        runLandingAsk(tellMeMorePrompt(item), { finding: item }, item.origin)
         return
       }
       const detail = item.finding?.trim()
@@ -2330,7 +2357,7 @@ export function CompactAssistantDemo() {
       setOpen(true)
       setExpanded(false)
     },
-    [clearStream, dismissFindings, landingAsk, landingTakeover],
+    [clearStream, dismissFindings, landingAsk, landingTakeover, runLandingAsk],
   )
 
   const openFinding = useCallback(
@@ -2596,6 +2623,8 @@ export function CompactAssistantDemo() {
   const alertCentre = !storyActive && landingVariant === 'briefing' && findingsStyle === 5 && briefingAtFindings
   /** The composer's border cue has played, so the composer and findings give the middle to the alert. */
   const alertTakesCentre = alertCentre && alertItems.length > 0 && !findingBorderCue
+  /** Style 5 on the findings: a toast takes the insights' place on the right instead of floating over the composer. */
+  const toastInFindings = toastOverHub && alertCentre
 
   const landingHome =
     landingVariant === 'briefing' ? (
@@ -2609,6 +2638,7 @@ export function CompactAssistantDemo() {
         findingsStyle={findingsStyle}
         onFindingsStyleChange={onFindingsStyleChange}
         alert={alertTakesCentre}
+        findingToast={toastInFindings ? noticeToast(false) : null}
       />
     ) : landingVariant === 'briefing-2' ? (
       <Briefing2Landing
@@ -2760,7 +2790,7 @@ export function CompactAssistantDemo() {
             data-alert={alertTakesCentre ? 'true' : undefined}
             data-ask={landingAsk ? 'true' : undefined}
           >
-            {toastOverHub ? noticeToast(true) : null}
+            {toastOverHub && !toastInFindings ? noticeToast(true) : null}
             <HubChatbox
                 // Remount when leaving a story so draft/focus/files don't carry over engaged.
                 key={storyActive ? `story-${activeStoryId}` : 'landing'}
@@ -2818,14 +2848,14 @@ export function CompactAssistantDemo() {
                 onSubmitComponents={submitStoryComponents}
                 onSubmitLocation={storyActive && !streaming ? submitHubLocation : undefined}
                 demoPrompt={landingTakeover ? LANDING_DEMO_PROMPT : undefined}
-                typeRequest={landingTakeover ? hubTypeRequest : null}
               />
           </div>
         ) : null}
         {landingAsk ? (
           <LandingAskStage
             origin={landingAsk.origin}
-            returnTo={landingBarRect}
+            originRadius={landingAsk.radius}
+            returnTo={landingAsk.radius === undefined ? landingBarRect : noLandingBar}
             title={chatTitle}
             handleRef={landingAskStageRef}
             header={
@@ -2854,18 +2884,33 @@ export function CompactAssistantDemo() {
                   sources={sources}
                   onRemoveSource={removeSource}
                   onAddSource={addSource}
+                  shrunk={landingAskShrunk}
+                  onToggleShrunk={() => setLandingAskShrunk((current) => !current)}
                 />
               </div>
             }
             thinking={replyRendering}
             mapOpen={landingAskMap.open}
+            shrunk={landingAskShrunk}
             chat={<div className={styles.landingAskChat}>{chatMiddle}</div>}
             map={
-              <LandingAskMap
-                snapshot={landingAskMap.snapshot}
-                capture={landingAskMap.capture}
-                onCapture={storeMapCapture}
-              />
+              <LandingAskAsset
+                stateId={landingAskAsset?.stateId ?? null}
+                title={landingAskAsset?.title ?? chatTitle}
+                place={landingAskAsset?.place ?? 'Abu Dhabi'}
+                caption={landingAskAsset?.caption}
+                analysis={landingAskAsset?.analysis}
+                onShowInConversation={
+                  landingAskAsset ? () => showInConversation({ componentId: landingAskAsset.stateId }) : undefined
+                }
+                onCollapse={collapseLandingAskMap}
+              >
+                <LandingAskMap
+                  snapshot={landingAskMap.snapshot}
+                  capture={landingAskMap.capture}
+                  onCapture={storeMapCapture}
+                />
+              </LandingAskAsset>
             }
             onClosed={closeLandingAsk}
           />

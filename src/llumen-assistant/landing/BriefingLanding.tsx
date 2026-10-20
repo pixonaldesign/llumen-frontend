@@ -131,6 +131,8 @@ export type BriefingLandingProps = {
   onFindingsStyleChange?: (style: FindingsStyle) => void
   /** An alert aurora holds the middle of the findings stage: the greeting and finding step aside, and the carousel waits. */
   alert?: boolean
+  /** A toast finding shown in the finding's place until it is dismissed; the carousel waits underneath. */
+  findingToast?: ReactNode
 }
 
 export function BriefingLanding({
@@ -143,6 +145,7 @@ export function BriefingLanding({
   findingsStyle = DEFAULT_FINDINGS_STYLE,
   onFindingsStyleChange,
   alert = false,
+  findingToast = null,
 }: BriefingLandingProps) {
   const [active, setActive] = useState(0)
   const [assetsOpen, setAssetsOpen] = useState(false)
@@ -374,7 +377,7 @@ export function BriefingLanding({
     syncPage()
   }, [frame, syncPage])
 
-  const blurred = !stop.place
+  const blurred = !stop.place || !!findingToast
 
   return (
     <div
@@ -434,12 +437,13 @@ export function BriefingLanding({
             }
             onTellMeMore={onTellMeMore}
             onOpenStory={onOpenStory}
+            toast={findingToast}
             controls={
               <FeedCarousel
                 count={FEED_STOPS.length}
                 active={active}
                 paused={paused}
-                running={!paused && !assetsOpen && !alert}
+                running={!paused && !assetsOpen && !alert && !findingToast}
                 onSelect={setActive}
                 onStep={stepFeed}
                 onTogglePause={() => setPaused((value) => !value)}
@@ -671,6 +675,7 @@ function ConversationalBubble({
   onTellMeMore,
   onOpenStory,
   controls,
+  toast,
 }: {
   stop: FeedStop
   findingsStyle: FindingsStyle
@@ -681,8 +686,11 @@ function ConversationalBubble({
   onTellMeMore?: (item: LandingTellMeMorePayload) => void
   onOpenStory?: (storyId: string) => void
   controls: ReactNode
+  /** Replaces the carousel and finding while it is up; they stay mounted underneath so nothing re-measures. */
+  toast: ReactNode
 }) {
   const innerRef = useRef<HTMLDivElement>(null)
+  const bubbleRef = useRef<HTMLDivElement>(null)
   const [shown, setShown] = useState(stop)
   const [height, setHeight] = useState<number | null>(null)
   const [fading, setFading] = useState(false)
@@ -787,7 +795,7 @@ function ConversationalBubble({
           {findingsStyle === 4 ? 'what would you like to explore today?' : 'how can I help you today?'}
         </p>
       ) : null}
-      <div className={styles.chatDock}>
+      <div className={styles.chatDock} data-toast={toast ? 'true' : undefined}>
         <div className={styles.greetingWrap} data-shown={greet} aria-hidden={!greet}>
           <p className={styles.greeting}>
             Good morning, Omar,
@@ -797,19 +805,37 @@ function ConversationalBubble({
         </div>
         {navAbove ? <div className={styles.findingNav}>{controls}</div> : null}
         <div className={styles.findingRow}>
-          <div className={styles.bubble} style={height != null ? { height } : undefined}>
+          <div ref={bubbleRef} className={styles.bubble} style={height != null ? { height } : undefined}>
             <div ref={innerRef} className={`${styles.bubbleBody}${fading ? ` ${styles.bubbleFade}` : ''}`}>
               <FindingBody
                 stop={shown}
                 vote={vote}
                 onVote={onVote}
-                onTellMeMore={onTellMeMore}
+                onTellMeMore={
+                  onTellMeMore
+                    ? (item) => {
+                        const bubble = bubbleRef.current
+                        onTellMeMore(
+                          bubble
+                            ? {
+                                ...item,
+                                origin: {
+                                  rect: bubble.getBoundingClientRect(),
+                                  radius: parseFloat(getComputedStyle(bubble).borderTopLeftRadius) || 0,
+                                },
+                              }
+                            : item,
+                        )
+                      }
+                    : undefined
+                }
                 onOpenStory={onOpenStory}
               />
             </div>
           </div>
           {navAbove ? null : <div className={styles.findingControls}>{controls}</div>}
         </div>
+        {toast ? <div className={styles.toastSlot}>{toast}</div> : null}
       </div>
     </div>
   )

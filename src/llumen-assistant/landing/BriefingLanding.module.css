@@ -296,12 +296,59 @@
   align-items: flex-start;
   --finding-w: var(--s5-finding);
   justify-content: center;
-  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Not `both`: a held opacity/transform would make the dock a backdrop root and unfrost the toast cards. */
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 /* The carousel leads the finding; View takes its old place at the far end of the actions row. */
 .findingNav {
   pointer-events: auto;
+}
+
+/* A toast finding takes the carousel and finding's place until it is dismissed, then they fade back. */
+.chatDock > .findingNav,
+.chatDock > .findingRow {
+  transition:
+    opacity 320ms ease,
+    visibility 0s linear 0s;
+}
+
+.chatDock[data-toast='true'] > .findingNav,
+.chatDock[data-toast='true'] > .findingRow {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 200ms ease,
+    visibility 0s linear 200ms;
+}
+
+/* Centred without a held transform so the cards' backdrop blur still samples the stage. */
+.toastSlot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  width: var(--finding-w);
+  pointer-events: none;
+}
+
+.toastSlot > [data-finding-toasts] {
+  justify-content: flex-start;
+}
+
+/* Fade the frosted cards and arrows themselves: opacity on any ancestor cuts their backdrop blur until it ends. */
+.toastSlot [data-finding-toasts] > button,
+.toastSlot [data-finding-toasts] article {
+  animation: toastSlotIn 420ms cubic-bezier(0.16, 1, 0.3, 1) 120ms backwards;
+}
+
+@keyframes toastSlotIn {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
 }
 
 .root[data-findings-style='5'] .storyBtn {
@@ -1395,7 +1442,9 @@
 
   .askGreeting,
   .chatDock,
-  .findingRow {
+  .findingRow,
+  .toastSlot [data-finding-toasts] > button,
+  .toastSlot [data-finding-toasts] article {
     animation: none !important;
   }
 }

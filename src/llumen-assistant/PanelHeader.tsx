@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
+  ArrowsInSimple,
+  ArrowsOutSimple,
   BracketsSquare,
   CaretDown,
   CaretUp,
@@ -66,6 +68,9 @@ export type PanelHeaderProps = {
   sourcesPanelOpen?: boolean
   /** When true in fullscreen, Sources opens as a header popup (subcontext is occupying the rail). */
   subcontextOpen?: boolean
+  /** Shows a shrink / expand toggle beside Close; `shrunk` picks which one. */
+  onToggleShrunk?: () => void
+  shrunk?: boolean
 }
 
 const CONVERSATION_MENU_ITEMS = [
@@ -102,6 +107,8 @@ export function PanelHeader({
   onToggleSourcesPanel,
   sourcesPanelOpen = false,
   subcontextOpen = false,
+  onToggleShrunk,
+  shrunk = false,
 }: PanelHeaderProps) {
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(chatTitle)
@@ -531,6 +538,21 @@ export function PanelHeader({
       </div>
 
       <div className={styles.headerActions}>
+        {onToggleShrunk ? (
+          <button
+            type="button"
+            className={styles.headerBtn}
+            onClick={onToggleShrunk}
+            aria-label={shrunk ? 'Expand' : 'Shrink'}
+            title={shrunk ? 'Expand' : 'Shrink'}
+          >
+            {shrunk ? (
+              <ArrowsOutSimple className={styles.headerPhosphor} size={20} weight="regular" aria-hidden />
+            ) : (
+              <ArrowsInSimple className={styles.headerPhosphor} size={20} weight="regular" aria-hidden />
+            )}
+          </button>
+        ) : null}
         <button type="button" className={styles.headerBtn} onClick={onClose} aria-label="Close assistant">
           <X className={styles.headerPhosphor} size={20} weight="regular" aria-hidden />
         </button>
