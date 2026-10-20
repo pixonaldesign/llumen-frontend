@@ -455,6 +455,21 @@
   background: rgba(255, 255, 255, 0.14);
 }
 
+/* Matches the briefing finding's View button. */
+.viewBtn {
+  gap: 10px;
+  height: 36px;
+  padding: 8px 12px;
+  border-color: rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: transparent;
+  font-size: 14px;
+}
+
+.viewBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 @keyframes copyIn {
   from {
     opacity: 0;

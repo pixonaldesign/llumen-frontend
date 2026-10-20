@@ -55,11 +55,9 @@ const ESCAPE_OWNERS = '[data-lc-sessions-menu], [data-lc-conversation-menu], [da
 export type LandingAskStageHandle = { close: () => void }
 
 export type LandingAskStageProps = {
-  /** What the stage grows out of: the AI bar, or a finding's Tell Me More. */
+  /** The AI bar the stage grows out of. */
   origin: DOMRect
-  /** `origin`'s corner radius; the AI bar's by default. */
-  originRadius?: number
-  /** The bar the stage shrinks back into on close (it may have changed size since); null goes back to `origin`. */
+  /** Where the stage shrinks back to on close; the bar may have changed size since. */
   returnTo: () => DOMRect | null
   title: string
   header: ReactNode
@@ -77,7 +75,6 @@ export type LandingAskStageProps = {
 
 export function LandingAskStage({
   origin,
-  originRadius = BAR_RADIUS_PX,
   returnTo,
   title,
   header,
@@ -98,7 +95,7 @@ export function LandingAskStage({
     if (!el || reduceMotion) return
     const tween = gsap.fromTo(
       el,
-      { clipPath: clipFor(origin, originRadius, el.getBoundingClientRect()) },
+      { clipPath: clipFor(origin, BAR_RADIUS_PX, el.getBoundingClientRect()) },
       {
         clipPath: fullClip(0),
         duration: MORPH_IN_S,
@@ -111,7 +108,7 @@ export function LandingAskStage({
     return () => {
       tween.kill()
     }
-  }, [origin, originRadius, reduceMotion])
+  }, [origin, reduceMotion])
 
   const close = useCallback(() => {
     if (closing) return
@@ -121,21 +118,18 @@ export function LandingAskStage({
       onClosed()
       return
     }
-    const bar = returnTo()
     gsap.killTweensOf(el)
     gsap.fromTo(
       el,
       { clipPath: fullClip(shrunk ? SHRUNK_RADIUS_PX : 0) },
       {
-        clipPath: bar
-          ? clipFor(bar, BAR_RADIUS_PX, el.getBoundingClientRect())
-          : clipFor(origin, originRadius, el.getBoundingClientRect()),
+        clipPath: clipFor(returnTo() ?? origin, BAR_RADIUS_PX, el.getBoundingClientRect()),
         duration: MORPH_OUT_S,
         ease: 'power3.inOut',
         onComplete: onClosed,
       },
     )
-  }, [closing, onClosed, origin, originRadius, reduceMotion, returnTo, shrunk])
+  }, [closing, onClosed, origin, reduceMotion, returnTo, shrunk])
 
   useImperativeHandle(handleRef, () => ({ close }), [close])
 

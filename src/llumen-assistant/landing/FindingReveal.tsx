@@ -1,5 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Broadcast, CaretLeft, CaretRight, ChatText, Link, ThumbsDown, ThumbsUp, X } from '@phosphor-icons/react'
+import {
+  ArrowUpRight,
+  Broadcast,
+  CaretLeft,
+  CaretRight,
+  ChatText,
+  ThumbsDown,
+  ThumbsUp,
+  X,
+} from '@phosphor-icons/react'
 import { Aurora } from './Aurora'
 import {
   DEFAULT_FINDING_AURORA,
@@ -463,12 +472,12 @@ export function FindingReveal({
               </div>
               <button
                 type="button"
-                className={styles.actionBtn}
+                className={`${styles.actionBtn} ${styles.viewBtn}`}
                 onClick={() => onOpenRelated(active)}
                 disabled={!relatedStoryId(active)}
               >
-                <Link size={16} weight="regular" aria-hidden />
-                View slides
+                <ArrowUpRight size={20} weight="regular" aria-hidden />
+                View
               </button>
             </div>
           </div>

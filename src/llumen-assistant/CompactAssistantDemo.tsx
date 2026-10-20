@@ -350,10 +350,6 @@ type LandingAskMapState = {
 }
 
 const LANDING_MAP_CLOSED: LandingAskMapState = { open: false, snapshot: null, capture: null }
-
-/** A stage grown out of a finding closes back into it, not the AI bar. */
-const noLandingBar = () => null
-
 type LandingAskSubject = { finding: LandingTellMeMorePayload } | { location: StoryLocation } | null
 
 /** Typed into the landing AI bar on first click: the story builder's location prompt, already set to Mussafah. */
@@ -474,11 +470,8 @@ export function CompactAssistantDemo() {
   const hubWorkUserTextRef = useRef('')
   const [hubStoryOpen, setHubStoryOpen] = useState(false)
   const [hubMorphFrom, setHubMorphFrom] = useState<DOMRect | null>(null)
-  /**
-   * A landing AI bar prompt: the bar grows to full screen from `origin` and holds the conversation. A finding's
-   * Tell Me More grows it out of the finding instead (`radius` set), and it closes back there.
-   */
-  const [landingAsk, setLandingAsk] = useState<{ origin: DOMRect; radius?: number } | null>(null)
+  /** A landing AI bar prompt: the bar grows to full screen from `origin` and holds the conversation. */
+  const [landingAsk, setLandingAsk] = useState<{ origin: DOMRect } | null>(null)
   const [landingAskShrunk, setLandingAskShrunk] = useState(false)
   const [landingAskMap, setLandingAskMap] = useState<LandingAskMapState>(LANDING_MAP_CLOSED)
   /** The reply's map-state card brings in the map; until then its annotation waits here. */
@@ -2087,30 +2080,22 @@ export function CompactAssistantDemo() {
     [],
   )
 
-  const openLandingAsk = useCallback(
-    (from?: LandingTellMeMorePayload['origin']) => {
-      const origin = from
-        ? { origin: from.rect, radius: from.radius }
-        : {
-            origin:
-              landingBarRect() ?? new DOMRect(window.innerWidth / 2 - 320, window.innerHeight - 104, 640, 72),
-          }
-      window.clearTimeout(landingAskMapTimer.current)
-      landingAskPendingRef.current = null
-      setLandingAskMap(LANDING_MAP_CLOSED)
-      setLandingAsk((current) => current ?? origin)
-      setLandingChips([])
-      setHubWorkToast(null)
-    },
-    [landingBarRect],
-  )
+  const openLandingAsk = useCallback(() => {
+    const origin = landingBarRect() ?? new DOMRect(window.innerWidth / 2 - 320, window.innerHeight - 104, 640, 72)
+    window.clearTimeout(landingAskMapTimer.current)
+    landingAskPendingRef.current = null
+    setLandingAskMap(LANDING_MAP_CLOSED)
+    setLandingAsk((current) => current ?? { origin })
+    setLandingChips([])
+    setHubWorkToast(null)
+  }, [landingBarRect])
 
   /**
    * A schools prompt (city-wide, or in a location as the story builder asks it) or a finding's Tell Me More,
    * annotated on the map that joins the reply.
    */
   const runLandingAsk = useCallback(
-    (prompt: string, subject: LandingAskSubject, from?: LandingTellMeMorePayload['origin']) => {
+    (prompt: string, subject: LandingAskSubject) => {
       const slide = 0
       const finding = subject && 'finding' in subject ? subject.finding : null
       const location = subject && 'location' in subject ? subject.location : null
@@ -2158,7 +2143,7 @@ export function CompactAssistantDemo() {
         map = { snapshot, captureDelay: region ? REGION_ANNOTATION_CAPTURE_DELAY_MS : ANNOTATION_CAPTURE_DELAY_MS }
       }
       resetConversation()
-      openLandingAsk(from)
+      openLandingAsk()
       setActiveConversationId(uid())
       setActiveMapStateId(map ? stateId : null)
       setChatTitle(finding ? truncateTitle(finding.title) : titleFromReply(reply))
@@ -2320,7 +2305,7 @@ export function CompactAssistantDemo() {
     (item: LandingTellMeMorePayload) => {
       if (landingTakeover && !landingAsk) {
         if (findingToastsRef.current.length > 0) dismissFindings('all')
-        runLandingAsk(tellMeMorePrompt(item), { finding: item }, item.origin)
+        runLandingAsk(tellMeMorePrompt(item), { finding: item })
         return
       }
       const detail = item.finding?.trim()
@@ -2854,8 +2839,7 @@ export function CompactAssistantDemo() {
         {landingAsk ? (
           <LandingAskStage
             origin={landingAsk.origin}
-            originRadius={landingAsk.radius}
-            returnTo={landingAsk.radius === undefined ? landingBarRect : noLandingBar}
+            returnTo={landingBarRect}
             title={chatTitle}
             handleRef={landingAskStageRef}
             header={

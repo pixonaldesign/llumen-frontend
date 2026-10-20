@@ -690,7 +690,6 @@ function ConversationalBubble({
   toast: ReactNode
 }) {
   const innerRef = useRef<HTMLDivElement>(null)
-  const bubbleRef = useRef<HTMLDivElement>(null)
   const [shown, setShown] = useState(stop)
   const [height, setHeight] = useState<number | null>(null)
   const [fading, setFading] = useState(false)
@@ -805,30 +804,13 @@ function ConversationalBubble({
         </div>
         {navAbove ? <div className={styles.findingNav}>{controls}</div> : null}
         <div className={styles.findingRow}>
-          <div ref={bubbleRef} className={styles.bubble} style={height != null ? { height } : undefined}>
+          <div className={styles.bubble} style={height != null ? { height } : undefined}>
             <div ref={innerRef} className={`${styles.bubbleBody}${fading ? ` ${styles.bubbleFade}` : ''}`}>
               <FindingBody
                 stop={shown}
                 vote={vote}
                 onVote={onVote}
-                onTellMeMore={
-                  onTellMeMore
-                    ? (item) => {
-                        const bubble = bubbleRef.current
-                        onTellMeMore(
-                          bubble
-                            ? {
-                                ...item,
-                                origin: {
-                                  rect: bubble.getBoundingClientRect(),
-                                  radius: parseFloat(getComputedStyle(bubble).borderTopLeftRadius) || 0,
-                                },
-                              }
-                            : item,
-                        )
-                      }
-                    : undefined
-                }
+                onTellMeMore={onTellMeMore}
                 onOpenStory={onOpenStory}
               />
             </div>

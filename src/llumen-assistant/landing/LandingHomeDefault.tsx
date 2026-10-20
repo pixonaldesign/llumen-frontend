@@ -545,8 +545,6 @@ export type LandingTellMeMorePayload = {
   title: string
   domain: string
   finding: string
-  /** The finding on screen, for a chat that grows out of it. */
-  origin?: { rect: DOMRect; radius: number }
 }
 
 export type LandingHomeDefaultProps = {
