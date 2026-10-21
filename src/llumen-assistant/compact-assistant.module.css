@@ -349,9 +349,28 @@
   );
 }
 
-/* Findings style 6: the composer stays in the bottom slot, under the findings and under Assets and Apps. */
+/*
+ * Findings style 6: the composer stays in the bottom slot, under the findings and under Assets and Apps.
+ * As in style 5, it fades out while the alert aurora holds the middle of the findings.
+ */
 .composerDockCenter[data-findings-style='6'] {
   bottom: var(--space-3xl);
+  transition:
+    left var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    right var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 320ms ease;
+}
+
+.composerDockCenter[data-findings-style='6'][data-alert='true'] {
+  filter: opacity(0);
+  visibility: hidden;
+  transition:
+    left var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    right var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 320ms ease,
+    visibility 0s linear 320ms;
 }
 
 /*
@@ -372,6 +391,26 @@
 
 .composerDockShifted {
   left: var(--lc-rail-width, 400px);
+}
+
+/* A finding's View is flying the Briefing map into its story, which has no composer of its own. */
+.composerDock[data-story-flight='true'] {
+  filter: opacity(0);
+  visibility: hidden;
+  transition:
+    filter 320ms ease,
+    visibility 0s linear 320ms;
+}
+
+/* Back from a story: the composer returns with the rest of the Briefing page. */
+.composerDock[data-story-return='true'] {
+  animation: composerStoryReturn 520ms ease 280ms backwards;
+}
+
+@keyframes composerStoryReturn {
+  from {
+    filter: opacity(0);
+  }
 }
 
 /* The bar became the full-screen stage, which grows from and shrinks back onto this spot. */

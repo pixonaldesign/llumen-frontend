@@ -52,7 +52,8 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
 const MAPBOX_STYLE = 'mapbox://styles/pixonal/cmgnqbyjf005g01sh9s510hi2'
 export const STORY_MAP_STYLE = MAPBOX_STYLE
 /** Keeps the demo overlay clear of the 380px insight column. */
-const CAMERA_PADDING = { top: 0, right: 0, bottom: 0, left: 400 }
+export const STORY_CAMERA_PADDING = { top: 0, right: 0, bottom: 0, left: 400 }
+const CAMERA_PADDING = STORY_CAMERA_PADDING
 const CAMERA_DURATION_MS = 2600
 const SCENE_TWEEN_MS = 1800
 const REGION_FLY_MS = 3200
@@ -105,9 +106,14 @@ export type StoryMapLayerVisibility = {
   distribution: boolean
 }
 
+/** A camera and the padding it was framed with, enough for another map to match the view. */
+export type StoryMapView = { camera: StorySceneCamera; padding: mapboxgl.PaddingOptions }
+
 export type StoryMapHandle = {
   /** Map coordinate under a viewport point, as `[lng, lat]`. */
   unproject: (clientX: number, clientY: number) => [number, number]
+  /** The camera the map is showing right now. */
+  view: () => StoryMapView
   /** Thumbnail of the visible (unpadded) map area plus the camera that produced it. */
   capture: () => Promise<StoryMapCapture>
   /** Completes the line, arrow or polygon being drawn, if it has enough points. */
@@ -204,6 +210,8 @@ export type StoryMapProps = {
   /** Markup the author draws on the map; it never changes the data layers underneath. */
   annotations?: StoryMapAnnotationLayer | null
   onHandle?: (handle: StoryMapHandle | null) => void
+  /** `loaded` once the style and layers are up, then `painted` once the first view's tiles have all drawn. */
+  onReady?: (stage: 'loaded' | 'painted') => void
 }
 
 const DEFAULT_LAYERS: StoryMapLayerVisibility = {
@@ -1020,6 +1028,7 @@ export function StoryMap({
   actionTooltip = null,
   annotations = null,
   onHandle,
+  onReady,
 }: StoryMapProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -1056,10 +1065,15 @@ export function StoryMap({
   const actionTooltipRef = useRef(actionTooltip)
   const labelsRef = useRef<AnnotationLabels | null>(null)
   const drawingRef = useRef<AnnotationDrawing | null>(null)
+  const onReadyRef = useRef(onReady)
 
   useEffect(() => {
     annotationsRef.current = annotations
   }, [annotations])
+
+  useEffect(() => {
+    onReadyRef.current = onReady
+  }, [onReady])
 
   useEffect(() => {
     flyToSceneRef.current = flyToScene
@@ -1125,6 +1139,14 @@ export function StoryMap({
       mountAnnotationLayers(map, frameRef.current.lift)
       syncDemoLayers(map, layersRef.current)
       setReady(true)
+      onReadyRef.current?.('loaded')
+      // The scene timeline repaints every frame, so the map never goes `idle`.
+      const announce = () => {
+        if (!map.areTilesLoaded()) return
+        map.off('render', announce)
+        onReadyRef.current?.('painted')
+      }
+      map.on('render', announce)
     })
     labelsRef.current = new AnnotationLabels(map, () => annotationsRef.current?.onSelect)
 
@@ -1479,6 +1501,18 @@ export function StoryMap({
         const rect = map.getCanvas().getBoundingClientRect()
         const point = map.unproject([clientX - rect.left, clientY - rect.top])
         return [point.lng, point.lat]
+      },
+      view: () => {
+        const center = map.getCenter()
+        return {
+          camera: {
+            center: [center.lng, center.lat],
+            zoom: map.getZoom(),
+            pitch: map.getPitch(),
+            bearing: map.getBearing(),
+          },
+          padding: map.getPadding(),
+        }
       },
       capture: () =>
         new Promise((resolve) => {

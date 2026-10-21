@@ -76,6 +76,7 @@ import {
   type ChatInteractionModel,
 } from './interactionModel'
 import { StoryView } from './story/StoryView'
+import type { StoryMapView } from './story/StoryMap'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
 import { StoryMapStatesContext, type StoryMapStates } from './story/storyMapStates'
 import { StoryAiModeBar, type StoryAiModeStatus } from './story/StoryAiModeBar'
@@ -156,6 +157,22 @@ const SUBCONTEXT_EXIT_MS = 280
 const STORY_UPDATE_MS = 1200
 /** Without `scrollend`, the Briefing composer stays shrunk until scrolling has been quiet this long. */
 const BRIEFING_SCROLL_IDLE_MS = 200
+/** Briefing View: the composer's fade before the story mounts under the flying map. */
+const STORY_MOUNT_DELAY_MS = 320
+/** How long the landed flight waits for the story map's remaining tiles before revealing it anyway. */
+const STORY_PAINT_GRACE_MS = 600
+/** Reveals the story under the Briefing page even if the flight or its map never report back. */
+const STORY_REVEAL_FALLBACK_MS = 4000
+/** The story map's fade-in over the Briefing map (StoryView.module.css), plus a frame. */
+const STORY_FADE_MS = 380
+/** Back to the Briefing: the story's chrome sliding out (StoryView.module.css). */
+const STORY_LEAVE_MS = 260
+/** Dissolves the story onto the Briefing map even if that map never reports back. */
+const STORY_RETURN_FALLBACK_MS = 2500
+/** The story's dissolve onto the Briefing map (StoryView.module.css), plus a frame. */
+const STORY_DISSOLVE_MS = 360
+/** The Briefing map's flight home (BriefingMap RETURN_MS), after which the page settles. */
+const STORY_RETURN_MS = 1900
 const SUPPORTS_SCROLLEND = typeof window !== 'undefined' && 'onscrollend' in window
 /** Lets the rail open and start thinking before the attached charts animate to the new period. */
 
@@ -1916,12 +1933,146 @@ export function CompactAssistantDemo() {
     return () => window.clearTimeout(timer)
   }, [storyUpdate])
 
+  /**
+   * Briefing View: the composer steps aside as the map starts flying to the story's opening view
+   * (`flight`). The story then mounts over the Briefing page with its map hidden, loading during the
+   * flight (`cover`); its chrome comes in as soon as the flight lands (`storyEntrance`), over the
+   * Briefing map, and its own map fades in once loaded (`fade`) before the page underneath unmounts.
+   */
+  const [storyHandoff, setStoryHandoff] = useState<'flight' | 'cover' | 'fade' | null>(null)
+  const [storyFlightId, setStoryFlightId] = useState<string | null>(null)
+  const [storyEntrance, setStoryEntrance] = useState<'wait' | 'play' | 'leave' | 'gone' | undefined>(undefined)
+  const storyGateRef = useRef({ landed: false, loaded: false, painted: false })
+  const storyGraceRef = useRef(0)
+
   /** Home cards always open the story as authored; AI versions come back only through their conversation. */
   const openStoryFromHome = useCallback((storyId: string) => {
     setActiveMapStateId(null)
     setStoryAi((current) => ({ token: current.token + 1, snapshot: null, storyId: null, conversationId: null }))
     setActiveStoryId(storyId)
+    setStoryHandoff(null)
+    setStoryFlightId(null)
+    setStoryEntrance(undefined)
   }, [])
+
+  const startStoryFlight = useCallback((storyId: string) => {
+    storyGateRef.current = { landed: false, loaded: false, painted: false }
+    window.clearTimeout(storyGraceRef.current)
+    setStoryFlightId(storyId)
+    setStoryHandoff('flight')
+  }, [])
+  useEffect(() => {
+    if (storyHandoff !== 'flight' || !storyFlightId) return
+    const timer = window.setTimeout(() => {
+      openStoryFromHome(storyFlightId)
+      setStoryHandoff('cover')
+      setStoryEntrance('wait')
+    }, STORY_MOUNT_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [storyHandoff, storyFlightId, openStoryFromHome])
+  const playStoryEntrance = useCallback(() => {
+    setStoryEntrance((current) => (current === 'wait' ? 'play' : current))
+  }, [])
+  const revealStory = useCallback(() => {
+    playStoryEntrance()
+    setStoryHandoff((current) => (current === 'cover' ? 'fade' : current))
+  }, [playStoryEntrance])
+  const passStoryGate = useCallback(
+    (gate: 'landed' | 'loaded' | 'painted') => {
+      const passed = storyGateRef.current
+      passed[gate] = true
+      if (gate === 'landed') playStoryEntrance()
+      if (passed.landed && passed.painted) revealStory()
+      else if (passed.landed && passed.loaded && gate !== 'painted') {
+        window.clearTimeout(storyGraceRef.current)
+        storyGraceRef.current = window.setTimeout(revealStory, STORY_PAINT_GRACE_MS)
+      }
+    },
+    [playStoryEntrance, revealStory],
+  )
+  const landStoryFlight = useCallback(() => passStoryGate('landed'), [passStoryGate])
+
+  const closeStory = useCallback(() => {
+    setActiveStoryId(null)
+    setStoryHandoff(null)
+    setStoryEntrance(undefined)
+    setHubStoryOpen(false)
+    setHubMorphFrom(null)
+    setLandingChips([])
+    setStoryChatComponents([])
+    // Landing hub should reopen idle (orb + placeholder), not focused/engaged.
+    setLandingFocusToken(0)
+  }, [])
+
+  /**
+   * Back to the Briefing: the story's chrome slides out while the Briefing page mounts underneath with
+   * its map on the story's camera (`hold`); once both are done the story dissolves onto that map, and
+   * the map flies home as the page's chrome returns (`fly`).
+   */
+  const [storyReturn, setStoryReturn] = useState<{ from: StoryMapView; phase: 'hold' | 'fly' } | null>(null)
+  const returnPhase = storyReturn?.phase ?? null
+  const returnGateRef = useRef({ out: false, loaded: false, painted: false })
+  const returnGraceRef = useRef(0)
+  /** Remounts the Briefing page when a story is left mid-handoff, dropping its flight state. */
+  const [landingEpoch, setLandingEpoch] = useState(0)
+  const leaveStory = useCallback(
+    (from?: StoryMapView) => {
+      if (storyReturn) return
+      if (storyHandoff) {
+        setLandingEpoch((epoch) => epoch + 1)
+        closeStory()
+        return
+      }
+      if (!from || landingVariant !== 'briefing' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        closeStory()
+        return
+      }
+      returnGateRef.current = { out: false, loaded: false, painted: false }
+      setStoryReturn({ from, phase: 'hold' })
+      setStoryEntrance('leave')
+    },
+    [closeStory, landingVariant, storyHandoff, storyReturn],
+  )
+  const passReturnGate = useCallback((gate: 'out' | 'loaded' | 'painted') => {
+    const passed = returnGateRef.current
+    passed[gate] = true
+    if (passed.out && passed.painted) setStoryEntrance('gone')
+    else if (passed.out && passed.loaded && gate !== 'painted') {
+      window.clearTimeout(returnGraceRef.current)
+      returnGraceRef.current = window.setTimeout(() => setStoryEntrance('gone'), STORY_PAINT_GRACE_MS)
+    }
+  }, [])
+  useEffect(() => {
+    if (returnPhase !== 'hold') return
+    const out = window.setTimeout(() => passReturnGate('out'), STORY_LEAVE_MS)
+    const fallback = window.setTimeout(() => passReturnGate('painted'), STORY_RETURN_FALLBACK_MS)
+    return () => {
+      window.clearTimeout(out)
+      window.clearTimeout(fallback)
+      window.clearTimeout(returnGraceRef.current)
+    }
+  }, [returnPhase, passReturnGate])
+  useEffect(() => {
+    if (returnPhase !== 'fly') return
+    const timer = window.setTimeout(() => setStoryReturn(null), STORY_RETURN_MS)
+    return () => window.clearTimeout(timer)
+  }, [returnPhase])
+  useEffect(() => {
+    if (storyEntrance !== 'gone') return
+    const timer = window.setTimeout(() => {
+      closeStory()
+      setStoryReturn((current) => current && { ...current, phase: 'fly' })
+    }, STORY_DISSOLVE_MS)
+    return () => window.clearTimeout(timer)
+  }, [storyEntrance, closeStory])
+  useEffect(() => {
+    if (storyHandoff !== 'cover' && storyHandoff !== 'fade') return
+    const timer = window.setTimeout(
+      storyHandoff === 'cover' ? revealStory : () => setStoryHandoff(null),
+      storyHandoff === 'cover' ? STORY_REVEAL_FALLBACK_MS : STORY_FADE_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [storyHandoff, revealStory])
 
   const storyConversationOpen = open && hubRailMode === 'thread' && messages.length > 0
 
@@ -2604,18 +2755,28 @@ export function CompactAssistantDemo() {
 
   const [landingScrollEl, setLandingScrollEl] = useState<HTMLDivElement | null>(null)
 
-  /** Style 5 on the findings: the alert aurora opens from the middle of the section instead of the bottom. */
-  const alertCentre = !storyActive && landingVariant === 'briefing' && findingsStyle === 5 && briefingAtFindings
+  /** Styles 5 and 6 on the findings: the alert aurora opens from the middle of the section instead of the bottom. */
+  const alertCentre =
+    !storyActive &&
+    landingVariant === 'briefing' &&
+    (findingsStyle === 5 || findingsStyle === 6) &&
+    briefingAtFindings
   /** The composer's border cue has played, so the composer and findings give the middle to the alert. */
   const alertTakesCentre = alertCentre && alertItems.length > 0 && !findingBorderCue
-  /** Style 5 on the findings: a toast takes the insights' place on the right instead of floating over the composer. */
+  /** Styles 5 and 6 on the findings: a toast takes the finding's place instead of floating over the composer. */
   const toastInFindings = toastOverHub && alertCentre
 
   const landingHome =
     landingVariant === 'briefing' ? (
       <BriefingLanding
+        key={landingEpoch}
         topBar={topBar}
         onOpenStory={openStoryFromHome}
+        onStoryFlight={startStoryFlight}
+        onStoryArrive={landStoryFlight}
+        storyHandoff={storyHandoff === 'cover' || storyHandoff === 'fade' ? storyHandoff : undefined}
+        storyReturn={storyReturn}
+        onStoryReturnReady={returnPhase === 'hold' ? passReturnGate : undefined}
         onTellMeMore={onTellMeMore}
         reserveComposer={isHub}
         onAssetsProgress={onBriefingAssetsProgress}
@@ -2676,18 +2837,14 @@ export function CompactAssistantDemo() {
           className={styles.demoLandingLayer}
           ref={(node) => setLandingScrollEl((current) => (current === node ? current : node))}
         >
+          {!storyActive || storyHandoff || storyReturn ? landingHome : null}
           {storyActive ? (
             <StoryView
               storyId={activeStoryId}
-              onBack={() => {
-                setActiveStoryId(null)
-                setHubStoryOpen(false)
-                setHubMorphFrom(null)
-                setLandingChips([])
-                setStoryChatComponents([])
-                // Landing hub should reopen idle (orb + placeholder), not focused/engaged.
-                setLandingFocusToken(0)
-              }}
+              entrance={storyEntrance}
+              mapHidden={storyHandoff === 'cover'}
+              onMapReady={passStoryGate}
+              onBack={leaveStory}
               onAsk={isHub ? openStoryAsk : undefined}
               agentOpen={open || hubStoryOpen}
               findingUnread={findingUnread}
@@ -2708,9 +2865,7 @@ export function CompactAssistantDemo() {
               onAddToChat={isHub ? addStoryComponentToChat : undefined}
               onSlideIndexChange={setStorySlideIndex}
             />
-          ) : (
-            landingHome
-          )}
+          ) : null}
         </div>
         {storyActive ? null : <OverlayScrollThumb scrollEl={landingScrollEl} />}
         </div>
@@ -2774,6 +2929,8 @@ export function CompactAssistantDemo() {
             data-findings-style={!storyActive && landingVariant === 'briefing' ? findingsStyle : undefined}
             data-alert={alertTakesCentre ? 'true' : undefined}
             data-ask={landingAsk ? 'true' : undefined}
+            data-story-flight={storyHandoff === 'flight' ? 'true' : undefined}
+            data-story-return={returnPhase === 'fly' ? 'true' : undefined}
           >
             {toastOverHub && !toastInFindings ? noticeToast(true) : null}
             <HubChatbox

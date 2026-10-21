@@ -7,6 +7,7 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { STORY_MAP_STYLE } from '../story/StoryMap'
 import { rampColor, rgbString } from '../story/storyDemoScenes'
+import type { StoryMapView } from '../story/StoryMap'
 import type { BriefingPlace } from './briefingMapPlaces'
 import styles from './BriefingLanding.module.css'
 
@@ -18,6 +19,8 @@ const FLY_MS = 2800
 const SHRINK_MS = 700
 const GROW_DELAY_MS = 1300
 const GROW_MS = 1700
+const ENTER_MS = 1700
+const RETURN_MS = 1800
 const MAX_PITCH = 85
 /** Lifts the orbit centre so the tall columns rise above the centred greeting; top padding exposes the sky. */
 const CAMERA_PADDING = { top: 0, right: 0, bottom: 220, left: 0 }
@@ -144,15 +147,32 @@ function cameraPadding(el: HTMLElement, focusRight: boolean): mapboxgl.PaddingOp
   return { ...CAMERA_PADDING, left: focusRight ? Math.round(el.clientWidth / 3) : 0 }
 }
 
-/** `blank` hides the columns and disks, leaving the bare base map (behind blurred stops). */
+/** A story's camera: where the Briefing hands its map over to a story, or takes it back from one. */
+export type BriefingMapEnter = StoryMapView
+
+/**
+ * `blank` hides the columns and disks, leaving the bare base map (behind blurred stops). `enter` flies
+ * the camera to a story's opening view and holds it there, the orbit stopped; `onArrive` follows.
+ * `start` (read on mount) opens on a story's view instead, columns fully grown and the orbit held,
+ * until it turns null and the camera flies back to `place`. `onReady` reports the first load: `loaded`
+ * once the style and layers are up, then `painted` once that view's tiles have all drawn.
+ */
 export function BriefingMap({
   place,
   blank = false,
   focusRight = false,
+  enter = null,
+  onArrive,
+  start = null,
+  onReady,
 }: {
   place: BriefingPlace
   blank?: boolean
   focusRight?: boolean
+  enter?: BriefingMapEnter | null
+  onArrive?: () => void
+  start?: BriefingMapEnter | null
+  onReady?: (stage: 'loaded' | 'painted') => void
 }) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -167,6 +187,15 @@ export function BriefingMap({
   const flightRef = useRef(0)
   const tweenRef = useRef(0)
   const holdUntilRef = useRef(0)
+  const enterRef = useRef<BriefingMapEnter | null>(null)
+  const heldRef = useRef(start)
+  const onArriveRef = useRef(onArrive)
+  const onReadyRef = useRef(onReady)
+
+  useEffect(() => {
+    onArriveRef.current = onArrive
+    onReadyRef.current = onReady
+  }, [onArrive, onReady])
 
   useEffect(() => {
     const el = elRef.current
@@ -176,12 +205,13 @@ export function BriefingMap({
     const map = new mapboxgl.Map({
       container: el,
       style: STORY_MAP_STYLE,
-      ...placeRef.current.camera,
+      ...(heldRef.current?.camera ?? placeRef.current.camera),
       maxPitch: MAX_PITCH,
       antialias: true,
       attributionControl: false,
     })
-    map.setPadding(cameraPadding(el, focusRightRef.current))
+    map.setPadding(heldRef.current?.padding ?? cameraPadding(el, focusRightRef.current))
+    if (heldRef.current) holdUntilRef.current = Number.POSITIVE_INFINITY
     mapRef.current = map
 
     const observer = new ResizeObserver(() => {
@@ -192,11 +222,19 @@ export function BriefingMap({
 
     map.on('load', () => {
       const current = placeRef.current
-      map.jumpTo(current.camera)
+      const held = heldRef.current
+      map.jumpTo(held ? { ...held.camera, padding: held.padding } : current.camera)
       mountLayers(map, current)
       readyRef.current = true
-      drawPlace(map, drawnRef, current, 0)
-      if (blankRef.current) return
+      onReadyRef.current?.('loaded')
+      const announce = () => {
+        if (!map.areTilesLoaded()) return
+        map.off('render', announce)
+        onReadyRef.current?.('painted')
+      }
+      map.on('render', announce)
+      drawPlace(map, drawnRef, current, held && !blankRef.current ? 1 : 0)
+      if (blankRef.current || held) return
       const start = performance.now()
       const grow = (now: number) => {
         const t = Math.min(1, (now - start) / GROW_MS)
@@ -217,6 +255,7 @@ export function BriefingMap({
     const onRelease = () => {
       if (!pressed) return
       pressed = false
+      if (enterRef.current || heldRef.current) return
       holdUntilRef.current = 0
       hold(RESUME_AFTER_MS)
     }
@@ -281,40 +320,65 @@ export function BriefingMap({
     const moved = placeRef.current !== place
     placeRef.current = place
     blankRef.current = blank
-    if (!map || !readyRef.current) return
+    const entering = enter !== null && enter !== enterRef.current
+    enterRef.current = enter
+    const releasing = heldRef.current !== null && start === null
+    if (releasing) heldRef.current = null
+    if (!map || !readyRef.current) {
+      if (entering) onArriveRef.current?.()
+      return
+    }
 
     const target = blank ? 0 : 1
     const { place: previous, grow: from } = drawnRef.current
     const swapping = previous !== place
-    if (!moved && !swapping && from === target) return
+    if (!moved && !swapping && from === target && !entering && !releasing) return
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const padding = cameraPadding(map.getContainer(), focusRightRef.current)
     window.cancelAnimationFrame(tweenRef.current)
     if (reduce) {
-      if (moved) map.jumpTo(place.camera)
+      if (entering) map.jumpTo({ ...enter.camera, padding: enter.padding })
+      else if (moved || releasing) map.jumpTo({ ...place.camera, padding })
+      if (releasing) holdUntilRef.current = 0
       paintDisks(map, place)
       drawPlace(map, drawnRef, place, target)
+      if (entering) onArriveRef.current?.()
       return
     }
 
-    if (moved) {
+    if (entering) {
+      holdUntilRef.current = Number.POSITIVE_INFINITY
+      const flight = ++flightRef.current
+      flyingRef.current = true
+      map.flyTo({ ...enter.camera, padding: enter.padding, duration: ENTER_MS, curve: 1.42, essential: true })
+      map.once('moveend', () => {
+        if (flightRef.current === flight) onArriveRef.current?.()
+      })
+    } else if (moved || releasing) {
       holdUntilRef.current = 0
       const flight = ++flightRef.current
       flyingRef.current = true
-      map.flyTo({ ...place.camera, duration: FLY_MS, curve: 1.6, essential: true })
+      map.flyTo({
+        ...place.camera,
+        padding,
+        duration: releasing ? RETURN_MS : FLY_MS,
+        curve: releasing ? 1.42 : 1.6,
+        essential: true,
+      })
       map.once('moveend', () => {
         if (flightRef.current === flight) flyingRef.current = false
       })
     }
 
     /** A new place shrinks the old columns, then grows its own once the flight is underway. */
-    const start = performance.now()
+    const startedAt = performance.now()
     const growFrom = swapping ? 0 : from
     const delay = swapping ? GROW_DELAY_MS : 0
     const span = target > growFrom ? GROW_MS : SHRINK_MS
     let swapped = !swapping
     const tween = (now: number) => {
-      const elapsed = now - start
+      const elapsed = now - startedAt
       if (!swapped) {
         if (elapsed < SHRINK_MS && from > 0) {
           drawPlace(map, drawnRef, previous, from * (1 - easeOut(elapsed / SHRINK_MS)))
@@ -329,7 +393,7 @@ export function BriefingMap({
       if (t < 1) tweenRef.current = window.requestAnimationFrame(tween)
     }
     tweenRef.current = window.requestAnimationFrame(tween)
-  }, [place, blank])
+  }, [place, blank, enter, start])
 
   return <div ref={elRef} className={styles.mapCanvas} />
 }

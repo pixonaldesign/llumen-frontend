@@ -95,6 +95,7 @@ import {
   type StoryMapActionTooltip,
   type StoryMapHandle,
   type StoryMapLayerVisibility,
+  type StoryMapView,
 } from './StoryMap'
 import {
   MUSSAFAH_LOAD_X,
@@ -154,7 +155,8 @@ import styles from './StoryView.module.css'
 
 export type StoryViewProps = {
   storyId: string
-  onBack: () => void
+  /** `from`: the map's camera when the Back button was pressed (absent when the story is deleted). */
+  onBack: (from?: StoryMapView) => void
   /** Opens left agent rail with current story/slide context. */
   onAsk?: (context: { story: LandingStory; slideIndex: number; sourceRect: DOMRect }) => void
   /** When the agent rail is open, hide the Ask icon. */
@@ -183,6 +185,16 @@ export type StoryViewProps = {
   onAddToChat?: (component: ChatComponent, sourceRect: DOMRect) => void
   /** Reports the slide on screen, so prompts sent from outside the story can use its data. */
   onSlideIndexChange?: (index: number) => void
+  /**
+   * Arriving on the map from the Briefing: `wait` holds the header, insight cards, map data and
+   * navigation back over the bare map; `play` brings them in. Leaving for the Briefing: `leave` sends
+   * them back out, then `gone` dissolves the story onto the Briefing map underneath.
+   */
+  entrance?: 'wait' | 'play' | 'leave' | 'gone'
+  /** Hides the map (the Briefing map underneath shows the same view) until it has loaded; it fades in after. */
+  mapHidden?: boolean
+  /** The story map's first load: `loaded` (style and layers up), then `painted` (all of its first tiles drawn). */
+  onMapReady?: (stage: 'loaded' | 'painted') => void
 }
 
 export type { StoryAiSnapshot }
@@ -401,6 +413,9 @@ export function StoryView({
   headerEnd,
   onAddToChat,
   onSlideIndexChange,
+  entrance,
+  mapHidden = false,
+  onMapReady,
 }: StoryViewProps) {
   const story = useMemo(() => getLandingStory(storyId), [storyId])
   const [storyTitle, setStoryTitle] = useState(story.storyTitle)
@@ -1753,6 +1768,9 @@ export function StoryView({
       className={`${styles.root}${splitDragging ? ` ${styles.rootSplitDragging}` : ''}`}
       style={{ '--comparison-split': comparisonSplit } as CSSProperties}
       aria-label={`${story.storyTitle} story`}
+      data-entrance={entrance}
+      data-map-hidden={mapHidden || undefined}
+      inert={entrance === 'leave' || entrance === 'gone'}
     >
       <div className={`${styles.mapPane}${viewLayout === 'comparison' ? ` ${styles.mapPaneUpper}` : ''}`}>
         <StoryMap
@@ -1792,6 +1810,7 @@ export function StoryView({
             onEdited: onAnnotationEdited,
           }}
           onHandle={onMapHandle}
+          onReady={onMapReady}
         />
       </div>
       {viewLayout === 'comparison' ? (
@@ -1829,7 +1848,12 @@ export function StoryView({
       <div className={styles.overlay}>
         <header className={styles.header} dir={presentationSettings.textDirection}>
           <div className={`${styles.titleRow}${pagesNav ? ` ${styles.titleRowPages}` : ''}`}>
-            <button type="button" className={styles.backBtn} onClick={onBack} aria-label="Back to home">
+            <button
+              type="button"
+              className={styles.backBtn}
+              onClick={() => onBack(mapHandleRef.current?.view())}
+              aria-label="Back to home"
+            >
               <ArrowLeft size={20} weight="regular" aria-hidden />
             </button>
             <div className={styles.titleGroup}>

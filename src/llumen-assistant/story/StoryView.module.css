@@ -9,6 +9,128 @@
   container-type: size;
 }
 
+/*
+ * Arriving from the Briefing map (StoryView `entrance`): the chrome waits off the bare map, then the
+ * header drops in, the insight cards slide in from the left one after another, and the map data and
+ * navigation follow. Animating `translate` leaves the cards' own transforms alone.
+ */
+.root[data-entrance='wait'] .header,
+.root[data-entrance='wait'] .insight > *,
+.root[data-entrance='wait'] .mapStack,
+.root[data-entrance='wait'] .lowerNav {
+  opacity: 0;
+}
+
+.root[data-entrance='play'] .header {
+  animation: entranceDown 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.root[data-entrance='play'] .insight > * {
+  --enter-d: 0ms;
+  animation: entranceLeft 460ms cubic-bezier(0.16, 1, 0.3, 1) var(--enter-d) backwards;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(2) {
+  --enter-d: 35ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(3) {
+  --enter-d: 70ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(4) {
+  --enter-d: 105ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(5) {
+  --enter-d: 140ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(n + 6) {
+  --enter-d: 175ms;
+}
+
+.root[data-entrance='play'] .mapStack {
+  animation: entranceRight 460ms cubic-bezier(0.16, 1, 0.3, 1) 40ms backwards;
+}
+
+.root[data-entrance='play'] .lowerNav {
+  animation: entranceUp 420ms cubic-bezier(0.16, 1, 0.3, 1) 80ms backwards;
+}
+
+/* The way out runs the entrance backwards, all at once and quicker. */
+.root[data-entrance='leave'] .header,
+.root[data-entrance='gone'] .header {
+  animation: entranceDown 260ms cubic-bezier(0.4, 0, 1, 1) reverse forwards;
+}
+
+.root[data-entrance='leave'] .insight > *,
+.root[data-entrance='gone'] .insight > * {
+  animation: entranceLeft 260ms cubic-bezier(0.4, 0, 1, 1) reverse forwards;
+}
+
+.root[data-entrance='leave'] .mapStack,
+.root[data-entrance='gone'] .mapStack {
+  animation: entranceRight 260ms cubic-bezier(0.4, 0, 1, 1) reverse forwards;
+}
+
+.root[data-entrance='leave'] .lowerNav,
+.root[data-entrance='gone'] .lowerNav {
+  animation: entranceUp 260ms cubic-bezier(0.4, 0, 1, 1) reverse forwards;
+}
+
+.root[data-entrance='gone'] {
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+
+/* The Briefing map underneath holds the same view until this map has loaded. */
+.root[data-entrance] .mapPane {
+  transition: opacity 320ms ease;
+}
+
+.root[data-map-hidden] .mapPane {
+  opacity: 0;
+}
+
+@keyframes entranceDown {
+  from {
+    opacity: 0;
+    translate: 0 -16px;
+  }
+}
+
+@keyframes entranceLeft {
+  from {
+    opacity: 0;
+    translate: -48px 0;
+  }
+}
+
+@keyframes entranceRight {
+  from {
+    opacity: 0;
+    translate: 48px 0;
+  }
+}
+
+@keyframes entranceUp {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-entrance='play'] .header,
+  .root[data-entrance='play'] .insight > *,
+  .root[data-entrance='play'] .mapStack,
+  .root[data-entrance='play'] .lowerNav {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}
+
 .map {
   z-index: 0;
 }

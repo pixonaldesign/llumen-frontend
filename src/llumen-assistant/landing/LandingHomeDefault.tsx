@@ -14,13 +14,14 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from '@phosphor-icons/react'
-import { useEffect, useId, useState, type CSSProperties, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { landingAssets as a, storyThumbLayers, type StoryThumbVariant } from './landingAssets'
 import { ConversationGrid } from './ConversationGrid'
 import { AUTOPLAY_MS, CAROUSEL_MS, tickerSlots, useCarousel, type CardLayout } from './carouselMotion'
 import { LandingTopBar, STUDIO_CATEGORIES, STUDIO_WORKSPACES, WorkspaceGlyph } from './LandingTopBar'
 import { SpecularActionButton } from './SpecularActionButton'
+import { useAnchoredTooltip } from './useAnchoredTooltip'
+import { VoteButton } from './VoteButton'
 import type { TopBarVariant } from '../prototypeChrome'
 import styles from './LandingHome.module.css'
 
@@ -331,72 +332,6 @@ function PopulationChart({ chart }: { chart: NonNullable<AttentionItem['chart']>
         ))}
       </ul>
     </div>
-  )
-}
-
-function useAnchoredTooltip(enabled = true) {
-  const tooltipId = useId()
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
-
-  useEffect(() => {
-    if (!enabled) setPos(null)
-  }, [enabled])
-
-  const show = (event: { currentTarget: HTMLElement }) => {
-    if (!enabled) return
-    const rect = event.currentTarget.getBoundingClientRect()
-    setPos({ x: rect.left + rect.width / 2, y: rect.top - 8 })
-  }
-  const hide = () => setPos(null)
-
-  return {
-    describedBy: enabled && pos ? tooltipId : undefined,
-    show,
-    hide,
-    node: (label: string) =>
-      enabled && pos
-        ? createPortal(
-            <div id={tooltipId} className={styles.tooltip} role="tooltip" style={{ left: pos.x, top: pos.y }}>
-              {label}
-            </div>,
-            document.body,
-          )
-        : null,
-  }
-}
-
-function VoteButton({
-  label,
-  pressed,
-  onClick,
-  children,
-}: {
-  label: string
-  pressed: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
-  const tooltip = useAnchoredTooltip()
-
-  return (
-    <>
-      <button
-        type="button"
-        className={`${styles.voteBtn}${pressed ? ` ${styles.voteBtnActive}` : ''}`}
-        aria-pressed={pressed}
-        aria-label={label}
-        aria-describedby={tooltip.describedBy}
-        onClick={onClick}
-        onMouseEnter={tooltip.show}
-        onMouseMove={tooltip.show}
-        onMouseLeave={tooltip.hide}
-        onFocus={tooltip.show}
-        onBlur={tooltip.hide}
-      >
-        {children}
-      </button>
-      {tooltip.node(label)}
-    </>
   )
 }
 

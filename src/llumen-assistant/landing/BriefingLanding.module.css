@@ -190,6 +190,52 @@
     visibility 0s linear 320ms;
 }
 
+/*
+ * A finding's View flies the map into its story (data-story): everything but the map steps aside.
+ * The story then mounts over the page with its own map hidden, so its panels come in over this map
+ * (cover), and its map fades in over this one once loaded (fade): the columns never leave the screen.
+ */
+.root[data-story] {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.root[data-story] .bar,
+.root[data-story] .stage .dockLayer,
+.root[data-story] .scrim,
+.root[data-story] .fadeBlur,
+.root[data-story] .sidePanel,
+.root[data-story] .edgeArrow,
+.root[data-story] .assetPeek,
+.root[data-story] .panel,
+.root[data-story] .sideView,
+.root[data-story] .lower {
+  opacity: 0;
+  transition: opacity 420ms ease;
+}
+
+/* Under the story: arriving (cover, fade), or back from it while it leaves (return). */
+.root[data-story='cover'],
+.root[data-story='fade'],
+.root[data-story='return'] {
+  z-index: 0;
+}
+
+.root[data-story='back'] .bar,
+.root[data-story='back'] .stage .dockLayer,
+.root[data-story='back'] .scrim,
+.root[data-story='back'] .fadeBlur,
+.root[data-story='back'] .sidePanel,
+.root[data-story='back'] .edgeArrow,
+.root[data-story='back'] .assetPeek,
+.root[data-story='back'] .panel,
+.root[data-story='back'] .sideView,
+.root[data-story='back'] .lower {
+  opacity: 1;
+  transition: opacity 520ms ease 280ms;
+}
+
 .findingMain,
 .findingCopy {
   display: flex;
@@ -528,15 +574,9 @@
   top: var(--briefing-bar-h, 64px);
   bottom: var(--dock-top, var(--side-composer));
   justify-content: center;
+  /* Centres the finding 80px below the middle of the space between the top bar and the composer. */
+  padding-top: 160px;
   --finding-w: min(800px, calc(100vw - 2 * var(--side-peek) - 176px));
-}
-
-.root[data-findings-style='6'] .edgeArrow {
-  top: calc(50% + (var(--briefing-bar-h, 64px) - var(--side-composer)) / 2);
-}
-
-.root[data-findings-style='6'] .edgeArrowNext {
-  right: calc(var(--side-peek) + 24px);
 }
 
 /*
@@ -796,11 +836,8 @@
   top: var(--briefing-bar-h, 64px);
   bottom: var(--dock-top, var(--side-composer));
   justify-content: center;
+  padding-top: 160px;
   --finding-w: min(760px, calc(100cqw - var(--s7-panel) - 176px));
-}
-
-.root[data-findings-style='7'] .edgeArrow {
-  top: calc(50% + (var(--briefing-bar-h, 64px) - var(--side-composer)) / 2);
 }
 
 .panel {

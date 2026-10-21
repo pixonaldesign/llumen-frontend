@@ -31,11 +31,14 @@ import { BriefingAgentGrid } from './BriefingAgents'
 import { BriefingAppHighlights, BriefingAppsCarousel, BriefingAppsList } from './BriefingApps'
 import { BriefingAssetGrid, BriefingAssetPeek } from './BriefingAssets'
 import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
-import { BriefingMap } from './BriefingMap'
+import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
 import { BRIEFING_PLACES } from './briefingMapPlaces'
+import { STORY_CAMERA_PADDING } from '../story/StoryMap'
+import { storySceneAt } from '../story/storyDemoScenes'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar } from './LandingTopBar'
 import { SpecularActionButton } from './SpecularActionButton'
+import { VoteButton } from './VoteButton'
 import { DEFAULT_FINDINGS_STYLE, type FindingsStyle, type TopBarVariant } from '../prototypeChrome'
 import home from './LandingHome.module.css'
 import styles from './BriefingLanding.module.css'
@@ -82,6 +85,11 @@ const ASSETS_SPLIT_MS = 1700
 const ASSETS_OPEN_PX = 8
 
 /** Findings style 6's slide between the findings and Assets and Apps; keep in step with --side-slide. */
+/** A story opens on its first scene, framed clear of its insight column. */
+const STORY_OPENING_PLACE = BRIEFING_PLACES['abu-dhabi']
+const STORY_ENTER: BriefingMapEnter = { camera: storySceneAt(0).camera, padding: STORY_CAMERA_PADDING }
+/** BriefingMap's flight (2200ms) plus slack. */
+const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
 const SIDE_SLIDE_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
 /** BriefingAssetPeek stacks the grid's first four cards. */
@@ -126,6 +134,25 @@ export type BriefingLandingProps = {
   topBar: TopBarVariant
   onTellMeMore?: (item: LandingTellMeMorePayload) => void
   onOpenStory?: (storyId: string) => void
+  /**
+   * A finding's View button has started flying the map into the story's opening view. With this set,
+   * the story is opened by the parent (under this page) rather than through `onOpenStory`.
+   */
+  onStoryFlight?: (storyId: string) => void
+  /** The map has reached the story's opening view. */
+  onStoryArrive?: () => void
+  /**
+   * The story is mounted over this page with its map hidden (`cover`), so this map stands in for it
+   * until the story map has loaded and fades in over it (`fade`).
+   */
+  storyHandoff?: 'cover' | 'fade'
+  /**
+   * Back from a story: `hold` mounts this page under the story with its map on the story's camera
+   * (`from`) and its chrome hidden; `fly` flies the map back to the findings as the chrome returns.
+   */
+  storyReturn?: { from: BriefingMapEnter; phase: 'hold' | 'fly' } | null
+  /** The held map's first load (BriefingMap `onReady`), so the story can dissolve onto it. */
+  onStoryReturnReady?: (stage: 'loaded' | 'painted') => void
   reserveComposer?: boolean
   /**
    * Fires on every scroll frame with how far Assets has scrolled in (0 at rest, 1 once it reaches the
@@ -147,6 +174,11 @@ export function BriefingLanding({
   topBar,
   onTellMeMore,
   onOpenStory,
+  onStoryFlight,
+  onStoryArrive,
+  storyHandoff,
+  storyReturn = null,
+  onStoryReturnReady,
   reserveComposer = true,
   onAssetsProgress,
   onScrollActivity,
@@ -156,6 +188,9 @@ export function BriefingLanding({
   findingToast = null,
 }: BriefingLandingProps) {
   const [active, setActive] = useState(0)
+  /** The story whose opening view the map is flying to; the page's chrome steps aside meanwhile. */
+  const [storyFlight, setStoryFlight] = useState<string | null>(null)
+  const arrivedRef = useRef(false)
   const [assetsOpen, setAssetsOpen] = useState(false)
   /** Findings style 6 has no lower sections: Assets and Apps slide in from the right instead. */
   const sideways = findingsStyle === 6
@@ -166,6 +201,8 @@ export function BriefingLanding({
   const away = (sideways && sideAssets) || (paneled && panelOpen)
   /** Styles 6 and 7 have no lower sections to scroll to. */
   const lowerless = sideways || paneled
+  /** Previous and next sit beside the dots instead of at the stage's edges. */
+  const dotArrows = findingsStyle === 5 || lowerless
   /** The asset stack has flown into the grid's column: the grid's own cards take over and the rest follow. */
   const [landed, setLanded] = useState(false)
   const peekRef = useRef<HTMLDivElement>(null)
@@ -186,13 +223,42 @@ export function BriefingLanding({
 
   const stop = FEED_STOPS[active]
 
+  const returnHeld = storyReturn?.phase === 'hold'
   const mapPlace = useMemo(() => {
+    if (storyFlight || returnHeld) return STORY_OPENING_PLACE
     for (let index = active; index >= 0; index -= 1) {
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
     return BRIEFING_PLACES['abu-dhabi']
-  }, [active])
+  }, [active, storyFlight, returnHeld])
+
+  const enterStory = useCallback(
+    (storyId: string) => {
+      if (storyFlight) return
+      if (!onStoryFlight || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        onOpenStory?.(storyId)
+        return
+      }
+      arrivedRef.current = false
+      setStoryFlight(storyId)
+      onStoryFlight(storyId)
+    },
+    [onOpenStory, onStoryFlight, storyFlight],
+  )
+
+  const arriveAtStory = useCallback(() => {
+    if (!storyFlight || arrivedRef.current) return
+    arrivedRef.current = true
+    onStoryArrive?.()
+  }, [onStoryArrive, storyFlight])
+
+  /** Lands the flight even if the map never reports its arrival (no token, or the flight was cut short). */
+  useEffect(() => {
+    if (!storyFlight) return
+    const timer = window.setTimeout(arriveAtStory, STORY_FLIGHT_FALLBACK_MS)
+    return () => window.clearTimeout(timer)
+  }, [storyFlight, arriveAtStory])
 
   const syncPage = useCallback(() => {
     const page = pageRef.current
@@ -402,10 +468,10 @@ export function BriefingLanding({
     syncPage()
   }, [frame, findingsStyle, syncPage])
 
-  /** Without lower sections the composer only leaves its findings slot while style 7's panel is expanded. */
+  /** Without lower sections the page leaves its findings only while Assets and Apps cover them. */
   useEffect(() => {
-    if (lowerless) progressRef.current?.(paneled && panelOpen ? 1 : 0)
-  }, [lowerless, paneled, panelOpen])
+    if (lowerless) progressRef.current?.(away ? 1 : 0)
+  }, [lowerless, away])
 
   /** Sizes the asset stack to the grid's column of small cards, so the flight between them only moves it. */
   useLayoutEffect(() => {
@@ -462,6 +528,14 @@ export function BriefingLanding({
   useEffect(() => () => flightRef.current?.cancel(), [])
 
   const blurred = !stop.place || !!findingToast
+  const mapBlurred = blurred && !storyFlight && !returnHeld
+  const storyState = storyFlight
+    ? (storyHandoff ?? 'flight')
+    : storyReturn
+      ? returnHeld
+        ? 'return'
+        : 'back'
+      : undefined
 
   return (
     <div
@@ -469,6 +543,8 @@ export function BriefingLanding({
       className={styles.root}
       data-findings-style={findingsStyle}
       data-alert={alert}
+      data-story={storyState}
+      inert={storyFlight !== null || returnHeld}
       style={{
         ['--feed-pad' as string]: reserveComposer ? '106px' : '48px',
         ...(frame
@@ -502,8 +578,16 @@ export function BriefingLanding({
         }}
       >
         <div className={styles.stage} data-away={away} inert={away}>
-          <div ref={mapRef} className={`${styles.map}${blurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
-            <BriefingMap place={mapPlace} blank={blurred} focusRight={findingsStyle === 2 || findingsStyle === 5} />
+          <div ref={mapRef} className={`${styles.map}${mapBlurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
+            <BriefingMap
+              place={mapPlace}
+              blank={mapBlurred}
+              focusRight={findingsStyle === 2 || findingsStyle === 5}
+              enter={storyFlight ? STORY_ENTER : null}
+              onArrive={arriveAtStory}
+              start={returnHeld ? storyReturn.from : null}
+              onReady={onStoryReturnReady}
+            />
           </div>
           <div className={styles.scrim} aria-hidden />
           <div className={styles.fadeBlur} aria-hidden />
@@ -520,22 +604,22 @@ export function BriefingLanding({
               }))
             }
             onTellMeMore={onTellMeMore}
-            onOpenStory={onOpenStory}
+            onOpenStory={enterStory}
             toast={findingToast}
             controls={
               <FeedCarousel
                 count={FEED_STOPS.length}
                 active={active}
                 paused={paused}
-                running={!paused && !assetsOpen && !away && !alert && !findingToast}
+                running={!paused && !assetsOpen && !away && !alert && !findingToast && !storyFlight && !storyReturn}
                 onSelect={setActive}
                 onStep={stepFeed}
                 onTogglePause={() => setPaused((value) => !value)}
-                arrows={findingsStyle === 5}
+                arrows={dotArrows}
               />
             }
           />
-          {findingsStyle === 5 ? null : (
+          {dotArrows ? null : (
             <>
               <button
                 type="button"
@@ -1100,24 +1184,22 @@ function FindingBody({
           </button>
         ) : null}
         <div className={home.voteGroup}>
-          <button
-            type="button"
-            className={`${home.voteBtn}${vote === 'up' ? ` ${styles.voteOn}` : ''}`}
-            aria-label="Helpful"
-            aria-pressed={vote === 'up'}
+          <VoteButton
+            label="Show more like this"
+            pressed={vote === 'up'}
+            pressedClassName={styles.voteOn}
             onClick={() => onVote('up')}
           >
-            <ThumbsUp size={18} weight="regular" />
-          </button>
-          <button
-            type="button"
-            className={`${home.voteBtn}${vote === 'down' ? ` ${styles.voteOn}` : ''}`}
-            aria-label="Not helpful"
-            aria-pressed={vote === 'down'}
+            <ThumbsUp size={18} weight="regular" aria-hidden />
+          </VoteButton>
+          <VoteButton
+            label="Not interested"
+            pressed={vote === 'down'}
+            pressedClassName={styles.voteOn}
             onClick={() => onVote('down')}
           >
-            <ThumbsDown size={18} weight="regular" />
-          </button>
+            <ThumbsDown size={18} weight="regular" aria-hidden />
+          </VoteButton>
         </div>
       </div>
     </>
