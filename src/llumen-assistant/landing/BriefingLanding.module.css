@@ -659,7 +659,7 @@
   z-index: 2;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 32px;
+  column-gap: 64px;
   box-sizing: border-box;
   padding: calc(var(--briefing-bar-h, 64px) + 28px) 0 0 32px;
   background:
@@ -686,7 +686,7 @@
 }
 
 .sideIntro .assetsDetail {
-  max-width: none;
+  max-width: 520px;
 }
 
 .sideBack {
