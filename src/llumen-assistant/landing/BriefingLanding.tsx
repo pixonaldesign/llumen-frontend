@@ -21,8 +21,6 @@ import {
   ChatText,
   Check,
   MapPin,
-  Pause,
-  Play,
   ThumbsDown,
   ThumbsUp,
 } from '@phosphor-icons/react'
@@ -115,6 +113,8 @@ const FEED_AUTOPLAY_MS = 9000
 const FINDING_FADE_MS = 320
 /** Dots shown at once; with more findings, the last two on a side with more shrink and fade. */
 const FEED_DOTS_VISIBLE = 7
+/** How far past the finding's content (greeting to actions) the pointer still holds autoplay, in px. */
+const HOLD_ZONE = { x: 70, top: 220, bottom: 144 }
 
 /** One-section glide; longer jumps (Home, End) take up to the max. */
 const PAGE_GLIDE_MS = 900
@@ -241,7 +241,9 @@ export function BriefingLanding({
   const barRef = useRef<HTMLElement | null>(null)
   const progressRef = useRef(onAssetsProgress)
   const scrollActivityRef = useRef(onScrollActivity)
-  const [paused, setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const [autoplay] = useState(() => !window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  /** The pointer (or keyboard focus) is on the finding: autoplay holds until it leaves. */
+  const [held, setHeld] = useState(false)
 
   const stop = FEED_STOPS[active]
 
@@ -672,15 +674,24 @@ export function BriefingLanding({
             onTellMeMore={onTellMeMore}
             onOpenStory={enterStory}
             toast={findingToast}
+            onHoldChange={setHeld}
             controls={
               <FeedCarousel
                 count={FEED_STOPS.length}
                 active={active}
-                paused={paused}
-                running={!paused && !assetsOpen && !away && !alert && !findingToast && !opening && !storyRelease && !storyReturn}
+                running={
+                  autoplay &&
+                  !held &&
+                  !assetsOpen &&
+                  !away &&
+                  !alert &&
+                  !findingToast &&
+                  !opening &&
+                  !storyRelease &&
+                  !storyReturn
+                }
                 onSelect={setActive}
                 onStep={stepFeed}
-                onTogglePause={() => setPaused((value) => !value)}
                 arrows={dotArrows}
               />
             }
@@ -1057,6 +1068,7 @@ function ConversationalBubble({
   onOpenStory,
   controls,
   toast,
+  onHoldChange,
 }: {
   stop: FeedStop
   findingsStyle: FindingsStyle
@@ -1072,8 +1084,74 @@ function ConversationalBubble({
   controls: ReactNode
   /** Replaces the carousel and finding while it is up; they stay mounted underneath so nothing re-measures. */
   toast: ReactNode
+  /** True while the mouse is in HOLD_ZONE around the greeting, finding and controls, or keyboard focus is inside. */
+  onHoldChange: (held: boolean) => void
 }) {
   const innerRef = useRef<HTMLDivElement>(null)
+  const chatDockRef = useRef<HTMLDivElement>(null)
+  const holdRef = useRef(onHoldChange)
+  useLayoutEffect(() => {
+    holdRef.current = onHoldChange
+  })
+
+  // The dock is click-through so the map stays interactive, so hover is a hit test against its content's box.
+  useEffect(() => {
+    const dock = chatDockRef.current
+    if (!dock) return
+    let hovered = false
+    let focused = false
+    let held = false
+    const sync = () => {
+      if (held === (hovered || focused)) return
+      held = hovered || focused
+      holdRef.current(held)
+    }
+    const move = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') return
+      let top = Infinity
+      let right = -Infinity
+      let bottom = -Infinity
+      let left = Infinity
+      for (const child of dock.children) {
+        const rect = child.getBoundingClientRect()
+        if (rect.width === 0 || rect.height === 0 || getComputedStyle(child).visibility === 'hidden') continue
+        top = Math.min(top, rect.top)
+        right = Math.max(right, rect.right)
+        bottom = Math.max(bottom, rect.bottom)
+        left = Math.min(left, rect.left)
+      }
+      hovered =
+        event.clientX >= left - HOLD_ZONE.x &&
+        event.clientX <= right + HOLD_ZONE.x &&
+        event.clientY >= top - HOLD_ZONE.top &&
+        event.clientY <= bottom + HOLD_ZONE.bottom
+      sync()
+    }
+    const leave = () => {
+      hovered = false
+      sync()
+    }
+    const focusIn = (event: FocusEvent) => {
+      focused = event.target instanceof Element && event.target.matches(':focus-visible')
+      sync()
+    }
+    const focusOut = (event: FocusEvent) => {
+      if (event.relatedTarget instanceof Node && dock.contains(event.relatedTarget)) return
+      focused = false
+      sync()
+    }
+    window.addEventListener('pointermove', move, { passive: true })
+    document.documentElement.addEventListener('pointerleave', leave)
+    dock.addEventListener('focusin', focusIn)
+    dock.addEventListener('focusout', focusOut)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      document.documentElement.removeEventListener('pointerleave', leave)
+      dock.removeEventListener('focusin', focusIn)
+      dock.removeEventListener('focusout', focusOut)
+      if (held) holdRef.current(false)
+    }
+  }, [])
   const [shown, setShown] = useState(stop)
   const [height, setHeight] = useState<number | null>(null)
   const [fading, setFading] = useState(false)
@@ -1179,7 +1257,7 @@ function ConversationalBubble({
           {findingsStyle === 4 ? 'what would you like to explore today?' : 'how can I help you today?'}
         </p>
       ) : null}
-      <div className={styles.chatDock} data-toast={toast ? 'true' : undefined}>
+      <div ref={chatDockRef} className={styles.chatDock} data-toast={toast ? 'true' : undefined}>
         <div className={styles.greetingWrap} data-shown={greet} aria-hidden={!greet}>
           <p className={styles.greeting}>
             Good morning, Omar,
@@ -1305,21 +1383,17 @@ function dotTiers(active: number, count: number): DotTier[] {
 function FeedCarousel({
   count,
   active,
-  paused,
   running,
   onSelect,
   onStep,
-  onTogglePause,
   arrows = false,
 }: {
   count: number
   active: number
-  paused: boolean
-  /** False while paused or while Assets is open; the fill holds its progress. */
+  /** False while the finding is hovered or Assets is open; the fill holds its progress. */
   running: boolean
   onSelect: (index: number) => void
   onStep: (delta: number) => void
-  onTogglePause: () => void
   /** Previous and next buttons on either side of the dots, in place of the stage's edge arrows. */
   arrows?: boolean
 }) {
@@ -1366,16 +1440,6 @@ function FeedCarousel({
           </button>
         </div>
       ) : null}
-      <div className={`${styles.carouselPill} ${styles.playPill}`}>
-        <button
-          type="button"
-          className={styles.carouselBtn}
-          aria-label={paused ? 'Play findings' : 'Pause findings'}
-          onClick={onTogglePause}
-        >
-          {paused ? <Play size={16} weight="regular" /> : <Pause size={16} weight="regular" />}
-        </button>
-      </div>
     </div>
   )
 }
