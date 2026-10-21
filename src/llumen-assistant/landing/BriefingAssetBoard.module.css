@@ -154,24 +154,44 @@
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 500;
-  line-height: 20px;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-}
-
-.appDescription {
-  display: -webkit-box;
-  margin: 0;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 12px;
-  line-height: 16px;
+  line-height: 24px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   line-clamp: 3;
+}
+
+/* Matches the findings' View button (BriefingLanding .storyBtn). */
+.appView {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: flex-start;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  margin: auto 0 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.app[data-layout='tall'] .appView {
+  margin-top: 4px;
+}
+
+.appView:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.appView:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

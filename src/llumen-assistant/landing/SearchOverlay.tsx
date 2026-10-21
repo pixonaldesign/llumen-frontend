@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  AppWindow,
   ArrowRight,
   ClockCounterClockwise,
   Cube,
   MagnifyingGlass,
   Newspaper,
+  PresentationChart,
   SquaresFour,
 } from '@phosphor-icons/react'
 import styles from './SearchOverlay.module.css'
@@ -23,7 +23,7 @@ type SearchItem = {
 const GROUPS: readonly { kind: ResultKind; name: string; icon: ReactNode }[] = [
   { kind: 'finding', name: 'Findings', icon: <Newspaper size={18} weight="regular" aria-hidden /> },
   { kind: 'asset', name: 'Assets', icon: <Cube size={18} weight="regular" aria-hidden /> },
-  { kind: 'app', name: 'Apps', icon: <AppWindow size={18} weight="regular" aria-hidden /> },
+  { kind: 'app', name: 'Apps', icon: <PresentationChart size={18} weight="regular" aria-hidden /> },
   { kind: 'workspace', name: 'Workspaces', icon: <SquaresFour size={18} weight="regular" aria-hidden /> },
 ]
 

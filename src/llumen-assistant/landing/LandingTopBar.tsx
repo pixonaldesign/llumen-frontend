@@ -1,17 +1,17 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
-  AppWindow,
   Bell,
   CaretDown,
+  ChartDonut,
   ChartPieSlice,
   Check,
   Cube,
   Layout,
   LockSimple,
   MagnifyingGlass,
-  Monitor,
   Newspaper,
   Plus,
+  PresentationChart,
   Sparkle,
   SquaresFour,
   User,
@@ -78,7 +78,7 @@ export type TopBarView = 'briefing' | 'assets' | 'studio'
 const TOP_BAR_VIEWS: readonly { view: TopBarView; label: string; icon: ReactNode }[] = [
   { view: 'briefing', label: 'Briefing', icon: <Newspaper size={20} weight="regular" aria-hidden /> },
   { view: 'assets', label: 'My Assets', icon: <ChartPieSlice size={20} weight="regular" aria-hidden /> },
-  { view: 'studio', label: 'Studio', icon: <Monitor size={20} weight="regular" aria-hidden /> },
+  { view: 'studio', label: 'Studio', icon: <ChartDonut size={20} weight="regular" aria-hidden /> },
 ]
 
 export type LandingTopBarProps = {
@@ -220,7 +220,7 @@ type CreateKind = 'asset' | 'app' | 'agent'
 
 const CREATE_OPTIONS: readonly { kind: CreateKind; label: string; icon: ReactNode; active: boolean }[] = [
   { kind: 'asset', label: 'Asset', icon: <Cube size={20} weight="regular" aria-hidden />, active: true },
-  { kind: 'app', label: 'App', icon: <AppWindow size={20} weight="regular" aria-hidden />, active: false },
+  { kind: 'app', label: 'App', icon: <PresentationChart size={20} weight="regular" aria-hidden />, active: false },
   { kind: 'agent', label: 'Agent', icon: <Sparkle size={20} weight="regular" aria-hidden />, active: false },
 ]
 
@@ -301,7 +301,7 @@ function CurrentBar() {
       </label>
       <div className={home.navActions}>
         <button type="button" className={home.pillBtn}>
-          <Monitor size={20} weight="regular" aria-hidden />
+          <ChartDonut size={20} weight="regular" aria-hidden />
           Studio
         </button>
         <CreateMenu triggerClassName={home.pillBtn} />
@@ -530,7 +530,7 @@ function StudioBar({
           </div>
         ) : (
           <button type="button" className={styles.ghost}>
-            <Monitor size={20} weight="regular" aria-hidden />
+            <ChartDonut size={20} weight="regular" aria-hidden />
             Studio
           </button>
         )}

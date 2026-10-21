@@ -1,4 +1,4 @@
-import { ChartBar } from '@phosphor-icons/react'
+import { ArrowUpRight, PresentationChart } from '@phosphor-icons/react'
 import {
   useEffect,
   useLayoutEffect,
@@ -26,7 +26,7 @@ const SETTLE_EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
 
 type Fit = Omit<BoardFit, 'id'>
 /**
- * Dashboard apps as assets: `wide` puts the thumbnail on the left, `tall` puts it on top. Each app has a
+ * Apps as assets: `wide` puts the thumbnail on the left, `tall` puts it on top. Each app has a
  * preferred shape, but its card lays out by the slot it gets: one cell tall is `wide`, taller is `tall`.
  */
 type AppLayout = 'wide' | 'tall'
@@ -364,24 +364,23 @@ function AppAssetCard({
   onToggleMenu: () => void
 }) {
   return (
-    <article
-      className={`${assetStyles.card} ${styles.app}`}
-      data-layout={layout}
-      aria-label={`Dashboard: ${app.title}`}
-    >
+    <article className={`${assetStyles.card} ${styles.app}`} data-layout={layout} aria-label={`App: ${app.title}`}>
       <span className={styles.appShot}>
         <img src={app.image} alt="" draggable={false} style={app.focus ? { objectPosition: app.focus } : undefined} />
       </span>
       <div className={styles.appCopy}>
         <div className={styles.appHead}>
           <span className={`${assetStyles.category} ${styles.appKind}`}>
-            <ChartBar size={13} weight="regular" aria-hidden />
-            Dashboard
+            <PresentationChart size={13} weight="regular" aria-hidden />
+            App
           </span>
           <AppMenu label={app.title} open={menuOpen} below={layout === 'wide'} onToggle={onToggleMenu} />
         </div>
         <h3 className={styles.appTitle}>{app.title}</h3>
-        <p className={styles.appDescription}>{app.description}</p>
+        <button type="button" className={styles.appView} aria-label={`View ${app.title}`}>
+          <ArrowUpRight size={20} weight="regular" aria-hidden />
+          View
+        </button>
       </div>
     </article>
   )

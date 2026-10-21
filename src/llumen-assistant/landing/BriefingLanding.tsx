@@ -986,9 +986,8 @@ function AssetsAppsView({
       <div className={styles.sideIntro}>
         <button type="button" className={styles.sideBack} onClick={onBack}>
           <ArrowLeft size={18} weight="regular" aria-hidden />
-          Findings
+          Back to Findings
         </button>
-        <h2 className={`${styles.eyebrow} ${styles.assetsIntroTitle}`}>Assets</h2>
         <AssetsFilters />
         <p className={styles.assetsSummary}>
           <SummaryText parts={ASSETS_STATEMENT} />
