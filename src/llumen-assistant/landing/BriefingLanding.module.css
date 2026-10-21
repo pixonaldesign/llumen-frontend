@@ -218,7 +218,8 @@
 /* Under the story: arriving (cover, fade), or back from it while it leaves (return). */
 .root[data-story='cover'],
 .root[data-story='fade'],
-.root[data-story='return'] {
+.root[data-story='return'],
+.root[data-story='back'] {
   z-index: 0;
 }
 
@@ -233,7 +234,7 @@
 .root[data-story='back'] .sideView,
 .root[data-story='back'] .lower {
   opacity: 1;
-  transition: opacity 520ms ease 280ms;
+  transition: opacity 480ms ease 360ms;
 }
 
 .findingMain,

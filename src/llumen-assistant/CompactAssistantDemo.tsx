@@ -163,16 +163,10 @@ const STORY_MOUNT_DELAY_MS = 320
 const STORY_PAINT_GRACE_MS = 600
 /** Reveals the story under the Briefing page even if the flight or its map never report back. */
 const STORY_REVEAL_FALLBACK_MS = 4000
-/** The story map's fade-in over the Briefing map (StoryView.module.css), plus a frame. */
-const STORY_FADE_MS = 380
-/** Back to the Briefing: the story's chrome sliding out (StoryView.module.css). */
-const STORY_LEAVE_MS = 260
-/** Dissolves the story onto the Briefing map even if that map never reports back. */
-const STORY_RETURN_FALLBACK_MS = 2500
-/** The story's dissolve onto the Briefing map (StoryView.module.css), plus a frame. */
-const STORY_DISSOLVE_MS = 360
+/** Back to the Briefing: the story chrome sliding out (StoryView.module.css). */
+const STORY_LEAVE_MS = 420
 /** The Briefing map's flight home (BriefingMap RETURN_MS), after which the page settles. */
-const STORY_RETURN_MS = 1900
+const STORY_RETURN_MS = 1600
 const SUPPORTS_SCROLLEND = typeof window !== 'undefined' && 'onscrollend' in window
 /** Lets the rail open and start thinking before the attached charts animate to the new period. */
 
@@ -2005,72 +1999,51 @@ export function CompactAssistantDemo() {
   }, [])
 
   /**
-   * Back to the Briefing: the story's chrome slides out while the Briefing page mounts underneath with
-   * its map on the story's camera (`hold`); once both are done the story dissolves onto that map, and
-   * the map flies home as the page's chrome returns (`fly`).
+   * Back to the Briefing. The Briefing map stays mounted under the story on the opening view, so this
+   * snaps it to wherever the story camera is now and flies it home while the story chrome leaves.
    */
-  const [storyReturn, setStoryReturn] = useState<{ from: StoryMapView; phase: 'hold' | 'fly' } | null>(null)
-  const returnPhase = storyReturn?.phase ?? null
-  const returnGateRef = useRef({ out: false, loaded: false, painted: false })
-  const returnGraceRef = useRef(0)
-  /** Remounts the Briefing page when a story is left mid-handoff, dropping its flight state. */
+  const [storyRelease, setStoryRelease] = useState<StoryMapView | 'home' | null>(null)
+  /** Remounts the Briefing page when a story is left before it has settled, dropping its flight state. */
   const [landingEpoch, setLandingEpoch] = useState(0)
   const leaveStory = useCallback(
     (from?: StoryMapView) => {
-      if (storyReturn) return
-      if (storyHandoff) {
+      if (storyRelease) return
+      const opening = storyHandoff === 'flight' || (storyHandoff === 'cover' && storyEntrance !== 'play')
+      if (opening || landingVariant !== 'briefing' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         setLandingEpoch((epoch) => epoch + 1)
         closeStory()
         return
       }
-      if (!from || landingVariant !== 'briefing' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        closeStory()
-        return
-      }
-      returnGateRef.current = { out: false, loaded: false, painted: false }
-      setStoryReturn({ from, phase: 'hold' })
+      // `from` is the story's camera. Without it the Briefing map is still on the opening view, which is where the flight home starts.
+      setStoryRelease(from ?? 'home')
       setStoryEntrance('leave')
     },
-    [closeStory, landingVariant, storyHandoff, storyReturn],
+    [closeStory, landingVariant, storyEntrance, storyHandoff, storyRelease],
   )
-  const passReturnGate = useCallback((gate: 'out' | 'loaded' | 'painted') => {
-    const passed = returnGateRef.current
-    passed[gate] = true
-    if (passed.out && passed.painted) setStoryEntrance('gone')
-    else if (passed.out && passed.loaded && gate !== 'painted') {
-      window.clearTimeout(returnGraceRef.current)
-      returnGraceRef.current = window.setTimeout(() => setStoryEntrance('gone'), STORY_PAINT_GRACE_MS)
-    }
-  }, [])
   useEffect(() => {
-    if (returnPhase !== 'hold') return
-    const out = window.setTimeout(() => passReturnGate('out'), STORY_LEAVE_MS)
-    const fallback = window.setTimeout(() => passReturnGate('painted'), STORY_RETURN_FALLBACK_MS)
-    return () => {
-      window.clearTimeout(out)
-      window.clearTimeout(fallback)
-      window.clearTimeout(returnGraceRef.current)
-    }
-  }, [returnPhase, passReturnGate])
-  useEffect(() => {
-    if (returnPhase !== 'fly') return
-    const timer = window.setTimeout(() => setStoryReturn(null), STORY_RETURN_MS)
-    return () => window.clearTimeout(timer)
-  }, [returnPhase])
-  useEffect(() => {
-    if (storyEntrance !== 'gone') return
+    if (!storyRelease || storyEntrance !== 'leave') return
     const timer = window.setTimeout(() => {
-      closeStory()
-      setStoryReturn((current) => current && { ...current, phase: 'fly' })
-    }, STORY_DISSOLVE_MS)
+      setActiveStoryId(null)
+      setStoryEntrance(undefined)
+      setHubStoryOpen(false)
+      setHubMorphFrom(null)
+      setLandingChips([])
+      setStoryChatComponents([])
+      setLandingFocusToken(0)
+    }, STORY_LEAVE_MS)
     return () => window.clearTimeout(timer)
-  }, [storyEntrance, closeStory])
+  }, [storyRelease, storyEntrance])
   useEffect(() => {
-    if (storyHandoff !== 'cover' && storyHandoff !== 'fade') return
-    const timer = window.setTimeout(
-      storyHandoff === 'cover' ? revealStory : () => setStoryHandoff(null),
-      storyHandoff === 'cover' ? STORY_REVEAL_FALLBACK_MS : STORY_FADE_MS,
-    )
+    if (!storyRelease) return
+    const timer = window.setTimeout(() => {
+      setStoryRelease(null)
+      setStoryHandoff(null)
+    }, STORY_RETURN_MS)
+    return () => window.clearTimeout(timer)
+  }, [storyRelease])
+  useEffect(() => {
+    if (storyHandoff !== 'cover') return
+    const timer = window.setTimeout(revealStory, STORY_REVEAL_FALLBACK_MS)
     return () => window.clearTimeout(timer)
   }, [storyHandoff, revealStory])
 
@@ -2775,8 +2748,7 @@ export function CompactAssistantDemo() {
         onStoryFlight={startStoryFlight}
         onStoryArrive={landStoryFlight}
         storyHandoff={storyHandoff === 'cover' || storyHandoff === 'fade' ? storyHandoff : undefined}
-        storyReturn={storyReturn}
-        onStoryReturnReady={returnPhase === 'hold' ? passReturnGate : undefined}
+        storyRelease={storyRelease}
         onTellMeMore={onTellMeMore}
         reserveComposer={isHub}
         onAssetsProgress={onBriefingAssetsProgress}
@@ -2837,12 +2809,12 @@ export function CompactAssistantDemo() {
           className={styles.demoLandingLayer}
           ref={(node) => setLandingScrollEl((current) => (current === node ? current : node))}
         >
-          {!storyActive || storyHandoff || storyReturn ? landingHome : null}
+          {!storyActive || storyHandoff || storyRelease ? landingHome : null}
           {storyActive ? (
             <StoryView
               storyId={activeStoryId}
               entrance={storyEntrance}
-              mapHidden={storyHandoff === 'cover'}
+              mapHidden={storyHandoff === 'cover' || storyRelease !== null}
               onMapReady={passStoryGate}
               onBack={leaveStory}
               onAsk={isHub ? openStoryAsk : undefined}
@@ -2930,7 +2902,7 @@ export function CompactAssistantDemo() {
             data-alert={alertTakesCentre ? 'true' : undefined}
             data-ask={landingAsk ? 'true' : undefined}
             data-story-flight={storyHandoff === 'flight' ? 'true' : undefined}
-            data-story-return={returnPhase === 'fly' ? 'true' : undefined}
+            data-story-return={storyRelease ? 'true' : undefined}
           >
             {toastOverHub && !toastInFindings ? noticeToast(true) : null}
             <HubChatbox

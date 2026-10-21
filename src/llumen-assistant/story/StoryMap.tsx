@@ -1495,7 +1495,7 @@ export function StoryMap({
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !ready || !onHandle) return
+    if (!map || !onHandle) return
     onHandle({
       unproject: (clientX, clientY) => {
         const rect = map.getCanvas().getBoundingClientRect()
@@ -1526,7 +1526,7 @@ export function StoryMap({
       undoDrawing: () => drawingRef.current?.undo(),
     })
     return () => onHandle(null)
-  }, [onHandle, ready])
+  }, [onHandle])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1540,6 +1540,13 @@ export function StoryMap({
       setReady(true)
     })
     map.setStyle(styleUrl)
+  }, [ready, styleUrl])
+
+  /** Recovers when a style swap resolved without the `style.load` listener (the handle stays unset otherwise). */
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || ready || appliedStyleRef.current !== styleUrl || !map.isStyleLoaded()) return
+    setReady(true)
   }, [ready, styleUrl])
 
   useEffect(() => {

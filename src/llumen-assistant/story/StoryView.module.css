@@ -58,25 +58,25 @@
   animation: entranceUp 420ms cubic-bezier(0.16, 1, 0.3, 1) 80ms backwards;
 }
 
-/* The way out runs the entrance backwards, all at once and quicker. */
+/* The way out sends the chrome back off the map while the Briefing map underneath flies home. */
 .root[data-entrance='leave'] .header,
 .root[data-entrance='gone'] .header {
-  animation: entranceDown 260ms cubic-bezier(0.4, 0, 1, 1) reverse forwards;
+  animation: exitUp 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .root[data-entrance='leave'] .insight > *,
 .root[data-entrance='gone'] .insight > * {
-  animation: entranceLeft 260ms cubic-bezier(0.4, 0, 1, 1) reverse forwards;
+  animation: exitLeft 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .root[data-entrance='leave'] .mapStack,
 .root[data-entrance='gone'] .mapStack {
-  animation: entranceRight 260ms cubic-bezier(0.4, 0, 1, 1) reverse forwards;
+  animation: exitRight 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .root[data-entrance='leave'] .lowerNav,
 .root[data-entrance='gone'] .lowerNav {
-  animation: entranceUp 260ms cubic-bezier(0.4, 0, 1, 1) reverse forwards;
+  animation: exitDown 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .root[data-entrance='gone'] {
@@ -84,8 +84,9 @@
   transition: opacity 320ms ease;
 }
 
-/* The Briefing map underneath holds the same view until this map has loaded. */
-.root[data-entrance] .mapPane {
+/* The Briefing map underneath holds the same view until this map has loaded. Leaving hides it at once. */
+.root[data-entrance='wait'] .mapPane,
+.root[data-entrance='play'] .mapPane {
   transition: opacity 320ms ease;
 }
 
@@ -118,6 +119,34 @@
   from {
     opacity: 0;
     translate: 0 16px;
+  }
+}
+
+@keyframes exitUp {
+  to {
+    opacity: 0;
+    translate: 0 -24px;
+  }
+}
+
+@keyframes exitLeft {
+  to {
+    opacity: 0;
+    translate: -72px 0;
+  }
+}
+
+@keyframes exitRight {
+  to {
+    opacity: 0;
+    translate: 72px 0;
+  }
+}
+
+@keyframes exitDown {
+  to {
+    opacity: 0;
+    translate: 0 24px;
   }
 }
 

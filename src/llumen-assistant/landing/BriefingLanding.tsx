@@ -147,6 +147,11 @@ export type BriefingLandingProps = {
    */
   storyHandoff?: 'cover' | 'fade'
   /**
+   * Back from a story. The map (still on the story's opening view) snaps to this camera and flies home
+   * to the findings, and the page's chrome returns.
+   */
+  storyRelease?: BriefingMapEnter | 'home' | null
+  /**
    * Back from a story: `hold` mounts this page under the story with its map on the story's camera
    * (`from`) and its chrome hidden; `fly` flies the map back to the findings as the chrome returns.
    */
@@ -177,6 +182,7 @@ export function BriefingLanding({
   onStoryFlight,
   onStoryArrive,
   storyHandoff,
+  storyRelease = null,
   storyReturn = null,
   onStoryReturnReady,
   reserveComposer = true,
@@ -190,6 +196,7 @@ export function BriefingLanding({
   const [active, setActive] = useState(0)
   /** The story whose opening view the map is flying to; the page's chrome steps aside meanwhile. */
   const [storyFlight, setStoryFlight] = useState<string | null>(null)
+  if (storyRelease && storyFlight) setStoryFlight(null)
   const arrivedRef = useRef(false)
   const [assetsOpen, setAssetsOpen] = useState(false)
   /** Findings style 6 has no lower sections: Assets and Apps slide in from the right instead. */
@@ -224,14 +231,16 @@ export function BriefingLanding({
   const stop = FEED_STOPS[active]
 
   const returnHeld = storyReturn?.phase === 'hold'
+  /** The map is flying into the story, or holding that view underneath it. */
+  const opening = storyFlight !== null && !storyRelease && !returnHeld
   const mapPlace = useMemo(() => {
-    if (storyFlight || returnHeld) return STORY_OPENING_PLACE
+    if (opening || returnHeld) return STORY_OPENING_PLACE
     for (let index = active; index >= 0; index -= 1) {
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
     return BRIEFING_PLACES['abu-dhabi']
-  }, [active, storyFlight, returnHeld])
+  }, [active, opening, returnHeld])
 
   const enterStory = useCallback(
     (storyId: string) => {
@@ -528,14 +537,16 @@ export function BriefingLanding({
   useEffect(() => () => flightRef.current?.cancel(), [])
 
   const blurred = !stop.place || !!findingToast
-  const mapBlurred = blurred && !storyFlight && !returnHeld
-  const storyState = storyFlight
-    ? (storyHandoff ?? 'flight')
-    : storyReturn
-      ? returnHeld
-        ? 'return'
-        : 'back'
-      : undefined
+  const mapBlurred = blurred && !opening && !returnHeld
+  const storyState = storyRelease
+    ? 'back'
+    : storyFlight
+      ? (storyHandoff ?? 'flight')
+      : storyReturn
+        ? returnHeld
+          ? 'return'
+          : 'back'
+        : undefined
 
   return (
     <div
@@ -544,7 +555,7 @@ export function BriefingLanding({
       data-findings-style={findingsStyle}
       data-alert={alert}
       data-story={storyState}
-      inert={storyFlight !== null || returnHeld}
+      inert={opening || returnHeld}
       style={{
         ['--feed-pad' as string]: reserveComposer ? '106px' : '48px',
         ...(frame
@@ -583,8 +594,9 @@ export function BriefingLanding({
               place={mapPlace}
               blank={mapBlurred}
               focusRight={findingsStyle === 2 || findingsStyle === 5}
-              enter={storyFlight ? STORY_ENTER : null}
+              enter={opening ? STORY_ENTER : null}
               onArrive={arriveAtStory}
+              align={storyRelease && storyRelease !== 'home' ? storyRelease : null}
               start={returnHeld ? storyReturn.from : null}
               onReady={onStoryReturnReady}
             />
@@ -595,7 +607,7 @@ export function BriefingLanding({
           <ConversationalBubble
             stop={stop}
             findingsStyle={findingsStyle}
-            frozen={assetsOpen || away}
+            frozen={assetsOpen || away || storyState !== undefined}
             vote={votes[stop.id] ?? null}
             onVote={(value) =>
               setVotes((prev) => ({
@@ -611,7 +623,7 @@ export function BriefingLanding({
                 count={FEED_STOPS.length}
                 active={active}
                 paused={paused}
-                running={!paused && !assetsOpen && !away && !alert && !findingToast && !storyFlight && !storyReturn}
+                running={!paused && !assetsOpen && !away && !alert && !findingToast && !opening && !storyRelease && !storyReturn}
                 onSelect={setActive}
                 onStep={stepFeed}
                 onTogglePause={() => setPaused((value) => !value)}
@@ -989,7 +1001,10 @@ function ConversationalBubble({
 }: {
   stop: FeedStop
   findingsStyle: FindingsStyle
-  /** Stops following the composer, so the bubble scrolls away with the stage while the composer docks. */
+  /**
+   * Stops following the composer, so the bubble scrolls away with the stage while the composer docks,
+   * or holds its place while a story is over the page and the composer belongs to it.
+   */
   frozen: boolean
   vote: 'up' | 'down' | null
   onVote: (value: 'up' | 'down') => void
@@ -1013,6 +1028,7 @@ function ConversationalBubble({
     let follow = 0
     const place = () => {
       const rect = box.getBoundingClientRect()
+      if (rect.height === 0) return
       const next = {
         top: window.innerHeight - rect.top,
         under: window.innerHeight - rect.bottom,

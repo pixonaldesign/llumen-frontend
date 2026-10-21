@@ -20,7 +20,7 @@ const SHRINK_MS = 700
 const GROW_DELAY_MS = 1300
 const GROW_MS = 1700
 const ENTER_MS = 1700
-const RETURN_MS = 1800
+const RETURN_MS = 1500
 const MAX_PITCH = 85
 /** Lifts the orbit centre so the tall columns rise above the centred greeting; top padding exposes the sky. */
 const CAMERA_PADDING = { top: 0, right: 0, bottom: 220, left: 0 }
@@ -147,6 +147,13 @@ function cameraPadding(el: HTMLElement, focusRight: boolean): mapboxgl.PaddingOp
   return { ...CAMERA_PADDING, left: focusRight ? Math.round(el.clientWidth / 3) : 0 }
 }
 
+/** Snaps onto the story's view, then flies back to the Briefing place. */
+function flyHome(map: mapboxgl.Map, place: BriefingPlace, padding: mapboxgl.PaddingOptions, align: BriefingMapEnter | null) {
+  map.stop()
+  if (align) map.jumpTo({ ...align.camera, padding: align.padding })
+  map.flyTo({ ...place.camera, padding, duration: RETURN_MS, curve: 1.42, essential: true })
+}
+
 /** A story's camera: where the Briefing hands its map over to a story, or takes it back from one. */
 export type BriefingMapEnter = StoryMapView
 
@@ -165,6 +172,7 @@ export function BriefingMap({
   onArrive,
   start = null,
   onReady,
+  align = null,
 }: {
   place: BriefingPlace
   blank?: boolean
@@ -173,6 +181,8 @@ export function BriefingMap({
   onArrive?: () => void
   start?: BriefingMapEnter | null
   onReady?: (stage: 'loaded' | 'painted') => void
+  /** Where to snap before flying home, so the return starts on the story's current view. */
+  align?: BriefingMapEnter | null
 }) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -188,6 +198,8 @@ export function BriefingMap({
   const tweenRef = useRef(0)
   const holdUntilRef = useRef(0)
   const enterRef = useRef<BriefingMapEnter | null>(null)
+  const alignRef = useRef(align)
+  const pendingReleaseRef = useRef(false)
   const heldRef = useRef(start)
   const onArriveRef = useRef(onArrive)
   const onReadyRef = useRef(onReady)
@@ -195,7 +207,8 @@ export function BriefingMap({
   useEffect(() => {
     onArriveRef.current = onArrive
     onReadyRef.current = onReady
-  }, [onArrive, onReady])
+    alignRef.current = align
+  }, [onArrive, onReady, align])
 
   useEffect(() => {
     const el = elRef.current
@@ -226,6 +239,15 @@ export function BriefingMap({
       map.jumpTo(held ? { ...held.camera, padding: held.padding } : current.camera)
       mountLayers(map, current)
       readyRef.current = true
+      if (pendingReleaseRef.current) {
+        pendingReleaseRef.current = false
+        holdUntilRef.current = 0
+        flyingRef.current = true
+        flyHome(map, placeRef.current, cameraPadding(el, focusRightRef.current), alignRef.current)
+        map.once('moveend', () => {
+          flyingRef.current = false
+        })
+      }
       onReadyRef.current?.('loaded')
       const announce = () => {
         if (!map.areTilesLoaded()) return
@@ -321,11 +343,13 @@ export function BriefingMap({
     placeRef.current = place
     blankRef.current = blank
     const entering = enter !== null && enter !== enterRef.current
+    const leftStory = enterRef.current !== null && enter === null
     enterRef.current = enter
-    const releasing = heldRef.current !== null && start === null
-    if (releasing) heldRef.current = null
+    const releasing = (heldRef.current !== null && start === null) || leftStory
+    if (heldRef.current !== null && start === null) heldRef.current = null
     if (!map || !readyRef.current) {
       if (entering) onArriveRef.current?.()
+      if (releasing) pendingReleaseRef.current = true
       return
     }
 
@@ -359,13 +383,8 @@ export function BriefingMap({
       holdUntilRef.current = 0
       const flight = ++flightRef.current
       flyingRef.current = true
-      map.flyTo({
-        ...place.camera,
-        padding,
-        duration: releasing ? RETURN_MS : FLY_MS,
-        curve: releasing ? 1.42 : 1.6,
-        essential: true,
-      })
+      if (leftStory) flyHome(map, place, padding, align)
+      else map.flyTo({ ...place.camera, padding, duration: FLY_MS, curve: 1.6, essential: true })
       map.once('moveend', () => {
         if (flightRef.current === flight) flyingRef.current = false
       })
@@ -393,7 +412,7 @@ export function BriefingMap({
       if (t < 1) tweenRef.current = window.requestAnimationFrame(tween)
     }
     tweenRef.current = window.requestAnimationFrame(tween)
-  }, [place, blank, enter, start])
+  }, [place, blank, enter, start, align])
 
   return <div ref={elRef} className={styles.mapCanvas} />
 }
