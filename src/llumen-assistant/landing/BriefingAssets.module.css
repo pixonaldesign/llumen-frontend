@@ -677,7 +677,31 @@
   font-weight: 500;
 }
 
+/*
+ * Findings style 6: the first row stacked down the page's right edge. The cards share the stack's
+ * height with the grid's gap, so they match the grid's rows; the stack is one click target, so the
+ * charts don't take the pointer.
+ */
+.peek {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  --assets-t: 0;
+}
+
+.peek > .card {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.peek > .card * {
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .peek *,
+  .peek *::before,
   .grid *,
   .grid *::before {
     transition: none !important;

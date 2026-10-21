@@ -497,6 +497,492 @@
 }
 
 /*
+ * Findings style 6: style 1's finding centred between the top bar and the composer, which keeps its
+ * bottom slot (compact-assistant.module.css). Assets peek from the right edge instead of the bottom;
+ * clicking them pushes the stage out to the left while Assets and Apps come in from the right.
+ */
+.root[data-findings-style='6'] {
+  --assets-peek: 0px;
+  /* How much of the asset stack shows at the right edge. */
+  --side-peek: 96px;
+  --side-slide: 900ms cubic-bezier(0.65, 0, 0.35, 1);
+  /* The composer's bottom slot (24px) plus its collapsed height (62px). */
+  --side-composer: 86px;
+}
+
+/* Clip, not hidden: focusing the half-hidden asset stack or the offscreen view must not scroll them in. */
+.root[data-findings-style='6'] .page {
+  overflow: clip;
+}
+
+.root[data-findings-style='6'] .stage {
+  overflow: clip;
+  transition: transform var(--side-slide);
+}
+
+.root[data-findings-style='6'] .stage[data-away='true'] {
+  transform: translateX(-100%);
+}
+
+.root[data-findings-style='6'] .chatDock {
+  top: var(--briefing-bar-h, 64px);
+  bottom: var(--dock-top, var(--side-composer));
+  justify-content: center;
+  --finding-w: min(800px, calc(100vw - 2 * var(--side-peek) - 176px));
+}
+
+.root[data-findings-style='6'] .edgeArrow {
+  top: calc(50% + (var(--briefing-bar-h, 64px) - var(--side-composer)) / 2);
+}
+
+.root[data-findings-style='6'] .edgeArrowNext {
+  right: calc(var(--side-peek) + 24px);
+}
+
+/*
+ * Only --side-peek of the stack shows; hovering pulls every card out a little, one after another.
+ * BriefingLanding sizes it (--peek-*) to the grid's column of small cards and flies it there on click,
+ * so it sits over the slide; once it docks, the grid's own cards replace it.
+ */
+.assetPeek {
+  position: absolute;
+  top: var(--peek-top, calc(var(--briefing-bar-h, 64px) + 28px));
+  right: calc(var(--side-peek) - var(--peek-w, 280px));
+  z-index: 5;
+  width: var(--peek-w, 280px);
+  height: var(--peek-h, calc(100% - var(--briefing-bar-h, 64px) - 28px - var(--feed-pad, 106px)));
+  cursor: pointer;
+  outline: none;
+}
+
+.assetPeek[data-away='true'] {
+  pointer-events: none;
+}
+
+.assetPeek[data-landed='true'] {
+  visibility: hidden;
+}
+
+.assetPeek article {
+  left: 0;
+  transition:
+    left 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 200ms ease;
+}
+
+.assetPeek article:nth-child(2) {
+  transition-delay: 30ms;
+}
+
+.assetPeek article:nth-child(3) {
+  transition-delay: 60ms;
+}
+
+.assetPeek article:nth-child(4) {
+  transition-delay: 90ms;
+}
+
+.assetPeek:not([data-away='true']):hover article,
+.assetPeek:not([data-away='true']):focus-visible article {
+  left: -12px;
+  border-color: rgba(255, 255, 255, 0.26);
+}
+
+.assetPeek:not([data-away='true']):focus-visible article {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/*
+ * Assets and Apps: the summary, the grid and the Apps panel side by side under the top bar. The grid
+ * and the Apps list run to the bottom (and the list to the right edge) so their scrollbars hug them;
+ * the content inside pads itself clear of the composer.
+ */
+.sideView {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 2fr) minmax(340px, 1.1fr);
+  column-gap: 32px;
+  box-sizing: border-box;
+  padding: calc(var(--briefing-bar-h, 64px) + 28px) 0 0 32px;
+  background: linear-gradient(180deg, #3d4350 0%, #4b5261 55%, #59606f 100%);
+  transform: translateX(100%);
+  transition: transform var(--side-slide);
+}
+
+.sideView[data-shown='true'] {
+  transform: none;
+}
+
+.sideIntro {
+  min-width: 0;
+  min-height: 0;
+  padding-bottom: var(--feed-pad, 106px);
+  overflow: hidden;
+}
+
+.sideBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin: 0 0 24px;
+  padding: 0 14px 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.sideBack:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sideBack:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.sideGrid {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  container-type: inline-size;
+}
+
+/*
+ * The four small cards (the asset stack) make the right column, so the stack docks without
+ * reshaping; air quality, bus routes, clinic visits and station availability fill the two on its left.
+ */
+.sideGrid > * {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(180px, 1fr));
+  grid-auto-rows: auto;
+  min-height: 100%;
+  padding: 0 12px var(--feed-pad, 106px) 0;
+}
+
+.sideGrid article:nth-child(1) {
+  grid-area: 1 / 3;
+}
+
+.sideGrid article:nth-child(2) {
+  grid-area: 2 / 3;
+}
+
+.sideGrid article:nth-child(3) {
+  grid-area: 3 / 3;
+}
+
+.sideGrid article:nth-child(4) {
+  grid-area: 4 / 3;
+}
+
+.sideGrid article:nth-child(5) {
+  grid-area: 1 / 1 / 3 / 3;
+}
+
+.sideGrid article:nth-child(6) {
+  grid-area: 3 / 1;
+}
+
+.sideGrid article:nth-child(7) {
+  grid-area: 3 / 2;
+}
+
+.sideGrid article:nth-child(8) {
+  grid-area: 4 / 1 / 5 / 3;
+}
+
+/* Until the stack docks its cards stay hidden; the rest rise in after it, a beat apart (--d is 70ms a card). */
+.sideView:not([data-landed='true']) .sideGrid article:nth-child(-n + 4) {
+  visibility: hidden;
+}
+
+.sideGrid article:nth-child(n + 5) {
+  opacity: 0;
+  translate: 0 24px;
+  transition:
+    opacity 200ms ease,
+    translate 0s linear 200ms;
+}
+
+.sideView[data-landed='true'] .sideGrid article:nth-child(n + 5) {
+  opacity: 1;
+  translate: none;
+  transition:
+    opacity 500ms ease calc(var(--d) - 280ms),
+    translate 700ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--d) - 280ms);
+}
+
+/* Clear of the centred composer once the page is wide enough, so the Apps list runs to the bottom. */
+.sideApps {
+  --apps-bottom: var(--feed-pad, 106px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (min-width: 1366px) {
+  .sideApps {
+    --apps-bottom: 24px;
+  }
+}
+
+.sideApps > header {
+  padding-right: 32px;
+}
+
+.sideView[data-shown='true'] .assetsIntroTitle,
+.sideView[data-shown='true'] .assetsFilters,
+.sideView[data-shown='true'] .assetsSummary,
+.sideView[data-shown='true'] .assetsDetail {
+  --reveal-d: 520ms;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 600ms ease var(--reveal-d),
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-d);
+}
+
+.sideView[data-shown='true'] .assetsIntroTitle {
+  --reveal-d: 420ms;
+}
+
+.sideView[data-shown='true'] .assetsFilters {
+  --reveal-d: 470ms;
+}
+
+.sideView[data-shown='true'] .assetsDetail {
+  --reveal-d: 660ms;
+}
+
+/*
+ * Findings style 7: style 6's centred finding beside an Assets panel down the right of the page, which
+ * narrows the stage and its map. The composer centres on the narrowed stage (compact-assistant.module.css
+ * repeats --s7-panel). Expanding the panel covers the page: the grid keeps its width and two columns
+ * while the summary opens on its left and the app insights on its right.
+ */
+.root[data-findings-style='7'] {
+  --assets-peek: 0px;
+  --s7-panel: clamp(500px, 34vw, 640px);
+  --s7-inset: 24px;
+  --s7-grid: calc(var(--s7-panel) - var(--s7-inset));
+  --s7-ease: 760ms cubic-bezier(0.65, 0, 0.35, 1);
+  --side-composer: 86px;
+}
+
+/* The page is the container, so the side columns can lay out at their final width while they open. */
+.root[data-findings-style='7'] .page {
+  overflow: clip;
+  container-type: inline-size;
+}
+
+.root[data-findings-style='7'] .stage {
+  width: calc(100% - var(--s7-panel));
+  overflow: clip;
+}
+
+.root[data-findings-style='7'] .chatDock {
+  top: var(--briefing-bar-h, 64px);
+  bottom: var(--dock-top, var(--side-composer));
+  justify-content: center;
+  --finding-w: min(760px, calc(100cqw - var(--s7-panel) - 176px));
+}
+
+.root[data-findings-style='7'] .edgeArrow {
+  top: calc(50% + (var(--briefing-bar-h, 64px) - var(--side-composer)) / 2);
+}
+
+.panel {
+  --assets-t: 1;
+  /* Room the side columns share once open: 0.9 to the summary, 1.1 to the app insights. */
+  --s7-free: calc(100cqw - var(--s7-inset) - var(--s7-grid));
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  width: var(--s7-panel);
+  box-sizing: border-box;
+  padding-top: calc(var(--briefing-bar-h, 64px) + 12px);
+  background: #121316;
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.07);
+  transition:
+    width var(--s7-ease),
+    box-shadow 300ms ease;
+}
+
+.panel[data-open='true'] {
+  width: 100%;
+  box-shadow: inset 1px 0 0 transparent;
+}
+
+.panelHead {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 36px;
+  margin-bottom: 16px;
+  padding: 0 var(--s7-inset);
+}
+
+.panelToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.panelToggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.panelToggle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/* Closed, the free room is nil and the side columns are 0 wide; the grid's track never changes width. */
+.panelBody {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 0.9fr) var(--s7-grid) minmax(0, 1.1fr);
+  min-height: 0;
+  padding-left: var(--s7-inset);
+}
+
+.panelInsight,
+.panelApps {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panelInsight {
+  padding-bottom: var(--feed-pad, 106px);
+}
+
+.panelInsight > * {
+  width: calc(var(--s7-free) * 0.45 - 40px);
+}
+
+.panelGrid {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+/*
+ * Two columns, as on mobile: heat by district across the top, then the KPI and land use, population and
+ * pressure in pairs, then air quality, bus routes and station availability across.
+ */
+.panel .panelGrid > * {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: none;
+  grid-auto-rows: clamp(200px, 22vh, 250px);
+  padding: 0 var(--s7-inset) var(--feed-pad, 106px) 0;
+}
+
+.panelGrid article {
+  grid-row: auto;
+  padding: 14px 14px 12px;
+  border-color: rgba(255, 255, 255, 0.06);
+  background: #24262b;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.panelGrid article h3 {
+  font-size: 14px;
+}
+
+.panelGrid article:nth-child(7) {
+  order: -1;
+}
+
+.panelGrid article:nth-child(n + 5) {
+  grid-column: 1 / -1;
+}
+
+.panelApps {
+  --apps-bottom: var(--feed-pad, 106px);
+  --apps-inset: var(--s7-inset);
+  display: flex;
+  flex-direction: column;
+}
+
+.panelApps > ul {
+  width: calc(var(--s7-free) * 0.55);
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  padding-left: 8px;
+}
+
+.panelApps li {
+  opacity: 0;
+  translate: 32px 0;
+  transition:
+    opacity 200ms ease,
+    translate 0s linear 200ms;
+}
+
+.panel[data-open='true'] .panelApps li {
+  opacity: 1;
+  translate: none;
+  transition:
+    opacity 500ms ease calc(460ms + var(--i) * 70ms),
+    translate 700ms cubic-bezier(0.16, 1, 0.3, 1) calc(460ms + var(--i) * 70ms);
+}
+
+.panel:not([data-open='true']) .panelInsight > * {
+  transition: opacity 200ms ease;
+}
+
+.panel[data-open='true'] .assetsFilters,
+.panel[data-open='true'] .assetsSummary,
+.panel[data-open='true'] .assetsDetail {
+  --reveal-d: 460ms;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 600ms ease var(--reveal-d),
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-d);
+}
+
+.panel[data-open='true'] .assetsSummary {
+  --reveal-d: 540ms;
+}
+
+.panel[data-open='true'] .assetsDetail {
+  --reveal-d: 640ms;
+}
+
+/*
  * Assets and Agents share one background that stays pinned to the page while they
  * scroll over it, blending from the Assets palette to the Agents one (--agents-t).
  * The block overlaps the bottom of the findings stage by the peek; the peek never
@@ -1411,6 +1897,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .root[data-findings-style='6'] .stage,
+  .sideView,
+  .panel,
+  .panelApps li,
+  .panelInsight > *,
+  .sideGrid article,
+  .assetPeek article,
   .assets,
   .assetsIntroTitle,
   .assetsFilters,

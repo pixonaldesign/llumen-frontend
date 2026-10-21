@@ -63,6 +63,23 @@ export function BriefingAssetGrid({
   )
 }
 
+/** The grid's first row as a vertical stack, for findings style 6's right edge; it plays on mount. */
+export function BriefingAssetPeek() {
+  const [reduce] = useState(prefersReducedMotion)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setMounted(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+  return (
+    <div className={styles.peek}>
+      {BRIEFING_ASSETS.slice(0, PEEK_COUNT).map((asset, index) => (
+        <AssetCard key={asset.id} asset={asset} play={mounted || reduce} delay={reduce ? 0 : index * CARD_STAGGER_MS} />
+      ))}
+    </div>
+  )
+}
+
 function AssetCard({ asset, play, delay }: Play & { asset: BriefingAsset }) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [tip, setTip] = useState<PlacedTip | null>(null)

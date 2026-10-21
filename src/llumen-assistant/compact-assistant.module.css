@@ -349,6 +349,27 @@
   );
 }
 
+/* Findings style 6: the composer stays in the bottom slot, under the findings and under Assets and Apps. */
+.composerDockCenter[data-findings-style='6'] {
+  bottom: var(--space-3xl);
+}
+
+/*
+ * Findings style 7: centred on the stage left of the Assets panel (--s7-panel matches
+ * landing/BriefingLanding.module.css), and on the page once the panel expands (--briefing-assets-t is 1).
+ */
+.composerDockCenter[data-findings-style='7'] {
+  --s7-panel: clamp(500px, 34vw, 640px);
+  --t: var(--briefing-assets-t, 0);
+  right: calc(var(--s7-panel) * (1 - var(--t)));
+  bottom: var(--space-3xl);
+  width: min(640px, calc(100vw - var(--s7-panel) * (1 - var(--t)) - 48px));
+  transition:
+    left var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    right 760ms cubic-bezier(0.65, 0, 0.35, 1),
+    width 760ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
 .composerDockShifted {
   left: var(--lc-rail-width, 400px);
 }

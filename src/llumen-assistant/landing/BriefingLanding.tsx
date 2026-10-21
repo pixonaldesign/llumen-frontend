@@ -14,6 +14,8 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  ArrowsInSimple,
+  ArrowsOutSimple,
   CalendarBlank,
   CaretDown,
   ChatText,
@@ -26,8 +28,8 @@ import {
 } from '@phosphor-icons/react'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { BriefingAgentGrid } from './BriefingAgents'
-import { BriefingAppsCarousel } from './BriefingApps'
-import { BriefingAssetGrid } from './BriefingAssets'
+import { BriefingAppHighlights, BriefingAppsCarousel, BriefingAppsList } from './BriefingApps'
+import { BriefingAssetGrid, BriefingAssetPeek } from './BriefingAssets'
 import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
 import { BriefingMap } from './BriefingMap'
 import { BRIEFING_PLACES } from './briefingMapPlaces'
@@ -78,6 +80,12 @@ const ASSETS_SPLIT_MS = 1700
 
 /** Page scroll past which the Assets section counts as open and the composer leaves the centre. */
 const ASSETS_OPEN_PX = 8
+
+/** Findings style 6's slide between the findings and Assets and Apps; keep in step with --side-slide. */
+const SIDE_SLIDE_MS = 900
+const SIDE_SLIDE_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
+/** BriefingAssetPeek stacks the grid's first four cards. */
+const PEEK_COUNT = 4
 
 /** The Agents section is hidden for now; Apps follows Assets directly. */
 const SHOW_AGENTS = false
@@ -149,6 +157,20 @@ export function BriefingLanding({
 }: BriefingLandingProps) {
   const [active, setActive] = useState(0)
   const [assetsOpen, setAssetsOpen] = useState(false)
+  /** Findings style 6 has no lower sections: Assets and Apps slide in from the right instead. */
+  const sideways = findingsStyle === 6
+  const [sideAssets, setSideAssets] = useState(false)
+  /** Findings style 7 keeps Assets in a panel beside the findings; expanding it covers them with Assets and Apps. */
+  const paneled = findingsStyle === 7
+  const [panelOpen, setPanelOpen] = useState(false)
+  const away = (sideways && sideAssets) || (paneled && panelOpen)
+  /** Styles 6 and 7 have no lower sections to scroll to. */
+  const lowerless = sideways || paneled
+  /** The asset stack has flown into the grid's column: the grid's own cards take over and the rest follow. */
+  const [landed, setLanded] = useState(false)
+  const peekRef = useRef<HTMLDivElement>(null)
+  const sideGridRef = useRef<HTMLDivElement>(null)
+  const flightRef = useRef<Animation | null>(null)
   const [votes, setVotes] = useState<Record<string, 'up' | 'down' | null>>({})
   const rootRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
@@ -180,7 +202,10 @@ export function BriefingLanding({
     setAssetsOpen((current) => (current === open ? current : open))
     const lower = lowerRef.current
     const next = afterAssetsRef.current
-    if (!lower || !next) return
+    if (!lower || !next) {
+      rootRef.current?.style.setProperty('--assets-t', '0')
+      return
+    }
     const height = page.clientHeight
     const bar = barRef.current?.offsetHeight ?? 0
     const assetsEnd = lower.offsetTop + next.offsetTop - height
@@ -375,7 +400,66 @@ export function BriefingLanding({
 
   useEffect(() => {
     syncPage()
-  }, [frame, syncPage])
+  }, [frame, findingsStyle, syncPage])
+
+  /** Without lower sections the composer only leaves its findings slot while style 7's panel is expanded. */
+  useEffect(() => {
+    if (lowerless) progressRef.current?.(paneled && panelOpen ? 1 : 0)
+  }, [lowerless, paneled, panelOpen])
+
+  /** Sizes the asset stack to the grid's column of small cards, so the flight between them only moves it. */
+  useLayoutEffect(() => {
+    const peek = peekRef.current
+    const grid = sideGridRef.current
+    const view = grid?.parentElement
+    if (!peek || !grid || !view) return
+    const fit = () => {
+      const cards = grid.querySelectorAll<HTMLElement>(':scope > * > article')
+      const first = cards[0]?.getBoundingClientRect()
+      const last = cards[PEEK_COUNT - 1]?.getBoundingClientRect()
+      if (!first || !last) return
+      const box = view.getBoundingClientRect()
+      peek.style.setProperty('--peek-top', `${first.top - box.top + grid.scrollTop}px`)
+      peek.style.setProperty('--peek-w', `${first.width}px`)
+      peek.style.setProperty('--peek-h', `${last.bottom - first.top}px`)
+    }
+    fit()
+    const resize = new ResizeObserver(fit)
+    resize.observe(grid)
+    return () => resize.disconnect()
+  }, [sideways])
+
+  /** Flies the asset stack into the grid (or back out) while the stage and the view slide past. */
+  const flyAssets = useCallback((open: boolean) => {
+    setSideAssets(open)
+    setLanded(false)
+    const current = flightRef.current
+    if (current?.playState === 'running') {
+      current.reverse()
+      current.onfinish = open ? () => setLanded(true) : () => current.cancel()
+      return
+    }
+    current?.cancel()
+    const peek = peekRef.current
+    const grid = sideGridRef.current
+    const first = grid?.querySelector<HTMLElement>(':scope > * > article')
+    const view = grid?.parentElement
+    if (!peek || !first || !view || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (open) setLanded(true)
+      return
+    }
+    const slot = first.getBoundingClientRect()
+    const box = view.getBoundingClientRect()
+    const docked = `translate(${slot.left - box.left - peek.offsetLeft}px, ${slot.top - box.top - peek.offsetTop}px)`
+    const flight = peek.animate(
+      open ? [{ transform: 'none' }, { transform: docked }] : [{ transform: docked }, { transform: 'none' }],
+      { duration: SIDE_SLIDE_MS, easing: SIDE_SLIDE_EASE, fill: 'forwards' },
+    )
+    flight.onfinish = open ? () => setLanded(true) : () => flight.cancel()
+    flightRef.current = flight
+  }, [])
+
+  useEffect(() => () => flightRef.current?.cancel(), [])
 
   const blurred = !stop.place || !!findingToast
 
@@ -417,7 +501,7 @@ export function BriefingLanding({
           settlePage()
         }}
       >
-        <div className={styles.stage}>
+        <div className={styles.stage} data-away={away} inert={away}>
           <div ref={mapRef} className={`${styles.map}${blurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
             <BriefingMap place={mapPlace} blank={blurred} focusRight={findingsStyle === 2 || findingsStyle === 5} />
           </div>
@@ -427,7 +511,7 @@ export function BriefingLanding({
           <ConversationalBubble
             stop={stop}
             findingsStyle={findingsStyle}
-            frozen={assetsOpen}
+            frozen={assetsOpen || away}
             vote={votes[stop.id] ?? null}
             onVote={(value) =>
               setVotes((prev) => ({
@@ -443,7 +527,7 @@ export function BriefingLanding({
                 count={FEED_STOPS.length}
                 active={active}
                 paused={paused}
-                running={!paused && !assetsOpen && !alert && !findingToast}
+                running={!paused && !assetsOpen && !away && !alert && !findingToast}
                 onSelect={setActive}
                 onStep={stepFeed}
                 onTogglePause={() => setPaused((value) => !value)}
@@ -472,12 +556,38 @@ export function BriefingLanding({
             </>
           )}
         </div>
-        <div ref={lowerRef} className={styles.lower}>
-          <div className={styles.lowerBg} aria-hidden />
-          <AssetsSheet open={assetsOpen} play={assetsPlay} onOpen={showAssets} />
-          {SHOW_AGENTS ? <AgentsSection sectionRef={afterAssetsRef} /> : null}
-          <AppsSection sectionRef={SHOW_AGENTS ? undefined : afterAssetsRef} />
-        </div>
+        {sideways ? (
+          <>
+            <AssetsAppsView shown={away} landed={landed} gridRef={sideGridRef} onBack={() => flyAssets(false)} />
+            <div
+              ref={peekRef}
+              className={styles.assetPeek}
+              data-away={away}
+              data-landed={away && landed}
+              inert={away}
+              role="button"
+              tabIndex={0}
+              aria-label="Open Assets and Apps"
+              onClick={() => flyAssets(true)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return
+                event.preventDefault()
+                flyAssets(true)
+              }}
+            >
+              <BriefingAssetPeek />
+            </div>
+          </>
+        ) : paneled ? (
+          <AssetsPanel open={panelOpen} onToggle={() => setPanelOpen((value) => !value)} />
+        ) : (
+          <div ref={lowerRef} className={styles.lower}>
+            <div className={styles.lowerBg} aria-hidden />
+            <AssetsSheet open={assetsOpen} play={assetsPlay} onOpen={showAssets} />
+            {SHOW_AGENTS ? <AgentsSection sectionRef={afterAssetsRef} /> : null}
+            <AppsSection sectionRef={SHOW_AGENTS ? undefined : afterAssetsRef} />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -666,6 +776,122 @@ function AppsSection({ sectionRef }: { sectionRef?: RefObject<HTMLElement | null
   )
 }
 
+/**
+ * Findings style 6's second page, pushed in from the right: the Assets summary on the left, the grid
+ * in the middle and Apps as a panel on the right. The grid and the Apps list scroll on their own.
+ */
+function AssetsAppsView({
+  shown,
+  landed,
+  gridRef,
+  onBack,
+}: {
+  shown: boolean
+  /** The asset stack has docked: the grid's first column shows and the rest of the grid plays in. */
+  landed: boolean
+  gridRef: RefObject<HTMLDivElement | null>
+  onBack: () => void
+}) {
+  const revealScrollbar = useRevealScrollbarOnScroll()
+  const setGrid = useCallback(
+    (el: HTMLDivElement | null) => {
+      gridRef.current = el
+      revealScrollbar(el)
+    },
+    [gridRef, revealScrollbar],
+  )
+  return (
+    <section
+      className={styles.sideView}
+      data-shown={shown}
+      data-landed={shown && landed}
+      inert={!shown}
+      aria-label="Assets and Apps"
+    >
+      <div className={styles.sideIntro}>
+        <button type="button" className={styles.sideBack} onClick={onBack}>
+          <ArrowLeft size={18} weight="regular" aria-hidden />
+          Findings
+        </button>
+        <h2 className={`${styles.eyebrow} ${styles.assetsIntroTitle}`}>Assets</h2>
+        <AssetsFilters />
+        <p className={styles.assetsSummary}>
+          <SummaryText parts={ASSETS_STATEMENT} />
+        </p>
+        <p className={styles.assetsDetail}>
+          <SummaryText parts={ASSETS_DETAIL} />
+        </p>
+      </div>
+      <div ref={setGrid} className={styles.sideGrid}>
+        <BriefingAssetGrid play={shown && landed} />
+      </div>
+      <aside className={styles.sideApps} aria-labelledby="briefing-side-apps">
+        <header className={styles.sectionHead}>
+          <h2 id="briefing-side-apps" className={styles.eyebrow}>
+            Apps
+          </h2>
+          <p className={styles.sectionLead}>Dashboards and slides built from your data</p>
+        </header>
+        <BriefingAppsList />
+      </aside>
+    </section>
+  )
+}
+
+/**
+ * Findings style 7: Assets in two columns down the right of the page, beside the findings. Expanding it
+ * covers the page: the summary joins on the left and the app insights on the right, aligned with the
+ * grid, which keeps its two columns.
+ */
+function AssetsPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  const revealScrollbar = useRevealScrollbarOnScroll()
+  const [play, setPlay] = useState(false)
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setPlay(true))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+  return (
+    <aside className={styles.panel} data-open={open} aria-labelledby="briefing-panel-assets">
+      <header className={styles.panelHead}>
+        <h2 id="briefing-panel-assets" className={styles.eyebrow}>
+          Assets
+        </h2>
+        <button
+          type="button"
+          className={styles.panelToggle}
+          aria-expanded={open}
+          aria-label={open ? 'Collapse Assets' : 'Expand Assets and Apps'}
+          onClick={onToggle}
+        >
+          {open ? (
+            <ArrowsInSimple size={18} weight="regular" aria-hidden />
+          ) : (
+            <ArrowsOutSimple size={18} weight="regular" aria-hidden />
+          )}
+          {open ? 'Collapse' : 'Expand'}
+        </button>
+      </header>
+      <div className={styles.panelBody}>
+        <div className={styles.panelInsight} inert={!open}>
+          <AssetsFilters />
+          <p className={styles.assetsSummary}>
+            <SummaryText parts={ASSETS_STATEMENT} />
+          </p>
+          <p className={styles.assetsDetail}>
+            <SummaryText parts={ASSETS_DETAIL} />
+          </p>
+        </div>
+        <div ref={revealScrollbar} className={styles.panelGrid}>
+          <BriefingAssetGrid play={play} />
+        </div>
+        <div className={styles.panelApps} inert={!open}>
+          <BriefingAppHighlights />
+        </div>
+      </div>
+    </aside>
+  )
+}
+
 function ConversationalBubble({
   stop,
   findingsStyle,
@@ -770,7 +996,7 @@ function ConversationalBubble({
     return () => resize.disconnect()
   }, [])
 
-  const askGreeting = findingsStyle !== 1
+  const askGreeting = findingsStyle === 2 || findingsStyle === 3 || findingsStyle === 4 || findingsStyle === 5
   const navAbove = findingsStyle === 5
   const greet = !askGreeting && shown.id === FEED_STOPS[0].id
 

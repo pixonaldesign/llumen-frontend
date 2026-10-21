@@ -1,5 +1,14 @@
-import { ArrowLeft, ArrowRight, ChartBar, Pause, Play, PresentationChart } from '@phosphor-icons/react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChartBar,
+  DotsThreeVertical,
+  Pause,
+  Play,
+  PresentationChart,
+} from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
+import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { AUTOPLAY_MS, tickerSlots, useCarousel } from './carouselMotion'
 import home from './LandingHome.module.css'
 import styles from './BriefingApps.module.css'
@@ -67,6 +76,164 @@ const APPS: BriefingApp[] = [
     image: `${appsBase}/app-3.jpg`,
   },
 ]
+
+/** Apps as insights (Llumen Dubai Municipality, Dashboard 5): what each one shows is happening. */
+type AppHighlight = { id: string; title: string; description: string; image: string }
+
+const APP_HIGHLIGHTS: AppHighlight[] = [
+  {
+    id: 'construction-surge',
+    title: 'Construction Surge Driving Multi-System Pressure Dubai South',
+    description:
+      'Real estate investment is rising due to steady material costs and a higher rate of project approvals.',
+    image: `${appsBase}/insight-1.jpg`,
+  },
+  {
+    id: 'rainfall-disruption',
+    title: 'Rainfall Event Triggering Service Disruption — Northern Districts',
+    description:
+      'Northern Districts flooding has disrupted waste and sewage services, requiring urgent municipal intervention.',
+    image: `${appsBase}/insight-2.jpg`,
+  },
+  {
+    id: 'tourism-peak',
+    title: 'Tourism Peak Increasing Load on Public Facilities — Coastal Areas',
+    description:
+      'Surging tourism and park footfall have strained maintenance and waste services. Increased service frequency is required to maintain “Customer Happiness” in high-traffic zones.',
+    image: `${appsBase}/insight-3.jpg`,
+  },
+  {
+    id: 'permit-concentration',
+    title: 'Permit Concentration Driving Spatial Imbalance — Central City vs Peripheral Districts',
+    description:
+      'A surge in central building permits has pushed density far beyond planned thresholds, straining infrastructure, while peripheral zones remain severely underutilized.',
+    image: `${appsBase}/insight-4.jpg`,
+  },
+]
+
+const APP_ACTIONS = ['Open', 'Share', 'Pin to workspace'] as const
+
+/** Which card's menu is open; a press outside any menu or Escape closes it. */
+function useAppMenu() {
+  const [menuFor, setMenuFor] = useState<string | null>(null)
+  useEffect(() => {
+    if (!menuFor) return
+    const onPointer = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest('[data-app-menu]')) return
+      setMenuFor(null)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuFor(null)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [menuFor])
+  return [menuFor, setMenuFor] as const
+}
+
+/**
+ * Findings style 7's Apps column: what each app shows is happening, as a card with the thumbnail on the
+ * left and the copy and menu on the right. The cards share the column's height down to a minimum.
+ */
+export function BriefingAppHighlights() {
+  const revealScrollbar = useRevealScrollbarOnScroll()
+  const [menuFor, setMenuFor] = useAppMenu()
+  return (
+    <ul ref={revealScrollbar} className={`${styles.list} ${styles.highlights}`}>
+      {APP_HIGHLIGHTS.map((app, index) => {
+        const open = menuFor === app.id
+        return (
+          <li key={app.id} className={styles.highlight} style={{ ['--i' as string]: index }}>
+            <span className={styles.highlightShot}>
+              <img src={app.image} alt="" draggable={false} />
+            </span>
+            <div className={styles.highlightCopy}>
+              <div className={styles.highlightHead}>
+                <h3 className={styles.highlightTitle}>{app.title}</h3>
+                <AppMenu label={app.title} open={open} below onToggle={() => setMenuFor(open ? null : app.id)} />
+              </div>
+              <p className={styles.highlightDescription}>{app.description}</p>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/** Findings style 6's Apps panel: one card per app, the thumbnail on top and its copy and menu under it. */
+export function BriefingAppsList() {
+  const revealScrollbar = useRevealScrollbarOnScroll()
+  const [menuFor, setMenuFor] = useAppMenu()
+
+  return (
+    <ul ref={revealScrollbar} className={styles.list}>
+      {APPS.map((app) => {
+        const KindIcon = app.kind === 'Slides' ? PresentationChart : ChartBar
+        const open = menuFor === app.id
+        return (
+          <li key={app.id} className={styles.row} aria-label={`${app.kind}: ${app.name}`}>
+            <span className={styles.rowShot}>
+              <img src={app.image} alt="" draggable={false} />
+            </span>
+            <div className={styles.rowCopy}>
+              <div className={styles.rowHead}>
+                <span className={styles.rowKind}>
+                  <KindIcon size={13} weight="regular" aria-hidden />
+                  {app.kind} · {app.workspace}
+                </span>
+                <AppMenu label={app.name} open={open} onToggle={() => setMenuFor(open ? null : app.id)} />
+              </div>
+              <h3 className={styles.rowName}>{app.name}</h3>
+              <p className={styles.rowDescription}>{app.description}</p>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/** Opens upward over the thumbnail, or `below` when the button sits at the card's top. */
+function AppMenu({
+  label,
+  open,
+  below = false,
+  onToggle,
+}: {
+  label: string
+  open: boolean
+  below?: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className={styles.rowMenuWrap} data-app-menu>
+      <button
+        type="button"
+        className={styles.rowMenuBtn}
+        aria-label={`More options for ${label}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        <DotsThreeVertical size={18} weight="bold" aria-hidden />
+      </button>
+      {open ? (
+        <div className={`${styles.rowMenu}${below ? ` ${styles.rowMenuBelow}` : ''}`} role="menu" aria-label={label}>
+          {APP_ACTIONS.map((action) => (
+            <button key={action} type="button" role="menuitem" className={styles.rowMenuItem} onClick={onToggle}>
+              {action}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 /** Autoplays like the Stories carousel, but only while the Apps section is on screen. */
 export function BriefingAppsCarousel() {

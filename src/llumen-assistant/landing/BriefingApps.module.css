@@ -166,6 +166,285 @@
   line-height: 18px;
 }
 
+/*
+ * Findings style 6's Apps panel: the cards share the panel's height down to a minimum, then the list
+ * scrolls. It reaches the page's right edge so its scrollbar hugs it; the cards keep the inset.
+ */
+.list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 var(--apps-bottom, var(--feed-pad, 106px));
+  overflow-y: auto;
+  overflow-y: overlay;
+  list-style: none;
+}
+
+/* The thumbnail takes what the copy leaves, capped at the screenshots' 16:9 so it is never letterboxed. */
+.row {
+  display: flex;
+  flex: 1 0 220px;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  margin-inline-end: var(--apps-inset, 32px);
+  padding: 10px 10px 14px;
+  container-type: inline-size;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(30, 34, 42, 0.64), rgba(30, 34, 42, 0.4));
+  box-shadow:
+    0 18px 44px rgba(12, 15, 22, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.rowShot {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 96px;
+  max-height: calc(100cqw * 9 / 16);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: #0b0d12;
+}
+
+.rowShot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left top;
+  pointer-events: none;
+  user-select: none;
+}
+
+.rowCopy {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+/* The kind line shares its row with the menu button. */
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-block: -4px -2px;
+}
+
+.rowKind {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rowKind > svg {
+  margin-right: 6px;
+  vertical-align: -2px;
+}
+
+.rowName {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.rowDescription {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12.5px;
+  line-height: 18px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.rowMenuWrap {
+  position: relative;
+  flex: none;
+  margin-right: -6px;
+}
+
+.rowMenuBtn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.rowMenuBtn:hover,
+.rowMenuBtn[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.rowMenuBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: -2px;
+}
+
+.rowMenu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  z-index: 5;
+  min-width: 180px;
+  padding: 6px 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(10, 16, 28, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.rowMenuBelow {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+/*
+ * Findings style 7's app insights (Llumen Dubai Municipality, Dashboard 5): the thumbnail fills the
+ * card's left half edge to edge, the title, menu and summary sit on the right.
+ */
+.highlights {
+  gap: 16px;
+}
+
+.highlight {
+  display: grid;
+  flex: 1 0 168px;
+  grid-template-columns: minmax(0, 47%) minmax(0, 1fr);
+  margin-inline-end: var(--apps-inset, 32px);
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.highlightShot {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 15px 0 0 15px;
+  background: #0b0d12;
+}
+
+.highlightShot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.highlightCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.highlightHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.highlightTitle {
+  display: -webkit-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 17px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.highlightHead .rowMenuWrap {
+  margin: -4px -6px 0 0;
+}
+
+.highlightDescription {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 12px;
+  line-height: 15px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+}
+
+.rowMenuItem {
+  display: block;
+  width: calc(100% - 12px);
+  margin: 0 6px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rowMenuItem:hover,
+.rowMenuItem:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .shot,
   .appHero .shot {
