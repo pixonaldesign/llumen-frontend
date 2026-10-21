@@ -54,6 +54,25 @@ export type BriefingAsset = AssetBase &
       }
   )
 
+/**
+ * Findings style 6's Assets grid, by asset and dashboard app id: the apps sit among the charts, and the
+ * grid fills densely, so smaller cards backfill the gaps.
+ */
+export const DEFAULT_BOARD_ORDER: readonly string[] = [
+  'air-quality',
+  'permit-deviation',
+  'construction-surge',
+  'tourism-peak',
+  'water-pressure',
+  'rainfall-disruption',
+  'bus-delays',
+  'land-use',
+  'population',
+  'heat-visits',
+  'station-uptime',
+  'permit-concentration',
+]
+
 /** Order matters: it fills the bento grid row by row, starting with a row of four small cards. */
 export const BRIEFING_ASSETS: BriefingAsset[] = [
   {

@@ -22,6 +22,11 @@ const GROW_MS = 1700
 const ENTER_MS = 1700
 const RETURN_MS = 1500
 const MAX_PITCH = 85
+/** The sampler's frame: enough pixels to average the map's colours by band, few enough to read at once. */
+const SAMPLE_W = 32
+const SAMPLE_H = 20
+/** A hidden tab draws no frames; the sampler gives up rather than wait. */
+const SAMPLE_TIMEOUT_MS = 400
 /** Lifts the orbit centre so the tall columns rise above the centred greeting; top padding exposes the sky. */
 const CAMERA_PADDING = { top: 0, right: 0, bottom: 220, left: 0 }
 
@@ -173,6 +178,7 @@ export function BriefingMap({
   start = null,
   onReady,
   align = null,
+  onSampler,
 }: {
   place: BriefingPlace
   blank?: boolean
@@ -183,6 +189,8 @@ export function BriefingMap({
   onReady?: (stage: 'loaded' | 'painted') => void
   /** Where to snap before flying home, so the return starts on the story's current view. */
   align?: BriefingMapEnter | null
+  /** Hands over a reader of the map's next frame, shrunk to a few pixels (null until the style loads). */
+  onSampler?: (sample: (() => Promise<ImageData | null>) | null) => void
 }) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -203,12 +211,14 @@ export function BriefingMap({
   const heldRef = useRef(start)
   const onArriveRef = useRef(onArrive)
   const onReadyRef = useRef(onReady)
+  const onSamplerRef = useRef(onSampler)
 
   useEffect(() => {
     onArriveRef.current = onArrive
     onReadyRef.current = onReady
+    onSamplerRef.current = onSampler
     alignRef.current = align
-  }, [onArrive, onReady, align])
+  }, [onArrive, onReady, onSampler, align])
 
   useEffect(() => {
     const el = elRef.current
@@ -233,6 +243,31 @@ export function BriefingMap({
     })
     observer.observe(el)
 
+    /* The drawing buffer clears once a frame is shown, so read it in the render event that drew it. */
+    const sample = () =>
+      new Promise<ImageData | null>((resolve) => {
+        const timeout = window.setTimeout(() => {
+          map.off('render', read)
+          resolve(null)
+        }, SAMPLE_TIMEOUT_MS)
+        const read = () => {
+          window.clearTimeout(timeout)
+          const out = document.createElement('canvas')
+          out.width = SAMPLE_W
+          out.height = SAMPLE_H
+          const context = out.getContext('2d', { willReadFrequently: true })
+          if (!context) return resolve(null)
+          try {
+            context.drawImage(map.getCanvas(), 0, 0, SAMPLE_W, SAMPLE_H)
+            resolve(context.getImageData(0, 0, SAMPLE_W, SAMPLE_H))
+          } catch {
+            resolve(null)
+          }
+        }
+        map.once('render', read)
+        map.triggerRepaint()
+      })
+
     map.on('load', () => {
       const current = placeRef.current
       const held = heldRef.current
@@ -249,6 +284,7 @@ export function BriefingMap({
         })
       }
       onReadyRef.current?.('loaded')
+      onSamplerRef.current?.(sample)
       const announce = () => {
         if (!map.areTilesLoaded()) return
         map.off('render', announce)
@@ -308,6 +344,7 @@ export function BriefingMap({
       window.removeEventListener('pointerup', onRelease)
       window.removeEventListener('pointercancel', onRelease)
       observer.disconnect()
+      onSamplerRef.current?.(null)
       map.remove()
       mapRef.current = null
       readyRef.current = false

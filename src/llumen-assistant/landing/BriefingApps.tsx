@@ -9,11 +9,10 @@ import {
 } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
+import { APP_HIGHLIGHTS, APPS_BASE, useAppMenu } from './briefingAppData'
 import { AUTOPLAY_MS, tickerSlots, useCarousel } from './carouselMotion'
 import home from './LandingHome.module.css'
 import styles from './BriefingApps.module.css'
-
-const appsBase = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/apps`
 
 type BriefingApp = {
   id: string
@@ -40,7 +39,7 @@ const APPS: BriefingApp[] = [
     updated: 'Updated 2 hours ago',
     description:
       'Tracks 450 monitoring wells for water quality, contaminant exceedances and falling groundwater levels, on a live map of abstraction and land use.',
-    image: `${appsBase}/app-2.jpg`,
+    image: `${APPS_BASE}/app-2.jpg`,
   },
   {
     id: 'policies-regulations',
@@ -51,7 +50,7 @@ const APPS: BriefingApp[] = [
     updated: 'Updated yesterday',
     description:
       'Follows 72 environmental policies from issue to rollout, with compliance by sector, implementation maturity and the outcomes they drive.',
-    image: `${appsBase}/app-1.jpg`,
+    image: `${APPS_BASE}/app-1.jpg`,
   },
   {
     id: 'mangrove-health',
@@ -62,7 +61,7 @@ const APPS: BriefingApp[] = [
     updated: 'Updated 3 days ago',
     description:
       'Monitors 175 km² of mangrove canopy, regeneration and stress hotspots along the coast, so restoration teams can see where to act first.',
-    image: `${appsBase}/app-4.jpg`,
+    image: `${APPS_BASE}/app-4.jpg`,
   },
   {
     id: 'single-use-plastics',
@@ -73,67 +72,11 @@ const APPS: BriefingApp[] = [
     updated: 'Updated last week',
     description:
       'Measures the single-use plastics policy across environmental, social and economic impact, from carbon avoided to public awareness.',
-    image: `${appsBase}/app-3.jpg`,
-  },
-]
-
-/** Apps as insights (Llumen Dubai Municipality, Dashboard 5): what each one shows is happening. */
-type AppHighlight = { id: string; title: string; description: string; image: string }
-
-const APP_HIGHLIGHTS: AppHighlight[] = [
-  {
-    id: 'construction-surge',
-    title: 'Construction Surge Driving Multi-System Pressure Dubai South',
-    description:
-      'Real estate investment is rising due to steady material costs and a higher rate of project approvals.',
-    image: `${appsBase}/insight-1.jpg`,
-  },
-  {
-    id: 'rainfall-disruption',
-    title: 'Rainfall Event Triggering Service Disruption — Northern Districts',
-    description:
-      'Northern Districts flooding has disrupted waste and sewage services, requiring urgent municipal intervention.',
-    image: `${appsBase}/insight-2.jpg`,
-  },
-  {
-    id: 'tourism-peak',
-    title: 'Tourism Peak Increasing Load on Public Facilities — Coastal Areas',
-    description:
-      'Surging tourism and park footfall have strained maintenance and waste services. Increased service frequency is required to maintain “Customer Happiness” in high-traffic zones.',
-    image: `${appsBase}/insight-3.jpg`,
-  },
-  {
-    id: 'permit-concentration',
-    title: 'Permit Concentration Driving Spatial Imbalance — Central City vs Peripheral Districts',
-    description:
-      'A surge in central building permits has pushed density far beyond planned thresholds, straining infrastructure, while peripheral zones remain severely underutilized.',
-    image: `${appsBase}/insight-4.jpg`,
+    image: `${APPS_BASE}/app-3.jpg`,
   },
 ]
 
 const APP_ACTIONS = ['Open', 'Share', 'Pin to workspace'] as const
-
-/** Which card's menu is open; a press outside any menu or Escape closes it. */
-function useAppMenu() {
-  const [menuFor, setMenuFor] = useState<string | null>(null)
-  useEffect(() => {
-    if (!menuFor) return
-    const onPointer = (event: PointerEvent) => {
-      if (event.target instanceof Element && event.target.closest('[data-app-menu]')) return
-      setMenuFor(null)
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuFor(null)
-    }
-    document.addEventListener('pointerdown', onPointer)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [menuFor])
-  return [menuFor, setMenuFor] as const
-}
 
 /**
  * Findings style 7's Apps column: what each app shows is happening, as a card with the thumbnail on the
@@ -165,41 +108,8 @@ export function BriefingAppHighlights() {
   )
 }
 
-/** Findings style 6's Apps panel: one card per app, the thumbnail on top and its copy and menu under it. */
-export function BriefingAppsList() {
-  const revealScrollbar = useRevealScrollbarOnScroll()
-  const [menuFor, setMenuFor] = useAppMenu()
-
-  return (
-    <ul ref={revealScrollbar} className={styles.list}>
-      {APPS.map((app) => {
-        const KindIcon = app.kind === 'Slides' ? PresentationChart : ChartBar
-        const open = menuFor === app.id
-        return (
-          <li key={app.id} className={styles.row} aria-label={`${app.kind}: ${app.name}`}>
-            <span className={styles.rowShot}>
-              <img src={app.image} alt="" draggable={false} />
-            </span>
-            <div className={styles.rowCopy}>
-              <div className={styles.rowHead}>
-                <span className={styles.rowKind}>
-                  <KindIcon size={13} weight="regular" aria-hidden />
-                  {app.kind} · {app.workspace}
-                </span>
-                <AppMenu label={app.name} open={open} onToggle={() => setMenuFor(open ? null : app.id)} />
-              </div>
-              <h3 className={styles.rowName}>{app.name}</h3>
-              <p className={styles.rowDescription}>{app.description}</p>
-            </div>
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
 /** Opens upward over the thumbnail, or `below` when the button sits at the card's top. */
-function AppMenu({
+export function AppMenu({
   label,
   open,
   below = false,

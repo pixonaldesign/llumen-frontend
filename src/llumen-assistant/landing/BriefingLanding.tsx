@@ -28,8 +28,12 @@ import {
 } from '@phosphor-icons/react'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { BriefingAgentGrid } from './BriefingAgents'
-import { BriefingAppHighlights, BriefingAppsCarousel, BriefingAppsList } from './BriefingApps'
-import { BriefingAssetGrid, BriefingAssetPeek } from './BriefingAssets'
+import { BriefingAppHighlights, BriefingAppsCarousel } from './BriefingApps'
+import { boardColumnsFor } from './assetBoardLayout'
+import { paletteFromPixels } from './mapPalette'
+import { BriefingAssetBoard } from './BriefingAssetBoard'
+import { BriefingAssetGrid } from './BriefingAssets'
+import { DEFAULT_BOARD_ORDER } from './briefingAssetData'
 import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
 import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
 import { BRIEFING_PLACES } from './briefingMapPlaces'
@@ -92,8 +96,8 @@ const STORY_ENTER: BriefingMapEnter = { camera: storySceneAt(0).camera, padding:
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
 const SIDE_SLIDE_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
-/** BriefingAssetPeek stacks the grid's first four cards. */
-const PEEK_COUNT = 4
+/** The Assets summary beside the grid never gets narrower than this; the grid drops a column first. */
+const SIDE_INTRO_MIN = 480
 
 /** The Agents section is hidden for now; Apps follows Assets directly. */
 const SHOW_AGENTS = false
@@ -107,6 +111,10 @@ const ASSETS_RESET_AT = 0.8
 
 /** The findings carousel advances on its own after this long on a stop. */
 const FEED_AUTOPLAY_MS = 9000
+/** One finding fades out over this long before the next fades in (CSS .bubbleBody repeats it). */
+const FINDING_FADE_MS = 320
+/** Dots shown at once; with more findings, the last two on a side with more shrink and fade. */
+const FEED_DOTS_VISIBLE = 7
 
 /** One-section glide; longer jumps (Home, End) take up to the max. */
 const PAGE_GLIDE_MS = 900
@@ -202,6 +210,13 @@ export function BriefingLanding({
   /** Findings style 6 has no lower sections: Assets and Apps slide in from the right instead. */
   const sideways = findingsStyle === 6
   const [sideAssets, setSideAssets] = useState(false)
+  /** Where each asset sits on the Assets grid; dragging a card reorders it, and the edge peek follows. */
+  const [boardOrder, setBoardOrder] = useState<readonly string[]>(DEFAULT_BOARD_ORDER)
+  const [boardColumns, setBoardColumns] = useState<number>()
+  const samplerRef = useRef<(() => Promise<ImageData | null>) | null>(null)
+  const onMapSampler = useCallback((sample: (() => Promise<ImageData | null>) | null) => {
+    samplerRef.current = sample
+  }, [])
   /** Findings style 7 keeps Assets in a panel beside the findings; expanding it covers them with Assets and Apps. */
   const paneled = findingsStyle === 7
   const [panelOpen, setPanelOpen] = useState(false)
@@ -482,30 +497,67 @@ export function BriefingLanding({
     if (lowerless) progressRef.current?.(away ? 1 : 0)
   }, [lowerless, away])
 
-  /** Sizes the asset stack to the grid's column of small cards, so the flight between them only moves it. */
+  /**
+   * The Assets grid's column hugs its cards and the summary takes the rest, so the cards come from the
+   * view's width less the summary's minimum, the paddings and the gap between them.
+   */
+  useLayoutEffect(() => {
+    const grid = sideGridRef.current
+    const view = grid?.parentElement
+    if (!grid || !view) return
+    const measure = () => {
+      const box = getComputedStyle(view)
+      const wrap = grid.firstElementChild
+      const inset = wrap ? parseFloat(getComputedStyle(wrap).paddingInlineEnd || '0') : 0
+      const room =
+        view.clientWidth -
+        parseFloat(box.paddingInlineStart || '0') -
+        parseFloat(box.columnGap || '0') -
+        SIDE_INTRO_MIN -
+        inset
+      setBoardColumns(boardColumnsFor(room))
+    }
+    measure()
+    const resize = new ResizeObserver(measure)
+    resize.observe(view)
+    return () => resize.disconnect()
+  }, [sideways])
+
+  /** Sizes the edge peek to the Assets grid, so the flight between them only moves it. */
   useLayoutEffect(() => {
     const peek = peekRef.current
     const grid = sideGridRef.current
     const view = grid?.parentElement
-    if (!peek || !grid || !view) return
+    const board = grid?.querySelector<HTMLElement>('[data-asset-board]')
+    if (!peek || !grid || !view || !board) return
     const fit = () => {
-      const cards = grid.querySelectorAll<HTMLElement>(':scope > * > article')
-      const first = cards[0]?.getBoundingClientRect()
-      const last = cards[PEEK_COUNT - 1]?.getBoundingClientRect()
-      if (!first || !last) return
+      const slot = board.getBoundingClientRect()
       const box = view.getBoundingClientRect()
-      peek.style.setProperty('--peek-top', `${first.top - box.top + grid.scrollTop}px`)
-      peek.style.setProperty('--peek-w', `${first.width}px`)
-      peek.style.setProperty('--peek-h', `${last.bottom - first.top}px`)
+      peek.style.setProperty('--peek-top', `${slot.top - box.top + grid.scrollTop}px`)
+      peek.style.setProperty('--peek-w', `${slot.width}px`)
     }
     fit()
     const resize = new ResizeObserver(fit)
     resize.observe(grid)
+    resize.observe(board)
     return () => resize.disconnect()
   }, [sideways])
 
-  /** Flies the asset stack into the grid (or back out) while the stage and the view slide past. */
+  /**
+   * Flies the asset stack into the grid (or back out) while the stage and the view slide past. Opening
+   * tints the Assets view with the map it slides in over, as the map looks right now.
+   */
   const flyAssets = useCallback((open: boolean) => {
+    if (open) {
+      samplerRef.current?.().then((pixels) => {
+        const palette = pixels && paletteFromPixels(pixels)
+        const view = sideGridRef.current?.parentElement
+        if (!palette || !view) return
+        view.style.setProperty('--side-bg-top', palette.top)
+        view.style.setProperty('--side-bg-bottom', palette.bottom)
+        view.style.setProperty('--side-bg-accent', palette.accent)
+      })
+    }
     setSideAssets(open)
     setLanded(false)
     const current = flightRef.current
@@ -517,13 +569,14 @@ export function BriefingLanding({
     current?.cancel()
     const peek = peekRef.current
     const grid = sideGridRef.current
-    const first = grid?.querySelector<HTMLElement>(':scope > * > article')
+    const board = grid?.querySelector<HTMLElement>('[data-asset-board]')
     const view = grid?.parentElement
-    if (!peek || !first || !view || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (open && grid) grid.scrollTop = 0
+    if (!peek || !board || !view || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       if (open) setLanded(true)
       return
     }
-    const slot = first.getBoundingClientRect()
+    const slot = board.getBoundingClientRect()
     const box = view.getBoundingClientRect()
     const docked = `translate(${slot.left - box.left - peek.offsetLeft}px, ${slot.top - box.top - peek.offsetTop}px)`
     const flight = peek.animate(
@@ -599,6 +652,7 @@ export function BriefingLanding({
               align={storyRelease && storyRelease !== 'home' ? storyRelease : null}
               start={returnHeld ? storyReturn.from : null}
               onReady={onStoryReturnReady}
+              onSampler={onMapSampler}
             />
           </div>
           <div className={styles.scrim} aria-hidden />
@@ -654,7 +708,15 @@ export function BriefingLanding({
         </div>
         {sideways ? (
           <>
-            <AssetsAppsView shown={away} landed={landed} gridRef={sideGridRef} onBack={() => flyAssets(false)} />
+            <AssetsAppsView
+              shown={away}
+              landed={landed}
+              gridRef={sideGridRef}
+              order={boardOrder}
+              columns={boardColumns}
+              onReorder={setBoardOrder}
+              onBack={() => flyAssets(false)}
+            />
             <div
               ref={peekRef}
               className={styles.assetPeek}
@@ -671,7 +733,7 @@ export function BriefingLanding({
                 flyAssets(true)
               }}
             >
-              <BriefingAssetPeek />
+              <BriefingAssetBoard order={boardOrder} columns={boardColumns} preview />
             </div>
           </>
         ) : paneled ? (
@@ -873,19 +935,25 @@ function AppsSection({ sectionRef }: { sectionRef?: RefObject<HTMLElement | null
 }
 
 /**
- * Findings style 6's second page, pushed in from the right: the Assets summary on the left, the grid
- * in the middle and Apps as a panel on the right. The grid and the Apps list scroll on their own.
+ * Findings style 6's second page, pushed in from the right: the Assets summary on the left and the
+ * Assets grid, dashboard apps included, filling the rest. The grid scrolls on its own.
  */
 function AssetsAppsView({
   shown,
   landed,
   gridRef,
+  order,
+  columns,
+  onReorder,
   onBack,
 }: {
   shown: boolean
-  /** The asset stack has docked: the grid's first column shows and the rest of the grid plays in. */
+  /** The edge peek has docked: the grid itself shows in its place. */
   landed: boolean
   gridRef: RefObject<HTMLDivElement | null>
+  order: readonly string[]
+  columns: number | undefined
+  onReorder: (order: string[]) => void
   onBack: () => void
 }) {
   const revealScrollbar = useRevealScrollbarOnScroll()
@@ -919,17 +987,8 @@ function AssetsAppsView({
         </p>
       </div>
       <div ref={setGrid} className={styles.sideGrid}>
-        <BriefingAssetGrid play={shown && landed} />
+        <BriefingAssetBoard order={order} columns={columns} onReorder={onReorder} />
       </div>
-      <aside className={styles.sideApps} aria-labelledby="briefing-side-apps">
-        <header className={styles.sectionHead}>
-          <h2 id="briefing-side-apps" className={styles.eyebrow}>
-            Apps
-          </h2>
-          <p className={styles.sectionLead}>Dashboards and slides built from your data</p>
-        </header>
-        <BriefingAppsList />
-      </aside>
     </section>
   )
 }
@@ -1082,7 +1141,7 @@ function ConversationalBubble({
     const timer = window.setTimeout(() => {
       setShown(stop)
       setFading(false)
-    }, 160)
+    }, FINDING_FADE_MS)
     return () => window.clearTimeout(timer)
   }, [shown.id, stop])
 
@@ -1222,6 +1281,26 @@ function FindingBody({
   )
 }
 
+type DotTier = 'near' | 'far' | 'hidden' | null
+
+/**
+ * A window of FEED_DOTS_VISIBLE dots around the active one. On a side with more findings beyond, its last
+ * two dots step down (`near`, then `far`); dots outside the window are `hidden`.
+ */
+function dotTiers(active: number, count: number): DotTier[] {
+  if (count <= FEED_DOTS_VISIBLE) return Array.from({ length: count }, () => null)
+  const start = Math.min(Math.max(0, active - Math.floor(FEED_DOTS_VISIBLE / 2)), count - FEED_DOTS_VISIBLE)
+  const end = start + FEED_DOTS_VISIBLE - 1
+  return Array.from({ length: count }, (_, index) => {
+    if (index < start || index > end) return 'hidden'
+    if (index === active) return null
+    const fromStart = start > 0 ? index - start : Infinity
+    const fromEnd = end < count - 1 ? end - index : Infinity
+    const edge = Math.min(fromStart, fromEnd)
+    return edge === 0 ? 'far' : edge === 1 ? 'near' : null
+  })
+}
+
 /** The active dot stretches into a capsule whose fill is the autoplay clock: it advances when the fill completes. */
 function FeedCarousel({
   count,
@@ -1253,14 +1332,17 @@ function FeedCarousel({
           </button>
         </div>
       ) : null}
-      <div className={`${styles.carouselPill} ${styles.dots}`}>
-        {Array.from({ length: count }, (_, index) => (
+      <div className={styles.dots}>
+        {dotTiers(active, count).map((tier, index) => (
           <button
             key={index}
             type="button"
             className={`${styles.dot}${index === active ? ` ${styles.dotActive}` : ''}`}
+            data-tier={tier ?? undefined}
             aria-label={`Finding ${index + 1} of ${count}`}
             aria-current={index === active ? 'step' : undefined}
+            aria-hidden={tier === 'hidden' || undefined}
+            tabIndex={tier === 'hidden' ? -1 : undefined}
             onClick={() => onSelect(index)}
           >
             <span className={styles.dotTrack}>
