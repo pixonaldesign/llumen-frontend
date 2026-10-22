@@ -1,13 +1,37 @@
 /** Prototype switches opened from the Command-K palette. */
 
-export type LandingVariant = 'stories' | 'conversations' | 'feed' | 'feed-card' | 'feed-chat'
+export type LandingVariant =
+  | 'briefing'
+  | 'briefing-2'
+  | 'stories'
+  | 'conversations'
+  | 'feed'
+  | 'feed-card'
+  | 'feed-chat'
 export type TopBarVariant = 'current' | 'studio'
+/**
+ * Briefing findings layouts: 1 centred over the composer, 2 composer on the left, 3 composer above
+ * smaller findings, 4 style 1's findings under the composer, 5 composer beside the finding, 6 findings
+ * centred over a bottom composer with Assets and Apps one horizontal slide away, 7 style 6's findings
+ * beside an Assets panel that expands into Assets and Apps, 8 style 6 with Assets and Apps as a glass
+ * modal over the map.
+ */
+export type FindingsStyle = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+
+export const DEFAULT_FINDINGS_STYLE: FindingsStyle = 6
 
 const LANDING_KEY = 'llumen.landingVariant'
 const TOP_BAR_KEY = 'llumen.topBarVariant'
+const FINDINGS_STYLE_KEY = 'llumen.findingsStyle'
+
+function toFindingsStyle(value: string | null): FindingsStyle | null {
+  return value !== null && /^[1-8]$/.test(value) ? (Number(value) as FindingsStyle) : null
+}
 
 function isLanding(value: string | null): value is LandingVariant {
   return (
+    value === 'briefing' ||
+    value === 'briefing-2' ||
     value === 'stories' ||
     value === 'conversations' ||
     value === 'feed' ||
@@ -21,7 +45,7 @@ function isTopBar(value: string | null): value is TopBarVariant {
 }
 
 export function readLandingVariant(): LandingVariant {
-  if (typeof window === 'undefined') return 'stories'
+  if (typeof window === 'undefined') return 'briefing'
   const fromUrl = new URLSearchParams(window.location.search).get('landing')
   if (isLanding(fromUrl)) return fromUrl
   try {
@@ -30,7 +54,7 @@ export function readLandingVariant(): LandingVariant {
   } catch {
     /* private mode */
   }
-  return 'stories'
+  return 'briefing'
 }
 
 export function readTopBarVariant(): TopBarVariant {
@@ -60,7 +84,7 @@ export function persistLandingVariant(variant: LandingVariant) {
   } catch {
     /* private mode */
   }
-  writeParam('landing', variant, 'stories')
+  writeParam('landing', variant, 'briefing')
 }
 
 export function persistTopBarVariant(variant: TopBarVariant) {
@@ -71,4 +95,25 @@ export function persistTopBarVariant(variant: TopBarVariant) {
     /* private mode */
   }
   writeParam('bar', variant, 'studio')
+}
+
+export function readFindingsStyle(): FindingsStyle {
+  if (typeof window === 'undefined') return DEFAULT_FINDINGS_STYLE
+  const fromUrl = toFindingsStyle(new URLSearchParams(window.location.search).get('findings'))
+  if (fromUrl) return fromUrl
+  try {
+    return toFindingsStyle(window.sessionStorage.getItem(FINDINGS_STYLE_KEY)) ?? DEFAULT_FINDINGS_STYLE
+  } catch {
+    return DEFAULT_FINDINGS_STYLE
+  }
+}
+
+export function persistFindingsStyle(style: FindingsStyle) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(FINDINGS_STYLE_KEY, String(style))
+  } catch {
+    /* private mode */
+  }
+  writeParam('findings', String(style), String(DEFAULT_FINDINGS_STYLE))
 }

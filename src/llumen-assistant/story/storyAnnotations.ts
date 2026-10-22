@@ -1,5 +1,5 @@
 /**
- * Demo-only map annotations for the Approach 2 "top 10 schools" prompts. Annotations are
+ * Demo-only map annotations for the "top 10 schools" prompts. Annotations are
  * geographic (GeoJSON-style lng/lat geometry) and reference the column features they describe,
  * so the map can redraw them as the camera moves and drop them when that data isn't shown.
  */
@@ -176,10 +176,11 @@ export type StoryLocation = {
 export type StoryLocationType = 'emirate' | 'region' | 'district' | 'zone' | 'corridor'
 
 export type StoryLocationOption = StoryLocation & {
-  type: StoryLocationType
+  /** A level of the location breakdown it belongs to (ITC: emirate, region, district, zone, corridor). */
+  type: string
   /** How the list shows it; zones are listed by number. */
   label: string
-  /** The region a district or corridor sits in, or the district a zone sits in. */
+  /** The area one level up it sits in (ITC: a district's region, a zone's district), by id. */
   parent: string | null
 }
 
@@ -364,7 +365,7 @@ function convexHull(points: [number, number][]) {
 }
 
 /** Rounded outline around the points: the convex hull of a circle drawn around each one. */
-function paddedOutline(points: [number, number][], paddingM = AREA_PADDING_M) {
+export function paddedOutline(points: [number, number][], paddingM = AREA_PADDING_M) {
   const sides = 20
   const ring: [number, number][] = []
   for (const [lng, lat] of points) {
@@ -460,6 +461,9 @@ const DISTRICT_OPTIONS = [
     locationOption('district', district.name, districtOutline(district), `region-${district.region}`),
   ),
 ].sort(byLabel)
+
+/** The district the landing AI bar's demo prompt asks about, without going through the picker. */
+export const MUSSAFAH_LOCATION = DISTRICT_OPTIONS.find((district) => district.name === MUSSAFAH_LABEL) as StoryLocationOption
 
 const ZONE_OPTIONS = DISTRICT_OPTIONS.filter((district) => district.id !== 'district-abu-dhabi-island').flatMap(
   (district, order) =>

@@ -239,8 +239,243 @@
   bottom: 88px;
 }
 
+/*
+ * Briefing: the findings carousel holds the slot 260px under mid-height, and the composer is centred
+ * between that slot and the Assets peek (31px is half the collapsed composer), clear of the peek.
+ * --briefing-peek must match --assets-peek in landing/BriefingLanding.module.css.
+ * --briefing-assets-t (set from the Briefing scroll) moves it to the usual bottom slot as Assets
+ * scrolls in, so it tracks the scroll instead of transitioning on its own.
+ */
+.composerDockCenter {
+  --briefing-peek: max(72px, min(200px, 16vh, calc(50dvh - 300px)));
+  --briefing-centre: max(
+    calc(var(--briefing-peek) + 16px),
+    calc((max(var(--space-3xl), calc(50dvh - 260px)) + var(--briefing-peek)) / 2 - 31px)
+  );
+  bottom: calc(
+    var(--briefing-centre) * (1 - var(--briefing-assets-t, 0)) + var(--space-3xl) * var(--briefing-assets-t, 0)
+  );
+  transition:
+    left var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    right var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Narrows while the Briefing page scrolls (data-scrolling is set from its scroll events). */
+.composerDockCenter[data-scrolling='true'] {
+  width: calc(min(640px, calc(100vw - 48px)) - 80px);
+}
+
+/*
+ * Findings style 2: the composer and its greeting (about 160px together, 80px is half) are centred in
+ * the left third of the findings area, between the top bar (64px) and the Assets peek. As Assets
+ * scrolls in, left, right and width ease to the centred bottom slot; the auto margins split the gap.
+ */
+.composerDockCenter[data-findings-style='2'] {
+  --side-w: min(560px, calc(100vw / 3 - 96px));
+  --centre-w: min(640px, calc(100vw - 48px));
+  --t: var(--briefing-assets-t, 0);
+  left: calc(48px * (1 - var(--t)));
+  right: calc((100vw - 48px - var(--side-w)) * (1 - var(--t)));
+  bottom: calc(
+    ((100dvh - 64px + var(--briefing-peek)) / 2 - 80px) * (1 - var(--t)) + var(--space-3xl) * var(--t)
+  );
+  width: calc(var(--side-w) * (1 - var(--t)) + var(--centre-w) * var(--t));
+  transition: width 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+ * Findings style 5: the composer is the left column of a block centred on the page with the finding
+ * (BriefingLanding.module.css holds the same --s5-* variables). Instead of sliding to the Assets slot,
+ * it dissolves: it fades out over the first half of the scroll, jumps while invisible (--at steps from
+ * 0 to 1 at halfway), and fades back in at the bottom centre.
+ */
+.composerDockCenter[data-findings-style='5'] {
+  --s5-side: min(560px, calc(100vw / 3 - 96px));
+  --s5-finding: min(760px, calc(100vw * 2 / 3 - 140px));
+  --s5-gap: 160px;
+  --s5-left: max(48px, calc((100vw - var(--s5-side) - var(--s5-gap) - var(--s5-finding)) / 2));
+  --s5-drop: 80px;
+  --centre-w: min(640px, calc(100vw - 48px));
+  --t: var(--briefing-assets-t, 0);
+  --at: clamp(0, calc((var(--t) - 0.5) * 1000), 1);
+  left: calc(var(--s5-left) * (1 - var(--at)));
+  right: calc((100vw - var(--s5-left) - var(--s5-side)) * (1 - var(--at)));
+  bottom: calc(
+    ((100dvh - 64px + var(--briefing-peek)) / 2 - 80px - var(--s5-drop)) * (1 - var(--at)) +
+      var(--space-3xl) * var(--at)
+  );
+  width: calc(var(--s5-side) * (1 - var(--at)) + var(--centre-w) * var(--at));
+  opacity: max(calc(1 - var(--t) * 2), calc(var(--t) * 2 - 1));
+  transition:
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 320ms ease;
+}
+
+/*
+ * After its border cue, the composer steps aside for the alert aurora in the middle of the findings.
+ * It fades through filter, since opacity already follows the scroll and must not lag behind it.
+ */
+.composerDockCenter[data-findings-style='5'][data-alert='true'] {
+  filter: opacity(0);
+  visibility: hidden;
+  transition:
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 320ms ease,
+    visibility 0s linear 320ms;
+}
+
+/* Styles 2 and 5 own the width, so they narrow the centred slot themselves while the page scrolls. */
+.composerDockCenter[data-findings-style='2'][data-scrolling='true'],
+.composerDockCenter[data-findings-style='5'][data-scrolling='true'] {
+  --centre-w: calc(min(640px, calc(100vw - 48px)) - 80px);
+}
+
+/* Findings style 3: the composer rises above the findings, which hang below it. */
+.composerDockCenter[data-findings-style='3'] {
+  bottom: calc(58dvh * (1 - var(--briefing-assets-t, 0)) + var(--space-3xl) * var(--briefing-assets-t, 0));
+}
+
+/*
+ * Findings style 4: the composer's top sits 200px down (62px is the collapsed composer), room for the
+ * top bar and its two-line greeting, plus --shift on tall screens. The findings stack moves down by the
+ * same --shift (BriefingLanding.module.css), so keep the two expressions in sync.
+ */
+.composerDockCenter[data-findings-style='4'] {
+  --shift: clamp(0px, calc((100dvh - 900px) / 3), 120px);
+  bottom: calc(
+    (100dvh - 200px - var(--shift) - 62px) * (1 - var(--briefing-assets-t, 0)) +
+      var(--space-3xl) * var(--briefing-assets-t, 0)
+  );
+}
+
+/*
+ * Findings styles 6 and 8: the composer stays in the bottom slot, under the findings and under Assets and
+ * Apps. As in style 5, it fades out while the alert aurora holds the middle of the findings.
+ */
+.composerDockCenter[data-findings-style='6'],
+.composerDockCenter[data-findings-style='8'] {
+  bottom: var(--space-3xl);
+  transition:
+    left var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    right var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 320ms ease;
+}
+
+.composerDockCenter[data-findings-style='6'][data-alert='true'],
+.composerDockCenter[data-findings-style='8'][data-alert='true'] {
+  filter: opacity(0);
+  visibility: hidden;
+  transition:
+    left var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    right var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    width 360ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 320ms ease,
+    visibility 0s linear 320ms;
+}
+
+/*
+ * Findings style 7: centred on the stage left of the Assets panel (--s7-panel matches
+ * landing/BriefingLanding.module.css), and on the page once the panel expands (--briefing-assets-t is 1).
+ */
+.composerDockCenter[data-findings-style='7'] {
+  --s7-panel: clamp(500px, 34vw, 640px);
+  --t: var(--briefing-assets-t, 0);
+  right: calc(var(--s7-panel) * (1 - var(--t)));
+  bottom: var(--space-3xl);
+  width: min(640px, calc(100vw - var(--s7-panel) * (1 - var(--t)) - 48px));
+  transition:
+    left var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
+    right 760ms cubic-bezier(0.65, 0, 0.35, 1),
+    width 760ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
 .composerDockShifted {
   left: var(--lc-rail-width, 400px);
+}
+
+/* A finding's View is flying the Briefing map into its story, which has no composer of its own. */
+.composerDock[data-story-flight='true'] {
+  filter: opacity(0);
+  visibility: hidden;
+  transition:
+    filter 320ms ease,
+    visibility 0s linear 320ms;
+}
+
+/* Back from a story: the composer returns with the rest of the Briefing page. */
+.composerDock[data-story-return='true'] {
+  animation: composerStoryReturn 520ms ease 280ms backwards;
+}
+
+@keyframes composerStoryReturn {
+  from {
+    filter: opacity(0);
+  }
+}
+
+/* The bar became the full-screen stage, which grows from and shrinks back onto this spot. */
+.composerDock[data-ask='true'] {
+  visibility: hidden;
+  transition: none;
+}
+
+/*
+ * Landing ask stage: the transcript spans the column so its scrollbar hugs the edge,
+ * while turns and the composer keep a reading width in the middle.
+ */
+.landingAskHeader {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding-left: var(--lc-transcript-gutter);
+  box-sizing: border-box;
+}
+
+.landingAskHeader .headerRow {
+  padding-right: var(--lc-transcript-gutter);
+}
+
+.landingAskChat {
+  --ask-read-w: 800px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: var(--space-xl);
+  box-sizing: border-box;
+}
+
+.landingAskChat .msgTurn {
+  max-width: var(--ask-read-w);
+  margin-inline: auto;
+}
+
+/* Turns fade out just above the composer instead of scrolling on underneath it. */
+.landingAskChat .middle:not(.middleEmpty) > .transcript {
+  padding-top: var(--space-xl);
+  --ask-fade-end: calc(100% - var(--lc-composer-reserve, 200px));
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(var(--ask-fade-end) - 32px), transparent var(--ask-fade-end));
+  mask-image: linear-gradient(to bottom, #000 calc(var(--ask-fade-end) - 32px), transparent var(--ask-fade-end));
+}
+
+.landingAskChat .middle:not(.middleEmpty) > .composerFindingDock {
+  justify-self: center;
+  align-self: end;
+}
+
+.landingAskChat .middleEmpty .composerFindingDock {
+  align-self: center;
+}
+
+.landingAskChat .middleEmpty .composerFindingDock,
+.landingAskChat .middle:not(.middleEmpty) > .composerFindingDock {
+  width: min(
+    calc(var(--ask-read-w) - var(--space-xl) - var(--lc-transcript-gutter) - var(--lc-transcript-scrollbar-inset)),
+    calc(100% - 2 * var(--space-xl))
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -876,6 +1111,12 @@
 .saveToAssetsBtnSaved:hover {
   color: var(--lc-text-primary);
   opacity: 1;
+}
+
+.saveToAssetsBtn:disabled,
+.saveToAssetsBtn:disabled:hover {
+  color: var(--lc-text-primary);
+  cursor: default;
 }
 
 .mapDescriptionPopover {

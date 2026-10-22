@@ -5,6 +5,8 @@ import { AiGeneratedBadge } from './AiGeneratedBadge'
 import type { CreatedComponent } from './assistantReplyTypes'
 import { InteractiveMap } from './InteractiveMap'
 import { KpiWidget } from './KpiWidgets'
+import { StoryMapStateCard } from './story/StoryMapStateCard'
+import { StoryReplyChart } from './story/StoryReplyChart'
 import styles from './InlineVisualCard.module.css'
 
 export type InlineVisualCardProps = {
@@ -21,10 +23,11 @@ function isMapThumbnail(component: CreatedComponent) {
   return component.preview?.kind === 'image' && component.preview.detailView === 'map'
 }
 
-export function InlineVisualCard({ component, active = false, onExpand }: InlineVisualCardProps) {
+export function InlineVisualCard({ component, active = false, onExpand: expand }: InlineVisualCardProps) {
   const isSquare = component.inlineSize === 'square'
   const isMap = isMapThumbnail(component)
   const preview = component.preview
+  const onExpand = preview?.kind === 'story-chart' ? undefined : expand
   const isFixedWidthWidget =
     preview?.kind === 'widget' &&
     ['aqi', 'pollutants', 'population', 'land-use'].includes(preview.variant)
@@ -47,6 +50,20 @@ export function InlineVisualCard({ component, active = false, onExpand }: Inline
   }
 
   const onExpandTooltipLeave = () => setTooltipPos(null)
+
+  if (preview?.kind === 'story-map-state') {
+    return (
+      <div className={styles.wrap} data-component-id={component.id}>
+        <StoryMapStateCard
+          stateId={preview.stateId}
+          snapshot={preview.snapshot}
+          title={component.title}
+          tag={preview.tag}
+          meta={preview.meta}
+        />
+      </div>
+    )
+  }
 
   return (
     <div
@@ -72,6 +89,8 @@ export function InlineVisualCard({ component, active = false, onExpand }: Inline
         <div className={styles.cardTop}>
           {preview?.kind === 'widget' ? (
             <KpiWidget component={component} compact={isSquare} />
+          ) : preview?.kind === 'story-chart' ? (
+            <StoryReplyChart chart={preview.chart} />
           ) : preview?.kind === 'image' ? (
             <div className={isMap ? styles.mapImageStage : styles.imageStage}>
               {isMap ? (

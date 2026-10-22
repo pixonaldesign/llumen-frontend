@@ -53,10 +53,26 @@ export function CommandPalette({
     }
     return [
       {
+        id: 'briefing',
+        group: 'Landing',
+        label: 'Landing · Briefing',
+        hint: 'Findings as chat bubbles over the map',
+        active: landing === 'briefing',
+        run: choose(() => onLanding('briefing')),
+      },
+      {
+        id: 'briefing-2',
+        group: 'Landing',
+        label: 'Landing · Briefing 2',
+        hint: 'Full-screen findings feed, with My Assets',
+        active: landing === 'briefing-2',
+        run: choose(() => onLanding('briefing-2')),
+      },
+      {
         id: 'stories',
         group: 'Landing',
         label: 'Carousel · Stories',
-        hint: 'Current landing, stories under the carousel',
+        hint: 'Stories under the carousel',
         active: landing === 'stories',
         run: choose(() => onLanding('stories')),
       },

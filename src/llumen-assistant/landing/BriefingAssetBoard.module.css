@@ -1,0 +1,211 @@
+/*
+ * Assets grid: square cells (--cell) with --gap between them, like the story builder's grid layout.
+ * Cards span whole cells, placed by packBoard so none are left empty. The board is as wide as its
+ * cells; when it has room to spare, it sits at the inline end.
+ */
+.wrap {
+  min-width: 0;
+}
+
+.board {
+  position: relative;
+  display: grid;
+  grid-auto-rows: var(--cell);
+  gap: var(--gap);
+  width: max-content;
+  margin-inline-start: auto;
+}
+
+/* The cells show while a card is dragged, as in the story builder's edit grid. */
+.cells {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-auto-rows: var(--cell);
+  gap: var(--gap);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.board[data-dragging='true'] .cells {
+  opacity: 1;
+}
+
+.cell {
+  box-sizing: border-box;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.item {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Cards are exactly their cells: size containers, so their contents can scale to the height as well. */
+.item > article {
+  height: 100%;
+  container-type: size;
+  transition:
+    scale 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.board[data-editable='true'] .item {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board[data-dragging='true'],
+.board[data-dragging='true'] .item {
+  cursor: grabbing;
+}
+
+.board[data-editing='true'] .item > article {
+  outline: 1px dashed rgba(255, 255, 255, 0.32);
+  outline-offset: 3px;
+}
+
+.board[data-editing='true'] .item[data-dragged='true'] > article {
+  outline-color: transparent;
+}
+
+/* While dragging, only the board takes the pointer: no chart tips under the card in flight. */
+.board[data-dragging='true'] .item * {
+  pointer-events: none;
+}
+
+.item[data-dragged='true'] {
+  z-index: 10;
+  pointer-events: none;
+}
+
+.item[data-dragged='true'] > article {
+  scale: 1.03;
+  box-shadow:
+    0 28px 64px rgba(8, 10, 16, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Dashboard app: the thumbnail fills the card's left side (wide) or its top (tall), edge to edge. */
+.board .app {
+  display: grid;
+  gap: 0;
+  padding: 0;
+}
+
+.app[data-layout='wide'] {
+  grid-template-columns: minmax(0, 44%) minmax(0, 1fr);
+}
+
+.app[data-layout='tall'] {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.appShot {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #0b0d12;
+}
+
+.app[data-layout='wide'] .appShot {
+  border-radius: 19px 0 0 19px;
+}
+
+.app[data-layout='tall'] .appShot {
+  border-radius: 19px 19px 0 0;
+}
+
+.appShot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: left top;
+  pointer-events: none;
+  user-select: none;
+}
+
+.appCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 16px 14px;
+}
+
+.appHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-block: -4px -2px;
+}
+
+.appKind {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.appTitle {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+/* Matches the findings' View button (BriefingLanding .storyBtn). */
+.appView {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: flex-start;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  margin: auto 0 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.app[data-layout='tall'] .appView {
+  margin-top: 4px;
+}
+
+.appView:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.appView:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cells,
+  .item > article {
+    transition: none;
+  }
+}

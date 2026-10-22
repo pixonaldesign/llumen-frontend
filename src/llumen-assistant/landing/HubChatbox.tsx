@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ArrowUp, At, ChatText, ClockCounterClockwise, File, Paperclip, X } from '@phosphor-icons/react'
+import {
+  ArrowUp,
+  At,
+  ChartLineUp,
+  ChatsCircle,
+  ChatText,
+  ClockCounterClockwise,
+  File,
+  Paperclip,
+  X,
+} from '@phosphor-icons/react'
 import { BorderBeam } from 'border-beam'
 import gsap from 'gsap'
 import { llumenAssets } from '../assets'
@@ -14,6 +24,8 @@ import {
   type InlineContextItem,
 } from '../inlineContextData'
 import { SlashCommandMenu } from '../SlashCommandMenu'
+import { StoryLocationModal } from '../story/StoryLocationModal'
+import { locationPrompt, type StoryLocation } from '../story/storyAnnotations'
 import { FINDING_DISMISS_MS } from './findingAuroraSettings'
 import {
   filterSlashCommands,
@@ -72,6 +84,16 @@ function serializeEditor(root: HTMLElement): string {
 function editorIsEmpty(root: HTMLElement): boolean {
   const text = root.innerText.replace(/\u00a0/g, ' ').replace(/\n/g, '').trim()
   return text.length === 0 && !root.querySelector('[data-inline-mention]')
+}
+
+/** Typed text in the editor, ignoring inline mention pills. */
+function editorFreeText(root: HTMLElement): string {
+  let text = ''
+  for (const child of root.childNodes) {
+    if (child instanceof HTMLElement && child.dataset.inlineMention) continue
+    text += child.textContent ?? ''
+  }
+  return text.replace(/\u00a0/g, ' ').trim()
 }
 
 /** Same stagger as transcript answer copy (`AssistantTimelineReply`). */
@@ -180,6 +202,8 @@ export type HubChatboxProps = {
   chips?: LandingContextChip[]
   onRemoveChip?: (id: string) => void
   onOpenSessions: () => void
+  /** Opens the AI chat panel; the button only renders when set. */
+  onOpenChat?: () => void
   focusToken?: number
   exiting?: boolean
   placement?: 'landing' | 'story'
@@ -204,6 +228,40 @@ export type HubChatboxProps = {
   /** Fade the toast ring out at the end of its second. Alert cue does not set this. */
   shimmerExit?: boolean
   findingCueColors?: { stop1: string; stop2: string; stop3: string }
+  /** Story components attached via "Add to chat"; sending routes to `onSubmitComponents`. */
+  components?: HubChatComponent[]
+  onRemoveComponent?: (id: string) => void
+  /** Typed into the empty editor on the first click while components are attached. */
+  componentPrompt?: string
+  onSubmitComponents?: (text: string, components: HubChatComponent[]) => void
+  /**
+   * Story only: once a location pill is in the editor, the first click types its prompt and sending
+   * runs the location demo here instead of `onSubmit`.
+   */
+  onSubmitLocation?: (location: StoryLocation) => void
+  /** Typed into the empty editor on the first click when nothing else is attached. */
+  demoPrompt?: string
+  /** A new token types `text` into the bar, then sends it. */
+  typeRequest?: { token: number; text: string } | null
+}
+
+export type HubChatComponent = { id: string; label: string }
+
+const NO_COMPONENTS: HubChatComponent[] = []
+
+const TYPE_STEP = 2
+const TYPE_INTERVAL_MS = 14
+/** Pause on the finished prompt before a typed request sends itself. */
+const TYPED_SEND_DELAY_MS = 420
+
+function placeCaretAtEnd(editor: HTMLElement) {
+  const sel = window.getSelection()
+  if (!sel) return
+  const range = document.createRange()
+  range.selectNodeContents(editor)
+  range.collapse(false)
+  sel.removeAllRanges()
+  sel.addRange(range)
 }
 
 export function HubChatbox({
@@ -211,6 +269,7 @@ export function HubChatbox({
   chips = [],
   onRemoveChip,
   onOpenSessions,
+  onOpenChat,
   focusToken = 0,
   exiting = false,
   placement = 'landing',
@@ -227,6 +286,13 @@ export function HubChatbox({
   orbCue = false,
   shimmerExit = false,
   findingCueColors,
+  components = NO_COMPONENTS,
+  onRemoveComponent,
+  componentPrompt,
+  onSubmitComponents,
+  onSubmitLocation,
+  demoPrompt,
+  typeRequest = null,
 }: HubChatboxProps) {
   const [focused, setFocused] = useState(false)
   const [editorEmpty, setEditorEmpty] = useState(true)
@@ -237,6 +303,8 @@ export function HubChatbox({
   const [mentionCategory, setMentionCategory] = useState<InlineContextCategoryId | null>(null)
   const [mentionIndex, setMentionIndex] = useState(0)
   const [mentionPos, setMentionPos] = useState({ left: 0, bottom: 0 })
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
+  const [pickedLocation, setPickedLocation] = useState<StoryLocation | null>(null)
   const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
   const fileCounterRef = useRef(0)
   const uid = useId()
@@ -246,6 +314,10 @@ export function HubChatbox({
   const mentionMenuRef = useRef<HTMLDivElement>(null)
   const slashMenuRef = useRef<HTMLDivElement>(null)
   const insertedChipIdsRef = useRef<Set<string>>(new Set())
+  const typingRef = useRef<{ timer: number; full: string } | null>(null)
+  const typedKeyRef = useRef('')
+  const autoTextRef = useRef('')
+  const typedNodeRef = useRef<Text | null>(null)
   const [morphingOut, setMorphingOut] = useState(false)
 
   const toasting = Boolean(workToast)
@@ -258,13 +330,14 @@ export function HubChatbox({
   }, [workToast, onDismissWork])
   // Story opens straight into the full chat. Landing rests on the bar until the field is used.
   const engaged =
-    !editorEmpty || files.length > 0 || mentionOpen || Boolean(slashMenu) || toasting
+    !editorEmpty || files.length > 0 || mentionOpen || locationPickerOpen || Boolean(slashMenu) || toasting
   const expanded = placement === 'story' || focused || engaged
   const idle = !expanded && !toasting
-  const canSend = !toasting && (!editorEmpty || files.length > 0)
+  const canSend = !toasting && (!editorEmpty || files.length > 0 || components.length > 0)
+  const componentsKey = components.map((item) => item.id).join('|')
   const interactionLocked = exiting || morphingOut || toasting
   const slashCommands = useMemo(() => filterSlashCommands(slashMenu?.query ?? ''), [slashMenu?.query])
-  const categories = useMemo(() => filterCategories(''), [])
+  const categories = useMemo(() => filterCategories('', { location: true }), [])
   const items = useMemo(
     () => (mentionCategory ? filterItems(mentionCategory, '') : []),
     [mentionCategory],
@@ -278,6 +351,70 @@ export function HubChatbox({
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 96)}px`
   }, [])
+
+  const stopTyping = () => {
+    if (typingRef.current) window.clearInterval(typingRef.current.timer)
+    typingRef.current = null
+  }
+
+  /** The picked location, while its pill is still in the editor and the story can run its demo. */
+  const locationInEditor = () => {
+    const editor = editorRef.current
+    if (!editor || !onSubmitLocation || !pickedLocation) return null
+    return editor.querySelector(`[data-inline-mention="${CSS.escape(pickedLocation.id)}"]`) ? pickedLocation : null
+  }
+  const locationKey = (location: StoryLocation) => `location:${location.id}`
+
+  /** Typed on the first click: the attached components' re-plot, the picked location's prompt, or the demo prompt. */
+  const autoPrompt = () => {
+    if (componentPrompt && components.length > 0) return { key: componentsKey, text: componentPrompt }
+    const location = locationInEditor()
+    if (location) return { key: locationKey(location), text: locationPrompt(location) }
+    return demoPrompt ? { key: 'demo', text: demoPrompt } : null
+  }
+
+  const typeInto = (target: Text, full: string, onDone?: () => void) => {
+    const editor = editorRef.current
+    let length = 0
+    const timer = window.setInterval(() => {
+      length = Math.min(full.length, length + TYPE_STEP)
+      target.data = full.slice(0, length)
+      if (editor && document.activeElement === editor) placeCaretAtEnd(editor)
+      syncEditor()
+      if (length < full.length) return
+      stopTyping()
+      onDone?.()
+    }, TYPE_INTERVAL_MS)
+    typingRef.current = { timer, full }
+  }
+
+  const fillAutoPrompt = () => {
+    const editor = editorRef.current
+    const auto = autoPrompt()
+    if (!editor || !auto || interactionLocked) return
+    if (typedKeyRef.current === auto.key) return
+    // Mention pills may stay; retype over our own earlier prompt, never over the user's text.
+    const freeText = editorFreeText(editor)
+    const ownNode = typedNodeRef.current && editor.contains(typedNodeRef.current) ? typedNodeRef.current : null
+    const untouched =
+      freeText === '' || typingRef.current !== null || (ownNode !== null && freeText === autoTextRef.current)
+    if (!untouched) return
+    typedKeyRef.current = auto.key
+    stopTyping()
+    const full = auto.text
+    autoTextRef.current = full
+    let node = ownNode
+    if (!node) {
+      for (const child of [...editor.childNodes]) {
+        if (child.nodeType === Node.TEXT_NODE || child.nodeName === 'BR') child.remove()
+      }
+      node = document.createTextNode('')
+      if (editor.lastChild) editor.append(' ')
+      editor.append(node)
+      typedNodeRef.current = node
+    }
+    typeInto(node, full)
+  }
 
   const closeMention = useCallback(() => {
     setMentionOpen(false)
@@ -487,9 +624,21 @@ export function HubChatbox({
   }
 
   const selectCategory = (id: InlineContextCategoryId) => {
+    if (id === 'location') {
+      closeMention()
+      setLocationPickerOpen(true)
+      return
+    }
     setMentionCategory(id)
     setMentionStage('items')
     setMentionIndex(0)
+  }
+
+  const applyLocation = (location: StoryLocation) => {
+    setLocationPickerOpen(false)
+    setPickedLocation(location)
+    typedKeyRef.current = ''
+    insertInlineMention({ id: location.id, name: location.name, categoryId: 'location' })
   }
 
   const collapse = useCallback(() => {
@@ -532,13 +681,29 @@ export function HubChatbox({
   const send = () => {
     if (interactionLocked || !canSend) return
     const editor = editorRef.current
-    const text = editor ? serializeEditor(editor).trim() : serialized.trim()
+    const typedText = typingRef.current?.full
+    stopTyping()
+    const text = typedText ?? (editor ? serializeEditor(editor).trim() : serialized.trim())
     const fileChips: LandingContextChip[] = files.map((file) => ({
       id: file.id,
       label: file.name,
       categoryId: 'assets' as const,
     }))
-    onSubmit(text, fileChips)
+    const location = locationInEditor()
+    if (components.length > 0 && onSubmitComponents) {
+      onSubmitComponents(text || componentPrompt || '', components)
+      typedKeyRef.current = ''
+      autoTextRef.current = ''
+    } else if (location && onSubmitLocation && typedKeyRef.current === locationKey(location)) {
+      onSubmitLocation(location)
+      typedKeyRef.current = ''
+      autoTextRef.current = ''
+      setPickedLocation(null)
+    } else {
+      onSubmit(text, fileChips)
+      typedKeyRef.current = ''
+      autoTextRef.current = ''
+    }
     if (editor) {
       editor.innerHTML = ''
       insertedChipIdsRef.current.clear()
@@ -549,8 +714,52 @@ export function HubChatbox({
     syncEditor()
   }
 
+  const sendRef = useRef(send)
+  useEffect(() => {
+    sendRef.current = send
+  })
+
+  const typeRequestRef = useRef(0)
+  const typedSendTimerRef = useRef(0)
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!typeRequest || typeRequest.token === typeRequestRef.current || !editor || interactionLocked) return
+    typeRequestRef.current = typeRequest.token
+    stopTyping()
+    window.clearTimeout(typedSendTimerRef.current)
+    editor.innerHTML = ''
+    insertedChipIdsRef.current.clear()
+    const node = document.createTextNode('')
+    editor.append(node)
+    typedNodeRef.current = node
+    typedKeyRef.current = `request:${typeRequest.token}`
+    autoTextRef.current = typeRequest.text
+    editor.focus()
+    typeInto(node, typeRequest.text, () => {
+      typedSendTimerRef.current = window.setTimeout(() => sendRef.current(), TYPED_SEND_DELAY_MS)
+    })
+  })
+  useEffect(() => () => window.clearTimeout(typedSendTimerRef.current), [])
+
+  const openChatButton = (tabIndex?: number) =>
+    onOpenChat ? (
+      <button
+        type="button"
+        className={styles.iconAction}
+        aria-label="Open AI chat panel"
+        title="Open AI chat panel"
+        disabled={interactionLocked}
+        tabIndex={tabIndex}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onOpenChat}
+      >
+        <ChatsCircle size={18} weight="regular" aria-hidden />
+      </button>
+    ) : null
+
   const showPlaceholder = !toasting && editorEmpty && files.length === 0
-  const placeholder = showPlaceholder ? 'Ask Llumen anything…' : ''
+  const placeholderText = components.length > 0 ? 'Ask about the attached chart…' : 'Ask Llumen anything…'
+  const placeholder = showPlaceholder ? placeholderText : ''
   const orbIdle = idle || toasting
   // compact is the standalone orb (chatbox not mounted). This box is collapsed or expanded.
   const stage = expanded ? 'expanded' : 'collapsed'
@@ -585,6 +794,28 @@ export function HubChatbox({
           if (!toasting) send()
         }}
       >
+        {!toasting && components.length > 0 ? (
+          <div className={styles.componentRow} aria-label="Attached components">
+            {components.map((item) => (
+              <span key={item.id} className={styles.componentChip}>
+                <ChartLineUp size={12} weight="bold" aria-hidden />
+                <span className={styles.componentChipLabel}>{item.label}</span>
+                {onRemoveComponent ? (
+                  <button
+                    type="button"
+                    className={styles.componentChipRemove}
+                    aria-label={`Remove ${item.label}`}
+                    disabled={interactionLocked}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => onRemoveComponent(item.id)}
+                  >
+                    <X size={10} weight="bold" aria-hidden />
+                  </button>
+                ) : null}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {!toasting && files.length > 0 ? (
           <div
             className={`${panelStyles.contextChipRow} ${styles.chipRow}`}
@@ -679,13 +910,15 @@ export function HubChatbox({
               role="textbox"
               aria-multiline="true"
               aria-label="Ask Llumen"
-              aria-placeholder={showPlaceholder ? 'Ask Llumen anything…' : undefined}
+              aria-placeholder={showPlaceholder ? placeholderText : undefined}
               data-placeholder={placeholder || undefined}
               suppressContentEditableWarning
               onInput={() => {
+                stopTyping()
                 syncEditor()
                 refreshSlashMenu()
               }}
+              onPointerDown={fillAutoPrompt}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               onClick={() => {
@@ -843,6 +1076,7 @@ export function HubChatbox({
               </div>
               {expanded ? (
                 <div className={styles.toolbarRight}>
+                  {openChatButton(expanded ? 0 : -1)}
                   <button
                     type="button"
                     className={styles.iconAction}
@@ -913,6 +1147,7 @@ export function HubChatbox({
         ? createPortal(
             <InlineContextMenu
               menuRef={mentionMenuRef}
+              className={styles.contextMenu}
               position={mentionPos}
               stage={mentionStage}
               categoryId={mentionCategory}
@@ -932,6 +1167,9 @@ export function HubChatbox({
             document.body,
           )
         : null}
+      {locationPickerOpen ? (
+        <StoryLocationModal onApply={applyLocation} onClose={() => setLocationPickerOpen(false)} />
+      ) : null}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import type { StoryScene } from './storyDemoScenes'
 import type { ChartCardId } from './storyKpi'
 
-/** Approach 2: chart cards re-scoped to a past period while the map stays as is. */
+/** Chart cards re-scoped to a past period while the map stays as is. */
 export const CHART_PERIOD_LABEL = '2024–2025'
 export const PERIOD_VOLUME_X = ['Jan 24', 'Jul 24', 'Jan 25', 'Jul 25', 'Dec 25']
 export const PERIOD_LOAD_X = ['Q1', 'Q2', 'Q3', 'Q4', 'Q1', 'Q2', 'Q3', 'Q4']

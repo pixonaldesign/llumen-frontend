@@ -17,6 +17,14 @@
   color: inherit;
 }
 
+.lead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: start;
+  min-width: 0;
+}
+
 .center {
   display: flex;
   align-items: center;
@@ -45,6 +53,11 @@
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
+}
+
+.lead .workspace {
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .workspaceName {
@@ -76,6 +89,75 @@
   line-height: 20px;
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* Briefing / Studio toggle: equal halves so the thumb slides by exactly its own width. */
+.modeToggle {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--modes, 2), 1fr);
+  height: 36px;
+  padding: 0;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.modeThumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% / var(--modes, 2));
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  transform: translateX(calc(var(--mode-index, 0) * 100%));
+  transition: transform 280ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.modeOption {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 200ms ease;
+}
+
+.modeOption[aria-checked='true'] {
+  color: #fff;
+  cursor: default;
+}
+
+.modeOption:hover:not([aria-checked='true']) {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.modeOption:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modeThumb {
+    transition: none;
+  }
 }
 
 .ghost:hover,
@@ -263,6 +345,27 @@
   right: 0;
   left: auto;
   min-width: 200px;
+}
+
+.stylesMenu {
+  min-width: 260px;
+}
+
+.styleItem {
+  justify-content: space-between;
+}
+
+.styleText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.styleHint {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
 }
 
 .soon {

@@ -16,6 +16,8 @@ import gsap from 'gsap'
 import styles from './compact-assistant.module.css'
 import { llumenAssets } from './assets'
 import LandingHomeDefault from './landing/LandingHomeDefault'
+import { BriefingLanding } from './landing/BriefingLanding'
+import { Briefing2Landing } from './landing/Briefing2Landing'
 import { FeedLanding } from './landing/FeedLanding'
 import { OverlayScrollThumb } from './landing/OverlayScrollThumb'
 import { type LandingContextChip } from './landing/LandingChatbox'
@@ -32,6 +34,7 @@ import {
   nextFindingFromPool,
   relatedStoryId,
   type FindingToastInstance,
+  type FindingToastItem,
 } from './landing/findingDemoData'
 import {
   ENERGY_WORKFLOW_TITLE,
@@ -49,15 +52,21 @@ import {
   underwayMessage,
   workUnderwayReply,
 } from './slashCommands'
-import type { HubWorkToast } from './landing/HubChatbox'
+import type { HubChatComponent, HubWorkToast } from './landing/HubChatbox'
 import type { LandingTellMeMorePayload } from './landing/LandingHomeDefault'
 import { DUMPING_ALERT_BRIEFING, DUMPING_BRIEFING_SOURCES } from './landing/dumpingBriefing'
+import { LandingAskAsset, LandingAskMap, LandingAskStage, type LandingAskStageHandle } from './landing/LandingAskStage'
+import { findingReply, tellMeMorePrompt } from './landing/landingAskReplies'
+import { findingExperience } from './landing/landingFindingExperiences'
 import { CommandPalette } from './CommandPalette'
 import {
+  persistFindingsStyle,
   persistLandingVariant,
   persistTopBarVariant,
+  readFindingsStyle,
   readLandingVariant,
   readTopBarVariant,
+  type FindingsStyle,
   type LandingVariant,
   type TopBarVariant,
 } from './prototypeChrome'
@@ -67,6 +76,25 @@ import {
   type ChatInteractionModel,
 } from './interactionModel'
 import { StoryView } from './story/StoryView'
+import type { StoryMapView } from './story/StoryMap'
+import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
+import { StoryMapStatesContext, type StoryMapStates } from './story/storyMapStates'
+import { StoryAiModeBar, type StoryAiModeStatus } from './story/StoryAiModeBar'
+import { CHART_PERIOD_LABEL, isChartCard, periodPrompt, type ChatComponent } from './story/storyChartPeriod'
+import { sceneAtPhase, storySceneAt } from './story/storyDemoScenes'
+import { periodReply, topSchoolsReply, withMapState } from './story/storySelectionReplies'
+import {
+  MUSSAFAH_LOCATION,
+  TOP_SCHOOLS_PROMPT,
+  locationAnnotation,
+  locationPrompt,
+  locationRegion,
+  schoolMarkersAnnotation,
+  snapshotRegion,
+  topSchoolsAnnotation,
+  type StoryLocation,
+} from './story/storyAnnotations'
+import { StoryLocationModal } from './story/StoryLocationModal'
 import type { LandingStory } from './story/storyDemoData'
 import {
   MESH_COLORS_DEMO_PAGE,
@@ -81,7 +109,18 @@ import { AgentQuestionPrompt } from './AgentQuestionPrompt'
 import { PanelHeader } from './PanelHeader'
 import type { ChatQuestionIndexItem, ChatSearchState } from './PanelHeader'
 import { useTranscriptSearch } from './useTranscriptSearch'
-import { SessionsPanel, DEMO_SESSION_ID } from './SessionsPanel'
+import { SessionsPanel } from './SessionsPanel'
+import {
+  conversationSummary,
+  loadConversations,
+  loadStoryVersions,
+  mapStateIds,
+  sameStorySnapshot,
+  storeConversations,
+  storeStoryVersions,
+  type SavedChatMessage,
+  type SavedConversation,
+} from './savedConversations'
 import { ShareModal } from './ShareModal'
 import { SourcesPanel } from './SourcesPanel'
 import { sourcesForDemoConversation } from './conversationSources'
@@ -111,11 +150,25 @@ import type { SendVisualState } from './SendButton'
 import { useRevealScrollbarOnScroll } from './useRevealScrollbarOnScroll'
 import { useStickToBottomScroll } from './useStickToBottomScroll'
 
-type ChatMessage =
-  | { id: string; role: 'user'; text: string }
-  | { id: string; role: 'assistant'; text: string; reply?: AssistantReplyPayload }
+type ChatMessage = SavedChatMessage
 
 const SUBCONTEXT_EXIT_MS = 280
+/** How long the AI mode bar's Update button spins before the story version is stored. */
+const STORY_UPDATE_MS = 1200
+/** Without `scrollend`, the Briefing composer stays shrunk until scrolling has been quiet this long. */
+const BRIEFING_SCROLL_IDLE_MS = 200
+/** Briefing View: the composer's fade before the story mounts under the flying map. */
+const STORY_MOUNT_DELAY_MS = 320
+/** How long the landed flight waits for the story map's remaining tiles before revealing it anyway. */
+const STORY_PAINT_GRACE_MS = 600
+/** Reveals the story under the Briefing page even if the flight or its map never report back. */
+const STORY_REVEAL_FALLBACK_MS = 4000
+/** Back to the Briefing: the story chrome sliding out (StoryView.module.css). */
+const STORY_LEAVE_MS = 420
+/** The Briefing map's flight home (BriefingMap RETURN_MS), after which the page settles. */
+const STORY_RETURN_MS = 1600
+const SUPPORTS_SCROLLEND = typeof window !== 'undefined' && 'onscrollend' in window
+/** Lets the rail open and start thinking before the attached charts animate to the new period. */
 
 /** Design-capture presets via `?preview=<name>` (used for Figma handoff). */
 type FigmaPreviewMode =
@@ -140,22 +193,6 @@ function readFigmaPreviewMode(): FigmaPreviewMode | null {
     default:
       return null
   }
-}
-
-function buildTurn1Seed(): ChatMessage[] {
-  return [
-    {
-      id: 'demo-u1',
-      role: 'user',
-      text: 'What is driving the deterioration in air quality, where is it concentrated, and who may be exposed?',
-    },
-    {
-      id: 'demo-a1',
-      role: 'assistant',
-      text: '',
-      reply: TURN1_REPLY,
-    },
-  ]
 }
 
 function buildConversationSeed(): ChatMessage[] {
@@ -296,6 +333,65 @@ function UserMessageBubble({
   )
 }
 
+type StoryApplyStage = { visualId: string | null; snapshot: StoryAiSnapshot }
+
+/** Map screenshot for the reply's map-state card, taken once the last change has animated in. */
+type StoryMapCaptureRequest = { stateId: string; delay: number }
+
+type PendingStoryApply = {
+  messageId: string
+  storyId: string | null
+  conversationId: string
+  stages: StoryApplyStage[]
+  applied: number
+  capture: StoryMapCaptureRequest | null
+}
+
+/** Period re-plots leave the map as is; annotations fly the camera, and Mussafah also grows its region. */
+const PERIOD_CAPTURE_DELAY_MS = 700
+const ANNOTATION_CAPTURE_DELAY_MS = 3400
+const REGION_ANNOTATION_CAPTURE_DELAY_MS = 4900
+/** The landing map slides in first; its annotation lands once it has settled. */
+const LANDING_MAP_SETTLE_MS = 760
+
+type LandingAskMapState = {
+  open: boolean
+  snapshot: StoryAiSnapshot | null
+  capture: StoryMapCaptureRequest | null
+}
+
+const LANDING_MAP_CLOSED: LandingAskMapState = { open: false, snapshot: null, capture: null }
+type LandingAskSubject = { finding: LandingTellMeMorePayload } | { location: StoryLocation } | null
+
+/** Typed into the landing AI bar on first click: the story builder's location prompt, already set to Mussafah. */
+const LANDING_DEMO_PROMPT = locationPrompt(MUSSAFAH_LOCATION)
+
+function lastMapState(messages: ChatMessage[]): { stateId: string; snapshot: StoryAiSnapshot } | undefined {
+  return messages
+    .flatMap((message) => (message.role === 'assistant' ? (message.reply?.createdComponents ?? []) : []))
+    .flatMap((component) => (component.preview?.kind === 'story-map-state' ? [component.preview] : []))
+    .at(-1)
+}
+
+/** The map card a reply attached for this state, with the reply's opening paragraph as its insight. */
+function mapStateAsset(messages: ChatMessage[], stateId: string | null) {
+  if (!stateId) return null
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue
+    const component = message.reply?.createdComponents?.find((item) => item.id === stateId)
+    if (component?.preview?.kind !== 'story-map-state') continue
+    const opening = message.reply?.blocks?.find((block) => block.type === 'text')
+    return {
+      stateId,
+      title: component.title,
+      place: component.preview.tag,
+      caption: component.preview.meta,
+      analysis: opening?.type === 'text' ? opening.content : undefined,
+    }
+  }
+  return null
+}
+
 export function CompactAssistantDemo() {
   const previewMode = useMemo(() => readFigmaPreviewMode(), [])
   const previewForceInstant = previewMode != null
@@ -319,6 +415,27 @@ export function CompactAssistantDemo() {
   )
   const [shareOpen, setShareOpen] = useState(false)
   const [activeStoryId, setActiveStoryId] = useState<string | null>(null)
+  /** Story changes owned by the current conversation; a new token makes the story animate to them. */
+  const [storyAi, setStoryAi] = useState<{
+    token: number
+    snapshot: StoryAiSnapshot | null
+    storyId: string | null
+    /** Conversation whose prompts produced `snapshot`; reopened from the AI mode bar. */
+    conversationId: string | null
+    capture?: StoryMapCaptureRequest | null
+  }>({ token: 0, snapshot: null, storyId: null, conversationId: null })
+  const [storyVersions, setStoryVersions] = useState<Record<string, StoryAiSnapshot>>(loadStoryVersions)
+  /** Update in progress: the bar spins before `snapshot` becomes the story's saved version. */
+  const [storyUpdate, setStoryUpdate] = useState<{ conversationId: string; snapshot: StoryAiSnapshot } | null>(null)
+  /** Story whose AI mode bar is showing; it stays up until the story is closed. */
+  const [aiBarStoryId, setAiBarStoryId] = useState<string | null>(null)
+  /** Map screenshots + cameras behind each reply's map-state card. */
+  const [mapCaptures, setMapCaptures] = useState<Record<string, StoryMapCapture>>({})
+  const [activeMapStateId, setActiveMapStateId] = useState<string | null>(null)
+  const [conversations, setConversations] = useState<SavedConversation[]>(loadConversations)
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  /** Replies loaded from a saved conversation render finished instead of replaying their reveal. */
+  const [settledReplyIds, setSettledReplyIds] = useState<ReadonlySet<string>>(() => new Set())
   const [landingChips, setLandingChips] = useState<LandingContextChip[]>([])
   const [landingFocusToken, setLandingFocusToken] = useState(0)
   const [findingToasts, setFindingToasts] = useState<FindingToastInstance[]>([])
@@ -329,13 +446,60 @@ export function CompactAssistantDemo() {
   const [auroraReplayKey, setAuroraReplayKey] = useState(0)
   const [landingVariant, setLandingVariant] = useState<LandingVariant>(() => readLandingVariant())
   const [topBar, setTopBar] = useState<TopBarVariant>(() => readTopBarVariant())
+  const [findingsStyle, setFindingsStyle] = useState<FindingsStyle>(() => readFindingsStyle())
+  const onFindingsStyleChange = useCallback((next: FindingsStyle) => {
+    persistFindingsStyle(next)
+    setFindingsStyle(next)
+  }, [])
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const composerDockRef = useRef<HTMLDivElement>(null)
+  /** The Briefing page rests on its findings rather than Assets or below (where the composer docks at the bottom). */
+  const [briefingAtFindings, setBriefingAtFindings] = useState(true)
+  const onBriefingAssetsProgress = useCallback((progress: number) => {
+    composerDockRef.current?.style.setProperty('--briefing-assets-t', progress.toFixed(3))
+    setBriefingAtFindings(progress < 0.5)
+  }, [])
+  const briefingScrollIdleRef = useRef(0)
+  const onBriefingScroll = useCallback((scrolling: boolean) => {
+    const dock = composerDockRef.current
+    if (!dock) return
+    window.clearTimeout(briefingScrollIdleRef.current)
+    if (!scrolling) {
+      delete dock.dataset.scrolling
+      return
+    }
+    dock.dataset.scrolling = 'true'
+    if (SUPPORTS_SCROLLEND) return
+    briefingScrollIdleRef.current = window.setTimeout(() => {
+      delete dock.dataset.scrolling
+    }, BRIEFING_SCROLL_IDLE_MS)
+  }, [])
+  useEffect(() => () => window.clearTimeout(briefingScrollIdleRef.current), [])
   const findingPoolIndexRef = useRef(0)
   const alertPoolIndexRef = useRef(0)
   const [hubWorkToast, setHubWorkToast] = useState<HubWorkToast | null>(null)
   const hubWorkUserTextRef = useRef('')
   const [hubStoryOpen, setHubStoryOpen] = useState(false)
   const [hubMorphFrom, setHubMorphFrom] = useState<DOMRect | null>(null)
+  /** A landing AI bar prompt: the bar grows to full screen from `origin` and holds the conversation. */
+  const [landingAsk, setLandingAsk] = useState<{ origin: DOMRect } | null>(null)
+  const [landingAskShrunk, setLandingAskShrunk] = useState(false)
+  const [landingAskMap, setLandingAskMap] = useState<LandingAskMapState>(LANDING_MAP_CLOSED)
+  /** The reply's map-state card brings in the map; until then its annotation waits here. */
+  const landingAskPendingRef = useRef<{
+    messageId: string
+    stateId: string
+    snapshot: StoryAiSnapshot
+    captureDelay: number
+  } | null>(null)
+  const landingAskMapTimer = useRef(0)
+  const landingAskStageRef = useRef<LandingAskStageHandle>(null)
+  /** Story chart cards attached to the hub chatbox via "Add to chat". */
+  const [storyChatComponents, setStoryChatComponents] = useState<ChatComponent[]>([])
+  /** Charts added while the chat panel is open; they live as pills in the rail composer. */
+  const [railChatComponents, setRailChatComponents] = useState<ChatComponent[]>([])
+  const pendingStoryApplyRef = useRef<PendingStoryApply | null>(null)
+  const [storySlideIndex, setStorySlideIndex] = useState(0)
   const [hubRailMode, setHubRailMode] = useState<'thread' | 'sessions'>('thread')
   const [chatSearch, setChatSearch] = useState<ChatSearchState>({ open: false, query: '' })
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
@@ -565,6 +729,48 @@ export function CompactAssistantDemo() {
     if (subcontext.view !== 'closed') setSessionsOpen(false)
   }, [subcontext.view])
 
+  /** Applies the reply's story changes up to `count` stages; the last stage lands when the reply finishes. */
+  const applyStoryStages = useCallback((messageId: string, upTo: number) => {
+    const pending = pendingStoryApplyRef.current
+    if (!pending || pending.messageId !== messageId) return
+    const count = Math.min(upTo, pending.stages.length)
+    if (count <= pending.applied) return
+    pending.applied = count
+    const last = count >= pending.stages.length
+    if (last) pendingStoryApplyRef.current = null
+    const { snapshot } = pending.stages[count - 1]
+    setStoryAi((current) => ({
+      token: current.token + 1,
+      snapshot,
+      storyId: pending.storyId,
+      conversationId: pending.conversationId,
+      capture: last ? pending.capture : null,
+    }))
+  }, [])
+
+  const flushStoryApply = useCallback(() => {
+    const pending = pendingStoryApplyRef.current
+    if (pending) applyStoryStages(pending.messageId, pending.stages.length)
+  }, [applyStoryStages])
+
+  /** A story change shows up on the story when its visual appears in the chat. */
+  const onReplyVisual = useCallback(
+    (messageId: string, componentId: string) => {
+      const index = pendingStoryApplyRef.current?.stages.findIndex((stage) => stage.visualId === componentId) ?? -1
+      if (index >= 0) applyStoryStages(messageId, index + 1)
+    },
+    [applyStoryStages],
+  )
+
+  /** Hiding the rail unmounts the thread; mark replies finished so reopening doesn't replay them. */
+  const settleReplies = useCallback(() => {
+    flushStoryApply()
+    setSettledReplyIds((current) => {
+      const ids = messages.filter((msg) => msg.role === 'assistant' && !current.has(msg.id)).map((msg) => msg.id)
+      return ids.length > 0 ? new Set([...current, ...ids]) : current
+    })
+  }, [flushStoryApply, messages])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -605,12 +811,13 @@ export function CompactAssistantDemo() {
         setExpanded(false)
         return
       }
+      settleReplies()
       setOpen(false)
       setExpanded(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, subcontext.view, closeSubcontext, expanded, sessionsOpen, shareOpen, isHub, hubStoryOpen, hubRailMode])
+  }, [open, subcontext.view, closeSubcontext, expanded, sessionsOpen, shareOpen, isHub, hubStoryOpen, hubRailMode, settleReplies])
 
   const startAssistantReply = useCallback((reply: AssistantReplyPayload) => {
     const aid = uid()
@@ -619,12 +826,13 @@ export function CompactAssistantDemo() {
     setStreaming(true)
     setReplyRendering(true)
 
-    const thinkingMs = Math.max(1800, (reply.timeline.length || 1) * 1100)
+    const thinkingMs = Math.max(900, (reply.timeline.length || 1) * 540)
     streamTimer.current = setTimeout(() => {
       streamTimer.current = null
       assistantMsgId.current = null
       setStreaming(false)
     }, thinkingMs)
+    return aid
   }, [])
 
   const findingToastsRef = useRef(findingToasts)
@@ -1100,6 +1308,7 @@ export function CompactAssistantDemo() {
         if (!titleEditedRef.current && priorAssistant === 0) {
           setChatTitle(truncateTitle(slashChatTitle(slash)))
         }
+        setActiveConversationId((id) => id ?? uid())
         setMessages((m) => [...m, { id: uid(), role: 'user', text: t }])
         startAssistantReply(workUnderwayReply(slash))
         return
@@ -1115,15 +1324,261 @@ export function CompactAssistantDemo() {
         setSources((prev) => (prev.length > 0 ? prev : sourcesForDemoConversation(true)))
         setSourcesPanelDismissed(false)
       }
+      setActiveConversationId((id) => id ?? uid())
       setMessages((m) => [...m, { id: uid(), role: 'user', text: t }])
       startAssistantReply(reply)
     },
     [streaming, messages, startAssistantReply, cueThenShowFindings],
   )
 
+  /** Attach a hovered chart card to the open chat panel's composer, or else to the story chatbox. */
+  const addStoryComponentToChat = useCallback(
+    (component: ChatComponent, sourceRect: DOMRect) => {
+      if (open && hubRailMode === 'thread') {
+        setRailChatComponents((prev) => (prev.some((item) => item.id === component.id) ? prev : [...prev, component]))
+        composerRef.current?.insertMention({ id: `component-${component.id}`, name: component.label, categoryId: 'assets' })
+        return
+      }
+      if (open) {
+        settleReplies()
+        setOpen(false)
+        setSessionsOpen(false)
+        setHubRailMode('thread')
+      }
+      setStoryChatComponents((prev) => (prev.some((item) => item.id === component.id) ? prev : [...prev, component]))
+      if (open || !hubStoryOpen) setHubMorphFrom(sourceRect)
+      setHubStoryOpen(true)
+    },
+    [hubRailMode, hubStoryOpen, open, settleReplies],
+  )
+
+  /** Each attached chart is re-plotted for 2024–2025 as its chart appears in the reply. */
+  const submitStoryComponents = useCallback(
+    (text: string, components: HubChatComponent[]) => {
+      const attached = components.flatMap((item): ChatComponent[] =>
+        isChartCard(item.id) ? [{ id: item.id, label: item.label }] : [],
+      )
+      if (attached.length === 0) return
+      const prompt = text.trim() || periodPrompt(attached.map((item) => item.label))
+      const conversationId = activeConversationId ?? uid()
+      const baseReply = periodReply(attached, sceneAtPhase(storySceneAt(0), 0))
+      const previous = storyAi.storyId === null || storyAi.storyId === activeStoryId ? storyAi.snapshot : null
+      const stages = attached.map((_, index): StoryApplyStage => ({
+        visualId: baseReply.createdComponents?.[index]?.id ?? null,
+        snapshot: {
+          cards: previous?.cards ?? null,
+          region: previous?.region ?? false,
+          areaEffect: previous?.areaEffect ?? null,
+          filterLabels: previous?.filterLabels ?? {},
+          periodCards: [
+            ...new Set([...(previous?.periodCards ?? []), ...attached.slice(0, index + 1).map((card) => card.id)]),
+          ],
+          annotation: previous?.annotation,
+        },
+      }))
+      const stateId = `map-state-${Date.now()}`
+      const reply = withMapState(baseReply, {
+        stateId,
+        snapshot: stages[stages.length - 1].snapshot,
+        title: `${attached.map((item) => item.label).join(' · ')} · ${CHART_PERIOD_LABEL}`,
+        tag: previous?.region ? snapshotRegion(previous).label : 'Abu Dhabi',
+        meta: `${attached.length} ${attached.length === 1 ? 'chart' : 'charts'} re-plotted`,
+      })
+      setActiveMapStateId(stateId)
+      setActiveConversationId(conversationId)
+      clearStream()
+      setStoryChatComponents([])
+      setRailChatComponents([])
+      setDraft('')
+      setLandingChips([])
+      setHubRailMode('thread')
+      setSessionsOpen(false)
+      setOpen(true)
+      setExpanded(false)
+      if (!titleEditedRef.current && !messages.some((msg) => msg.role === 'assistant')) {
+        setChatTitle(titleFromReply(reply))
+      }
+      setMessages((m) => [...m, { id: uid(), role: 'user', text: prompt }])
+      const messageId = startAssistantReply(reply)
+      pendingStoryApplyRef.current = {
+        messageId,
+        storyId: activeStoryId,
+        conversationId,
+        stages,
+        applied: 0,
+        capture: { stateId, delay: PERIOD_CAPTURE_DELAY_MS },
+      }
+    },
+    [activeConversationId, activeStoryId, clearStream, messages, startAssistantReply, storyAi],
+  )
+
+  const ownsStoryAi = storyAi.storyId === null || storyAi.storyId === activeStoryId
+  const [storyLocation, setStoryLocation] = useState<StoryLocation | null>(null)
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false)
+  const storyPrompts = activeStoryId != null
+  /** The picked location's pill is still in the rail composer. */
+  const locationInDraft = storyLocation !== null && draft.includes(`@${storyLocation.name}`)
+  /** Story prompts, offered in the rail composer: per location, or city-wide until the map is annotated. */
+  const storyAnnotationPrompt = !storyPrompts
+    ? undefined
+    : storyLocation && locationInDraft
+      ? locationPrompt(storyLocation)
+      : !(ownsStoryAi && storyAi.snapshot?.annotation)
+        ? TOP_SCHOOLS_PROMPT
+        : undefined
+  /** Charts whose pills are still in the rail composer; while any are, the rail asks to re-plot them. */
+  const railComponentsInDraft = useMemo(
+    () => railChatComponents.filter((item) => draft.includes(`@${item.label}`)),
+    [draft, railChatComponents],
+  )
+  const railComponentPrompt =
+    railComponentsInDraft.length > 0 ? periodPrompt(railComponentsInDraft.map((item) => item.label)) : undefined
+
+  /**
+   * The top 10 schools (in `location`, when set) are annotated as the reply's chart appears. From the hub
+   * the reply opens in the rail; from the rail it is already open.
+   */
+  const runStoryAnnotation = useCallback(
+    (location: StoryLocation | null, fromHub: boolean) => {
+      if (streaming) return
+      const slide = storySlideIndex
+      const region = location ? locationRegion(location) : null
+      const annotation = location ? locationAnnotation(slide, location) : topSchoolsAnnotation(slide)
+      const conversationId = activeConversationId ?? uid()
+      const previous = ownsStoryAi ? storyAi.snapshot : null
+      const filterLabels = previous?.filterLabels ?? {}
+      const snapshot: StoryAiSnapshot = {
+        cards: previous?.cards ?? null,
+        // A location's own region replaces the previous one; city-wide prompts keep only the Mussafah focus.
+        region: location ? region !== null : Boolean(previous?.region && !previous.annotation?.location),
+        areaEffect: previous?.areaEffect ?? null,
+        filterLabels: region ? { ...filterLabels, loc: region.label } : filterLabels,
+        periodCards: previous?.periodCards,
+        annotation: location ? { slide, location } : { slide },
+      }
+      const stateId = `map-state-${Date.now()}`
+      const place = location?.name ?? 'Abu Dhabi'
+      const baseReply = topSchoolsReply(annotation)
+      const reply = withMapState(baseReply, {
+        stateId,
+        snapshot,
+        title: location
+          ? `Schools exposed to factory emissions · ${place}`
+          : `Top ${annotation.schools.length} schools by traffic · ${place}`,
+        tag: place,
+        meta: `${annotation.schools.length} schools annotated`,
+      })
+      setActiveMapStateId(stateId)
+      setDraft('')
+      setStoryLocation(null)
+      setActiveConversationId(conversationId)
+      if (fromHub) {
+        clearStream()
+        setLandingChips([])
+        setHubRailMode('thread')
+        setSessionsOpen(false)
+        setOpen(true)
+        setExpanded(false)
+      }
+      if (!titleEditedRef.current && !messages.some((msg) => msg.role === 'assistant')) {
+        setChatTitle(titleFromReply(reply))
+      }
+      const prompt = location ? locationPrompt(location) : TOP_SCHOOLS_PROMPT
+      setMessages((m) => [...m, { id: uid(), role: 'user', text: prompt }])
+      const messageId = startAssistantReply(reply)
+      pendingStoryApplyRef.current = {
+        messageId,
+        storyId: activeStoryId,
+        conversationId,
+        stages: [{ visualId: baseReply.createdComponents?.[0]?.id ?? null, snapshot }],
+        applied: 0,
+        capture: { stateId, delay: region ? REGION_ANNOTATION_CAPTURE_DELAY_MS : ANNOTATION_CAPTURE_DELAY_MS },
+      }
+    },
+    [
+      activeConversationId,
+      activeStoryId,
+      clearStream,
+      messages,
+      ownsStoryAi,
+      startAssistantReply,
+      storyAi.snapshot,
+      storySlideIndex,
+      streaming,
+    ],
+  )
+  const submitStoryAnnotation = useCallback(
+    () => runStoryAnnotation(locationInDraft ? storyLocation : null, false),
+    [locationInDraft, runStoryAnnotation, storyLocation],
+  )
+  const submitHubLocation = useCallback(
+    (location: StoryLocation) => runStoryAnnotation(location, true),
+    [runStoryAnnotation],
+  )
+
+  const openLocationPicker = useCallback(() => setLocationPickerOpen(true), [])
+  const closeLocationPicker = useCallback(() => setLocationPickerOpen(false), [])
+  const applyStoryLocation = useCallback((location: StoryLocation) => {
+    setLocationPickerOpen(false)
+    setStoryLocation(location)
+    composerRef.current?.insertMention({ id: location.id, name: location.name, categoryId: 'location' })
+  }, [])
+
   const send = useCallback(() => {
+    if (railComponentsInDraft.length > 0 && !streaming) {
+      // A draft that is only the chart pills sends the default re-plot prompt.
+      const typed = railComponentsInDraft.reduce((text, item) => text.replaceAll(`@${item.label}`, ''), draft)
+      submitStoryComponents(typed.trim() ? draft : '', railComponentsInDraft)
+      return
+    }
     sendText(draft)
-  }, [draft, sendText])
+  }, [draft, railComponentsInDraft, sendText, streaming, submitStoryComponents])
+
+  const sendRailSuggested = useCallback(() => {
+    if (railComponentPrompt) {
+      if (!streaming) submitStoryComponents(railComponentPrompt, railComponentsInDraft)
+      return
+    }
+    submitStoryAnnotation()
+  }, [railComponentPrompt, railComponentsInDraft, streaming, submitStoryAnnotation, submitStoryComponents])
+
+  useEffect(() => {
+    if (!activeConversationId || streaming || !messages.some((msg) => msg.role === 'assistant')) return
+    const captures = Object.fromEntries(
+      mapStateIds(messages).flatMap((id) => (mapCaptures[id] ? [[id, mapCaptures[id]]] : [])),
+    )
+    setConversations((list) => {
+      const existing = list.find((item) => item.id === activeConversationId)
+      if (
+        existing &&
+        existing.messages === messages &&
+        existing.title === chatTitle &&
+        existing.story === storyAi.snapshot &&
+        Object.keys(existing.mapCaptures ?? {}).length === Object.keys(captures).length
+      ) {
+        return list
+      }
+      const saved: SavedConversation = {
+        id: activeConversationId,
+        title: chatTitle,
+        updatedAt: Date.now(),
+        messages,
+        storyId: storyAi.snapshot ? storyAi.storyId : null,
+        story: storyAi.snapshot,
+        mapCaptures: captures,
+      }
+      return [saved, ...list.filter((item) => item.id !== activeConversationId)]
+    })
+  }, [activeConversationId, streaming, messages, chatTitle, storyAi, mapCaptures])
+
+  useEffect(() => {
+    storeConversations(conversations)
+  }, [conversations])
+
+  const sessionSummaries = useMemo(
+    () => conversations.map((item) => conversationSummary(item)),
+    [conversations],
+  )
 
   const failedWorkflowByQuestion = useRef(new Map<string, WorkflowProposal>())
   const answeredQuestions = useRef(new Set<string>())
@@ -1346,6 +1801,7 @@ export function CompactAssistantDemo() {
   }, [openSubcontext])
 
   const stop = useCallback(() => {
+    pendingStoryApplyRef.current = null
     clearStream()
   }, [clearStream])
 
@@ -1364,34 +1820,264 @@ export function CompactAssistantDemo() {
     closeSubcontextImmediately()
     setChatTitle('New chat')
     titleEditedRef.current = false
+    setActiveConversationId(null)
+    setActiveMapStateId(null)
+    pendingStoryApplyRef.current = null
+    setStoryAi((current) => ({ token: current.token + 1, snapshot: null, storyId: null, conversationId: null }))
   }, [clearStream, closeSubcontextImmediately])
 
-  const loadDemoSession = useCallback(() => {
-    clearStream()
-    setMessages(buildTurn1Seed())
-    setSources(sourcesForDemoConversation(true))
-    setSourcesPanelDismissed(false)
-    setDraft('')
-    closeSubcontextImmediately()
-    setChatTitle('Air quality corridor review')
-    titleEditedRef.current = true
-  }, [clearStream, closeSubcontextImmediately])
-
-  const openSession = useCallback(
-    (id: string) => {
-      if (id === DEMO_SESSION_ID) {
-        loadDemoSession()
-      } else {
-        resetConversation()
-      }
+  /** Puts a saved conversation in the rail without touching the story. */
+  const loadConversation = useCallback(
+    (saved: SavedConversation) => {
+      clearStream()
+      setMessages(saved.messages)
+      setSettledReplyIds(new Set(saved.messages.filter((msg) => msg.role === 'assistant').map((msg) => msg.id)))
+      setSources([])
+      setSourcesPanelDismissed(false)
+      setDraft('')
+      closeSubcontextImmediately()
+      setChatTitle(saved.title)
+      titleEditedRef.current = true
+      setActiveConversationId(saved.id)
+      if (saved.mapCaptures) setMapCaptures((current) => ({ ...current, ...saved.mapCaptures }))
       if (isHub) {
         setHubRailMode('thread')
         setSessionsOpen(false)
         setLandingChips([])
       }
     },
-    [loadDemoSession, resetConversation, isHub],
+    [clearStream, closeSubcontextImmediately, isHub],
   )
+
+  const openSession = useCallback(
+    (id: string) => {
+      const saved = conversations.find((item) => item.id === id)
+      if (!saved) return
+      loadConversation(saved)
+      setActiveMapStateId(saved.story ? (mapStateIds(saved.messages).at(-1) ?? null) : null)
+      if (saved.storyId) setActiveStoryId(saved.storyId)
+      setStoryAi((current) => ({
+        token: current.token + 1,
+        snapshot: saved.story,
+        storyId: saved.storyId,
+        conversationId: saved.id,
+      }))
+    },
+    [conversations, loadConversation],
+  )
+
+  const storeMapCapture = useCallback((stateId: string, capture: StoryMapCapture) => {
+    setMapCaptures((current) => ({ ...current, [stateId]: capture }))
+  }, [])
+
+  const mapStates = useMemo<StoryMapStates>(
+    () => ({
+      captures: mapCaptures,
+      activeStateId: activeMapStateId,
+      restore: (stateId, snapshot) => {
+        if (landingAsk) {
+          setActiveMapStateId(stateId)
+          setLandingAskMap({ open: true, snapshot: { ...snapshot, camera: mapCaptures[stateId]?.camera }, capture: null })
+          return
+        }
+        const storyId = activeStoryId ?? storyAi.storyId
+        if (!storyId) return
+        if (!activeStoryId) setActiveStoryId(storyId)
+        setActiveMapStateId(stateId)
+        setStoryAi((current) => ({
+          token: current.token + 1,
+          snapshot: { ...snapshot, camera: mapCaptures[stateId]?.camera },
+          storyId,
+          conversationId: activeConversationId ?? current.conversationId,
+        }))
+      },
+    }),
+    [mapCaptures, activeMapStateId, activeStoryId, activeConversationId, storyAi.storyId, landingAsk],
+  )
+
+  useEffect(() => {
+    storeStoryVersions(storyVersions)
+  }, [storyVersions])
+
+  /** Back to the story as authored; detaching the conversation also drops its updated version. */
+  const resetStoryAi = useCallback(() => {
+    pendingStoryApplyRef.current = null
+    settleReplies()
+    setOpen(false)
+    setSessionsOpen(false)
+    setHubRailMode('thread')
+    setActiveMapStateId(null)
+    setStoryUpdate(null)
+    setAiBarStoryId(null)
+    setStoryAi((current) => ({ token: current.token + 1, snapshot: null, storyId: null, conversationId: null }))
+  }, [settleReplies])
+
+  const updateStoryAi = useCallback(() => {
+    const { snapshot, conversationId } = storyAi
+    if (!snapshot || !conversationId) return
+    setStoryUpdate({ conversationId, snapshot })
+  }, [storyAi])
+
+  useEffect(() => {
+    if (!storyUpdate) return
+    const timer = window.setTimeout(() => {
+      setStoryVersions((current) => ({ ...current, [storyUpdate.conversationId]: storyUpdate.snapshot }))
+      setStoryUpdate(null)
+    }, STORY_UPDATE_MS)
+    return () => window.clearTimeout(timer)
+  }, [storyUpdate])
+
+  /**
+   * Briefing View: the composer steps aside as the map starts flying to the story's opening view
+   * (`flight`). The story then mounts over the Briefing page with its map hidden, loading during the
+   * flight (`cover`); its chrome comes in as soon as the flight lands (`storyEntrance`), over the
+   * Briefing map, and its own map fades in once loaded (`fade`) before the page underneath unmounts.
+   */
+  const [storyHandoff, setStoryHandoff] = useState<'flight' | 'cover' | 'fade' | null>(null)
+  const [storyFlightId, setStoryFlightId] = useState<string | null>(null)
+  const [storyEntrance, setStoryEntrance] = useState<'wait' | 'play' | 'leave' | 'gone' | undefined>(undefined)
+  const storyGateRef = useRef({ landed: false, loaded: false, painted: false })
+  const storyGraceRef = useRef(0)
+
+  /** Home cards always open the story as authored; AI versions come back only through their conversation. */
+  const openStoryFromHome = useCallback((storyId: string) => {
+    setActiveMapStateId(null)
+    setStoryAi((current) => ({ token: current.token + 1, snapshot: null, storyId: null, conversationId: null }))
+    setActiveStoryId(storyId)
+    setStoryHandoff(null)
+    setStoryFlightId(null)
+    setStoryEntrance(undefined)
+  }, [])
+
+  const startStoryFlight = useCallback((storyId: string) => {
+    storyGateRef.current = { landed: false, loaded: false, painted: false }
+    window.clearTimeout(storyGraceRef.current)
+    setStoryFlightId(storyId)
+    setStoryHandoff('flight')
+  }, [])
+  useEffect(() => {
+    if (storyHandoff !== 'flight' || !storyFlightId) return
+    const timer = window.setTimeout(() => {
+      openStoryFromHome(storyFlightId)
+      setStoryHandoff('cover')
+      setStoryEntrance('wait')
+    }, STORY_MOUNT_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [storyHandoff, storyFlightId, openStoryFromHome])
+  const playStoryEntrance = useCallback(() => {
+    setStoryEntrance((current) => (current === 'wait' ? 'play' : current))
+  }, [])
+  const revealStory = useCallback(() => {
+    playStoryEntrance()
+    setStoryHandoff((current) => (current === 'cover' ? 'fade' : current))
+  }, [playStoryEntrance])
+  const passStoryGate = useCallback(
+    (gate: 'landed' | 'loaded' | 'painted') => {
+      const passed = storyGateRef.current
+      passed[gate] = true
+      if (gate === 'landed') playStoryEntrance()
+      if (passed.landed && passed.painted) revealStory()
+      else if (passed.landed && passed.loaded && gate !== 'painted') {
+        window.clearTimeout(storyGraceRef.current)
+        storyGraceRef.current = window.setTimeout(revealStory, STORY_PAINT_GRACE_MS)
+      }
+    },
+    [playStoryEntrance, revealStory],
+  )
+  const landStoryFlight = useCallback(() => passStoryGate('landed'), [passStoryGate])
+
+  const closeStory = useCallback(() => {
+    setActiveStoryId(null)
+    setStoryHandoff(null)
+    setStoryEntrance(undefined)
+    setHubStoryOpen(false)
+    setHubMorphFrom(null)
+    setLandingChips([])
+    setStoryChatComponents([])
+    // Landing hub should reopen idle (orb + placeholder), not focused/engaged.
+    setLandingFocusToken(0)
+  }, [])
+
+  /**
+   * Back to the Briefing. The Briefing map stays mounted under the story on the opening view, so this
+   * snaps it to wherever the story camera is now and flies it home while the story chrome leaves.
+   */
+  const [storyRelease, setStoryRelease] = useState<StoryMapView | 'home' | null>(null)
+  /** Remounts the Briefing page when a story is left before it has settled, dropping its flight state. */
+  const [landingEpoch, setLandingEpoch] = useState(0)
+  const leaveStory = useCallback(
+    (from?: StoryMapView) => {
+      if (storyRelease) return
+      const opening = storyHandoff === 'flight' || (storyHandoff === 'cover' && storyEntrance !== 'play')
+      if (opening || landingVariant !== 'briefing' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setLandingEpoch((epoch) => epoch + 1)
+        closeStory()
+        return
+      }
+      // `from` is the story's camera. Without it the Briefing map is still on the opening view, which is where the flight home starts.
+      setStoryRelease(from ?? 'home')
+      setStoryEntrance('leave')
+    },
+    [closeStory, landingVariant, storyEntrance, storyHandoff, storyRelease],
+  )
+  useEffect(() => {
+    if (!storyRelease || storyEntrance !== 'leave') return
+    const timer = window.setTimeout(() => {
+      setActiveStoryId(null)
+      setStoryEntrance(undefined)
+      setHubStoryOpen(false)
+      setHubMorphFrom(null)
+      setLandingChips([])
+      setStoryChatComponents([])
+      setLandingFocusToken(0)
+    }, STORY_LEAVE_MS)
+    return () => window.clearTimeout(timer)
+  }, [storyRelease, storyEntrance])
+  useEffect(() => {
+    if (!storyRelease) return
+    const timer = window.setTimeout(() => {
+      setStoryRelease(null)
+      setStoryHandoff(null)
+    }, STORY_RETURN_MS)
+    return () => window.clearTimeout(timer)
+  }, [storyRelease])
+  useEffect(() => {
+    if (storyHandoff !== 'cover') return
+    const timer = window.setTimeout(revealStory, STORY_REVEAL_FALLBACK_MS)
+    return () => window.clearTimeout(timer)
+  }, [storyHandoff, revealStory])
+
+  const storyConversationOpen = open && hubRailMode === 'thread' && messages.length > 0
+
+  const toggleStoryConversation = useCallback(() => {
+    if (storyConversationOpen) {
+      settleReplies()
+      setOpen(false)
+      return
+    }
+    if (messages.length === 0 && storyAi.conversationId) {
+      const saved = conversations.find((item) => item.id === storyAi.conversationId)
+      if (saved) loadConversation(saved)
+    }
+    setLandingChips([])
+    setHubRailMode('thread')
+    setSessionsOpen(false)
+    setOpen(true)
+    setExpanded(false)
+  }, [storyConversationOpen, settleReplies, messages.length, storyAi.conversationId, conversations, loadConversation])
+
+  const deleteSession = useCallback(
+    (id: string) => {
+      setConversations((list) => list.filter((item) => item.id !== id))
+      if (id === activeConversationId) resetConversation()
+    },
+    [activeConversationId, resetConversation],
+  )
+
+  const deleteActiveConversation = useCallback(() => {
+    if (activeConversationId) setConversations((list) => list.filter((item) => item.id !== activeConversationId))
+    resetConversation()
+  }, [activeConversationId, resetConversation])
 
   const closePanel = useCallback(() => {
     setOpen(false)
@@ -1406,6 +2092,7 @@ export function CompactAssistantDemo() {
     setDraft('')
     setChatTitle('New chat')
     titleEditedRef.current = false
+    setActiveConversationId(null)
   }, [clearStream, closeSubcontextImmediately])
 
   // Docked left rail: close only via header control (not outside click).
@@ -1471,6 +2158,13 @@ export function CompactAssistantDemo() {
     setExpanded(false)
   }, [])
 
+  const openHubChat = useCallback(() => {
+    setHubRailMode('thread')
+    setSessionsOpen(false)
+    setOpen(true)
+    setExpanded(false)
+  }, [])
+
   const openStoryAsk = useCallback(
     ({
       story,
@@ -1501,6 +2195,175 @@ export function CompactAssistantDemo() {
     [isHub],
   )
 
+  /** Briefing landings send AI bar prompts to the full-screen stage instead of the rail. */
+  const landingTakeover =
+    isHub && activeStoryId == null && (landingVariant === 'briefing' || landingVariant === 'briefing-2')
+
+  const landingBarRect = useCallback(
+    () => composerDockRef.current?.querySelector('form')?.getBoundingClientRect() ?? null,
+    [],
+  )
+
+  const openLandingAsk = useCallback(() => {
+    const origin = landingBarRect() ?? new DOMRect(window.innerWidth / 2 - 320, window.innerHeight - 104, 640, 72)
+    window.clearTimeout(landingAskMapTimer.current)
+    landingAskPendingRef.current = null
+    setLandingAskMap(LANDING_MAP_CLOSED)
+    setLandingAsk((current) => current ?? { origin })
+    setLandingChips([])
+    setHubWorkToast(null)
+  }, [landingBarRect])
+
+  /**
+   * A schools prompt (city-wide, or in a location as the story builder asks it) or a finding's Tell Me More,
+   * annotated on the map that joins the reply.
+   */
+  const runLandingAsk = useCallback(
+    (prompt: string, subject: LandingAskSubject) => {
+      const slide = 0
+      const finding = subject && 'finding' in subject ? subject.finding : null
+      const location = subject && 'location' in subject ? subject.location : null
+      const experience = finding ? findingExperience(finding.id) : null
+      const stateId = `map-state-${Date.now()}`
+      let reply: AssistantReplyPayload
+      let map: { snapshot: StoryAiSnapshot; captureDelay: number } | null
+      if (experience) {
+        const snapshot: StoryAiSnapshot | null = experience.map
+          ? { cards: null, region: false, areaEffect: null, filterLabels: {}, findingPlace: experience.map.place }
+          : null
+        reply =
+          experience.map && snapshot
+            ? withMapState(experience.reply, { stateId, snapshot, ...experience.map })
+            : experience.reply
+        map = snapshot ? { snapshot, captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS } : null
+      } else {
+        const region = location ? locationRegion(location) : null
+        const annotation = location
+          ? locationAnnotation(slide, location)
+          : finding
+            ? schoolMarkersAnnotation(slide)
+            : topSchoolsAnnotation(slide)
+        const place = location?.name ?? 'Abu Dhabi'
+        const snapshot: StoryAiSnapshot = {
+          cards: null,
+          region: region !== null,
+          areaEffect: null,
+          filterLabels: region ? { loc: region.label } : {},
+          annotation: location ? { slide, location } : finding ? { slide, kind: 'markers' } : { slide },
+        }
+        reply = withMapState(finding ? findingReply(finding, annotation) : topSchoolsReply(annotation), {
+          stateId,
+          snapshot,
+          title: finding
+            ? `${finding.title} · on the map`
+            : location
+              ? `Schools exposed to factory emissions · ${place}`
+              : `Top ${annotation.schools.length} schools by traffic · ${place}`,
+          tag: place,
+          meta: finding
+            ? `${annotation.schools.length + annotation.junctions.length} places marked`
+            : `${annotation.schools.length} schools annotated`,
+        })
+        map = { snapshot, captureDelay: region ? REGION_ANNOTATION_CAPTURE_DELAY_MS : ANNOTATION_CAPTURE_DELAY_MS }
+      }
+      resetConversation()
+      openLandingAsk()
+      setActiveConversationId(uid())
+      setActiveMapStateId(map ? stateId : null)
+      setChatTitle(finding ? truncateTitle(finding.title) : titleFromReply(reply))
+      setMessages([{ id: uid(), role: 'user', text: prompt }])
+      const messageId = startAssistantReply(reply)
+      if (map) landingAskPendingRef.current = { messageId, stateId, ...map }
+    },
+    [openLandingAsk, resetConversation, startAssistantReply],
+  )
+
+  /** The map slides in with the reply's map-state card (or at the end of the reply); the annotation follows. */
+  const revealLandingAskMap = useCallback((messageId: string, componentId: string | null) => {
+    const pending = landingAskPendingRef.current
+    if (!pending || pending.messageId !== messageId) return
+    if (componentId !== null && componentId !== pending.stateId) return
+    landingAskPendingRef.current = null
+    setLandingAskMap((current) => ({ ...current, open: true }))
+    window.clearTimeout(landingAskMapTimer.current)
+    landingAskMapTimer.current = window.setTimeout(() => {
+      setLandingAskMap({
+        open: true,
+        snapshot: pending.snapshot,
+        capture: { stateId: pending.stateId, delay: pending.captureDelay },
+      })
+    }, LANDING_MAP_SETTLE_MS)
+  }, [])
+
+  /** Back to the landing; the conversation stays in past sessions. */
+  const closeLandingAsk = useCallback(() => {
+    window.clearTimeout(landingAskMapTimer.current)
+    landingAskPendingRef.current = null
+    setLandingAsk(null)
+    setLandingAskShrunk(false)
+    setLandingAskMap(LANDING_MAP_CLOSED)
+    setSessionsOpen(false)
+    resetConversation()
+  }, [resetConversation])
+
+  const clearLandingAskMap = useCallback(() => {
+    window.clearTimeout(landingAskMapTimer.current)
+    landingAskPendingRef.current = null
+    setLandingAskMap(LANDING_MAP_CLOSED)
+  }, [])
+
+  /** The asset header's collapse: the map slides away and the chat takes the width; its map card brings it back. */
+  const collapseLandingAskMap = useCallback(() => {
+    setLandingAskMap((current) => ({ ...current, open: false }))
+  }, [])
+
+  const landingAskAsset = useMemo(() => mapStateAsset(messages, activeMapStateId), [messages, activeMapStateId])
+
+  /** New chat inside the stage: the chat empties and the map slides away; the stage stays up. */
+  const newLandingAsk = useCallback(() => {
+    clearLandingAskMap()
+    resetConversation()
+  }, [clearLandingAskMap, resetConversation])
+
+  const deleteLandingAsk = useCallback(() => {
+    clearLandingAskMap()
+    deleteActiveConversation()
+  }, [clearLandingAskMap, deleteActiveConversation])
+
+  const deleteLandingSession = useCallback(
+    (id: string) => {
+      if (id === activeConversationId) clearLandingAskMap()
+      deleteSession(id)
+    },
+    [activeConversationId, clearLandingAskMap, deleteSession],
+  )
+
+  /** A past chat opens in the stage with its last map view; story chats go back to their story. */
+  const openLandingSession = useCallback(
+    (id: string) => {
+      const saved = conversations.find((item) => item.id === id)
+      if (!saved) return
+      if (saved.storyId) {
+        closeLandingAsk()
+        openSession(id)
+        setOpen(true)
+        setExpanded(false)
+        return
+      }
+      clearLandingAskMap()
+      loadConversation(saved)
+      const state = lastMapState(saved.messages)
+      setActiveMapStateId(state?.stateId ?? null)
+      if (state) {
+        const camera = saved.mapCaptures?.[state.stateId]?.camera ?? mapCaptures[state.stateId]?.camera
+        setLandingAskMap({ open: true, snapshot: { ...state.snapshot, camera }, capture: null })
+      }
+    },
+    [conversations, closeLandingAsk, openSession, clearLandingAskMap, loadConversation, mapCaptures],
+  )
+
+  useEffect(() => () => window.clearTimeout(landingAskMapTimer.current), [])
+
   const submitLandingAsk = useCallback(
     (text: string, chips: LandingContextChip[]) => {
       if (isFindingSlashCommand(text)) {
@@ -1509,7 +2372,18 @@ export function CompactAssistantDemo() {
         return
       }
       const slash = parseSlashCommand(text)
-      if (slash?.id === 'workflow') {
+      if (landingTakeover) {
+        const prompt = text.trim()
+        if (!slash && chips.length === 0 && prompt === LANDING_DEMO_PROMPT) {
+          runLandingAsk(prompt, { location: MUSSAFAH_LOCATION })
+          return
+        }
+        if (!slash && chips.length === 0 && prompt === TOP_SCHOOLS_PROMPT) {
+          runLandingAsk(prompt, null)
+          return
+        }
+      }
+      if (slash?.id === 'workflow' && !landingTakeover) {
         setLandingChips([])
         setHubRailMode('thread')
         setSessionsOpen(false)
@@ -1518,7 +2392,7 @@ export function CompactAssistantDemo() {
         sendText(text)
         return
       }
-      if (slash && isHub && landingVariant !== 'feed-chat') {
+      if (slash && isHub && !landingTakeover && landingVariant !== 'feed-chat' && landingVariant !== 'briefing') {
         setLandingChips([])
         hubWorkUserTextRef.current = slash.userText
         setHubWorkToast({ message: underwayMessage(slash) })
@@ -1535,6 +2409,11 @@ export function CompactAssistantDemo() {
           : chips.length > 1
             ? 'Tell me more about these findings'
             : ''
+      if (landingTakeover) {
+        openLandingAsk()
+        sendText(composed || fallback)
+        return
+      }
       // Clear before open so the transfer effect does not re-insert into the composer
       setLandingChips([])
       setHubRailMode('thread')
@@ -1543,11 +2422,16 @@ export function CompactAssistantDemo() {
       setExpanded(false)
       sendText(composed || fallback)
     },
-    [sendText, cueThenShowFindings, isHub, landingVariant],
+    [sendText, cueThenShowFindings, isHub, landingVariant, landingTakeover, openLandingAsk, runLandingAsk],
   )
 
   const onTellMeMore = useCallback(
     (item: LandingTellMeMorePayload) => {
+      if (landingTakeover && !landingAsk) {
+        if (findingToastsRef.current.length > 0) dismissFindings('all')
+        runLandingAsk(tellMeMorePrompt(item), { finding: item })
+        return
+      }
       const detail = item.finding?.trim()
       const userText = detail
         ? `Tell me more about ${item.title}. ${detail}`
@@ -1582,7 +2466,32 @@ export function CompactAssistantDemo() {
       setOpen(true)
       setExpanded(false)
     },
-    [clearStream],
+    [clearStream, dismissFindings, landingAsk, landingTakeover, runLandingAsk],
+  )
+
+  const openFinding = useCallback(
+    (finding: FindingToastItem) => {
+      onTellMeMore({
+        id: finding.id,
+        title: finding.title,
+        domain: finding.domain,
+        finding: `${finding.before}${finding.highlight}${finding.after}`,
+      })
+    },
+    [onTellMeMore],
+  )
+
+  const openLandingFinding = useCallback(
+    (finding: FindingToastItem) => {
+      const item: LandingTellMeMorePayload = {
+        id: finding.id,
+        title: finding.title,
+        domain: finding.domain,
+        finding: `${finding.before}${finding.highlight}${finding.after}`,
+      }
+      runLandingAsk(tellMeMorePrompt(item), { finding: item })
+    },
+    [runLandingAsk],
   )
 
   // Opening the rail with chips on the landing chatbox → move them into ChatComposer
@@ -1655,10 +2564,36 @@ export function CompactAssistantDemo() {
   }, [])
 
   const storyActive = activeStoryId != null
+  const ownsActiveStory = storyAi.storyId === null || storyAi.storyId === activeStoryId
+  const savedStoryVersion =
+    ownsActiveStory && storyAi.conversationId ? (storyVersions[storyAi.conversationId] ?? null) : null
+  const storyAiSnapshot = ownsActiveStory ? (storyAi.snapshot ?? savedStoryVersion) : null
+  const storyAiState = useMemo(
+    () => ({ token: storyAi.token, snapshot: storyAiSnapshot, capture: storyAi.capture ?? null }),
+    [storyAi.token, storyAiSnapshot, storyAi.capture],
+  )
+  const storyHasUnsavedAi =
+    ownsActiveStory && storyAi.snapshot !== null && !sameStorySnapshot(storyAi.snapshot, savedStoryVersion)
+  if (activeStoryId && aiBarStoryId !== activeStoryId && (storyHasUnsavedAi || savedStoryVersion)) {
+    setAiBarStoryId(activeStoryId)
+  } else if (aiBarStoryId !== null && aiBarStoryId !== activeStoryId) {
+    setAiBarStoryId(null)
+  }
+  const storyBarStatus: StoryAiModeStatus | null =
+    !activeStoryId || aiBarStoryId !== activeStoryId
+      ? null
+      : storyUpdate && storyUpdate.conversationId === storyAi.conversationId
+        ? 'updating'
+        : storyHasUnsavedAi
+          ? 'unsaved'
+          : storyAiSnapshot
+            ? 'saved'
+            : 'original'
   const showLauncher = !isHub && !open
   const hubSessionsRail = isHub && open && hubRailMode === 'sessions'
   const hubThreadRail = isHub && open && hubRailMode === 'thread'
   const railComposerOpen = open && !hubSessionsRail
+  const hubChatComponents = storyActive ? storyChatComponents : []
   const showHub =
     isHub &&
     (hubSessionsRail ||
@@ -1708,7 +2643,15 @@ export function CompactAssistantDemo() {
                     onComponentSelect={onComponentSelect}
                     onReportOpen={onReportOpen}
                     onOpenSubcontext={onOpenSubcontext}
-                    onReplyComplete={onReplyComplete}
+                    onReplyComplete={() => {
+                      onReplyComplete()
+                      applyStoryStages(assistant.id, Number.POSITIVE_INFINITY)
+                      revealLandingAskMap(assistant.id, null)
+                    }}
+                    onVisualReveal={(componentId) => {
+                      onReplyVisual(assistant.id, componentId)
+                      revealLandingAskMap(assistant.id, componentId)
+                    }}
                     onWorkflowRunFailed={reportWorkflowRunFailed}
                     onOpenWorkflow={(proposal) => setSubcontext({ view: 'workflow', proposal })}
                     activeWorkflowId={subcontext.view === 'workflow' ? subcontext.proposal.id : null}
@@ -1720,7 +2663,8 @@ export function CompactAssistantDemo() {
                     instantTimeline={
                       previewForceInstant ||
                       assistant.id !== lastAssistantMessageId ||
-                      assistant.id.startsWith('demo-')
+                      assistant.id.startsWith('demo-') ||
+                      settledReplyIds.has(assistant.id)
                     }
                     conversationPanelRef={chatMiddleRef}
                   />
@@ -1763,7 +2707,13 @@ export function CompactAssistantDemo() {
             />
           ) : null
         }
+        suggestedPrompt={streaming ? undefined : (railComponentPrompt ?? storyAnnotationPrompt)}
+        onSendSuggested={sendRailSuggested}
+        onPickLocation={storyPrompts ? openLocationPicker : undefined}
       />
+      {locationPickerOpen ? (
+        <StoryLocationModal onApply={applyStoryLocation} onClose={closeLocationPicker} />
+      ) : null}
     </div>
   )
 
@@ -1778,19 +2728,55 @@ export function CompactAssistantDemo() {
 
   const [landingScrollEl, setLandingScrollEl] = useState<HTMLDivElement | null>(null)
 
+  /** Styles 5, 6 and 8 on the findings: the alert aurora opens from the middle of the section instead of the bottom. */
+  const alertCentre =
+    !storyActive &&
+    landingVariant === 'briefing' &&
+    (findingsStyle === 5 || findingsStyle === 6 || findingsStyle === 8) &&
+    briefingAtFindings
+  /** The composer's border cue has played, so the composer and findings give the middle to the alert. */
+  const alertTakesCentre = alertCentre && alertItems.length > 0 && !findingBorderCue
+  /** Styles 5 and 6 on the findings: a toast takes the finding's place instead of floating over the composer. */
+  const toastInFindings = toastOverHub && alertCentre
+
   const landingHome =
-    landingVariant === 'feed' || landingVariant === 'feed-card' || landingVariant === 'feed-chat' ? (
+    landingVariant === 'briefing' ? (
+      <BriefingLanding
+        key={landingEpoch}
+        topBar={topBar}
+        onOpenStory={openStoryFromHome}
+        onStoryFlight={startStoryFlight}
+        onStoryArrive={landStoryFlight}
+        storyHandoff={storyHandoff === 'cover' || storyHandoff === 'fade' ? storyHandoff : undefined}
+        storyRelease={storyRelease}
+        onTellMeMore={onTellMeMore}
+        reserveComposer={isHub}
+        onAssetsProgress={onBriefingAssetsProgress}
+        onScrollActivity={onBriefingScroll}
+        findingsStyle={findingsStyle}
+        onFindingsStyleChange={onFindingsStyleChange}
+        alert={alertTakesCentre}
+        findingToast={toastInFindings ? noticeToast(false) : null}
+      />
+    ) : landingVariant === 'briefing-2' ? (
+      <Briefing2Landing
+        topBar={topBar}
+        onOpenStory={openStoryFromHome}
+        onTellMeMore={onTellMeMore}
+        reserveComposer={isHub}
+      />
+    ) : landingVariant === 'feed' || landingVariant === 'feed-card' || landingVariant === 'feed-chat' ? (
       <FeedLanding
         contained={landingVariant === 'feed-card'}
         conversational={landingVariant === 'feed-chat'}
         topBar={topBar}
-        onOpenStory={setActiveStoryId}
+        onOpenStory={openStoryFromHome}
         onTellMeMore={onTellMeMore}
         reserveComposer={isHub}
       />
     ) : (
       <LandingHomeDefault
-        onOpenStory={setActiveStoryId}
+        onOpenStory={openStoryFromHome}
         onTellMeMore={onTellMeMore}
         topBar={topBar}
         listing={landingVariant === 'conversations' ? 'conversations' : 'stories'}
@@ -1800,324 +2786,429 @@ export function CompactAssistantDemo() {
     )
 
   return (
-    <div
-      className={`${styles.demoPage}${open ? ` ${styles.demoPageRailOpen}` : ''}${
-        storyActive ? ` ${styles.demoPageStory}` : ''
-      }`}
-    >
-      <div className={styles.demoPageShader} aria-hidden>
-        <MeshGradient
-          speed={open || storyActive ? 0 : 0.4}
-          scale={1}
-          distortion={0.09}
-          swirl={0}
-          frame={MESH_FRAME_DEMO_PAGE}
-          colors={[...MESH_COLORS_DEMO_PAGE]}
-          maxPixelCount={MESH_MAX_PIXEL_COUNT_DEMO_PAGE}
-          className={styles.demoPageShaderCanvas}
-        />
-      </div>
-      <div className={styles.demoLandingFrame}>
+    <StoryMapStatesContext.Provider value={mapStates}>
       <div
-        className={styles.demoLandingLayer}
-        ref={(node) => setLandingScrollEl((current) => (current === node ? current : node))}
-      >
-        {storyActive ? (
-          <StoryView
-            storyId={activeStoryId}
-            onBack={() => {
-              setActiveStoryId(null)
-              setHubStoryOpen(false)
-              setHubMorphFrom(null)
-              setLandingChips([])
-              // Landing hub should reopen idle (orb + placeholder), not focused/engaged.
-              setLandingFocusToken(0)
-            }}
-            onAsk={isHub ? openStoryAsk : undefined}
-            agentOpen={open || hubStoryOpen}
-            findingUnread={findingUnread}
-            onRestoreFindings={restoreUnreadFindings}
-          />
-        ) : (
-          landingHome
-        )}
-      </div>
-      {storyActive ? null : <OverlayScrollThumb scrollEl={landingScrollEl} />}
-      </div>
-      {showAlertAurora ? (
-        <FindingReveal
-          key={auroraReplayKey}
-          items={alertItems}
-          activeIndex={alertIndex}
-          onActiveIndexChange={setAlertIndex}
-          onClose={closeAlert}
-          dismissSignal={findingDismissSignal}
-          onMonitor={(item) => beginFindingCommand('monitor', item)}
-          onTellMeMore={(item) =>
-            onTellMeMore({
-              id: item.id,
-              title: item.title,
-              domain: item.domain,
-              finding: `${item.before}${item.highlight}${item.after}`.trim(),
-            })
-          }
-          onOpenRelated={openRelatedFinding}
-          settings={findingAurora}
-          railOpen={open}
-          pageColumnAnchor={railComposerOpen && !showHub}
-          storyMode={storyActive}
-          stagedReveal={stagedReveal}
-          revealNonce={revealNonce}
-        />
-      ) : null}
-      {compactOrbHold && !hubStoryOpen ? (
-        <div
-          className={styles.compactOrbHold}
-          data-shimmer-exit={toastShimmerExit ? 'true' : 'false'}
-          style={{
-            left: compactOrbHold.left,
-            top: compactOrbHold.top,
-            width: compactOrbHold.width,
-            height: compactOrbHold.height,
-            ['--orb-shimmer-1' as string]:
-              orbCuePalette === 'ocean' ? OCEAN_AURORA_STOPS[0] : findingAurora.colorStop1,
-            ['--orb-shimmer-2' as string]:
-              orbCuePalette === 'ocean' ? OCEAN_AURORA_STOPS[1] : findingAurora.colorStop2,
-            ['--orb-shimmer-3' as string]:
-              orbCuePalette === 'ocean' ? OCEAN_AURORA_STOPS[2] : findingAurora.colorStop3,
-          }}
-          aria-hidden
-        >
-          <span className={styles.compactOrbRing} />
-          <img src={llumenAssets.launcherOrb} alt="" width={24} height={24} />
-          {findingUnread ? <span className={styles.compactOrbHoldDot} /> : null}
-        </div>
-      ) : null}
-      {showHub ? (
-        <div
-          className={`${styles.composerDock}${storyActive ? ` ${styles.composerDockStory}` : ''}${
-            hubSessionsRail ? ` ${styles.composerDockShifted}` : ''
-          }`}
-        >
-          {toastOverHub ? noticeToast(true) : null}
-          <HubChatbox
-              // Remount when leaving a story so draft/focus/files don't carry over engaged.
-              key={storyActive ? `story-${activeStoryId}` : 'landing'}
-              onSubmit={submitLandingAsk}
-              chips={landingChips}
-              onRemoveChip={(id) => setLandingChips((prev) => prev.filter((c) => c.id !== id))}
-              onOpenSessions={openHubSessions}
-              focusToken={landingFocusToken}
-              exiting={hubThreadRail}
-              placement={storyActive ? 'story' : 'landing'}
-              morphFrom={storyActive ? hubMorphFrom : null}
-              onWillCollapse={requestCloseFindings}
-              collapseToken={compactRestoreToken}
-              onCollapse={
-                storyActive
-                  ? () => {
-                      setHubStoryOpen(false)
-                      setHubMorphFrom(null)
-                      if (hubSessionsRail) {
-                        setOpen(false)
-                        setSessionsOpen(false)
-                        setHubRailMode('thread')
-                      }
-                    }
-                  : undefined
-              }
-              workToast={hubWorkToast}
-              onViewWorkInChat={viewHubWorkInChat}
-              onDismissWork={dismissHubWork}
-              findingUnread={findingUnread}
-              onRestoreFindings={() => restoreUnreadFindings()}
-              findingCue={findingBorderCue || toastBoxCue}
-              orbCue={toastOrbCue && !findingBorderCue}
-              shimmerExit={toastShimmerExit && toastBoxCue && !findingBorderCue}
-              findingCueColors={
-                findingBorderCue
-                  ? {
-                      stop1: findingAurora.colorStop1,
-                      stop2: findingAurora.colorStop2,
-                      stop3: findingAurora.colorStop3,
-                    }
-                  : {
-                      stop1: OCEAN_AURORA_STOPS[0],
-                      stop2: OCEAN_AURORA_STOPS[1],
-                      stop3: OCEAN_AURORA_STOPS[2],
-                    }
-              }
-            />
-        </div>
-      ) : null}
-      {toastFallback ? (
-        <div className={`${styles.findingToastDock}${storyActive ? ` ${styles.findingToastDockStory}` : ''}`}>
-          {noticeToast(false)}
-        </div>
-      ) : null}
-      <div
-        className={`${styles.fabColumn}${open ? ` ${styles.fabColumnDocked}` : ''}${
-          !showLauncher && !open ? ` ${styles.fabColumnHidden}` : ''
+        className={`${styles.demoPage}${open ? ` ${styles.demoPageRailOpen}` : ''}${
+          storyActive ? ` ${styles.demoPageStory}` : ''
         }`}
       >
+        <div className={styles.demoPageShader} aria-hidden>
+          <MeshGradient
+            speed={open || storyActive ? 0 : 0.4}
+            scale={1}
+            distortion={0.09}
+            swirl={0}
+            frame={MESH_FRAME_DEMO_PAGE}
+            colors={[...MESH_COLORS_DEMO_PAGE]}
+            maxPixelCount={MESH_MAX_PIXEL_COUNT_DEMO_PAGE}
+            className={styles.demoPageShaderCanvas}
+          />
+        </div>
+        <div className={styles.demoLandingFrame}>
         <div
-          className={`${styles.panelWrap} ${open ? '' : styles.panelWrapHidden}`}
-          aria-hidden={!open}
+          className={styles.demoLandingLayer}
+          ref={(node) => setLandingScrollEl((current) => (current === node ? current : node))}
         >
-          {open && (
-            <AssistantPanel
-              ref={assistantPanelRef}
-              expanded={false}
-              splitView={splitOpen}
-              allowOverflow={sessionsOpen || hubSessionsRail}
-              thinking={replyRendering}
-            >
-              <div className={styles.splitBody}>
-                {expanded && sessionsOpen ? (
-                  <aside
-                    className={styles.sessionsSidebar}
-                    aria-label="Conversations"
-                    data-lc-sessions-sidebar
-                  >
-                    <SessionsPanel
-                      variant="fullscreen"
-                      onOpenSession={openSession}
-                      onShareSession={() => setShareOpen(true)}
-                    />
-                  </aside>
-                ) : null}
-                <div className={`${styles.chatColumn} ${splitOpen ? styles.chatColumnSplit : ''}`}>
-                  {hubSessionsRail ? (
-                    <div className={styles.hubSessionsFill}>
+          {!storyActive || storyHandoff || storyRelease ? landingHome : null}
+          {storyActive ? (
+            <StoryView
+              storyId={activeStoryId}
+              entrance={storyEntrance}
+              mapHidden={storyHandoff === 'cover' || storyRelease !== null}
+              onMapReady={passStoryGate}
+              onBack={leaveStory}
+              onAsk={isHub ? openStoryAsk : undefined}
+              agentOpen={open || hubStoryOpen}
+              findingUnread={findingUnread}
+              onRestoreFindings={restoreUnreadFindings}
+              aiState={storyAiState}
+              onMapCapture={storeMapCapture}
+              aiModeBar={
+                storyBarStatus ? (
+                  <StoryAiModeBar
+                    status={storyBarStatus}
+                    conversationOpen={storyConversationOpen}
+                    onReset={resetStoryAi}
+                    onUpdate={updateStoryAi}
+                    onToggleConversation={toggleStoryConversation}
+                  />
+                ) : null
+              }
+              onAddToChat={isHub ? addStoryComponentToChat : undefined}
+              onSlideIndexChange={setStorySlideIndex}
+            />
+          ) : null}
+        </div>
+        {storyActive ? null : <OverlayScrollThumb scrollEl={landingScrollEl} />}
+        </div>
+        {showAlertAurora ? (
+          <FindingReveal
+            key={`${auroraReplayKey}-${alertCentre ? 'centre' : 'bottom'}`}
+            items={alertItems}
+            activeIndex={alertIndex}
+            onActiveIndexChange={setAlertIndex}
+            onClose={closeAlert}
+            dismissSignal={findingDismissSignal}
+            onMonitor={(item) => beginFindingCommand('monitor', item)}
+            onTellMeMore={(item) =>
+              onTellMeMore({
+                id: item.id,
+                title: item.title,
+                domain: item.domain,
+                finding: `${item.before}${item.highlight}${item.after}`.trim(),
+              })
+            }
+            onOpenRelated={openRelatedFinding}
+            settings={findingAurora}
+            railOpen={open}
+            pageColumnAnchor={railComposerOpen && !showHub}
+            storyMode={storyActive}
+            centre={alertCentre}
+            held={findingBorderCue}
+            stagedReveal={stagedReveal}
+            revealNonce={revealNonce}
+          />
+        ) : null}
+        {compactOrbHold && !hubStoryOpen ? (
+          <div
+            className={styles.compactOrbHold}
+            data-shimmer-exit={toastShimmerExit ? 'true' : 'false'}
+            style={{
+              left: compactOrbHold.left,
+              top: compactOrbHold.top,
+              width: compactOrbHold.width,
+              height: compactOrbHold.height,
+              ['--orb-shimmer-1' as string]:
+                orbCuePalette === 'ocean' ? OCEAN_AURORA_STOPS[0] : findingAurora.colorStop1,
+              ['--orb-shimmer-2' as string]:
+                orbCuePalette === 'ocean' ? OCEAN_AURORA_STOPS[1] : findingAurora.colorStop2,
+              ['--orb-shimmer-3' as string]:
+                orbCuePalette === 'ocean' ? OCEAN_AURORA_STOPS[2] : findingAurora.colorStop3,
+            }}
+            aria-hidden
+          >
+            <span className={styles.compactOrbRing} />
+            <img src={llumenAssets.launcherOrb} alt="" width={24} height={24} />
+            {findingUnread ? <span className={styles.compactOrbHoldDot} /> : null}
+          </div>
+        ) : null}
+        {showHub ? (
+          <div
+            ref={composerDockRef}
+            className={`${styles.composerDock}${storyActive ? ` ${styles.composerDockStory}` : ''}${
+              !storyActive && landingVariant === 'briefing' ? ` ${styles.composerDockCenter}` : ''
+            }${hubSessionsRail ? ` ${styles.composerDockShifted}` : ''}`}
+            data-findings-style={!storyActive && landingVariant === 'briefing' ? findingsStyle : undefined}
+            data-alert={alertTakesCentre ? 'true' : undefined}
+            data-ask={landingAsk ? 'true' : undefined}
+            data-story-flight={storyHandoff === 'flight' ? 'true' : undefined}
+            data-story-return={storyRelease ? 'true' : undefined}
+          >
+            {toastOverHub && !toastInFindings ? noticeToast(true) : null}
+            <HubChatbox
+                // Remount when leaving a story so draft/focus/files don't carry over engaged.
+                key={storyActive ? `story-${activeStoryId}` : 'landing'}
+                onSubmit={submitLandingAsk}
+                chips={landingChips}
+                onRemoveChip={(id) => setLandingChips((prev) => prev.filter((c) => c.id !== id))}
+                onOpenSessions={openHubSessions}
+                onOpenChat={openHubChat}
+                focusToken={landingFocusToken}
+                exiting={hubThreadRail}
+                placement={storyActive ? 'story' : 'landing'}
+                morphFrom={storyActive ? hubMorphFrom : null}
+                onWillCollapse={requestCloseFindings}
+                collapseToken={compactRestoreToken}
+                onCollapse={
+                  storyActive
+                    ? () => {
+                        setHubStoryOpen(false)
+                        setHubMorphFrom(null)
+                        setStoryChatComponents([])
+                        if (hubSessionsRail) {
+                          setOpen(false)
+                          setSessionsOpen(false)
+                          setHubRailMode('thread')
+                        }
+                      }
+                    : undefined
+                }
+                workToast={hubWorkToast}
+                onViewWorkInChat={viewHubWorkInChat}
+                onDismissWork={dismissHubWork}
+                findingUnread={findingUnread}
+                onRestoreFindings={() => restoreUnreadFindings()}
+                findingCue={findingBorderCue || toastBoxCue}
+                orbCue={toastOrbCue && !findingBorderCue}
+                shimmerExit={toastShimmerExit && toastBoxCue && !findingBorderCue}
+                findingCueColors={
+                  findingBorderCue
+                    ? {
+                        stop1: findingAurora.colorStop1,
+                        stop2: findingAurora.colorStop2,
+                        stop3: findingAurora.colorStop3,
+                      }
+                    : {
+                        stop1: OCEAN_AURORA_STOPS[0],
+                        stop2: OCEAN_AURORA_STOPS[1],
+                        stop3: OCEAN_AURORA_STOPS[2],
+                      }
+                }
+                components={hubChatComponents}
+                onRemoveComponent={(id) => setStoryChatComponents((prev) => prev.filter((item) => item.id !== id))}
+                componentPrompt={
+                  hubChatComponents.length > 0 ? periodPrompt(hubChatComponents.map((item) => item.label)) : undefined
+                }
+                onSubmitComponents={submitStoryComponents}
+                onSubmitLocation={storyActive && !streaming ? submitHubLocation : undefined}
+                demoPrompt={landingTakeover ? LANDING_DEMO_PROMPT : undefined}
+              />
+          </div>
+        ) : null}
+        {landingAsk ? (
+          <LandingAskStage
+            origin={landingAsk.origin}
+            returnTo={landingBarRect}
+            title={chatTitle}
+            handleRef={landingAskStageRef}
+            header={
+              <div className={styles.landingAskHeader}>
+                <PanelHeader
+                  onClose={() => landingAskStageRef.current?.close()}
+                  expanded={false}
+                  chatTitle={chatTitle}
+                  onChatTitleChange={onChatTitleChange}
+                  onOpenSession={openLandingSession}
+                  sessions={sessionSummaries}
+                  activeSessionId={activeConversationId}
+                  onDeleteSession={deleteLandingSession}
+                  onOpenFinding={openLandingFinding}
+                  onNewSession={newLandingAsk}
+                  onDeleteConversation={deleteLandingAsk}
+                  onShareConversation={() => setShareOpen(true)}
+                  hasAssistantReply={hasAssistantReply}
+                  sessionsOpen={sessionsOpen}
+                  sessionsFullscreen={false}
+                  onSessionsOpenChange={handleSessionsOpenChange}
+                  onChatSearchChange={onChatSearchChange}
+                  searchMatchCount={searchMatchCount}
+                  searchActiveMatch={searchActiveMatch}
+                  onSearchMatchNavigate={onSearchMatchNavigate}
+                  sources={sources}
+                  onRemoveSource={removeSource}
+                  onAddSource={addSource}
+                  shrunk={landingAskShrunk}
+                  onToggleShrunk={() => setLandingAskShrunk((current) => !current)}
+                />
+              </div>
+            }
+            thinking={replyRendering}
+            mapOpen={landingAskMap.open}
+            shrunk={landingAskShrunk}
+            chat={<div className={styles.landingAskChat}>{chatMiddle}</div>}
+            map={
+              <LandingAskAsset
+                stateId={landingAskAsset?.stateId ?? null}
+                title={landingAskAsset?.title ?? chatTitle}
+                place={landingAskAsset?.place ?? 'Abu Dhabi'}
+                caption={landingAskAsset?.caption}
+                analysis={landingAskAsset?.analysis}
+                onShowInConversation={
+                  landingAskAsset ? () => showInConversation({ componentId: landingAskAsset.stateId }) : undefined
+                }
+                onCollapse={collapseLandingAskMap}
+              >
+                <LandingAskMap
+                  snapshot={landingAskMap.snapshot}
+                  capture={landingAskMap.capture}
+                  onCapture={storeMapCapture}
+                />
+              </LandingAskAsset>
+            }
+            onClosed={closeLandingAsk}
+          />
+        ) : null}
+        {toastFallback ? (
+          <div className={`${styles.findingToastDock}${storyActive ? ` ${styles.findingToastDockStory}` : ''}`}>
+            {noticeToast(false)}
+          </div>
+        ) : null}
+        <div
+          className={`${styles.fabColumn}${open ? ` ${styles.fabColumnDocked}` : ''}${
+            !showLauncher && !open ? ` ${styles.fabColumnHidden}` : ''
+          }`}
+        >
+          <div
+            className={`${styles.panelWrap} ${open ? '' : styles.panelWrapHidden}`}
+            aria-hidden={!open}
+          >
+            {open && (
+              <AssistantPanel
+                ref={assistantPanelRef}
+                expanded={false}
+                splitView={splitOpen}
+                allowOverflow={sessionsOpen || hubSessionsRail}
+                thinking={replyRendering}
+              >
+                <div className={styles.splitBody}>
+                  {expanded && sessionsOpen ? (
+                    <aside
+                      className={styles.sessionsSidebar}
+                      aria-label="Conversations"
+                      data-lc-sessions-sidebar
+                    >
                       <SessionsPanel
                         variant="fullscreen"
+                        sessions={sessionSummaries}
+                        activeSessionId={activeConversationId}
                         onOpenSession={openSession}
+                        onDeleteSession={deleteSession}
+                        onOpenFinding={openFinding}
                         onShareSession={() => setShareOpen(true)}
-                        onClose={closeHubSessionsRail}
                       />
+                    </aside>
+                  ) : null}
+                  <div className={`${styles.chatColumn} ${splitOpen ? styles.chatColumnSplit : ''}`}>
+                    {hubSessionsRail ? (
+                      <div className={styles.hubSessionsFill}>
+                        <SessionsPanel
+                          variant="fullscreen"
+                          sessions={sessionSummaries}
+                          activeSessionId={activeConversationId}
+                          onOpenSession={openSession}
+                          onDeleteSession={deleteSession}
+                          onOpenFinding={openFinding}
+                          onShareSession={() => setShareOpen(true)}
+                          onClose={closeHubSessionsRail}
+                        />
+                      </div>
+                    ) : (
+                    <div className={styles.panelViewStack}>
+                      <PanelHeader
+                        onClose={closePanel}
+                        expanded={false}
+                        chatTitle={chatTitle}
+                        onChatTitleChange={onChatTitleChange}
+                        onOpenSession={openSession}
+                        sessions={sessionSummaries}
+                        activeSessionId={activeConversationId}
+                        onDeleteSession={deleteSession}
+                        onOpenFinding={openFinding}
+                        onNewSession={resetConversation}
+                        onDeleteConversation={deleteActiveConversation}
+                        onShareConversation={() => setShareOpen(true)}
+                        hasAssistantReply={hasAssistantReply}
+                        sessionsOpen={sessionsOpen}
+                        sessionsFullscreen={false}
+                        onSessionsOpenChange={handleSessionsOpenChange}
+                        onChatSearchChange={onChatSearchChange}
+                        searchMatchCount={searchMatchCount}
+                        searchActiveMatch={searchActiveMatch}
+                        onSearchMatchNavigate={onSearchMatchNavigate}
+                        sources={sources}
+                        onRemoveSource={removeSource}
+                        onAddSource={addSource}
+                        sourcesPanelOpen={sourcesFloatOpen}
+                        onToggleSourcesPanel={() => setSourcesPanelDismissed((v) => !v)}
+                        subcontextOpen={subcontext.view !== 'closed'}
+                      />
+                      <div className={styles.separator} />
+                      {chatMiddle}
                     </div>
-                  ) : (
-                  <div className={styles.panelViewStack}>
-                    <PanelHeader
-                      onClose={closePanel}
-                      expanded={false}
-                      chatTitle={chatTitle}
-                      onChatTitleChange={onChatTitleChange}
-                      onOpenSession={openSession}
-                      onNewSession={resetConversation}
-                      onDeleteConversation={resetConversation}
-                      onShareConversation={() => setShareOpen(true)}
-                      hasAssistantReply={hasAssistantReply}
-                      sessionsOpen={sessionsOpen}
-                      sessionsFullscreen={false}
-                      onSessionsOpenChange={handleSessionsOpenChange}
-                      onChatSearchChange={onChatSearchChange}
-                      searchMatchCount={searchMatchCount}
-                      searchActiveMatch={searchActiveMatch}
-                      onSearchMatchNavigate={onSearchMatchNavigate}
-                      sources={sources}
-                      onRemoveSource={removeSource}
-                      onAddSource={addSource}
-                      sourcesPanelOpen={sourcesFloatOpen}
-                      onToggleSourcesPanel={() => setSourcesPanelDismissed((v) => !v)}
-                      subcontextOpen={subcontext.view !== 'closed'}
-                    />
-                    <div className={styles.separator} />
-                    {chatMiddle}
+                    )}
                   </div>
-                  )}
+                  {sourcesFloatOpen ? (
+                      <SourcesPanel
+                        sources={sources}
+                        onRemove={removeSource}
+                        onAdd={addSource}
+                        onClose={dismissSourcesPanel}
+                      />
+                  ) : null}
                 </div>
-                {sourcesFloatOpen ? (
-                    <SourcesPanel
-                      sources={sources}
-                      onRemove={removeSource}
-                      onAdd={addSource}
-                      onClose={dismissSourcesPanel}
-                    />
-                ) : null}
-              </div>
-            </AssistantPanel>
-          )}
+              </AssistantPanel>
+            )}
+          </div>
+          {showLauncher ? <AssistantLauncher onOpen={openLauncher} /> : null}
         </div>
-        {showLauncher ? <AssistantLauncher onOpen={openLauncher} /> : null}
+        {/* Subcontext overlays the page beside the rail (outside rail overflow/transform). */}
+        {open && selectedComponent ? (
+          <div
+            className={`${styles.detailOverlay} ${
+              subcontextClosing ? styles.detailColumnExit : styles.detailColumnEnter
+            }`}
+          >
+            <ComponentDetailPanel
+              component={selectedComponent}
+              onClose={closeSubcontext}
+              onShowInConversation={() =>
+                showInConversation({ componentId: selectedComponent.id })
+              }
+            />
+          </div>
+        ) : null}
+        {open && subcontext.view === 'workflow' ? (
+          <div
+            className={`${styles.detailOverlay} ${
+              subcontextClosing ? styles.detailColumnExit : styles.detailColumnEnter
+            }`}
+          >
+            <WorkflowDetailPanel
+              proposal={subcontext.proposal}
+              onClose={closeSubcontext}
+              onShowInConversation={() => showInConversation({ workflowId: subcontext.proposal.id })}
+              onRunFailed={reportWorkflowRunFailed}
+            />
+          </div>
+        ) : null}
+        {open && activeReport && subcontext.view === 'slides' ? (
+          <div
+            className={`${styles.detailOverlay} ${
+              subcontextClosing ? styles.detailColumnExit : styles.detailColumnEnter
+            }`}
+          >
+            <SlidesDetailPanel
+              report={activeReport}
+              components={AIR_QUALITY_COMPONENTS}
+              activeSlide={subcontext.activeSlide}
+              onSlideChange={(index) =>
+                setSubcontext({ view: 'slides', reportId: activeReport.id, activeSlide: index })
+              }
+              onClose={closeSubcontext}
+              onShowInConversation={() => showInConversation({ reportId: activeReport.id })}
+              onHome={() =>
+                setSubcontext({ view: 'slides', reportId: activeReport.id, activeSlide: 0 })
+              }
+            />
+          </div>
+        ) : null}
+        <FindingAuroraPanel
+          hideTrigger
+          open={auroraPanelOpen}
+          onOpenChange={onAuroraPanelOpenChange}
+          settings={findingAurora}
+          onChange={setFindingAurora}
+          onReplay={replayFindingAurora}
+        />
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          landing={landingVariant}
+          topBar={topBar}
+          ux={interactionModel}
+          onLanding={onLandingVariantChange}
+          onTopBar={onTopBarChange}
+          onUx={onInteractionModelChange}
+          onOpenAurora={() => onAuroraPanelOpenChange(true)}
+          onCurrentAurora={launchCurrentAurora}
+          onDualStateAurora={launchDualStateAurora}
+        />
+        <ShareModal
+          open={shareOpen}
+          title={`Share “${chatTitle}”`}
+          onClose={() => setShareOpen(false)}
+        />
       </div>
-      {/* Subcontext overlays the page beside the rail (outside rail overflow/transform). */}
-      {open && selectedComponent ? (
-        <div
-          className={`${styles.detailOverlay} ${
-            subcontextClosing ? styles.detailColumnExit : styles.detailColumnEnter
-          }`}
-        >
-          <ComponentDetailPanel
-            component={selectedComponent}
-            onClose={closeSubcontext}
-            onShowInConversation={() =>
-              showInConversation({ componentId: selectedComponent.id })
-            }
-          />
-        </div>
-      ) : null}
-      {open && subcontext.view === 'workflow' ? (
-        <div
-          className={`${styles.detailOverlay} ${
-            subcontextClosing ? styles.detailColumnExit : styles.detailColumnEnter
-          }`}
-        >
-          <WorkflowDetailPanel
-            proposal={subcontext.proposal}
-            onClose={closeSubcontext}
-            onShowInConversation={() => showInConversation({ workflowId: subcontext.proposal.id })}
-            onRunFailed={reportWorkflowRunFailed}
-          />
-        </div>
-      ) : null}
-      {open && activeReport && subcontext.view === 'slides' ? (
-        <div
-          className={`${styles.detailOverlay} ${
-            subcontextClosing ? styles.detailColumnExit : styles.detailColumnEnter
-          }`}
-        >
-          <SlidesDetailPanel
-            report={activeReport}
-            components={AIR_QUALITY_COMPONENTS}
-            activeSlide={subcontext.activeSlide}
-            onSlideChange={(index) =>
-              setSubcontext({ view: 'slides', reportId: activeReport.id, activeSlide: index })
-            }
-            onClose={closeSubcontext}
-            onShowInConversation={() => showInConversation({ reportId: activeReport.id })}
-            onHome={() =>
-              setSubcontext({ view: 'slides', reportId: activeReport.id, activeSlide: 0 })
-            }
-          />
-        </div>
-      ) : null}
-      <FindingAuroraPanel
-        hideTrigger
-        open={auroraPanelOpen}
-        onOpenChange={onAuroraPanelOpenChange}
-        settings={findingAurora}
-        onChange={setFindingAurora}
-        onReplay={replayFindingAurora}
-      />
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        landing={landingVariant}
-        topBar={topBar}
-        ux={interactionModel}
-        onLanding={onLandingVariantChange}
-        onTopBar={onTopBarChange}
-        onUx={onInteractionModelChange}
-        onOpenAurora={() => onAuroraPanelOpenChange(true)}
-        onCurrentAurora={launchCurrentAurora}
-        onDualStateAurora={launchDualStateAurora}
-      />
-      <ShareModal
-        open={shareOpen}
-        title={`Share “${chatTitle}”`}
-        onClose={() => setShareOpen(false)}
-      />
-    </div>
+    </StoryMapStatesContext.Provider>
   )
 }
