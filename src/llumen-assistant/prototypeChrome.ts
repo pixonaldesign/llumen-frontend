@@ -13,9 +13,10 @@ export type TopBarVariant = 'current' | 'studio'
  * Briefing findings layouts: 1 centred over the composer, 2 composer on the left, 3 composer above
  * smaller findings, 4 style 1's findings under the composer, 5 composer beside the finding, 6 findings
  * centred over a bottom composer with Assets and Apps one horizontal slide away, 7 style 6's findings
- * beside an Assets panel that expands into Assets and Apps.
+ * beside an Assets panel that expands into Assets and Apps, 8 style 6 with Assets and Apps as a glass
+ * modal over the map.
  */
-export type FindingsStyle = 1 | 2 | 3 | 4 | 5 | 6 | 7
+export type FindingsStyle = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 
 export const DEFAULT_FINDINGS_STYLE: FindingsStyle = 6
 
@@ -24,7 +25,7 @@ const TOP_BAR_KEY = 'llumen.topBarVariant'
 const FINDINGS_STYLE_KEY = 'llumen.findingsStyle'
 
 function toFindingsStyle(value: string | null): FindingsStyle | null {
-  return value !== null && /^[1-7]$/.test(value) ? (Number(value) as FindingsStyle) : null
+  return value !== null && /^[1-8]$/.test(value) ? (Number(value) as FindingsStyle) : null
 }
 
 function isLanding(value: string | null): value is LandingVariant {

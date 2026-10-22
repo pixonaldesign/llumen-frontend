@@ -2728,11 +2728,11 @@ export function CompactAssistantDemo() {
 
   const [landingScrollEl, setLandingScrollEl] = useState<HTMLDivElement | null>(null)
 
-  /** Styles 5 and 6 on the findings: the alert aurora opens from the middle of the section instead of the bottom. */
+  /** Styles 5, 6 and 8 on the findings: the alert aurora opens from the middle of the section instead of the bottom. */
   const alertCentre =
     !storyActive &&
     landingVariant === 'briefing' &&
-    (findingsStyle === 5 || findingsStyle === 6) &&
+    (findingsStyle === 5 || findingsStyle === 6 || findingsStyle === 8) &&
     briefingAtFindings
   /** The composer's border cue has played, so the composer and findings give the middle to the alert. */
   const alertTakesCentre = alertCentre && alertItems.length > 0 && !findingBorderCue

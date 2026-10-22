@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useId,
@@ -21,13 +23,15 @@ import {
   ChatText,
   Check,
   MapPin,
+  PencilSimple,
+  Plus,
   ThumbsDown,
   ThumbsUp,
 } from '@phosphor-icons/react'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { BriefingAgentGrid } from './BriefingAgents'
 import { BriefingAppHighlights, BriefingAppsCarousel } from './BriefingApps'
-import { boardColumnsFor } from './assetBoardLayout'
+import { BOARD_CELL, BOARD_GAP, boardColumnsFor } from './assetBoardLayout'
 import { paletteFromPixels } from './mapPalette'
 import { BriefingAssetBoard } from './BriefingAssetBoard'
 import { BriefingAssetGrid } from './BriefingAssets'
@@ -44,6 +48,8 @@ import { VoteButton } from './VoteButton'
 import { DEFAULT_FINDINGS_STYLE, type FindingsStyle, type TopBarVariant } from '../prototypeChrome'
 import home from './LandingHome.module.css'
 import styles from './BriefingLanding.module.css'
+
+const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
 
 /** One read-out across every asset in the grid; numbers match briefingAssetData. */
 type SummaryPart = { text: string; highlight?: boolean }
@@ -96,6 +102,8 @@ const SIDE_SLIDE_MS = 900
 const SIDE_SLIDE_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
 /** The Assets summary beside the grid never gets narrower than this; the grid drops a column first. */
 const SIDE_INTRO_MIN = 480
+/** Style 8's edge peek never runs taller than this many grid rows, however tall the modal. */
+const PEEK_ROWS_MAX = 5
 
 /** The Agents section is hidden for now; Apps follows Assets directly. */
 const SHOW_AGENTS = false
@@ -207,12 +215,20 @@ export function BriefingLanding({
   if (storyRelease && storyFlight) setStoryFlight(null)
   const arrivedRef = useRef(false)
   const [assetsOpen, setAssetsOpen] = useState(false)
-  /** Findings style 6 has no lower sections: Assets and Apps slide in from the right instead. */
-  const sideways = findingsStyle === 6
+  /** Findings style 8 is style 6 with Assets and Apps as a modal over the map instead of a slide past it. */
+  const floating = findingsStyle === 8
+  /** Findings styles 6 and 8 have no lower sections: Assets and Apps come in from the right instead. */
+  const sideways = findingsStyle === 6 || floating
   const [sideAssets, setSideAssets] = useState(false)
+  /** The modal's Edit mode: only then do its cards drag. */
+  const [editingBoard, setEditingBoard] = useState(false)
+  const [addingAsset, setAddingAsset] = useState(false)
+  const sideViewRef = useRef<HTMLElement>(null)
   /** Where each asset sits on the Assets grid; dragging a card reorders it, and the edge peek follows. */
   const [boardOrder, setBoardOrder] = useState<readonly string[]>(DEFAULT_BOARD_ORDER)
   const [boardColumns, setBoardColumns] = useState<number>()
+  /** Style 8: the grid rows the edge peek shows, all of them whole in the modal, so it lands in view. */
+  const [boardFold, setBoardFold] = useState<number>()
   const samplerRef = useRef<(() => Promise<ImageData | null>) | null>(null)
   const onMapSampler = useCallback((sample: (() => Promise<ImageData | null>) | null) => {
     samplerRef.current = sample
@@ -221,6 +237,8 @@ export function BriefingLanding({
   const paneled = findingsStyle === 7
   const [panelOpen, setPanelOpen] = useState(false)
   const away = (sideways && sideAssets) || (paneled && panelOpen)
+  /** Style 8's modal floats over the findings: they play on under it, wherever the pointer is. */
+  const overlaid = floating && away
   /** Styles 6 and 7 have no lower sections to scroll to. */
   const lowerless = sideways || paneled
   /** Previous and next sit beside the dots instead of at the stage's edges. */
@@ -505,45 +523,54 @@ export function BriefingLanding({
    */
   useLayoutEffect(() => {
     const grid = sideGridRef.current
-    const view = grid?.parentElement
+    const view = sideViewRef.current
     if (!grid || !view) return
+    const wrap = grid.firstElementChild
     const measure = () => {
+      /* Style 8's grid pads its end less the scrollbar's gutter, to match the modal's start padding. */
+      const gutter = floating ? grid.offsetWidth - grid.clientWidth : 0
+      if (floating) view.style.setProperty('--side-gutter', `${gutter}px`)
       const box = getComputedStyle(view)
-      const wrap = grid.firstElementChild
       const inset = wrap ? parseFloat(getComputedStyle(wrap).paddingInlineEnd || '0') : 0
       const room =
         view.clientWidth -
         parseFloat(box.paddingInlineStart || '0') -
         parseFloat(box.columnGap || '0') -
         SIDE_INTRO_MIN -
-        inset
+        inset -
+        gutter
       setBoardColumns(boardColumnsFor(room))
     }
     measure()
     const resize = new ResizeObserver(measure)
     resize.observe(view)
+    if (wrap) resize.observe(wrap)
     return () => resize.disconnect()
-  }, [sideways])
+  }, [sideways, floating])
 
   /** Sizes the edge peek to the Assets grid, so the flight between them only moves it. */
   useLayoutEffect(() => {
     const peek = peekRef.current
     const grid = sideGridRef.current
-    const view = grid?.parentElement
+    const view = sideViewRef.current
     const board = grid?.querySelector<HTMLElement>('[data-asset-board]')
     if (!peek || !grid || !view || !board) return
     const fit = () => {
       const slot = board.getBoundingClientRect()
       const box = view.getBoundingClientRect()
-      peek.style.setProperty('--peek-top', `${slot.top - box.top + grid.scrollTop}px`)
+      peek.style.setProperty('--peek-top', `${slot.top - box.top + view.offsetTop + grid.scrollTop}px`)
       peek.style.setProperty('--peek-w', `${slot.width}px`)
+      if (!floating) return
+      const room = grid.clientHeight - (slot.top - grid.getBoundingClientRect().top + grid.scrollTop)
+      const rows = Math.floor((room + BOARD_GAP) / (BOARD_CELL + BOARD_GAP))
+      setBoardFold(Math.max(1, Math.min(PEEK_ROWS_MAX, rows)))
     }
     fit()
     const resize = new ResizeObserver(fit)
     resize.observe(grid)
     resize.observe(board)
     return () => resize.disconnect()
-  }, [sideways])
+  }, [sideways, floating])
 
   /**
    * Flies the asset stack into the grid (or back out) while the stage and the view slide past. Opening
@@ -553,7 +580,7 @@ export function BriefingLanding({
     if (open) {
       samplerRef.current?.().then((pixels) => {
         const palette = pixels && paletteFromPixels(pixels)
-        const view = sideGridRef.current?.parentElement
+        const view = sideViewRef.current
         if (!palette || !view) return
         view.style.setProperty('--side-bg-top', palette.top)
         view.style.setProperty('--side-bg-bottom', palette.bottom)
@@ -562,6 +589,7 @@ export function BriefingLanding({
     }
     setSideAssets(open)
     setLanded(false)
+    if (!open) setEditingBoard(false)
     const current = flightRef.current
     if (current?.playState === 'running') {
       current.reverse()
@@ -572,7 +600,7 @@ export function BriefingLanding({
     const peek = peekRef.current
     const grid = sideGridRef.current
     const board = grid?.querySelector<HTMLElement>('[data-asset-board]')
-    const view = grid?.parentElement
+    const view = sideViewRef.current
     if (open && grid) grid.scrollTop = 0
     if (!peek || !board || !view || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       if (open) setLanded(true)
@@ -580,7 +608,9 @@ export function BriefingLanding({
     }
     const slot = board.getBoundingClientRect()
     const box = view.getBoundingClientRect()
-    const docked = `translate(${slot.left - box.left - peek.offsetLeft}px, ${slot.top - box.top - peek.offsetTop}px)`
+    const x = slot.left - box.left + view.offsetLeft - peek.offsetLeft
+    const y = slot.top - box.top + view.offsetTop - peek.offsetTop
+    const docked = `translate(${x}px, ${y}px)`
     const flight = peek.animate(
       open ? [{ transform: 'none' }, { transform: docked }] : [{ transform: docked }, { transform: 'none' }],
       { duration: SIDE_SLIDE_MS, easing: SIDE_SLIDE_EASE, fill: 'forwards' },
@@ -590,6 +620,18 @@ export function BriefingLanding({
   }, [])
 
   useEffect(() => () => flightRef.current?.cancel(), [])
+
+  /** Escape leaves the modal's Edit mode, then the modal itself, unless the asset builder is over it. */
+  useEffect(() => {
+    if (!floating || !sideAssets || addingAsset) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (editingBoard) setEditingBoard(false)
+      else flyAssets(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [floating, sideAssets, addingAsset, editingBoard, flyAssets])
 
   const blurred = !stop.place || !!findingToast
   const mapBlurred = blurred && !opening && !returnHeld
@@ -681,9 +723,8 @@ export function BriefingLanding({
                 active={active}
                 running={
                   autoplay &&
-                  !held &&
+                  (overlaid || (!held && !away)) &&
                   !assetsOpen &&
-                  !away &&
                   !alert &&
                   !findingToast &&
                   !opening &&
@@ -722,12 +763,28 @@ export function BriefingLanding({
             <AssetsAppsView
               shown={away}
               landed={landed}
+              viewRef={sideViewRef}
               gridRef={sideGridRef}
               order={boardOrder}
               columns={boardColumns}
+              fold={floating ? boardFold : undefined}
               onReorder={setBoardOrder}
               onBack={() => flyAssets(false)}
+              tools={
+                floating
+                  ? {
+                      editing: editingBoard,
+                      onToggleEdit: () => setEditingBoard((value) => !value),
+                      onAddAssets: () => setAddingAsset(true),
+                    }
+                  : undefined
+              }
             />
+            {addingAsset ? (
+              <Suspense fallback={null}>
+                <AssetBuilder onClose={() => setAddingAsset(false)} />
+              </Suspense>
+            ) : null}
             <div
               ref={peekRef}
               className={styles.assetPeek}
@@ -744,7 +801,12 @@ export function BriefingLanding({
                 flyAssets(true)
               }}
             >
-              <BriefingAssetBoard order={boardOrder} columns={boardColumns} preview />
+              <BriefingAssetBoard
+                order={boardOrder}
+                columns={boardColumns}
+                fold={floating ? boardFold : undefined}
+                preview
+              />
             </div>
           </>
         ) : paneled ? (
@@ -952,20 +1014,28 @@ function AppsSection({ sectionRef }: { sectionRef?: RefObject<HTMLElement | null
 function AssetsAppsView({
   shown,
   landed,
+  viewRef,
   gridRef,
   order,
   columns,
+  fold,
   onReorder,
   onBack,
+  tools,
 }: {
   shown: boolean
   /** The edge peek has docked: the grid itself shows in its place. */
   landed: boolean
+  viewRef: RefObject<HTMLElement | null>
   gridRef: RefObject<HTMLDivElement | null>
   order: readonly string[]
   columns: number | undefined
+  /** The rows the edge peek brings in; the cards below them fade in once it docks. */
+  fold: number | undefined
   onReorder: (order: string[]) => void
   onBack: () => void
+  /** Findings style 8's modal: Edit and Add assets above the grid, whose cards only drag while editing. */
+  tools?: { editing: boolean; onToggleEdit: () => void; onAddAssets: () => void }
 }) {
   const revealScrollbar = useRevealScrollbarOnScroll()
   const setGrid = useCallback(
@@ -975,12 +1045,16 @@ function AssetsAppsView({
     },
     [gridRef, revealScrollbar],
   )
+  const draggable = !tools || tools.editing
   return (
     <section
+      ref={viewRef}
       className={styles.sideView}
       data-shown={shown}
       data-landed={shown && landed}
       inert={!shown}
+      role={tools ? 'dialog' : undefined}
+      aria-modal={tools ? true : undefined}
       aria-label="Assets and Apps"
     >
       <div className={styles.sideIntro}>
@@ -996,8 +1070,42 @@ function AssetsAppsView({
           <SummaryText parts={ASSETS_DETAIL} />
         </p>
       </div>
-      <div ref={setGrid} className={styles.sideGrid}>
-        <BriefingAssetBoard order={order} columns={columns} onReorder={onReorder} />
+      <div
+        className={styles.sideBoard}
+        style={
+          columns ? { ['--board-w' as string]: `${columns * BOARD_CELL + (columns - 1) * BOARD_GAP}px` } : undefined
+        }
+      >
+        {tools ? (
+          <div className={styles.sideTools}>
+            {tools.editing ? <span className={styles.sideToolsHint}>Drag cards to rearrange them</span> : null}
+            <button type="button" className={styles.sideTool} aria-pressed={tools.editing} onClick={tools.onToggleEdit}>
+              {tools.editing ? (
+                <Check size={18} weight="regular" aria-hidden />
+              ) : (
+                <PencilSimple size={18} weight="regular" aria-hidden />
+              )}
+              {tools.editing ? 'Done' : 'Edit'}
+            </button>
+            <button
+              type="button"
+              className={`${styles.sideTool} ${styles.sideToolPrimary}`}
+              onClick={tools.onAddAssets}
+            >
+              <Plus size={20} weight="regular" aria-hidden />
+              Add assets
+            </button>
+          </div>
+        ) : null}
+        <div ref={setGrid} className={styles.sideGrid}>
+          <BriefingAssetBoard
+            order={order}
+            columns={columns}
+            fold={fold}
+            onReorder={draggable ? onReorder : undefined}
+            editing={tools?.editing}
+          />
+        </div>
       </div>
     </section>
   )

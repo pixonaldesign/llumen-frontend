@@ -66,6 +66,15 @@
   cursor: grabbing;
 }
 
+.board[data-editing='true'] .item > article {
+  outline: 1px dashed rgba(255, 255, 255, 0.32);
+  outline-offset: 3px;
+}
+
+.board[data-editing='true'] .item[data-dragged='true'] > article {
+  outline-color: transparent;
+}
+
 /* While dragging, only the board takes the pointer: no chart tips under the card in flight. */
 .board[data-dragging='true'] .item * {
   pointer-events: none;

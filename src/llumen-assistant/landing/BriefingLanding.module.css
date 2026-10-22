@@ -547,8 +547,10 @@
  * Findings style 6: style 1's finding centred between the top bar and the composer, which keeps its
  * bottom slot (compact-assistant.module.css). Assets peek from the right edge instead of the bottom;
  * clicking them pushes the stage out to the left while Assets and Apps come in from the right.
+ * Findings style 8 is the same page, but Assets and Apps fly in as a glass modal over the map instead.
  */
-.root[data-findings-style='6'] {
+.root[data-findings-style='6'],
+.root[data-findings-style='8'] {
   --assets-peek: 0px;
   /* How much of the asset stack shows at the right edge. */
   --side-peek: 96px;
@@ -558,11 +560,13 @@
 }
 
 /* Clip, not hidden: focusing the half-hidden asset stack or the offscreen view must not scroll them in. */
-.root[data-findings-style='6'] .page {
+.root[data-findings-style='6'] .page,
+.root[data-findings-style='8'] .page {
   overflow: clip;
 }
 
-.root[data-findings-style='6'] .stage {
+.root[data-findings-style='6'] .stage,
+.root[data-findings-style='8'] .stage {
   overflow: clip;
   transition: transform var(--side-slide);
 }
@@ -571,7 +575,8 @@
   transform: translateX(-100%);
 }
 
-.root[data-findings-style='6'] .chatDock {
+.root[data-findings-style='6'] .chatDock,
+.root[data-findings-style='8'] .chatDock {
   top: var(--briefing-bar-h, 64px);
   bottom: var(--dock-top, var(--side-composer));
   justify-content: center;
@@ -716,6 +721,7 @@
 }
 
 .sideGrid {
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
@@ -753,6 +759,182 @@
 
 .sideView[data-shown='true'] .assetsDetail {
   --reveal-d: 660ms;
+}
+
+/* The grid's column: the modal's Edit and Add assets above the grid, which scrolls under them. */
+.sideBoard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sideTools {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-inline-end: 28px;
+}
+
+.sideToolsHint {
+  margin-inline-end: auto;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+}
+
+.sideTool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin: 0;
+  padding: 0 14px 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.sideTool:hover,
+.sideTool[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Matches the top bar's Create button. */
+.sideToolPrimary {
+  gap: 10px;
+  padding: 8px 12px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.sideToolPrimary:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sideTool:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/*
+ * Findings style 8: Assets and Apps are a liquid-glass modal between the top bar and the composer. It
+ * flies in from the right over the map, which stays in place and shows through, while the finding under
+ * it fades. The glass is barely tinted with the map's ground (mapPalette) and catches light on its rim:
+ * brightest at the top-left and bottom-right corners, with a soft sheen across the top.
+ */
+.root[data-findings-style='8'] .stage[data-away='true'] .dockLayer {
+  opacity: 0;
+}
+
+.root[data-findings-style='8'] .sideView {
+  inset: calc(var(--briefing-bar-h, 64px) + 24px) 64px calc(var(--side-composer) + 28px);
+  padding: 28px 0 0 28px;
+  overflow: hidden;
+  border-radius: var(--radius-2xl);
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.13),
+      rgba(255, 255, 255, 0.04) 36%,
+      rgba(255, 255, 255, 0.02) 64%,
+      rgba(255, 255, 255, 0.07)
+    ),
+    color-mix(in srgb, var(--side-bg-top) 36%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(185%) brightness(1.06);
+  backdrop-filter: blur(24px) saturate(185%) brightness(1.06);
+  box-shadow:
+    0 30px 70px rgba(0, 0, 0, 0.38),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 48px rgba(255, 255, 255, 0.05);
+  opacity: 0;
+  transform: translateX(calc(100% + 24px));
+  transition:
+    transform var(--side-slide),
+    opacity 520ms ease,
+    --side-bg-top 600ms ease,
+    --side-bg-bottom 600ms ease,
+    --side-bg-accent 600ms ease;
+}
+
+.root[data-findings-style='8'] .sideView[data-shown='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* The rim: a 1px ring masked out of a diagonal light, over the content so cards never cover it. */
+.root[data-findings-style='8'] .sideView::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.6),
+    rgba(255, 255, 255, 0.1) 28%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.1) 72%,
+    rgba(255, 255, 255, 0.38)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* The sheen sits behind the content, inside the modal's own stacking context. */
+.root[data-findings-style='8'] .sideView::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(110% 55% at 18% -8%, rgba(255, 255, 255, 0.12), transparent 62%);
+  pointer-events: none;
+}
+
+/* The edge peek brings in the rows above the fold; the cards below them follow once it docks. */
+.root[data-findings-style='8'] .sideGrid [data-below] {
+  opacity: 0;
+  transition: opacity 360ms ease;
+}
+
+.root[data-findings-style='8'] .sideView[data-landed='true'] .sideGrid [data-below] {
+  opacity: 1;
+  transition-delay: 60ms;
+}
+
+.root[data-findings-style='8'] .sideIntro {
+  padding-bottom: 28px;
+}
+
+/* 4px clear of the scrollport's top and start, so Edit mode's card outlines aren't clipped. */
+.root[data-findings-style='8'] .sideGrid > * {
+  padding: 4px calc(28px - var(--side-gutter, 0px)) 28px 4px;
+}
+
+/* As wide as the cards (plus the grid's 4px start), so the CTAs end on their edge whatever the scrollbar takes. */
+.root[data-findings-style='8'] .sideTools {
+  box-sizing: border-box;
+  width: calc(var(--board-w) + 4px);
+  margin-bottom: 12px;
+  padding-inline-end: 0;
 }
 
 /*
@@ -1910,6 +2092,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .root[data-findings-style='6'] .stage,
+  .root[data-findings-style='8'] .stage,
+  .root[data-findings-style='8'] .dockLayer,
   .sideView,
   .panel,
   .panelApps li,

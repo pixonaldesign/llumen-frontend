@@ -350,10 +350,11 @@
 }
 
 /*
- * Findings style 6: the composer stays in the bottom slot, under the findings and under Assets and Apps.
- * As in style 5, it fades out while the alert aurora holds the middle of the findings.
+ * Findings styles 6 and 8: the composer stays in the bottom slot, under the findings and under Assets and
+ * Apps. As in style 5, it fades out while the alert aurora holds the middle of the findings.
  */
-.composerDockCenter[data-findings-style='6'] {
+.composerDockCenter[data-findings-style='6'],
+.composerDockCenter[data-findings-style='8'] {
   bottom: var(--space-3xl);
   transition:
     left var(--lc-rail-enter-duration, 320ms) var(--lc-ease),
@@ -362,7 +363,8 @@
     filter 320ms ease;
 }
 
-.composerDockCenter[data-findings-style='6'][data-alert='true'] {
+.composerDockCenter[data-findings-style='6'][data-alert='true'],
+.composerDockCenter[data-findings-style='8'][data-alert='true'] {
   filter: opacity(0);
   visibility: hidden;
   transition:

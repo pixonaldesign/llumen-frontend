@@ -146,6 +146,7 @@ const FINDINGS_STYLES: readonly { style: FindingsStyle; label: string; hint: str
   { style: 5, label: 'Findings style 5', hint: 'Chat bar on the left' },
   { style: 6, label: 'Findings style 6', hint: 'Assets and Apps slide in from the right' },
   { style: 7, label: 'Findings style 7', hint: 'Assets panel on the right' },
+  { style: 8, label: 'Findings style 8', hint: 'Assets and Apps open over the map' },
 ]
 
 function FindingsStyleMenu({ value, onChange }: { value: FindingsStyle; onChange: (style: FindingsStyle) => void }) {

@@ -110,12 +110,21 @@ export function BriefingAssetBoard({
   onReorder,
   play = true,
   preview = false,
+  editing = false,
+  fold,
 }: {
   order: readonly string[]
   columns?: number
   onReorder?: (order: string[]) => void
   play?: boolean
   preview?: boolean
+  /** An explicit edit mode (style 8's modal): every card shows a dashed outline until it ends. */
+  editing?: boolean
+  /**
+   * Rows above the fold, laid out as on the whole board: a preview shows only the cards within them,
+   * and a full board marks the rest (`data-below`) so they can arrive after.
+   */
+  fold?: number
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const boardRef = useRef<HTMLDivElement>(null)
@@ -300,6 +309,7 @@ export function BriefingAssetBoard({
         className={styles.board}
         data-asset-board
         data-editable={onReorder ? 'true' : undefined}
+        data-editing={editing ? 'true' : undefined}
         data-dragging={dragging ? 'true' : undefined}
         style={
           {
@@ -320,12 +330,15 @@ export function BriefingAssetBoard({
           const item = ITEMS.get(id)
           const slot = layout.slots.get(id)
           if (!item || !slot) return null
+          const below = fold !== undefined && slot.row + slot.rows > fold
+          if (below && preview) return null
           const open = menuFor === id
           return (
             <div
               key={id}
               className={styles.item}
               data-board-item={id}
+              data-below={below ? 'true' : undefined}
               data-dragged={dragging === id ? 'true' : undefined}
               style={{
                 gridColumn: `${slot.col + 1} / span ${slot.cols}`,
