@@ -1,0 +1,16 @@
+import{i as e,r as t,s as n,t as r}from"./CheckCircle.es-Dqs_oi_B.js";import{a as i,i as a,n as o,r as s,t as c}from"./styles-DLfPFhFO.js";var l=n(e(),1),u={root:`_root_1m36e_2`,scope:`_scope_1m36e_11`,stage:`_stage_1m36e_19`,query:`_query_1m36e_27`,source:`_source_1m36e_28`,profile:`_profile_1m36e_33`,connectionMeta:`_connectionMeta_1m36e_51`,dataAsOf:`_dataAsOf_1m36e_58`,sql:`_sql_1m36e_63`},d=t();function f(e){return`SELECT
+    g.grid_id,
+    g.longitude,
+    g.latitude,
+    g.area_size_km2,
+    p.population_count,
+    p.population_count / g.area_size_km2 AS population_density,
+    a.aqi,
+    a.no2,
+    a.pm25,
+    a.status
+FROM grid g
+JOIN population_data p ON g.grid_id = p.grid_id
+JOIN air_quality a ON g.grid_id = a.grid_id
+WHERE g.district_name = '${e.replace(/'/g,`''`)}'
+ORDER BY population_density DESC;`}function p(){let[e,t]=(0,l.useState)(`results`);return(0,d.jsxs)(d.Fragment,{children:[(0,d.jsxs)(`div`,{className:`preview__data-tabs`,role:`tablist`,"aria-label":`Asset data`,children:[(0,d.jsx)(`button`,{type:`button`,role:`tab`,"aria-selected":e===`results`,className:`preview__data-tab${e===`results`?` is-active`:``}`,onClick:()=>t(`results`),children:`Data (1,467 rows)`}),(0,d.jsx)(`button`,{type:`button`,role:`tab`,"aria-selected":e===`profile`,className:`preview__data-tab${e===`profile`?` is-active`:``}`,onClick:()=>t(`profile`),children:`Data Profile`})]}),e===`results`?(0,d.jsx)(`div`,{className:`preview__stage preview__stage--query ${u.query}`,role:`tabpanel`,children:(0,d.jsx)(s,{})}):(0,d.jsx)(`div`,{className:`preview__stage preview__stage--profile ${u.profile}`,role:`tabpanel`,children:(0,d.jsx)(o,{})})]})}function m({place:e}){return(0,d.jsx)(`div`,{className:`preview__stage preview__stage--source ${u.source}`,children:(0,d.jsxs)(`div`,{className:`asset-source-preview`,children:[(0,d.jsx)(`div`,{className:`asset-source-preview__eyebrow`,children:`Database connection`}),(0,d.jsxs)(`div`,{className:`asset-source-preview__connection`,children:[(0,d.jsx)(`img`,{className:`asset-source-preview__icon`,src:`${a}figma/source-types/database.svg?v=2`,alt:``,width:`30`,height:`30`,draggable:!1,"aria-hidden":`true`}),(0,d.jsxs)(`span`,{className:`asset-source-preview__connection-copy`,children:[(0,d.jsx)(`strong`,{children:`Production MySQL`}),(0,d.jsx)(`small`,{children:`Datasource used by this visual`})]}),(0,d.jsxs)(`span`,{className:u.connectionMeta,children:[(0,d.jsxs)(`span`,{className:`asset-source-preview__status`,children:[(0,d.jsx)(r,{size:14,weight:`fill`,"aria-hidden":!0}),`Connection established`]}),(0,d.jsx)(`span`,{className:u.dataAsOf,children:`Data as of Oct 16, 07:52 PM`})]})]}),(0,d.jsx)(`div`,{className:`asset-source-preview__query-head`,children:(0,d.jsx)(`h3`,{children:`Query`})}),(0,d.jsx)(`pre`,{className:`asset-source-preview__query ${u.sql}`,children:(0,d.jsx)(`code`,{children:(0,d.jsx)(c,{value:f(e)})})})]})})}function h({panel:e,place:t}){return(0,d.jsx)(`div`,{className:u.root,children:(0,d.jsx)(`div`,{className:`${i} ${u.scope}`,"data-theme":`dark`,children:(0,d.jsx)(`div`,{className:u.stage,children:e===`data`?(0,d.jsx)(p,{}):(0,d.jsx)(m,{place:t})})})})}export{h as default};
