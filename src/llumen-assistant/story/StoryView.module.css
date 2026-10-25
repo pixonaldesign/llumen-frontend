@@ -361,6 +361,55 @@
   background: rgba(34, 42, 42, 0.72);
 }
 
+/* Edit mode: the slide's Layout, on the slide title's line at the header's end. */
+.layoutBtn {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 36px;
+  margin: 0;
+  margin-inline-start: auto;
+  padding: 0 12px;
+  pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(34, 42, 42, 0.5);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.layoutBtn:hover,
+.layoutBtnOpen {
+  background: rgba(34, 42, 42, 0.72);
+}
+
+.layoutBtnCaret {
+  margin-inline-start: -2px;
+  opacity: 0.7;
+  transition: transform 200ms ease;
+}
+
+.layoutBtnOpen .layoutBtnCaret {
+  transform: rotate(180deg);
+}
+
+.layoutBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.layoutBtn + .headerEnd {
+  margin-inline-start: 0;
+}
+
 .headerEnd {
   display: flex;
   align-items: center;

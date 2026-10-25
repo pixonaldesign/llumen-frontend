@@ -92,6 +92,8 @@ export type LandingTopBarProps = {
   onWorkspaceChange?: (workspace: string) => void
   /** Studio bar: show the workspace selector in place of the Llumen wordmark. */
   workspaceInLogo?: boolean
+  /** Studio bar: false drops the workspace selector, as when the Studio sidebar picks the workspace. */
+  showWorkspace?: boolean
   /** Studio bar: show a Briefing / Studio toggle, starting on Briefing, instead of the Studio button. */
   briefingTab?: boolean
   /** With briefingTab: a My Assets option between Briefing and Studio. */
@@ -111,6 +113,7 @@ export function LandingTopBar({
   categories,
   onWorkspaceChange,
   workspaceInLogo = false,
+  showWorkspace = true,
   briefingTab = false,
   myAssetsTab = false,
   view,
@@ -126,6 +129,7 @@ export function LandingTopBar({
         categories={categories}
         onWorkspaceChange={onWorkspaceChange}
         workspaceInLogo={workspaceInLogo}
+        showWorkspace={showWorkspace}
         briefingTab={briefingTab}
         myAssetsTab={myAssetsTab}
         view={view}
@@ -323,6 +327,7 @@ function StudioBar({
   categories,
   onWorkspaceChange,
   workspaceInLogo,
+  showWorkspace,
   briefingTab,
   myAssetsTab,
   view,
@@ -335,6 +340,7 @@ function StudioBar({
   categories?: readonly string[]
   onWorkspaceChange?: (workspace: string) => void
   workspaceInLogo: boolean
+  showWorkspace: boolean
   briefingTab: boolean
   myAssetsTab: boolean
   view?: TopBarView
@@ -489,7 +495,7 @@ function StudioBar({
           <a className={styles.logo} href="#top" aria-label="Llumen home">
             <img className={home.logoMark} src={a.logoMark} alt="" />
           </a>
-          {workspaceSelector}
+          {showWorkspace ? workspaceSelector : null}
           {findingsStyle && onFindingsStyleChange ? (
             <FindingsStyleMenu value={findingsStyle} onChange={onFindingsStyleChange} />
           ) : null}
@@ -501,7 +507,7 @@ function StudioBar({
         </a>
       )}
       <div className={styles.center}>
-        {workspaceInLogo ? null : workspaceSelector}
+        {workspaceInLogo || !showWorkspace ? null : workspaceSelector}
         {briefingTab ? (
           <div
             className={styles.modeToggle}

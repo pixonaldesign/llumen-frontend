@@ -379,7 +379,10 @@
   display: none;
 }
 
+/* Room at the start, given back by the margin, so the placeholder's nudge and glyph overhang aren't clipped. */
 .composerEditor {
+  margin-inline-start: -4px;
+  padding-inline-start: 4px;
   outline: none;
   caret-color: #fff;
 }

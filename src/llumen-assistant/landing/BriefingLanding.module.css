@@ -575,24 +575,45 @@
   transform: translateX(-100%);
 }
 
+/*
+ * The finding's bottom (actions and carousel) is pinned where a two-line finding without a chart centres,
+ * 80px below the middle of the space between the top bar and the composer, so a chart or an extra line
+ * grows the finding upward instead of moving it.
+ */
 .root[data-findings-style='6'] .chatDock,
 .root[data-findings-style='8'] .chatDock {
   top: var(--briefing-bar-h, 64px);
   bottom: var(--dock-top, var(--side-composer));
-  justify-content: center;
-  /* Centres the finding 80px below the middle of the space between the top bar and the composer. */
-  padding-top: 160px;
+  justify-content: flex-end;
+  padding-bottom: max(
+    0px,
+    calc((100dvh - var(--briefing-bar-h, 64px) - var(--dock-top, var(--side-composer)) - 160px) / 2 - 73px)
+  );
   --finding-w: min(800px, calc(100vw - 2 * var(--side-peek) - 176px));
 }
 
+/* The bubble's height eases between findings; bottom-aligning its content keeps the text still meanwhile. */
+.root[data-findings-style='6'] .bubble,
+.root[data-findings-style='8'] .bubble {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.root[data-findings-style='6'] .bubbleBody,
+.root[data-findings-style='8'] .bubbleBody {
+  flex-shrink: 0;
+}
+
 /*
- * The Assets grid's left edge: only --side-peek of it shows; hovering pulls it out a little.
+ * The Assets grid's left edge, down to its last whole card there that fits above the composer, centred
+ * in that room: only --side-peek of it shows; hovering pulls it out a little.
  * BriefingLanding sizes it (--peek-*) to the grid and flies it there on click, so it sits over the
  * slide; once it docks, the grid itself replaces it. The cards don't take the pointer: it is one button.
  */
 .assetPeek {
   position: absolute;
-  top: var(--peek-top, calc(var(--briefing-bar-h, 64px) + 28px));
+  top: calc(var(--peek-top, calc(var(--briefing-bar-h, 64px) + 28px)) + var(--peek-shift, 0px));
   right: calc(var(--side-peek) - var(--peek-w, 772px));
   z-index: 5;
   width: var(--peek-w, 772px);
@@ -604,6 +625,17 @@
 
 .assetPeek * {
   pointer-events: none;
+}
+
+/* Shrunk, the edge would show the cards beside the first column too; they only join the flight. */
+.assetPeek [data-board-item]:not([data-edge]) {
+  opacity: 0;
+  transition: opacity 200ms ease 700ms;
+}
+
+.assetPeek[data-away='true'] [data-board-item] {
+  opacity: 1;
+  transition-delay: 0ms;
 }
 
 .assetPeek[data-away='true'] {
@@ -761,71 +793,12 @@
   --reveal-d: 660ms;
 }
 
-/* The grid's column: the modal's Edit and Add assets above the grid, which scrolls under them. */
+/* The grid's column. */
 .sideBoard {
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-}
-
-.sideTools {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding-inline-end: 28px;
-}
-
-.sideToolsHint {
-  margin-inline-end: auto;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 13px;
-}
-
-.sideTool {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  margin: 0;
-  padding: 0 14px 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 18px;
-  background: transparent;
-  color: #fff;
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.sideTool:hover,
-.sideTool[aria-pressed='true'] {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-/* Matches the top bar's Create button. */
-.sideToolPrimary {
-  gap: 10px;
-  padding: 8px 12px;
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.1);
-  font-weight: 500;
-  line-height: 20px;
-}
-
-.sideToolPrimary:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.sideTool:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
 }
 
 /*
@@ -910,11 +883,13 @@
 }
 
 /* The edge peek brings in the rows above the fold; the cards below them follow once it docks. */
+.root[data-findings-style='6'] .sideGrid [data-below],
 .root[data-findings-style='8'] .sideGrid [data-below] {
   opacity: 0;
   transition: opacity 360ms ease;
 }
 
+.root[data-findings-style='6'] .sideView[data-landed='true'] .sideGrid [data-below],
 .root[data-findings-style='8'] .sideView[data-landed='true'] .sideGrid [data-below] {
   opacity: 1;
   transition-delay: 60ms;
@@ -924,19 +899,10 @@
   padding-bottom: 28px;
 }
 
-/* 4px clear of the scrollport's top and start, so Edit mode's card outlines aren't clipped. */
+/* 4px clear of the scrollport's top and start, so a lifted (dragged) card isn't clipped. */
 .root[data-findings-style='8'] .sideGrid > * {
   padding: 4px calc(28px - var(--side-gutter, 0px)) 28px 4px;
 }
-
-/* As wide as the cards (plus the grid's 4px start), so the CTAs end on their edge whatever the scrollbar takes. */
-.root[data-findings-style='8'] .sideTools {
-  box-sizing: border-box;
-  width: calc(var(--board-w) + 4px);
-  margin-bottom: 12px;
-  padding-inline-end: 0;
-}
-
 /*
  * Findings style 7: style 6's centred finding beside an Assets panel down the right of the page, which
  * narrows the stage and its map. The composer centres on the narrowed stage (compact-assistant.module.css
@@ -2087,6 +2053,15 @@
 
 .storyBtn:hover,
 .voteOn {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Tell Me More: a plain white stroke, no specular rim. */
+.tellMoreBtn {
+  border: 1px solid #fff;
+}
+
+.tellMoreBtn:hover {
   background: rgba(255, 255, 255, 0.12);
 }
 

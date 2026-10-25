@@ -924,7 +924,7 @@ export function StoryView({
     const above = rect.top - 6 - LAYOUT_MENU_HEIGHT
     setLayoutMenuPos({
       top: above < 8 ? rect.bottom + 6 : above,
-      left: Math.max(8, Math.min(rect.left, window.innerWidth - LAYOUT_MENU_WIDTH - 8)),
+      left: Math.max(8, Math.min(rect.right - LAYOUT_MENU_WIDTH, window.innerWidth - LAYOUT_MENU_WIDTH - 8)),
     })
     setStoryMenuOpen(false)
     setSlideMenuOpen(false)
@@ -1910,6 +1910,22 @@ export function StoryView({
                 </div>
               ) : null}
             </div>
+            {storyMode === 'edit' ? (
+              <button
+                ref={layoutMenuRef}
+                type="button"
+                className={`${styles.layoutBtn}${layoutMenuOpen ? ` ${styles.layoutBtnOpen}` : ''}`}
+                aria-label="Layout"
+                aria-haspopup="menu"
+                aria-expanded={layoutMenuOpen}
+                aria-controls="story-layout-menu"
+                onClick={toggleLayoutMenu}
+              >
+                <Layout size={18} weight="regular" aria-hidden />
+                Layout
+                <CaretDown className={styles.layoutBtnCaret} size={14} weight="bold" aria-hidden />
+              </button>
+            ) : null}
             {headerEnd ? <div className={styles.headerEnd}>{headerEnd}</div> : null}
           </div>
           {filterRow('upper', filters, (filterId) =>
@@ -2434,19 +2450,6 @@ export function StoryView({
                   >
                     <Toolbox size={18} weight="regular" aria-hidden />
                     Tools
-                  </button>
-                  <button
-                    ref={layoutMenuRef}
-                    type="button"
-                    className={`${styles.modeAction}${layoutMenuOpen ? ` ${styles.modeActionActive}` : ''}`}
-                    aria-label="Layout"
-                    aria-haspopup="menu"
-                    aria-expanded={layoutMenuOpen}
-                    aria-controls="story-layout-menu"
-                    onClick={toggleLayoutMenu}
-                  >
-                    <Layout size={18} weight="regular" aria-hidden />
-                    Layout
                   </button>
                 </div>
               </div>

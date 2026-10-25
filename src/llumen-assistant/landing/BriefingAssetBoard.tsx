@@ -1,4 +1,4 @@
-import { ArrowUpRight, PresentationChart } from '@phosphor-icons/react'
+import { ArrowUpRight, Plus, PresentationChart } from '@phosphor-icons/react'
 import {
   useEffect,
   useLayoutEffect,
@@ -8,7 +8,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { BOARD_CELL, BOARD_GAP, boardColumnsFor, packBoard, type BoardFit } from './assetBoardLayout'
+import { BOARD_CELL, BOARD_GAP, boardColumnsFor, edgeFold, packBoard, type BoardFit } from './assetBoardLayout'
 import { APP_HIGHLIGHTS, useAppMenu, type AppHighlight } from './briefingAppData'
 import { AppMenu } from './BriefingApps'
 import { AssetCard } from './BriefingAssets'
@@ -23,6 +23,8 @@ const DRAG_START_PX = 6
 const SWAP_COOLDOWN_MS = 160
 const SETTLE_MS = 260
 const SETTLE_EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+/** The Add assets card's width in cells, as wide as a small asset. */
+const ADD_COLS = 2
 
 type Fit = Omit<BoardFit, 'id'>
 /**
@@ -87,6 +89,16 @@ type Drag = {
   swappedAt: number
 }
 
+function packOrder(order: readonly string[], columns: number) {
+  return packBoard(
+    order.flatMap((id) => {
+      const item = ITEMS.get(id)
+      return item ? [{ id, ...item.fit }] : []
+    }),
+    columns,
+  )
+}
+
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
@@ -102,29 +114,30 @@ function follow(board: HTMLElement, drag: Drag) {
 /**
  * Assets and dashboard apps on a grid of 184px cells with 12px gaps: `columns` of them, or as many as fit
  * its own width. With `onReorder`, cards drag to new places: the others make room as the dragged card
- * passes over them. A `preview` is a picture of the grid only: nothing in it takes focus or the pointer.
+ * passes over them. With `onAdd`, an Add assets card starts a row of its own under the rest. A `preview`
+ * is a picture of the grid only: nothing in it takes focus or the pointer.
  */
 export function BriefingAssetBoard({
   order,
   columns: fixedColumns,
   onReorder,
+  onAdd,
   play = true,
   preview = false,
-  editing = false,
-  fold,
+  edge,
 }: {
   order: readonly string[]
   columns?: number
   onReorder?: (order: string[]) => void
+  onAdd?: () => void
   play?: boolean
   preview?: boolean
-  /** An explicit edit mode (style 8's modal): every card shows a dashed outline until it ends. */
-  editing?: boolean
   /**
-   * Rows above the fold, laid out as on the whole board: a preview shows only the cards within them,
-   * and a full board marks the rest (`data-below`) so they can arrive after.
+   * Puts the fold under as many whole cards down the first column as fit in `room` px, and at least `min`
+   * of them, however the board packs: a preview shows only the cards above it (marking those in the first
+   * column `data-edge`), and a full board marks the rest (`data-below`) so they can arrive after.
    */
-  fold?: number
+  edge?: { room: number; min: number }
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const boardRef = useRef<HTMLDivElement>(null)
@@ -166,16 +179,13 @@ export function BriefingAssetBoard({
     return () => resize.disconnect()
   }, [fixedColumns])
 
-  const layout = useMemo(
+  const layout = useMemo(() => packOrder(order, columns), [order, columns])
+  const edgeRoom = edge?.room
+  const edgeMin = edge?.min
+  const fold = useMemo(
     () =>
-      packBoard(
-        order.flatMap((id) => {
-          const item = ITEMS.get(id)
-          return item ? [{ id, ...item.fit }] : []
-        }),
-        columns,
-      ),
-    [order, columns],
+      edgeRoom === undefined || edgeMin === undefined ? undefined : edgeFold(layout.slots.values(), edgeRoom, edgeMin),
+    [layout, edgeRoom, edgeMin],
   )
 
   useLayoutEffect(() => {
@@ -301,6 +311,8 @@ export function BriefingAssetBoard({
 
   const template = `repeat(${columns}, ${BOARD_CELL}px)`
   const playing = (play && mounted) || reduce
+  const adding = onAdd && !preview
+  const rows = layout.rows + (adding ? 1 : 0)
 
   return (
     <div ref={wrapRef} className={styles.wrap} inert={preview} aria-hidden={preview || undefined}>
@@ -309,7 +321,6 @@ export function BriefingAssetBoard({
         className={styles.board}
         data-asset-board
         data-editable={onReorder ? 'true' : undefined}
-        data-editing={editing ? 'true' : undefined}
         data-dragging={dragging ? 'true' : undefined}
         style={
           {
@@ -321,7 +332,7 @@ export function BriefingAssetBoard({
       >
         {onReorder ? (
           <div className={styles.cells} style={{ gridTemplateColumns: template }} aria-hidden>
-            {Array.from({ length: columns * layout.rows }, (_, index) => (
+            {Array.from({ length: columns * rows }, (_, index) => (
               <span key={index} className={styles.cell} />
             ))}
           </div>
@@ -339,6 +350,7 @@ export function BriefingAssetBoard({
               className={styles.item}
               data-board-item={id}
               data-below={below ? 'true' : undefined}
+              data-edge={preview && slot.col === 0 ? 'true' : undefined}
               data-dragged={dragging === id ? 'true' : undefined}
               style={{
                 gridColumn: `${slot.col + 1} / span ${slot.cols}`,
@@ -359,6 +371,21 @@ export function BriefingAssetBoard({
             </div>
           )
         })}
+        {adding ? (
+          <div
+            className={styles.item}
+            data-below={fold !== undefined ? 'true' : undefined}
+            style={{ gridColumn: `1 / span ${Math.min(ADD_COLS, columns)}`, gridRow: `${rows}` }}
+          >
+            <div className={styles.add}>
+              <p className={styles.addHint}>Pin a metric, chart or app to this board</p>
+              <button type="button" className={styles.addButton} onClick={onAdd}>
+                <Plus size={20} weight="regular" aria-hidden />
+                Add assets
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )

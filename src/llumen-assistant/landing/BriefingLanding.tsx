@@ -23,15 +23,13 @@ import {
   ChatText,
   Check,
   MapPin,
-  PencilSimple,
-  Plus,
   ThumbsDown,
   ThumbsUp,
 } from '@phosphor-icons/react'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { BriefingAgentGrid } from './BriefingAgents'
 import { BriefingAppHighlights, BriefingAppsCarousel } from './BriefingApps'
-import { BOARD_CELL, BOARD_GAP, boardColumnsFor } from './assetBoardLayout'
+import { boardColumnsFor } from './assetBoardLayout'
 import { paletteFromPixels } from './mapPalette'
 import { BriefingAssetBoard } from './BriefingAssetBoard'
 import { BriefingAssetGrid } from './BriefingAssets'
@@ -42,14 +40,14 @@ import { BRIEFING_PLACES } from './briefingMapPlaces'
 import { STORY_CAMERA_PADDING } from '../story/StoryMap'
 import { storySceneAt } from '../story/storyDemoScenes'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
-import { LandingTopBar } from './LandingTopBar'
-import { SpecularActionButton } from './SpecularActionButton'
+import { LandingTopBar, type TopBarView } from './LandingTopBar'
 import { VoteButton } from './VoteButton'
 import { DEFAULT_FINDINGS_STYLE, type FindingsStyle, type TopBarVariant } from '../prototypeChrome'
 import home from './LandingHome.module.css'
 import styles from './BriefingLanding.module.css'
 
 const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
+const StudioView = lazy(() => import('../studio/StudioView').then((module) => ({ default: module.StudioView })))
 
 /** One read-out across every asset in the grid; numbers match briefingAssetData. */
 type SummaryPart = { text: string; highlight?: boolean }
@@ -102,8 +100,13 @@ const SIDE_SLIDE_MS = 900
 const SIDE_SLIDE_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
 /** The Assets summary beside the grid never gets narrower than this; the grid drops a column first. */
 const SIDE_INTRO_MIN = 480
-/** Style 8's edge peek never runs taller than this many grid rows, however tall the modal. */
-const PEEK_ROWS_MAX = 5
+/**
+ * The edge peek shows, at full size, as many whole cards down the grid's first column as fit above the
+ * composer (never fewer than this many), centred in that room.
+ */
+const PEEK_CARDS_MIN = 1
+/** The edge peek's room ends this far above the composer, as the style 8 modal does. */
+const PEEK_COMPOSER_GAP = 28
 
 /** The Agents section is hidden for now; Apps follows Assets directly. */
 const SHOW_AGENTS = false
@@ -189,6 +192,9 @@ export type BriefingLandingProps = {
   alert?: boolean
   /** A toast finding shown in the finding's place until it is dismissed; the carousel waits underneath. */
   findingToast?: ReactNode
+  /** The top bar's Briefing / Studio switch; the Studio covers the page under the bar. Uncontrolled when unset. */
+  view?: TopBarView
+  onViewChange?: (view: TopBarView) => void
 }
 
 export function BriefingLanding({
@@ -208,7 +214,16 @@ export function BriefingLanding({
   onFindingsStyleChange,
   alert = false,
   findingToast = null,
+  view: viewProp,
+  onViewChange,
 }: BriefingLandingProps) {
+  const [ownView, setOwnView] = useState<TopBarView>('briefing')
+  const view = viewProp ?? ownView
+  const inStudio = view === 'studio'
+  const changeView = (next: TopBarView) => {
+    if (viewProp === undefined) setOwnView(next)
+    onViewChange?.(next)
+  }
   const [active, setActive] = useState(0)
   /** The story whose opening view the map is flying to; the page's chrome steps aside meanwhile. */
   const [storyFlight, setStoryFlight] = useState<string | null>(null)
@@ -220,15 +235,14 @@ export function BriefingLanding({
   /** Findings styles 6 and 8 have no lower sections: Assets and Apps come in from the right instead. */
   const sideways = findingsStyle === 6 || floating
   const [sideAssets, setSideAssets] = useState(false)
-  /** The modal's Edit mode: only then do its cards drag. */
-  const [editingBoard, setEditingBoard] = useState(false)
   const [addingAsset, setAddingAsset] = useState(false)
   const sideViewRef = useRef<HTMLElement>(null)
   /** Where each asset sits on the Assets grid; dragging a card reorders it, and the edge peek follows. */
   const [boardOrder, setBoardOrder] = useState<readonly string[]>(DEFAULT_BOARD_ORDER)
   const [boardColumns, setBoardColumns] = useState<number>()
-  /** Style 8: the grid rows the edge peek shows, all of them whole in the modal, so it lands in view. */
-  const [boardFold, setBoardFold] = useState<number>()
+  /** The room the edge peek has above the composer, in px; the grid brings in the same cards when it docks. */
+  const [peekRoom, setPeekRoom] = useState(0)
+  const peekEdge = useMemo(() => ({ room: peekRoom, min: PEEK_CARDS_MIN }), [peekRoom])
   const samplerRef = useRef<(() => Promise<ImageData | null>) | null>(null)
   const onMapSampler = useCallback((sample: (() => Promise<ImageData | null>) | null) => {
     samplerRef.current = sample
@@ -548,29 +562,36 @@ export function BriefingLanding({
     return () => resize.disconnect()
   }, [sideways, floating])
 
-  /** Sizes the edge peek to the Assets grid, so the flight between them only moves it. */
+  /**
+   * Sizes the edge peek to the Assets grid, so the flight between them only moves it, and finds its room
+   * above the composer, where its whole cards sit centred (--peek-shift).
+   */
   useLayoutEffect(() => {
     const peek = peekRef.current
     const grid = sideGridRef.current
     const view = sideViewRef.current
     const board = grid?.querySelector<HTMLElement>('[data-asset-board]')
-    if (!peek || !grid || !view || !board) return
+    const stack = peek?.querySelector<HTMLElement>('[data-asset-board]')
+    if (!peek || !grid || !view || !board || !stack) return
     const fit = () => {
       const slot = board.getBoundingClientRect()
       const box = view.getBoundingClientRect()
-      peek.style.setProperty('--peek-top', `${slot.top - box.top + view.offsetTop + grid.scrollTop}px`)
+      const top = slot.top - box.top + view.offsetTop + grid.scrollTop
+      peek.style.setProperty('--peek-top', `${top}px`)
       peek.style.setProperty('--peek-w', `${slot.width}px`)
-      if (!floating) return
-      const room = grid.clientHeight - (slot.top - grid.getBoundingClientRect().top + grid.scrollTop)
-      const rows = Math.floor((room + BOARD_GAP) / (BOARD_CELL + BOARD_GAP))
-      setBoardFold(Math.max(1, Math.min(PEEK_ROWS_MAX, rows)))
+      const composer = parseFloat(getComputedStyle(peek).getPropertyValue('--side-composer')) || 0
+      const height = peek.offsetParent?.clientHeight ?? window.innerHeight
+      const room = Math.max(0, height - top - composer - PEEK_COMPOSER_GAP)
+      setPeekRoom(room)
+      peek.style.setProperty('--peek-shift', `${Math.max(0, (room - stack.offsetHeight) / 2)}px`)
     }
     fit()
     const resize = new ResizeObserver(fit)
     resize.observe(grid)
     resize.observe(board)
+    resize.observe(stack)
     return () => resize.disconnect()
-  }, [sideways, floating])
+  }, [sideways])
 
   /**
    * Flies the asset stack into the grid (or back out) while the stage and the view slide past. Opening
@@ -589,7 +610,6 @@ export function BriefingLanding({
     }
     setSideAssets(open)
     setLanded(false)
-    if (!open) setEditingBoard(false)
     const current = flightRef.current
     if (current?.playState === 'running') {
       current.reverse()
@@ -602,7 +622,7 @@ export function BriefingLanding({
     const board = grid?.querySelector<HTMLElement>('[data-asset-board]')
     const view = sideViewRef.current
     if (open && grid) grid.scrollTop = 0
-    if (!peek || !board || !view || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!peek || !grid || !board || !view || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       if (open) setLanded(true)
       return
     }
@@ -621,17 +641,16 @@ export function BriefingLanding({
 
   useEffect(() => () => flightRef.current?.cancel(), [])
 
-  /** Escape leaves the modal's Edit mode, then the modal itself, unless the asset builder is over it. */
+  /** Escape leaves the modal, unless the asset builder is over it. */
   useEffect(() => {
     if (!floating || !sideAssets || addingAsset) return
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
-      if (editingBoard) setEditingBoard(false)
-      else flyAssets(false)
+      flyAssets(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [floating, sideAssets, addingAsset, editingBoard, flyAssets])
+  }, [floating, sideAssets, addingAsset, flyAssets])
 
   const blurred = !stop.place || !!findingToast
   const mapBlurred = blurred && !opening && !returnHeld
@@ -667,14 +686,23 @@ export function BriefingLanding({
         <LandingTopBar
           variant={topBar}
           workspaceInLogo
+          showWorkspace={false}
           briefingTab
           findingsStyle={onFindingsStyleChange ? findingsStyle : undefined}
           onFindingsStyleChange={onFindingsStyleChange}
+          view={view}
+          onViewChange={changeView}
         />
       </header>
+      {inStudio ? (
+        <Suspense fallback={null}>
+          <StudioView />
+        </Suspense>
+      ) : null}
       <div
         ref={pageRef}
         className={styles.page}
+        inert={inStudio}
         onScroll={() => {
           syncPage()
           onScrollActivity?.(true)
@@ -723,6 +751,7 @@ export function BriefingLanding({
                 active={active}
                 running={
                   autoplay &&
+                  !inStudio &&
                   (overlaid || (!held && !away)) &&
                   !assetsOpen &&
                   !alert &&
@@ -767,18 +796,10 @@ export function BriefingLanding({
               gridRef={sideGridRef}
               order={boardOrder}
               columns={boardColumns}
-              fold={floating ? boardFold : undefined}
+              edge={peekEdge}
               onReorder={setBoardOrder}
               onBack={() => flyAssets(false)}
-              tools={
-                floating
-                  ? {
-                      editing: editingBoard,
-                      onToggleEdit: () => setEditingBoard((value) => !value),
-                      onAddAssets: () => setAddingAsset(true),
-                    }
-                  : undefined
-              }
+              tools={floating ? { onAddAssets: () => setAddingAsset(true) } : undefined}
             />
             {addingAsset ? (
               <Suspense fallback={null}>
@@ -801,12 +822,7 @@ export function BriefingLanding({
                 flyAssets(true)
               }}
             >
-              <BriefingAssetBoard
-                order={boardOrder}
-                columns={boardColumns}
-                fold={floating ? boardFold : undefined}
-                preview
-              />
+              <BriefingAssetBoard order={boardOrder} columns={boardColumns} edge={peekEdge} preview />
             </div>
           </>
         ) : paneled ? (
@@ -1018,7 +1034,7 @@ function AssetsAppsView({
   gridRef,
   order,
   columns,
-  fold,
+  edge,
   onReorder,
   onBack,
   tools,
@@ -1030,12 +1046,12 @@ function AssetsAppsView({
   gridRef: RefObject<HTMLDivElement | null>
   order: readonly string[]
   columns: number | undefined
-  /** The rows the edge peek brings in; the cards below them fade in once it docks. */
-  fold: number | undefined
+  /** The edge peek's room: the cards it brings in land, and the rest fade in once it docks. */
+  edge: { room: number; min: number }
   onReorder: (order: string[]) => void
   onBack: () => void
-  /** Findings style 8's modal: Edit and Add assets above the grid, whose cards only drag while editing. */
-  tools?: { editing: boolean; onToggleEdit: () => void; onAddAssets: () => void }
+  /** Findings style 8's modal: an Add assets card closes the grid. */
+  tools?: { onAddAssets: () => void }
 }) {
   const revealScrollbar = useRevealScrollbarOnScroll()
   const setGrid = useCallback(
@@ -1045,7 +1061,6 @@ function AssetsAppsView({
     },
     [gridRef, revealScrollbar],
   )
-  const draggable = !tools || tools.editing
   return (
     <section
       ref={viewRef}
@@ -1070,40 +1085,14 @@ function AssetsAppsView({
           <SummaryText parts={ASSETS_DETAIL} />
         </p>
       </div>
-      <div
-        className={styles.sideBoard}
-        style={
-          columns ? { ['--board-w' as string]: `${columns * BOARD_CELL + (columns - 1) * BOARD_GAP}px` } : undefined
-        }
-      >
-        {tools ? (
-          <div className={styles.sideTools}>
-            {tools.editing ? <span className={styles.sideToolsHint}>Drag cards to rearrange them</span> : null}
-            <button type="button" className={styles.sideTool} aria-pressed={tools.editing} onClick={tools.onToggleEdit}>
-              {tools.editing ? (
-                <Check size={18} weight="regular" aria-hidden />
-              ) : (
-                <PencilSimple size={18} weight="regular" aria-hidden />
-              )}
-              {tools.editing ? 'Done' : 'Edit'}
-            </button>
-            <button
-              type="button"
-              className={`${styles.sideTool} ${styles.sideToolPrimary}`}
-              onClick={tools.onAddAssets}
-            >
-              <Plus size={20} weight="regular" aria-hidden />
-              Add assets
-            </button>
-          </div>
-        ) : null}
+      <div className={styles.sideBoard}>
         <div ref={setGrid} className={styles.sideGrid}>
           <BriefingAssetBoard
             order={order}
             columns={columns}
-            fold={fold}
-            onReorder={draggable ? onReorder : undefined}
-            editing={tools?.editing}
+            edge={edge}
+            onReorder={onReorder}
+            onAdd={tools?.onAddAssets}
           />
         </div>
       </div>
@@ -1422,9 +1411,10 @@ function FindingBody({
         </div>
       </div>
       <div className={home.actions}>
-        <SpecularActionButton
-          className={home.actionBtn}
-          enabled
+        <button
+          type="button"
+          className={`${home.actionBtn} ${styles.tellMoreBtn}`}
+          aria-label="Tell me more"
           onClick={() =>
             onTellMeMore?.({
               id: stop.id,
@@ -1434,9 +1424,11 @@ function FindingBody({
             })
           }
         >
-          <ChatText size={20} weight="regular" aria-hidden />
-          <span>Tell Me More</span>
-        </SpecularActionButton>
+          <span className={home.actionInner}>
+            <ChatText size={20} weight="regular" aria-hidden />
+            <span>Tell Me More</span>
+          </span>
+        </button>
         {stop.storyId ? (
           <button type="button" className={styles.storyBtn} onClick={() => onOpenStory?.(stop.storyId!)}>
             <ArrowUpRight size={20} weight="regular" aria-hidden />

@@ -17,6 +17,7 @@ import styles from './compact-assistant.module.css'
 import { llumenAssets } from './assets'
 import LandingHomeDefault from './landing/LandingHomeDefault'
 import { BriefingLanding } from './landing/BriefingLanding'
+import type { TopBarView } from './landing/LandingTopBar'
 import { Briefing2Landing } from './landing/Briefing2Landing'
 import { FeedLanding } from './landing/FeedLanding'
 import { OverlayScrollThumb } from './landing/OverlayScrollThumb'
@@ -95,7 +96,7 @@ import {
   type StoryLocation,
 } from './story/storyAnnotations'
 import { StoryLocationModal } from './story/StoryLocationModal'
-import type { LandingStory } from './story/storyDemoData'
+import { getLandingStory, type LandingStory } from './story/storyDemoData'
 import {
   MESH_COLORS_DEMO_PAGE,
   MESH_FRAME_DEMO_PAGE,
@@ -390,6 +391,11 @@ function mapStateAsset(messages: ChatMessage[], stateId: string | null) {
     }
   }
   return null
+}
+
+/** The story itself as context: the pill its chat opens with. */
+function storyContextChip(story: LandingStory): LandingContextChip {
+  return { id: `story-${story.id}`, label: story.storyTitle, categoryId: 'slides' }
 }
 
 export function CompactAssistantDemo() {
@@ -1346,10 +1352,14 @@ export function CompactAssistantDemo() {
         setHubRailMode('thread')
       }
       setStoryChatComponents((prev) => (prev.some((item) => item.id === component.id) ? prev : [...prev, component]))
+      if (isHub && activeStoryId != null) {
+        const chip = storyContextChip(getLandingStory(activeStoryId))
+        setLandingChips((prev) => (prev.some((item) => item.id === chip.id) ? prev : [...prev, chip]))
+      }
       if (open || !hubStoryOpen) setHubMorphFrom(sourceRect)
       setHubStoryOpen(true)
     },
-    [hubRailMode, hubStoryOpen, open, settleReplies],
+    [activeStoryId, hubRailMode, hubStoryOpen, isHub, open, settleReplies],
   )
 
   /** Each attached chart is re-plotted for 2024–2025 as its chart appears in the reply. */
@@ -2005,6 +2015,8 @@ export function CompactAssistantDemo() {
   const [storyRelease, setStoryRelease] = useState<StoryMapView | 'home' | null>(null)
   /** Remounts the Briefing page when a story is left before it has settled, dropping its flight state. */
   const [landingEpoch, setLandingEpoch] = useState(0)
+  /** The Briefing top bar's Briefing / Studio switch; the Studio has no hub composer. */
+  const [briefingView, setBriefingView] = useState<TopBarView>('briefing')
   const leaveStory = useCallback(
     (from?: StoryMapView) => {
       if (storyRelease) return
@@ -2178,6 +2190,7 @@ export function CompactAssistantDemo() {
       const slide = story.slides[slideIndex]
       const chipLabel = slide?.title ?? story.storyTitle
       if (isHub) {
+        setLandingChips([storyContextChip(story)])
         setHubMorphFrom(sourceRect)
         setHubStoryOpen(true)
         setLandingFocusToken((n) => n + 1)
@@ -2594,8 +2607,10 @@ export function CompactAssistantDemo() {
   const hubThreadRail = isHub && open && hubRailMode === 'thread'
   const railComposerOpen = open && !hubSessionsRail
   const hubChatComponents = storyActive ? storyChatComponents : []
+  const inStudio = landingVariant === 'briefing' && !storyActive && briefingView === 'studio'
   const showHub =
     isHub &&
+    !inStudio &&
     (hubSessionsRail ||
       (!open && (!storyActive || hubStoryOpen)) ||
       (hubThreadRail && storyActive && hubStoryOpen))
@@ -2757,6 +2772,8 @@ export function CompactAssistantDemo() {
         onFindingsStyleChange={onFindingsStyleChange}
         alert={alertTakesCentre}
         findingToast={toastInFindings ? noticeToast(false) : null}
+        view={briefingView}
+        onViewChange={setBriefingView}
       />
     ) : landingVariant === 'briefing-2' ? (
       <Briefing2Landing
@@ -2839,7 +2856,7 @@ export function CompactAssistantDemo() {
             />
           ) : null}
         </div>
-        {storyActive ? null : <OverlayScrollThumb scrollEl={landingScrollEl} />}
+        {storyActive || inStudio ? null : <OverlayScrollThumb scrollEl={landingScrollEl} />}
         </div>
         {showAlertAurora ? (
           <FindingReveal

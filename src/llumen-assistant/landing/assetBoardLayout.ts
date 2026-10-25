@@ -13,6 +13,25 @@ export type BoardFit = { id: string; cols: number; min: number; max: number; row
 /** A card's place on the board, in zero-based cells. */
 export type BoardSlot = { col: number; row: number; cols: number; rows: number }
 
+/** The height of `rows` board rows, in px. */
+export function boardRowsHeight(rows: number) {
+  return Math.max(0, rows * (BOARD_CELL + BOARD_GAP) - BOARD_GAP)
+}
+
+/**
+ * The fold at a board's edge, in rows: under as many whole cards down its first column as fit in `room` px,
+ * and never fewer than `fewest` of them.
+ */
+export function edgeFold(slots: Iterable<BoardSlot>, room: number, fewest: number) {
+  const bottoms = [...slots]
+    .filter((slot) => slot.col === 0)
+    .sort((a, b) => a.row - b.row)
+    .map((slot) => slot.row + slot.rows)
+  let count = Math.min(fewest, bottoms.length)
+  while (count < bottoms.length && boardRowsHeight(bottoms[count]) <= room) count += 1
+  return count ? bottoms[count - 1] : 0
+}
+
 /**
  * Packs cards onto `columns` cells without leaving holes. Each next free cell (reading order) takes the
  * first card in `items` order that fits there, flexed between its min and max width; a card stretches
