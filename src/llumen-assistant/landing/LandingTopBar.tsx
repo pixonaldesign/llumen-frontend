@@ -76,7 +76,7 @@ export function WorkspaceGlyph({ name }: { name: WorkspaceIcon }) {
 export type TopBarView = 'briefing' | 'assets' | 'studio'
 
 const TOP_BAR_VIEWS: readonly { view: TopBarView; label: string; icon: ReactNode }[] = [
-  { view: 'briefing', label: 'Briefing', icon: <Newspaper size={20} weight="regular" aria-hidden /> },
+  { view: 'briefing', label: 'Briefings', icon: <Newspaper size={20} weight="regular" aria-hidden /> },
   { view: 'assets', label: 'My Assets', icon: <ChartPieSlice size={20} weight="regular" aria-hidden /> },
   { view: 'studio', label: 'Studio', icon: <ChartDonut size={20} weight="regular" aria-hidden /> },
 ]

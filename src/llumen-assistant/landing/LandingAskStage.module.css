@@ -3,7 +3,8 @@
   --ask-header-h: 56px;
   --ask-chat-w: 100%;
   --ask-move: 760ms;
-  --ask-resize: 420ms;
+  /* The landing's push (demoPageRailOpen), so the rail and the page move together. */
+  --ask-resize: var(--lc-rail-enter-duration, 320ms);
 
   position: fixed;
   inset: 0;
@@ -19,26 +20,26 @@
     box-shadow var(--ask-resize) var(--lc-ease);
 }
 
-/* Shrink: the same layout as a centred window, with the landing showing around it. */
+/* Shrink: the chat docks as a full-height rail down the left, like the story chat's rail. */
 .stage[data-shrunk='true'] {
-  /* The landing top bar's height, so the window clears it. */
-  --ask-top-bar-h: 61px;
-  --ask-shrunk-gap: 24px;
+  /* Already the rail's width, so the chat keeps its layout while the stage resizes around it. */
+  --ask-chat-w: var(--lc-rail-width);
 
-  inset: calc(var(--ask-top-bar-h) + var(--ask-shrunk-gap)) 9vw var(--ask-shrunk-gap);
-  border-radius: 16px;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 24px 64px rgba(0, 0, 0, 0.5);
+  inset: 0 calc(100% - var(--lc-rail-width)) 0 0;
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
 .stage[data-map='true'] {
   --ask-chat-w: var(--lc-rail-width);
 }
 
+/* Viewport-sized like the map: the shader's canvas would otherwise be rebuilt every frame of a shrink. */
 .backdrop {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
@@ -66,6 +67,17 @@
 .stage[data-closing='true'] .header,
 .stage[data-closing='true'] .body {
   animation: stageContentOut 180ms ease forwards;
+}
+
+/* The rail slides away whole, content and all, in step with the landing's push back (demoPageRailOpen). */
+.stage[data-shrunk='true'][data-closing='true'] {
+  transform: translateX(-100%);
+  transition: transform var(--lc-rail-enter-duration, 320ms) var(--lc-ease);
+}
+
+.stage[data-shrunk='true'][data-closing='true'] .header,
+.stage[data-shrunk='true'][data-closing='true'] .body {
+  animation: none;
 }
 
 @keyframes stageContentIn {
@@ -122,13 +134,16 @@
   transition: width var(--ask-move) var(--lc-ease);
 }
 
-/* Full bleed beside the chat column, up through the header row to the top edge. */
+/*
+ * Full bleed beside the chat column, up through the header row to the top edge. Sized to the viewport,
+ * not the stage, so shrinking clips the map instead of resizing it every frame.
+ */
 .mapPane {
   position: absolute;
   top: calc(-1 * var(--ask-header-h));
-  right: 0;
-  bottom: 0;
   left: var(--lc-rail-width);
+  width: calc(100vw - var(--lc-rail-width));
+  height: 100vh;
   overflow: hidden;
   background: #0e1014;
   opacity: 0;

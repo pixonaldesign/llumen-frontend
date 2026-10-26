@@ -29,7 +29,7 @@ import {
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { BriefingAgentGrid } from './BriefingAgents'
 import { BriefingAppHighlights, BriefingAppsCarousel } from './BriefingApps'
-import { boardColumnsFor } from './assetBoardLayout'
+import { BOARD_CELL, ROOMY_BOARD_CELL, boardColumnsFor } from './assetBoardLayout'
 import { paletteFromPixels } from './mapPalette'
 import { BriefingAssetBoard } from './BriefingAssetBoard'
 import { BriefingAssetGrid } from './BriefingAssets'
@@ -72,6 +72,30 @@ const ASSETS_DETAIL: SummaryPart[] = [
   { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
 ]
 
+/** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
+const ASSETS_INSIGHTS: SummaryPart[][] = [
+  [
+    { text: 'Heat-related clinic visits reached ' },
+    { text: '1,284 this week', highlight: true },
+    { text: ', 22% higher and peaking at 244 on Sunday.' },
+  ],
+  [
+    { text: 'Bus delays sit on ' },
+    { text: 'Routes 54 and 65', highlight: true },
+    { text: ' at 18 and 14 minutes late.' },
+  ],
+  [
+    {
+      text: 'Non-compliant facilities run 14% over their permit limits, and Al Mussafah is now 31% industrial.',
+    },
+  ],
+  [
+    { text: 'Network pressure in Al Ain holds at ' },
+    { text: '62% of target', highlight: true },
+    { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
+  ],
+]
+
 function SummaryText({ parts }: { parts: SummaryPart[] }) {
   return parts.map((part) =>
     part.highlight ? (
@@ -98,13 +122,25 @@ const STORY_ENTER: BriefingMapEnter = { camera: storySceneAt(0).camera, padding:
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
 const SIDE_SLIDE_EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
+/** Scrolling a scrolled modal grid back to the top before it closes: quicker for short distances. */
+const REWIND_MIN_MS = 280
+const REWIND_MAX_MS = 640
+const REWIND_MS_PER_PX = 0.35
 /** The Assets summary beside the grid never gets narrower than this; the grid drops a column first. */
 const SIDE_INTRO_MIN = 480
+/** Findings style 8's grid is a narrow column down the modal's right, and its edge peek one down the page's. */
+const FLOATING_BOARD_COLUMNS = 2
 /**
  * The edge peek shows, at full size, as many whole cards down the grid's first column as fit above the
  * composer (never fewer than this many), centred in that room.
  */
 const PEEK_CARDS_MIN = 1
+/**
+ * Findings style 8's peek always brings three cards, and fills the rest of its room with any card that
+ * starts at least FLOATING_PEEK_PARTIAL px above where the modal ends, cut off there.
+ */
+const FLOATING_PEEK_CARDS_MIN = 3
+const FLOATING_PEEK_PARTIAL = 96
 /** The edge peek's room ends this far above the composer, as the style 8 modal does. */
 const PEEK_COMPOSER_GAP = 28
 
@@ -242,7 +278,13 @@ export function BriefingLanding({
   const [boardColumns, setBoardColumns] = useState<number>()
   /** The room the edge peek has above the composer, in px; the grid brings in the same cards when it docks. */
   const [peekRoom, setPeekRoom] = useState(0)
-  const peekEdge = useMemo(() => ({ room: peekRoom, min: PEEK_CARDS_MIN }), [peekRoom])
+  const peekEdge = useMemo(
+    () =>
+      floating
+        ? { room: peekRoom, min: FLOATING_PEEK_CARDS_MIN, partial: FLOATING_PEEK_PARTIAL }
+        : { room: peekRoom, min: PEEK_CARDS_MIN },
+    [peekRoom, floating],
+  )
   const samplerRef = useRef<(() => Promise<ImageData | null>) | null>(null)
   const onMapSampler = useCallback((sample: (() => Promise<ImageData | null>) | null) => {
     samplerRef.current = sample
@@ -262,6 +304,7 @@ export function BriefingLanding({
   const peekRef = useRef<HTMLDivElement>(null)
   const sideGridRef = useRef<HTMLDivElement>(null)
   const flightRef = useRef<Animation | null>(null)
+  const rewindRef = useRef(0)
   const [votes, setVotes] = useState<Record<string, 'up' | 'down' | null>>({})
   const rootRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
@@ -553,7 +596,8 @@ export function BriefingLanding({
         SIDE_INTRO_MIN -
         inset -
         gutter
-      setBoardColumns(boardColumnsFor(room))
+      const fit = boardColumnsFor(room, floating ? ROOMY_BOARD_CELL : BOARD_CELL)
+      setBoardColumns(floating ? Math.min(FLOATING_BOARD_COLUMNS, fit) : fit)
     }
     measure()
     const resize = new ResizeObserver(measure)
@@ -564,7 +608,8 @@ export function BriefingLanding({
 
   /**
    * Sizes the edge peek to the Assets grid, so the flight between them only moves it, and finds its room
-   * above the composer, where its whole cards sit centred (--peek-shift).
+   * above the composer, where its whole cards sit centred (--peek-shift). The modal's peek stays level
+   * with its grid instead, so opening it only slides the cards across.
    */
   useLayoutEffect(() => {
     const peek = peekRef.current
@@ -583,7 +628,9 @@ export function BriefingLanding({
       const height = peek.offsetParent?.clientHeight ?? window.innerHeight
       const room = Math.max(0, height - top - composer - PEEK_COMPOSER_GAP)
       setPeekRoom(room)
-      peek.style.setProperty('--peek-shift', `${Math.max(0, (room - stack.offsetHeight) / 2)}px`)
+      peek.style.setProperty('--peek-room', `${room}px`)
+      const shift = floating ? 0 : Math.max(0, (room - stack.offsetHeight) / 2)
+      peek.style.setProperty('--peek-shift', `${shift}px`)
     }
     fit()
     const resize = new ResizeObserver(fit)
@@ -591,13 +638,13 @@ export function BriefingLanding({
     resize.observe(board)
     resize.observe(stack)
     return () => resize.disconnect()
-  }, [sideways])
+  }, [sideways, floating])
 
   /**
    * Flies the asset stack into the grid (or back out) while the stage and the view slide past. Opening
    * tints the Assets view with the map it slides in over, as the map looks right now.
    */
-  const flyAssets = useCallback((open: boolean) => {
+  const flyBoard = useCallback((open: boolean) => {
     if (open) {
       samplerRef.current?.().then((pixels) => {
         const palette = pixels && paletteFromPixels(pixels)
@@ -639,7 +686,41 @@ export function BriefingLanding({
     flightRef.current = flight
   }, [])
 
-  useEffect(() => () => flightRef.current?.cancel(), [])
+  /** Closing a scrolled grid scrolls it back to its first cards first, so the stack flies out from the top. */
+  const flyAssets = useCallback(
+    (open: boolean) => {
+      window.cancelAnimationFrame(rewindRef.current)
+      const grid = sideGridRef.current
+      if (open || !grid || grid.scrollTop <= 0) {
+        flyBoard(open)
+        return
+      }
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        grid.scrollTop = 0
+        flyBoard(false)
+        return
+      }
+      const from = grid.scrollTop
+      const duration = Math.min(REWIND_MAX_MS, Math.max(REWIND_MIN_MS, from * REWIND_MS_PER_PX))
+      const start = performance.now()
+      const step = (now: number) => {
+        const t = Math.min(1, (now - start) / duration)
+        grid.scrollTop = from * (1 - easeInOutCubic(t))
+        if (t < 1) rewindRef.current = window.requestAnimationFrame(step)
+        else flyBoard(false)
+      }
+      rewindRef.current = window.requestAnimationFrame(step)
+    },
+    [flyBoard],
+  )
+
+  useEffect(
+    () => () => {
+      window.cancelAnimationFrame(rewindRef.current)
+      flightRef.current?.cancel()
+    },
+    [],
+  )
 
   /** Escape leaves the modal, unless the asset builder is over it. */
   useEffect(() => {
@@ -789,6 +870,9 @@ export function BriefingLanding({
         </div>
         {sideways ? (
           <>
+            {floating ? (
+              <div className={styles.sideScrim} data-shown={away} aria-hidden onClick={() => flyAssets(false)} />
+            ) : null}
             <AssetsAppsView
               shown={away}
               landed={landed}
@@ -796,6 +880,7 @@ export function BriefingLanding({
               gridRef={sideGridRef}
               order={boardOrder}
               columns={boardColumns}
+              roomy={floating}
               edge={peekEdge}
               onReorder={setBoardOrder}
               onBack={() => flyAssets(false)}
@@ -822,7 +907,7 @@ export function BriefingLanding({
                 flyAssets(true)
               }}
             >
-              <BriefingAssetBoard order={boardOrder} columns={boardColumns} edge={peekEdge} preview />
+              <BriefingAssetBoard order={boardOrder} columns={boardColumns} roomy={floating} edge={peekEdge} preview />
             </div>
           </>
         ) : paneled ? (
@@ -1034,6 +1119,7 @@ function AssetsAppsView({
   gridRef,
   order,
   columns,
+  roomy,
   edge,
   onReorder,
   onBack,
@@ -1046,8 +1132,9 @@ function AssetsAppsView({
   gridRef: RefObject<HTMLDivElement | null>
   order: readonly string[]
   columns: number | undefined
+  roomy: boolean
   /** The edge peek's room: the cards it brings in land, and the rest fade in once it docks. */
-  edge: { room: number; min: number }
+  edge: { room: number; min: number; partial?: number }
   onReorder: (order: string[]) => void
   onBack: () => void
   /** Findings style 8's modal: an Add assets card closes the grid. */
@@ -1073,23 +1160,32 @@ function AssetsAppsView({
       aria-label="Assets and Apps"
     >
       <div className={styles.sideIntro}>
-        <button type="button" className={styles.sideBack} onClick={onBack}>
-          <ArrowLeft size={18} weight="regular" aria-hidden />
-          Back to Findings
-        </button>
+        <div className={styles.sideHead}>
+          <button type="button" className={styles.sideBack} onClick={onBack} aria-label="Back to Findings">
+            <ArrowLeft size={18} weight="regular" aria-hidden />
+          </button>
+          <h2 className={styles.sideTitle}>My Board</h2>
+        </div>
         <AssetsFilters />
+        <p className={styles.sideGreeting}>Good morning, Omar</p>
         <p className={styles.assetsSummary}>
           <SummaryText parts={ASSETS_STATEMENT} />
         </p>
-        <p className={styles.assetsDetail}>
-          <SummaryText parts={ASSETS_DETAIL} />
-        </p>
+        <h3 className={`${styles.eyebrow} ${styles.sideMoreTitle}`}>More insights</h3>
+        <ul className={styles.sideInsights}>
+          {ASSETS_INSIGHTS.map((parts) => (
+            <li key={parts[0].text}>
+              <SummaryText parts={parts} />
+            </li>
+          ))}
+        </ul>
       </div>
       <div className={styles.sideBoard}>
         <div ref={setGrid} className={styles.sideGrid}>
           <BriefingAssetBoard
             order={order}
             columns={columns}
+            roomy={roomy}
             edge={edge}
             onReorder={onReorder}
             onAdd={tools?.onAddAssets}

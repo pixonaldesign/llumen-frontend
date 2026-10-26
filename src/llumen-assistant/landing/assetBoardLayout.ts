@@ -1,10 +1,12 @@
 /** The story builder's grid layout cell and gap (StoryView GRID_CELL_SIZE, GRID_CELL_GAP). */
 export const BOARD_CELL = 184
 export const BOARD_GAP = 12
+/** A roomy board's cell: two of them make the findings style 8 modal's grid. */
+export const ROOMY_BOARD_CELL = 260
 
 /** How many whole cells fit across `width`; the extra pixel keeps an exact fit from rounding down. */
-export function boardColumnsFor(width: number) {
-  return Math.max(1, Math.floor((width + BOARD_GAP + 1) / (BOARD_CELL + BOARD_GAP)))
+export function boardColumnsFor(width: number, cell = BOARD_CELL) {
+  return Math.max(1, Math.floor((width + BOARD_GAP + 1) / (cell + BOARD_GAP)))
 }
 
 /** How a card may sit on the board: its preferred width in cells, how far it may shrink or grow, and its height. */
@@ -14,22 +16,30 @@ export type BoardFit = { id: string; cols: number; min: number; max: number; row
 export type BoardSlot = { col: number; row: number; cols: number; rows: number }
 
 /** The height of `rows` board rows, in px. */
-export function boardRowsHeight(rows: number) {
-  return Math.max(0, rows * (BOARD_CELL + BOARD_GAP) - BOARD_GAP)
+export function boardRowsHeight(rows: number, cell = BOARD_CELL) {
+  return Math.max(0, rows * (cell + BOARD_GAP) - BOARD_GAP)
 }
 
 /**
  * The fold at a board's edge, in rows: under as many whole cards down its first column as fit in `room` px,
- * and never fewer than `fewest` of them.
+ * and never fewer than `fewest` of them. With `partial`, a card that would be cut off at `room` still
+ * counts when at least that many px of it show.
  */
-export function edgeFold(slots: Iterable<BoardSlot>, room: number, fewest: number) {
-  const bottoms = [...slots]
-    .filter((slot) => slot.col === 0)
-    .sort((a, b) => a.row - b.row)
-    .map((slot) => slot.row + slot.rows)
-  let count = Math.min(fewest, bottoms.length)
-  while (count < bottoms.length && boardRowsHeight(bottoms[count]) <= room) count += 1
-  return count ? bottoms[count - 1] : 0
+export function edgeFold(
+  slots: Iterable<BoardSlot>,
+  room: number,
+  fewest: number,
+  cell = BOARD_CELL,
+  partial?: number,
+) {
+  const column = [...slots].filter((slot) => slot.col === 0).sort((a, b) => a.row - b.row)
+  const fits = (slot: BoardSlot) =>
+    partial === undefined
+      ? boardRowsHeight(slot.row + slot.rows, cell) <= room
+      : slot.row * (cell + BOARD_GAP) + partial <= room
+  let count = Math.min(fewest, column.length)
+  while (count < column.length && fits(column[count])) count += 1
+  return count ? column[count - 1].row + column[count - 1].rows : 0
 }
 
 /**

@@ -63,7 +63,8 @@ export function BriefingAssetGrid({
   )
 }
 
-export function AssetCard({ asset, play, delay }: Play & { asset: BriefingAsset }) {
+/** Without `legend`, a donut or pie leaves its slices' names and shares to the hover tips. */
+export function AssetCard({ asset, play, delay, legend = true }: Play & { asset: BriefingAsset; legend?: boolean }) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [tip, setTip] = useState<PlacedTip | null>(null)
   const showTip = useCallback<ShowTip>((next) => {
@@ -91,7 +92,7 @@ export function AssetCard({ asset, play, delay }: Play & { asset: BriefingAsset 
         <h3 className={styles.cardTitle}>{asset.title}</h3>
       </header>
       <div ref={bodyRef} className={styles.body} onPointerLeave={() => setTip(null)}>
-        <AssetVisual asset={asset} play={play} delay={delay + CHART_LAG_MS} showTip={showTip} />
+        <AssetVisual asset={asset} play={play} delay={delay + CHART_LAG_MS} showTip={showTip} legend={legend} />
         {tip ? (
           <div
             className={`${styles.tip}${tip.side ? ` ${tip.side === 'left' ? styles.tipLeft : styles.tipRight}` : ''}`}
@@ -114,10 +115,18 @@ export function AssetCard({ asset, play, delay }: Play & { asset: BriefingAsset 
   )
 }
 
-function AssetVisual({ asset, play, delay, showTip }: Play & { asset: BriefingAsset; showTip: ShowTip }) {
+function AssetVisual({
+  asset,
+  play,
+  delay,
+  showTip,
+  legend,
+}: Play & { asset: BriefingAsset; showTip: ShowTip; legend: boolean }) {
   switch (asset.kind) {
     case 'area':
       return <AreaVisual asset={asset} play={play} delay={delay} showTip={showTip} />
+    case 'line':
+      return <LineVisual asset={asset} play={play} delay={delay} showTip={showTip} />
     case 'hbar':
       return (
         <ul className={styles.hbars}>
@@ -178,13 +187,13 @@ function AssetVisual({ asset, play, delay, showTip }: Play & { asset: BriefingAs
     }
     case 'donut':
       return (
-        <Ring slices={asset.slices} pie={false} showTip={showTip}>
+        <Ring slices={asset.slices} pie={false} legend={legend} showTip={showTip}>
           <strong>{asset.centre}</strong>
           <span>{asset.centreLabel}</span>
         </Ring>
       )
     case 'pie':
-      return <Ring slices={asset.slices} pie showTip={showTip} />
+      return <Ring slices={asset.slices} pie legend={legend} showTip={showTip} />
     case 'kpi': {
       const last = asset.spark.length - 1
       return (
@@ -330,6 +339,53 @@ function AreaVisual({
   )
 }
 
+/** The value axis hugs the points, so small swings still read as a trend. */
+function LineVisual({
+  asset,
+  play,
+  delay,
+  showTip,
+}: Play & { asset: Extract<BriefingAsset, { kind: 'line' }>; showTip: ShowTip }) {
+  const [hover, setHover] = useState<number | null>(null)
+  const min = Math.min(...asset.points)
+  const span = Math.max(1, Math.max(...asset.points) - min)
+  const coords = asset.points.map((v, i): [number, number] => [
+    (i / (asset.points.length - 1)) * 100,
+    36 - ((v - min) / span) * 32,
+  ])
+  const last = coords[coords.length - 1]
+  return (
+    <>
+      <ValueRow value={asset.value} unit={asset.unit} delta={asset.delta} play={play} delay={delay} />
+      <div
+        className={styles.plot}
+        onPointerMove={(event) => {
+          const { index, rect } = nearestIndex(event, asset.points.length)
+          setHover(index)
+          showTip({
+            x: rect.left + (coords[index][0] / 100) * rect.width,
+            y: rect.top + (coords[index][1] / 40) * rect.height,
+            label: asset.labels[index],
+            value: `${asset.points[index]}${asset.tipUnit}`,
+          })
+        }}
+        onPointerLeave={() => setHover(null)}
+      >
+        <svg className={styles.plotSvg} viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden>
+          <path className={styles.plotLine} d={smoothPath(coords)} vectorEffect="non-scaling-stroke" />
+        </svg>
+        <span className={styles.plotDot} style={{ left: `${last[0]}%`, top: `${(last[1] / 40) * 100}%` }} />
+        {hover != null ? <HoverMark x={coords[hover][0]} y={(coords[hover][1] / 40) * 100} /> : null}
+      </div>
+      <div className={styles.axis}>
+        {asset.axis.map((tick) => (
+          <span key={tick}>{tick}</span>
+        ))}
+      </div>
+    </>
+  )
+}
+
 /** Series are drawn in order, so list the highest first to keep lower areas visible on top. */
 function MultiAreaVisual({
   asset,
@@ -462,11 +518,13 @@ function ValueRow({
 function Ring({
   slices,
   pie,
+  legend,
   showTip,
   children,
 }: {
   slices: AssetSlice[]
   pie: boolean
+  legend: boolean
   showTip: ShowTip
   children?: ReactNode
 }) {
@@ -504,15 +562,17 @@ function Ring({
         </svg>
         {children ? <div className={styles.ringCentre}>{children}</div> : null}
       </div>
-      <ul className={styles.legend}>
-        {slices.map((slice) => (
-          <li key={slice.name}>
-            <span className={styles.legendDot} style={{ background: slice.color }} />
-            <span className={styles.legendName}>{slice.name}</span>
-            <span className={styles.legendPct}>{slice.pct}%</span>
-          </li>
-        ))}
-      </ul>
+      {legend ? (
+        <ul className={styles.legend}>
+          {slices.map((slice) => (
+            <li key={slice.name}>
+              <span className={styles.legendDot} style={{ background: slice.color }} />
+              <span className={styles.legendName}>{slice.name}</span>
+              <span className={styles.legendPct}>{slice.pct}%</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   )
 }

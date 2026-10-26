@@ -361,23 +361,55 @@
   background: rgba(34, 42, 42, 0.72);
 }
 
-/* Edit mode: the slide's Layout, on the slide title's line at the header's end. */
+/*
+ * Edit mode: one control above the insight cards, the slide's Layout menu and, for the sidebar and grid
+ * layouts, their width in columns.
+ */
+.layoutBar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  margin: 16px 0 0;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow:
+    0 12px 16px -4px rgba(10, 13, 18, 0.24),
+    0 4px 6px -2px rgba(10, 13, 18, 0.16);
+  pointer-events: auto;
+}
+
+/* 16px from the header and from the first card; the grid layout's body already insets its top. */
+.bodyGrid > .layoutBar {
+  align-self: flex-start;
+  margin: calc(16px - var(--grid-inset-top, 0px)) 0 16px;
+}
+
+.layoutBar + .insight {
+  padding-top: 16px;
+}
+
+.layoutBar + .insightLayoutGrid {
+  flex: 1 1 0;
+  height: auto;
+  padding-top: 0;
+}
+
 .layoutBtn {
   display: inline-flex;
   align-items: center;
-  align-self: flex-end;
   gap: 8px;
   flex-shrink: 0;
-  height: 36px;
+  height: 32px;
   margin: 0;
-  margin-inline-start: auto;
-  padding: 0 12px;
-  pointer-events: auto;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 40px;
-  background: rgba(34, 42, 42, 0.5);
-  backdrop-filter: blur(46px);
-  -webkit-backdrop-filter: blur(46px);
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: #fff;
   font: inherit;
   font-size: 14px;
@@ -388,7 +420,7 @@
 
 .layoutBtn:hover,
 .layoutBtnOpen {
-  background: rgba(34, 42, 42, 0.72);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .layoutBtnCaret {
@@ -404,10 +436,6 @@
 .layoutBtn:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 2px;
-}
-
-.layoutBtn + .headerEnd {
-  margin-inline-start: 0;
 }
 
 .headerEnd {
@@ -666,23 +694,42 @@
   }
 }
 
+/* Edit mode: a caret after the value, then the filter's options (Configure, Remove) behind its dots. */
 .filterPillEditing {
+  gap: 6px;
+  padding-inline-end: 6px;
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.filterRemove {
+.filterCaret {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.filterMenuBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin: 0 0 0 2px;
+  width: 24px;
+  height: 24px;
+  margin: -4px 0;
   padding: 0;
   border: none;
+  border-radius: 50%;
   background: transparent;
   color: #fff;
   cursor: pointer;
   pointer-events: auto;
+}
+
+.filterMenuBtn:hover,
+.filterMenuBtnOpen {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.filterMenuBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 1px;
 }
 
 .filterAddBtn {
@@ -1008,33 +1055,18 @@
   width: auto;
 }
 
-/* Floats over the grid, centered 12px above the bottom toolbar (18px offset + 44px tall). */
+/* The layout bar's columns, after a divider from its Layout button. */
 .gridColumnsControl {
-  position: absolute;
-  left: 50%;
-  bottom: 74px;
-  z-index: 7;
-  transform: translateX(-50%);
-  box-shadow:
-    0 12px 16px -4px rgba(10, 13, 18, 0.24),
-    0 4px 6px -2px rgba(10, 13, 18, 0.16);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background: rgba(26, 26, 26, 0.5);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  pointer-events: auto;
+  margin-inline-start: 4px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .gridColumnsIcon {
-  box-sizing: content-box;
-  margin: 0 4px 0 8px;
-  padding-right: 12px;
-  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  margin: 0 4px;
   color: rgba(255, 255, 255, 0.56);
 }
 
@@ -1207,7 +1239,6 @@
     transform 160ms ease-out;
 }
 
-/* Edit mode keeps the card's ⋮ menu in the corner, so the toolbar sits beside it. */
 .insightCard:hover > .cardActions,
 .cardActions.cardActionsOpen,
 .cardActions:focus-within {
@@ -1249,22 +1280,6 @@
   width: 26px;
   padding: 0;
   justify-content: center;
-}
-
-.insightCardMenuBtn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-}
-
-.insightCardMenuBtn:hover,
-.insightCardMenuBtn.storyMenuBtnOpen {
-  border-color: transparent;
-  background: transparent;
 }
 
 .insightCardHidden {

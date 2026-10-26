@@ -989,12 +989,20 @@ function MainContentTab({
       />
       {presentationSettings.multiSlide ? (
         <div className={styles.inlineSetting}>
-          <span className={styles.label}>Slide navigation</span>
+          <span className={styles.label}>Navigation mode</span>
           <div
             className={`${styles.segmentedControl} ${styles.segmentedControlCompact}`}
             role="group"
-            aria-label="Slide navigation"
+            aria-label="Navigation mode"
           >
+            <button
+              type="button"
+              className={`${styles.segmentedBtn}${presentationSettings.pagesMode ? ` ${styles.segmentedBtnActive}` : ''}`}
+              aria-pressed={presentationSettings.pagesMode}
+              onClick={() => patchSettings('pagesMode', true)}
+            >
+              Tabbed
+            </button>
             <button
               type="button"
               className={`${styles.segmentedBtn}${!presentationSettings.pagesMode ? ` ${styles.segmentedBtnActive}` : ''}`}
@@ -1002,14 +1010,6 @@ function MainContentTab({
               onClick={() => patchSettings('pagesMode', false)}
             >
               Sequential
-            </button>
-            <button
-              type="button"
-              className={`${styles.segmentedBtn}${presentationSettings.pagesMode ? ` ${styles.segmentedBtnActive}` : ''}`}
-              aria-pressed={presentationSettings.pagesMode}
-              onClick={() => patchSettings('pagesMode', true)}
-            >
-              Tabs
             </button>
           </div>
         </div>

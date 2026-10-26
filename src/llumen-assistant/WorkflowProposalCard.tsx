@@ -1,4 +1,4 @@
-import { ArrowSquareOut, CaretDown, ChatTeardropText, Check, FloppyDisk, Play, SidebarSimple, WarningCircle, X } from '@phosphor-icons/react'
+import { ArrowSquareOut, ArrowsOutSimple, CaretDown, ChatTeardropText, Check, FloppyDisk, Play, SidebarSimple, WarningCircle, X } from '@phosphor-icons/react'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import type { WorkflowProposal, WorkflowStep } from './assistantReplyTypes'
@@ -775,12 +775,17 @@ export function WorkflowProposalCard({
   panelRef,
   onRunFailed,
   onExpand,
+  onOpenConversation,
+  onClose,
 }: {
   proposal: WorkflowProposal
   active?: boolean
   panelRef?: RefObject<HTMLElement | null>
   onRunFailed?: (proposal: WorkflowProposal) => void
   onExpand?: (proposal: WorkflowProposal) => void
+  /** The card moves into a full-screen conversation as the reply to its request. */
+  onOpenConversation?: (proposal: WorkflowProposal) => void
+  onClose?: () => void
 }) {
   const runState = useWorkflowRun(proposal.id)
   const [stepsOpen, setStepsOpen] = useState(false)
@@ -812,6 +817,26 @@ export function WorkflowProposalCard({
               >
                 <ArrowSquareOut size={20} weight="regular" aria-hidden />
               </button>
+              {onOpenConversation ? (
+                <button
+                  type="button"
+                  className={styles.expandBtn}
+                  aria-label="Expand conversation"
+                  onClick={() => onOpenConversation(proposal)}
+                >
+                  <ArrowsOutSimple size={20} weight="regular" aria-hidden />
+                </button>
+              ) : null}
+              {onClose ? (
+                <button
+                  type="button"
+                  className={styles.expandBtn}
+                  aria-label={`Dismiss ${proposal.title}`}
+                  onClick={onClose}
+                >
+                  <X size={20} weight="regular" aria-hidden />
+                </button>
+              ) : null}
             </div>
           </div>
           <p className={styles.summary}>{proposal.summary}</p>

@@ -82,6 +82,10 @@
   flex-shrink: 0;
 }
 
+.titleMeta > .expandBtn + .expandBtn {
+  margin-left: -6px;
+}
+
 .expandBtn {
   display: inline-flex;
   align-items: center;

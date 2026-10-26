@@ -1,4 +1,4 @@
-import { ArrowUpRight, Plus, PresentationChart } from '@phosphor-icons/react'
+import { ArrowUpRight, LinkSimple, Plus, PresentationChart } from '@phosphor-icons/react'
 import {
   useEffect,
   useLayoutEffect,
@@ -8,12 +8,20 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { BOARD_CELL, BOARD_GAP, boardColumnsFor, edgeFold, packBoard, type BoardFit } from './assetBoardLayout'
+import {
+  BOARD_CELL,
+  BOARD_GAP,
+  ROOMY_BOARD_CELL,
+  boardColumnsFor,
+  edgeFold,
+  packBoard,
+  type BoardFit,
+} from './assetBoardLayout'
 import { APP_HIGHLIGHTS, useAppMenu, type AppHighlight } from './briefingAppData'
 import { AppMenu } from './BriefingApps'
 import { AssetCard } from './BriefingAssets'
 import assetStyles from './BriefingAssets.module.css'
-import { BRIEFING_ASSETS, type BriefingAsset } from './briefingAssetData'
+import { BOARD_ASSETS, type BriefingAsset } from './briefingAssetData'
 import styles from './BriefingAssetBoard.module.css'
 
 const CARD_STAGGER_MS = 70
@@ -23,7 +31,7 @@ const DRAG_START_PX = 6
 const SWAP_COOLDOWN_MS = 160
 const SETTLE_MS = 260
 const SETTLE_EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
-/** The Add assets card's width in cells, as wide as a small asset. */
+/** The Add Assets card's width in cells, as wide as a small asset. */
 const ADD_COLS = 2
 
 type Fit = Omit<BoardFit, 'id'>
@@ -46,7 +54,25 @@ const ASSET_FITS: Record<string, Fit> = {
   'air-quality': { cols: 4, min: 3, max: 5, rows: 2 },
   'bus-delays': { cols: 2, min: 2, max: 3, rows: 2 },
   'heat-visits': { cols: 2, min: 2, max: 4, rows: 2 },
+  'night-temperature': { cols: 2, min: 2, max: 4, rows: 2 },
   'station-uptime': { cols: 4, min: 3, max: 4, rows: 2 },
+}
+
+/**
+ * A roomy board's cell is wide enough for the small charts, so they pair up a cell each (the donut and
+ * pie without their legends, the clinic visits beside the night-time lows that drive them). The rest run the board's width one row tall, apps thumbnail-left, so three
+ * cards down the first column still fit the edge peek above the composer.
+ */
+const ROOMY_SMALL: Fit = { cols: 1, min: 1, max: 2, rows: 1 }
+const ROOMY_WIDE: Fit = { cols: 2, min: 2, max: 2, rows: 1 }
+const ROOMY_FITS: Record<string, Fit> = {
+  'permit-deviation': ROOMY_SMALL,
+  'water-pressure': ROOMY_SMALL,
+  'land-use': ROOMY_SMALL,
+  population: ROOMY_SMALL,
+  'heat-visits': ROOMY_SMALL,
+  'night-temperature': ROOMY_SMALL,
+  'station-uptime': { cols: 2, min: 2, max: 2, rows: 2 },
 }
 
 const APP_LAYOUTS: Record<string, AppLayout> = {
@@ -62,7 +88,7 @@ const APP_FITS: Record<AppLayout, Fit> = {
 }
 
 const ITEMS = new Map<string, BoardItem>([
-  ...BRIEFING_ASSETS.map((asset): [string, BoardItem] => [
+  ...BOARD_ASSETS.map((asset): [string, BoardItem] => [
     asset.id,
     { id: asset.id, kind: 'asset', asset, fit: ASSET_FITS[asset.id] ?? { cols: 2, min: 2, max: 3, rows: 1 } },
   ]),
@@ -89,11 +115,12 @@ type Drag = {
   swappedAt: number
 }
 
-function packOrder(order: readonly string[], columns: number) {
+function packOrder(order: readonly string[], columns: number, roomy: boolean) {
   return packBoard(
     order.flatMap((id) => {
       const item = ITEMS.get(id)
-      return item ? [{ id, ...item.fit }] : []
+      if (!item) return []
+      return [{ id, ...(roomy ? (ROOMY_FITS[id] ?? ROOMY_WIDE) : item.fit) }]
     }),
     columns,
   )
@@ -112,37 +139,46 @@ function follow(board: HTMLElement, drag: Drag) {
 }
 
 /**
- * Assets and dashboard apps on a grid of 184px cells with 12px gaps: `columns` of them, or as many as fit
- * its own width. With `onReorder`, cards drag to new places: the others make room as the dragged card
- * passes over them. With `onAdd`, an Add assets card starts a row of its own under the rest. A `preview`
- * is a picture of the grid only: nothing in it takes focus or the pointer.
+ * Assets and dashboard apps on a grid of 184px cells (260px when `roomy`) with 12px gaps: `columns` of
+ * them, or as many as fit its own width. With `onReorder`, cards drag to new places: the others make room
+ * as the dragged card passes over them. With `onAdd`, Add Assets and Add App Links cards start a row of
+ * their own under the rest. A `preview` is a picture of the grid only: nothing in it takes focus or the
+ * pointer.
  */
 export function BriefingAssetBoard({
   order,
   columns: fixedColumns,
+  roomy = false,
   onReorder,
   onAdd,
+  onAddAppLink,
   play = true,
   preview = false,
   edge,
 }: {
   order: readonly string[]
   columns?: number
+  /** Bigger cells, where the small charts take a column each (ROOMY_FITS). */
+  roomy?: boolean
   onReorder?: (order: string[]) => void
   onAdd?: () => void
+  /** With `onAdd`: the Add App Links card's button. */
+  onAddAppLink?: () => void
   play?: boolean
   preview?: boolean
   /**
    * Puts the fold under as many whole cards down the first column as fit in `room` px, and at least `min`
    * of them, however the board packs: a preview shows only the cards above it (marking those in the first
-   * column `data-edge`), and a full board marks the rest (`data-below`) so they can arrive after.
+   * column `data-edge`), and a full board marks the rest (`data-below`) so they can arrive after. With
+   * `partial`, a card cut off at `room` counts too when at least that many px of it show.
    */
-  edge?: { room: number; min: number }
+  edge?: { room: number; min: number; partial?: number }
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const boardRef = useRef<HTMLDivElement>(null)
   const [fitColumns, setFitColumns] = useState(4)
   const columns = fixedColumns ?? fitColumns
+  const cell = roomy ? ROOMY_BOARD_CELL : BOARD_CELL
   const [mounted, setMounted] = useState(false)
   const [dragging, setDragging] = useState<string | null>(null)
   const [menuFor, setMenuFor] = useAppMenu()
@@ -171,21 +207,25 @@ export function BriefingAssetBoard({
     const wrap = wrapRef.current
     if (!wrap || fixedColumns) return
     const measure = () => {
-      setFitColumns(boardColumnsFor(wrap.clientWidth - parseFloat(getComputedStyle(wrap).paddingInlineEnd || '0')))
+      const width = wrap.clientWidth - parseFloat(getComputedStyle(wrap).paddingInlineEnd || '0')
+      setFitColumns(boardColumnsFor(width, cell))
     }
     measure()
     const resize = new ResizeObserver(measure)
     resize.observe(wrap)
     return () => resize.disconnect()
-  }, [fixedColumns])
+  }, [fixedColumns, cell])
 
-  const layout = useMemo(() => packOrder(order, columns), [order, columns])
+  const layout = useMemo(() => packOrder(order, columns, roomy), [order, columns, roomy])
   const edgeRoom = edge?.room
   const edgeMin = edge?.min
+  const edgePartial = edge?.partial
   const fold = useMemo(
     () =>
-      edgeRoom === undefined || edgeMin === undefined ? undefined : edgeFold(layout.slots.values(), edgeRoom, edgeMin),
-    [layout, edgeRoom, edgeMin],
+      edgeRoom === undefined || edgeMin === undefined
+        ? undefined
+        : edgeFold(layout.slots.values(), edgeRoom, edgeMin, cell, edgePartial),
+    [layout, edgeRoom, edgeMin, cell, edgePartial],
   )
 
   useLayoutEffect(() => {
@@ -309,10 +349,13 @@ export function BriefingAssetBoard({
     stopDragRef.current = stop
   }
 
-  const template = `repeat(${columns}, ${BOARD_CELL}px)`
+  const template = `repeat(${columns}, ${cell}px)`
   const playing = (play && mounted) || reduce
   const adding = onAdd && !preview
-  const rows = layout.rows + (adding ? 1 : 0)
+  /** Add Assets and Add App Links share a row, a cell each on a narrow board; one column stacks them. */
+  const linksBeside = columns >= 2
+  const addCols = linksBeside ? Math.min(ADD_COLS, Math.floor(columns / 2)) : 1
+  const rows = layout.rows + (adding ? (linksBeside ? 1 : 2) : 0)
 
   return (
     <div ref={wrapRef} className={styles.wrap} inert={preview} aria-hidden={preview || undefined}>
@@ -325,7 +368,7 @@ export function BriefingAssetBoard({
         style={
           {
             gridTemplateColumns: template,
-            ['--cell' as string]: `${BOARD_CELL}px`,
+            ['--cell' as string]: `${cell}px`,
             ['--gap' as string]: `${BOARD_GAP}px`,
           } as CSSProperties
         }
@@ -359,7 +402,12 @@ export function BriefingAssetBoard({
               onPointerDown={onReorder ? (event) => startDrag(event, id) : undefined}
             >
               {item.kind === 'asset' ? (
-                <AssetCard asset={item.asset} play={playing} delay={reduce ? 0 : index * CARD_STAGGER_MS} />
+                <AssetCard
+                  asset={item.asset}
+                  play={playing}
+                  delay={reduce ? 0 : index * CARD_STAGGER_MS}
+                  legend={slot.cols > 1 || slot.rows > 1}
+                />
               ) : (
                 <AppAssetCard
                   app={item.app}
@@ -372,19 +420,37 @@ export function BriefingAssetBoard({
           )
         })}
         {adding ? (
-          <div
-            className={styles.item}
-            data-below={fold !== undefined ? 'true' : undefined}
-            style={{ gridColumn: `1 / span ${Math.min(ADD_COLS, columns)}`, gridRow: `${rows}` }}
-          >
-            <div className={styles.add}>
-              <p className={styles.addHint}>Pin a metric, chart or app to this board</p>
-              <button type="button" className={styles.addButton} onClick={onAdd}>
-                <Plus size={20} weight="regular" aria-hidden />
-                Add assets
-              </button>
+          <>
+            <div
+              className={styles.item}
+              data-below={fold !== undefined ? 'true' : undefined}
+              style={{ gridColumn: `1 / span ${addCols}`, gridRow: `${layout.rows + 1}` }}
+            >
+              <div className={styles.add}>
+                <p className={styles.addHint}>Pin an asset to this board</p>
+                <button type="button" className={styles.addButton} onClick={onAdd}>
+                  <Plus size={20} weight="regular" aria-hidden />
+                  Add Assets
+                </button>
+              </div>
             </div>
-          </div>
+            <div
+              className={styles.item}
+              data-below={fold !== undefined ? 'true' : undefined}
+              style={{
+                gridColumn: `${linksBeside ? addCols + 1 : 1} / span ${addCols}`,
+                gridRow: `${rows}`,
+              }}
+            >
+              <div className={styles.add}>
+                <p className={styles.addHint}>Pin an app to this board</p>
+                <button type="button" className={styles.addButton} onClick={onAddAppLink}>
+                  <LinkSimple size={20} weight="regular" aria-hidden />
+                  Add App Links
+                </button>
+              </div>
+            </div>
+          </>
         ) : null}
       </div>
     </div>

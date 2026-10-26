@@ -18,7 +18,7 @@ export type TopBarVariant = 'current' | 'studio'
  */
 export type FindingsStyle = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 
-export const DEFAULT_FINDINGS_STYLE: FindingsStyle = 6
+export const DEFAULT_FINDINGS_STYLE: FindingsStyle = 8
 
 const LANDING_KEY = 'llumen.landingVariant'
 const TOP_BAR_KEY = 'llumen.topBarVariant'

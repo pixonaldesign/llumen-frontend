@@ -81,7 +81,14 @@ import type { StoryMapView } from './story/StoryMap'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
 import { StoryMapStatesContext, type StoryMapStates } from './story/storyMapStates'
 import { StoryAiModeBar, type StoryAiModeStatus } from './story/StoryAiModeBar'
-import { CHART_PERIOD_LABEL, isChartCard, periodPrompt, type ChatComponent } from './story/storyChartPeriod'
+import {
+  CHART_PERIOD_LABEL,
+  isChartCard,
+  periodPrompt,
+  type ChartChatComponent,
+  type ChatComponent,
+} from './story/storyChartPeriod'
+import { monitorWorkflowReply } from './story/storyMonitor'
 import { sceneAtPhase, storySceneAt } from './story/storyDemoScenes'
 import { periodReply, topSchoolsReply, withMapState } from './story/storySelectionReplies'
 import {
@@ -134,7 +141,7 @@ import type {
   WorkflowProposal,
 } from './assistantReplyTypes'
 import { AssistantTimelineReply } from './AssistantTimelineReply'
-import { WorkflowDetailPanel } from './WorkflowProposalCard'
+import { WorkflowDetailPanel, WorkflowProposalCard } from './WorkflowProposalCard'
 import { ComponentDetailPanel } from './ComponentDetailPanel'
 import { SlidesDetailPanel } from './SlidesDetailPanel'
 import {
@@ -490,6 +497,8 @@ export function CompactAssistantDemo() {
   /** A landing AI bar prompt: the bar grows to full screen from `origin` and holds the conversation. */
   const [landingAsk, setLandingAsk] = useState<{ origin: DOMRect } | null>(null)
   const [landingAskShrunk, setLandingAskShrunk] = useState(false)
+  /** The stage is on its way out, so the landing can take its room back as it goes. */
+  const [landingAskLeaving, setLandingAskLeaving] = useState(false)
   const [landingAskMap, setLandingAskMap] = useState<LandingAskMapState>(LANDING_MAP_CLOSED)
   /** The reply's map-state card brings in the map; until then its annotation waits here. */
   const landingAskPendingRef = useRef<{
@@ -504,6 +513,8 @@ export function CompactAssistantDemo() {
   const [storyChatComponents, setStoryChatComponents] = useState<ChatComponent[]>([])
   /** Charts added while the chat panel is open; they live as pills in the rail composer. */
   const [railChatComponents, setRailChatComponents] = useState<ChatComponent[]>([])
+  /** The last confirmed card monitor, drafted as a workflow above the story's chat input. */
+  const [storyWorkflow, setStoryWorkflow] = useState<{ proposal: WorkflowProposal; prompt: string } | null>(null)
   const pendingStoryApplyRef = useRef<PendingStoryApply | null>(null)
   const [storySlideIndex, setStorySlideIndex] = useState(0)
   const [hubRailMode, setHubRailMode] = useState<'thread' | 'sessions'>('thread')
@@ -1362,10 +1373,25 @@ export function CompactAssistantDemo() {
     [activeStoryId, hubRailMode, hubStoryOpen, isHub, open, settleReplies],
   )
 
+  /** A confirmed card monitor opens the story chatbox with its draft workflow above the input. */
+  const showStoryWorkflow = useCallback(
+    (proposal: WorkflowProposal, prompt: string) => {
+      setStoryWorkflow({ proposal, prompt })
+      if (open) {
+        settleReplies()
+        setOpen(false)
+        setSessionsOpen(false)
+        setHubRailMode('thread')
+      }
+      setHubStoryOpen(true)
+    },
+    [open, settleReplies],
+  )
+
   /** Each attached chart is re-plotted for 2024–2025 as its chart appears in the reply. */
   const submitStoryComponents = useCallback(
     (text: string, components: HubChatComponent[]) => {
-      const attached = components.flatMap((item): ChatComponent[] =>
+      const attached = components.flatMap((item): ChartChatComponent[] =>
         isChartCard(item.id) ? [{ id: item.id, label: item.label }] : [],
       )
       if (attached.length === 0) return
@@ -1887,6 +1913,7 @@ export function CompactAssistantDemo() {
       restore: (stateId, snapshot) => {
         if (landingAsk) {
           setActiveMapStateId(stateId)
+          setLandingAskShrunk(false)
           setLandingAskMap({ open: true, snapshot: { ...snapshot, camera: mapCaptures[stateId]?.camera }, capture: null })
           return
         }
@@ -2004,6 +2031,7 @@ export function CompactAssistantDemo() {
     setHubMorphFrom(null)
     setLandingChips([])
     setStoryChatComponents([])
+    setStoryWorkflow(null)
     // Landing hub should reopen idle (orb + placeholder), not focused/engaged.
     setLandingFocusToken(0)
   }, [])
@@ -2041,6 +2069,7 @@ export function CompactAssistantDemo() {
       setHubMorphFrom(null)
       setLandingChips([])
       setStoryChatComponents([])
+      setStoryWorkflow(null)
       setLandingFocusToken(0)
     }, STORY_LEAVE_MS)
     return () => window.clearTimeout(timer)
@@ -2227,6 +2256,30 @@ export function CompactAssistantDemo() {
     setHubWorkToast(null)
   }, [landingBarRect])
 
+  /** The docked monitor opens full screen as the reply to the request its form wrote; its run state carries over. */
+  const openStoryWorkflowConversation = useCallback(() => {
+    if (!storyWorkflow) return
+    const reply = monitorWorkflowReply(storyWorkflow.proposal)
+    setStoryWorkflow(null)
+    clearStream()
+    closeSubcontextImmediately()
+    setSources([])
+    setSourcesPanelDismissed(false)
+    setDraft('')
+    pendingStoryApplyRef.current = null
+    if (open) {
+      settleReplies()
+      setOpen(false)
+    }
+    openLandingAsk()
+    setActiveConversationId(uid())
+    setActiveMapStateId(null)
+    setChatTitle(truncateTitle(storyWorkflow.proposal.title))
+    titleEditedRef.current = false
+    setMessages([{ id: uid(), role: 'user', text: storyWorkflow.prompt }])
+    startAssistantReply(reply)
+  }, [clearStream, closeSubcontextImmediately, open, openLandingAsk, settleReplies, startAssistantReply, storyWorkflow])
+
   /**
    * A schools prompt (city-wide, or in a location as the story builder asks it) or a finding's Tell Me More,
    * annotated on the map that joins the reply.
@@ -2314,6 +2367,7 @@ export function CompactAssistantDemo() {
     landingAskPendingRef.current = null
     setLandingAsk(null)
     setLandingAskShrunk(false)
+    setLandingAskLeaving(false)
     setLandingAskMap(LANDING_MAP_CLOSED)
     setSessionsOpen(false)
     resetConversation()
@@ -2802,10 +2856,13 @@ export function CompactAssistantDemo() {
       />
     )
 
+  /** The shrunk stage docks as a rail and pushes the landing over, like the story chat's rail. */
+  const landingAskRail = Boolean(landingAsk) && landingAskShrunk && !landingAskLeaving
+
   return (
     <StoryMapStatesContext.Provider value={mapStates}>
       <div
-        className={`${styles.demoPage}${open ? ` ${styles.demoPageRailOpen}` : ''}${
+        className={`${styles.demoPage}${open || landingAskRail ? ` ${styles.demoPageRailOpen}` : ''}${
           storyActive ? ` ${styles.demoPageStory}` : ''
         }`}
       >
@@ -2852,6 +2909,7 @@ export function CompactAssistantDemo() {
                 ) : null
               }
               onAddToChat={isHub ? addStoryComponentToChat : undefined}
+              onMonitorConfirm={isHub ? showStoryWorkflow : undefined}
               onSlideIndexChange={setStorySlideIndex}
             />
           ) : null}
@@ -2922,6 +2980,20 @@ export function CompactAssistantDemo() {
             data-story-return={storyRelease ? 'true' : undefined}
           >
             {toastOverHub && !toastInFindings ? noticeToast(true) : null}
+            {storyActive && storyWorkflow ? (
+              <div key={storyWorkflow.proposal.id} className={styles.composerWorkflow}>
+                <WorkflowProposalCard
+                  proposal={storyWorkflow.proposal}
+                  onRunFailed={reportWorkflowRunFailed}
+                  onExpand={(proposal) => {
+                    openHubChat()
+                    setSubcontext({ view: 'workflow', proposal })
+                  }}
+                  onOpenConversation={openStoryWorkflowConversation}
+                  onClose={() => setStoryWorkflow(null)}
+                />
+              </div>
+            ) : null}
             <HubChatbox
                 // Remount when leaving a story so draft/focus/files don't carry over engaged.
                 key={storyActive ? `story-${activeStoryId}` : 'landing'}
@@ -3042,6 +3114,7 @@ export function CompactAssistantDemo() {
                 />
               </LandingAskAsset>
             }
+            onClosing={() => setLandingAskLeaving(true)}
             onClosed={closeLandingAsk}
           />
         ) : null}

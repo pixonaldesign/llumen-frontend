@@ -75,10 +75,10 @@ export function applyWorkflowChange(base: WorkflowProposal, change: string): Wor
   }
 }
 
-/** The demo run fails until delivery uses a verified mailbox. */
+/** The demo run fails until delivery uses a verified mailbox; workflows that send no email run clean. */
 export function workflowRunWillFail(proposal: WorkflowProposal) {
   const email = proposal.steps.find((step) => step.id === 'email')
-  return !email?.label.toLowerCase().includes('verified')
+  return email != null && !email.label.toLowerCase().includes('verified')
 }
 
 export function applyWorkflowRunFix(base: WorkflowProposal): WorkflowProposal {

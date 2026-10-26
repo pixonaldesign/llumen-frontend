@@ -1,0 +1,240 @@
+.context {
+  display: flex;
+  min-width: 0;
+  padding-top: 8px;
+  font: var(--lc-font-body);
+}
+
+.context > * {
+  min-width: 0;
+  margin: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  margin-right: var(--space-2xl);
+  padding-top: var(--space-md);
+}
+
+.section + .section {
+  border-top: 1px solid var(--lc-border-default);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 16px 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--lc-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sectionHead:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--lc-text-brand);
+  outline-offset: 2px;
+}
+
+.sectionHead:hover .sectionCaret {
+  color: var(--lc-text-primary);
+}
+
+.sectionCopy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sectionTitle {
+  font: var(--lc-font-body);
+  font-weight: var(--lc-weight-semibold);
+}
+
+.sectionSummary {
+  overflow: hidden;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sectionCaret {
+  flex-shrink: 0;
+  color: var(--lc-text-secondary);
+  transition:
+    transform 0.22s var(--lc-ease),
+    color 0.15s;
+}
+
+.sectionOpen .sectionCaret {
+  transform: rotate(180deg);
+}
+
+.notify {
+  padding-top: 16px;
+}
+
+.notify .fieldHead > :first-child {
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+  font-weight: var(--lc-weight-semibold);
+}
+
+/*
+ * Schedule Trigger's menu. It is portalled out of the modal panel, so it carries the panel's tokens
+ * the shared fields read.
+ */
+.dropdown {
+  --lc-backdrop-blur-ui: 30px;
+  --lc-bg-control: #ffffff12;
+  --lc-border-control: #ffffff1a;
+  --lc-border-control-focus: #70aeff;
+  --lc-border-hover: #ffffff12;
+  --lc-shadow-control-focus: 0 0 0 3px #70aeff33;
+  --lc-text-primary: #ffffff;
+  --lc-text-secondary: #ffffffb8;
+  --lc-text-tertiary: #ffffff7a;
+  --lc-font-body: 400 13px / 18px var(--lc-font-sans);
+  --lc-font-small: 400 11px / 14px var(--lc-font-sans);
+  position: fixed;
+  z-index: 10065;
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid #ffffff1a;
+  border-radius: 14px;
+  background: #42424280;
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+  backdrop-filter: blur(30px) saturate(140%);
+  box-shadow:
+    0 12px 16px -4px rgba(10, 13, 18, 0.24),
+    0 4px 6px -2px rgba(10, 13, 18, 0.16);
+  color: #ffffff;
+  font-family: var(--lc-font-sans);
+  transform-origin: top left;
+  animation: dropdownEnter 160ms var(--lc-ease) backwards;
+}
+
+@keyframes dropdownEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown {
+    animation: none;
+  }
+}
+
+.dropdown .grid {
+  gap: 12px 10px;
+}
+
+.dropdown .grid > * {
+  gap: 6px;
+}
+
+.dropdown .fieldHead > :first-child {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.dropdown input,
+.dropdown button[aria-haspopup='listbox'] {
+  height: 32px;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 12px;
+}
+
+/* Only Every and Unit pair up; the rest carry long hints that need the full row. */
+.grid > :nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+
+.fieldHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.fieldHead > :first-child {
+  flex-shrink: 0;
+}
+
+.hint {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-small);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.condition {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.conditionLead {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-small);
+}
+
+.conditionMetric {
+  grid-column: 1 / -1;
+}
+
+.body input[type='number'],
+.dropdown input[type='number'] {
+  appearance: textfield;
+}
+
+.body input[type='number']::-webkit-inner-spin-button,
+.body input[type='number']::-webkit-outer-spin-button,
+.dropdown input[type='number']::-webkit-inner-spin-button,
+.dropdown input[type='number']::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeInput {
+  color-scheme: dark;
+}
+
+.timeInput::-webkit-calendar-picker-indicator {
+  opacity: 0.72;
+  cursor: pointer;
+}
+
+.prompt {
+  min-height: 80px;
+}

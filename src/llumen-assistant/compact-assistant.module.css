@@ -239,6 +239,41 @@
   bottom: 88px;
 }
 
+.composerWorkflow {
+  pointer-events: auto;
+}
+
+.composerWorkflow > * {
+  margin: 0;
+}
+
+/*
+ * Same glass as the hub chat box (HubChatbox.module.css `.box`) it sits above. The entrance runs on
+ * the card itself: an opacity or transform animation on an ancestor would cut off its backdrop blur.
+ */
+.composerWorkflow > * > article {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-3xl);
+  background: rgba(14, 16, 20, 0.52);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  animation: composerWorkflowEnter 360ms var(--lc-ease) backwards;
+}
+
+@keyframes composerWorkflowEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composerWorkflow > * > article {
+    animation: none;
+  }
+}
+
 /*
  * Briefing: the findings carousel holds the slot 260px under mid-height, and the composer is centred
  * between that slot and the Assets peek (31px is half the collapsed composer), clear of the peek.

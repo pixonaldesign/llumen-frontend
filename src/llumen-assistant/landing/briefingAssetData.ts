@@ -35,6 +35,17 @@ export type BriefingAsset = AssetBase &
         points: number[]
         axis: string[]
       }
+    | {
+        kind: 'line'
+        value: number
+        unit: string
+        tipUnit: string
+        delta: string
+        /** One per point, shown in the hover tooltip. */
+        labels: string[]
+        points: number[]
+        axis: string[]
+      }
     | { kind: 'hbar'; unit: string; bars: AssetBar[] }
     | { kind: 'vbar'; value: number; unit: string; tipUnit: string; delta: string; bars: AssetBar[] }
     | { kind: 'donut'; centre: string; centreLabel: string; slices: AssetSlice[] }
@@ -69,6 +80,7 @@ export const DEFAULT_BOARD_ORDER: readonly string[] = [
   'land-use',
   'population',
   'heat-visits',
+  'night-temperature',
   'station-uptime',
   'permit-concentration',
 ]
@@ -219,5 +231,26 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
       { name: 'Al Mussafah', color: '#3fd2c7', points: [91, 89, 88, 90, 89, 87, 88, 86, 88, 87, 86, 88, 87] },
       { name: 'Al Dhafra', color: '#ff9a62', points: [83, 85, 82, 80, 81, 79, 80, 78, 77, 79, 77, 76, 76] },
     ],
+  },
+]
+
+/** Everything the board can hold: the Assets grid's assets, plus ones its bento has no cell for. */
+export const BOARD_ASSETS: BriefingAsset[] = [
+  ...BRIEFING_ASSETS,
+  {
+    id: 'night-temperature',
+    kind: 'line',
+    visualTypeId: 'line-chart',
+    size: 'small',
+    category: 'Climate',
+    title: 'Corniche night-time low',
+    accent: '#ffcf6b',
+    value: 34,
+    unit: '°C last night',
+    tipUnit: '°C',
+    delta: '+3°C',
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    points: [31.4, 31.9, 32.6, 32.3, 33.1, 33.7, 34.2],
+    axis: ['Mon', 'Thu', 'Sun'],
   },
 ]

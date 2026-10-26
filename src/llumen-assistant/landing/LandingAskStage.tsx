@@ -32,6 +32,12 @@ const LandingAssetPanels = lazy(() => import('./LandingAssetPanels'))
 
 const MORPH_IN_S = 0.68
 const MORPH_OUT_S = 0.5
+/**
+ * Closing while shrunk: the rail slides off to the left instead of folding into the bar. It is a CSS
+ * transition (`.stage[data-shrunk][data-closing]`), so it starts in the same frame as the landing's push
+ * back and the page follows its edge; this is its --lc-rail-enter-duration.
+ */
+const RAIL_OUT_MS = 320
 /** The AI bar's corner radius, so the stage starts and ends on the bar's own shape. */
 const BAR_RADIUS_PX = 24
 /** The top inset clears the asset header that floats over the map. */
@@ -46,8 +52,6 @@ function clipFor(rect: DOMRect, radius: number, box: DOMRect) {
   return `inset(${top}px ${right}px ${bottom}px ${left}px round ${radius}px)`
 }
 
-/** Matches `.stage[data-shrunk='true']`'s corner radius. */
-const SHRUNK_RADIUS_PX = 16
 const fullClip = (radius: number) => `inset(0px 0px 0px 0px round ${radius}px)`
 
 const ESCAPE_OWNERS = '[data-lc-sessions-menu], [data-lc-conversation-menu], [data-lc-share-modal]'
@@ -66,10 +70,12 @@ export type LandingAskStageProps = {
   thinking: boolean
   /** The map slides in from the right and the chat moves to the left column. */
   mapOpen: boolean
-  /** A centred window over the landing instead of full screen. */
+  /** A rail down the left of the landing instead of full screen, without the map. */
   shrunk?: boolean
   chat: ReactNode
   map: ReactNode
+  /** When `close()` starts, before the stage has gone. */
+  onClosing?: () => void
   onClosed: () => void
 }
 
@@ -84,6 +90,7 @@ export function LandingAskStage({
   shrunk = false,
   chat,
   map,
+  onClosing,
   onClosed,
 }: LandingAskStageProps) {
   const stageRef = useRef<HTMLDivElement>(null)
@@ -113,15 +120,32 @@ export function LandingAskStage({
   const close = useCallback(() => {
     if (closing) return
     setClosing(true)
+    onClosing?.()
     const el = stageRef.current
     if (!el || reduceMotion) {
       onClosed()
       return
     }
     gsap.killTweensOf(el)
+    if (shrunk) {
+      let done = false
+      const finish = () => {
+        if (done) return
+        done = true
+        el.removeEventListener('transitionend', onEnd)
+        window.clearTimeout(fallback)
+        onClosed()
+      }
+      const onEnd = (event: TransitionEvent) => {
+        if (event.target === el && event.propertyName === 'transform') finish()
+      }
+      el.addEventListener('transitionend', onEnd)
+      const fallback = window.setTimeout(finish, RAIL_OUT_MS + 200)
+      return
+    }
     gsap.fromTo(
       el,
-      { clipPath: fullClip(shrunk ? SHRUNK_RADIUS_PX : 0) },
+      { clipPath: fullClip(0) },
       {
         clipPath: clipFor(returnTo() ?? origin, BAR_RADIUS_PX, el.getBoundingClientRect()),
         duration: MORPH_OUT_S,
@@ -129,7 +153,7 @@ export function LandingAskStage({
         onComplete: onClosed,
       },
     )
-  }, [closing, onClosed, origin, reduceMotion, returnTo, shrunk])
+  }, [closing, onClosing, onClosed, origin, reduceMotion, returnTo, shrunk])
 
   useImperativeHandle(handleRef, () => ({ close }), [close])
 
@@ -149,7 +173,7 @@ export function LandingAskStage({
     <div
       ref={stageRef}
       className={styles.stage}
-      data-map={mapOpen ? 'true' : 'false'}
+      data-map={mapOpen && !shrunk ? 'true' : 'false'}
       data-shrunk={shrunk ? 'true' : 'false'}
       data-closing={closing ? 'true' : 'false'}
       role="dialog"
@@ -172,7 +196,7 @@ export function LandingAskStage({
         <section className={styles.chat} aria-label="Conversation">
           {chat}
         </section>
-        <section className={styles.mapPane} aria-label="Map" aria-hidden={!mapOpen}>
+        <section className={styles.mapPane} aria-label="Map" aria-hidden={!mapOpen || shrunk}>
           {map}
         </section>
       </div>

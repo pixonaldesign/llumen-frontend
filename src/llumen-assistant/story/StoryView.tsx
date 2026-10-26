@@ -17,15 +17,15 @@ import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   ArrowRight,
-  BoundingBox,
+  Broadcast,
   Buildings,
   CalendarBlank,
   CaretDown,
   ChatCircleText,
   Check,
+  Compass,
   Copy,
   DotsSix,
-  DotsThree,
   DotsThreeVertical,
   Export,
   Eye,
@@ -33,7 +33,6 @@ import {
   GearSix,
   GenderIntersex,
   GridFour,
-  IdentificationCard,
   Info,
   Layout,
   List,
@@ -44,17 +43,16 @@ import {
   PencilSimple,
   Play,
   Plus,
-  Selection,
   Sidebar,
   Student,
   SquaresFour,
   Toolbox,
   Trash,
-  X,
   type IconProps,
 } from '@phosphor-icons/react'
 import { llumenAssets } from '../assets'
 import { ShareModal } from '../ShareModal'
+import { useAnchoredTooltip } from '../landing/useAnchoredTooltip'
 import {
   AnimatedNumber,
   BiodiversityChart,
@@ -68,6 +66,9 @@ import {
   warpPath,
 } from './StoryCharts'
 import { StoryCardConfigModal } from './StoryCardConfigModal'
+import { StoryMonitorModal } from './StoryMonitorModal'
+import { defaultMonitorConfig, monitorPrompt, monitorWorkflowProposal, type MonitorConfig } from './storyMonitor'
+import type { WorkflowProposal } from '../assistantReplyTypes'
 import { SplitIcon } from './StorySplitIcon'
 import { DEFAULT_CHART_KPI, resolveKpi, type ChartCardId, type ChartKpiConfig } from './storyKpi'
 import { StorySummaryConfigModal } from './StorySummaryConfigModal'
@@ -183,6 +184,8 @@ export type StoryViewProps = {
   headerEnd?: ReactNode
   /** Shows "Add to chat" beside a hovered chart card; `sourceRect` is the clicked button. */
   onAddToChat?: (component: ChatComponent, sourceRect: DOMRect) => void
+  /** A card's "Monitor this" form was confirmed; `prompt` is the request the workflow answers. */
+  onMonitorConfirm?: (proposal: WorkflowProposal, prompt: string) => void
   /** Reports the slide on screen, so prompts sent from outside the story can use its data. */
   onSlideIndexChange?: (index: number) => void
   /**
@@ -320,6 +323,51 @@ const SIDEBAR_COLUMN_OPTIONS = [2, 3, 4] as const
 type SidebarColumns = (typeof SIDEBAR_COLUMN_OPTIONS)[number]
 const DEFAULT_SIDEBAR_COLUMNS: SidebarColumns = 2
 
+/** An icon in a card's hover toolbar, named by a tooltip on hover and focus. */
+function CardActionButton({
+  label,
+  ariaLabel,
+  active = false,
+  menu,
+  onClick,
+  children,
+}: {
+  label: string
+  ariaLabel: string
+  active?: boolean
+  /** Edit mode: the button opens the card's menu. */
+  menu?: { open: boolean }
+  onClick?: (button: HTMLButtonElement) => void
+  children: ReactNode
+}) {
+  const tooltip = useAnchoredTooltip()
+  return (
+    <>
+      <button
+        type="button"
+        className={`${styles.cardAction} ${styles.cardActionIcon}${active ? ` ${styles.cardActionActive}` : ''}`}
+        aria-label={ariaLabel}
+        data-card-menu-trigger={menu ? '' : undefined}
+        aria-haspopup={menu ? 'menu' : undefined}
+        aria-expanded={menu?.open}
+        aria-controls={menu?.open ? 'insight-card-menu' : undefined}
+        aria-describedby={tooltip.describedBy}
+        onClick={(event) => {
+          tooltip.hide()
+          onClick?.(event.currentTarget)
+        }}
+        onMouseEnter={tooltip.show}
+        onMouseLeave={tooltip.hide}
+        onFocus={tooltip.show}
+        onBlur={tooltip.hide}
+      >
+        {children}
+      </button>
+      {tooltip.node(label)}
+    </>
+  )
+}
+
 function ColumnsControl<T extends number>({
   label,
   options,
@@ -350,7 +398,7 @@ function ColumnsControl<T extends number>({
     </div>
   )
 }
-/** Space kept clear around the grid: sides, top, and the floating width control above the toolbar. */
+/** Space kept clear around the grid: sides, top, and the bottom toolbar. */
 const GRID_INSET_X = 20
 const GRID_INSET_TOP = 20
 const GRID_INSET_BOTTOM = 128
@@ -375,6 +423,8 @@ type InsightCardPrefs = {
 
 const CARD_MENU_WIDTH = 200
 const CARD_MENU_HEIGHT = 192
+const FILTER_MENU_WIDTH = 200
+const FILTER_MENU_HEIGHT = 88
 
 function copySlide(slide: StorySlide): StorySlide {
   return {
@@ -396,7 +446,7 @@ function makePresentationSettings(): StoryPresentationSettings {
     textDirection: 'ltr',
     autoplay: false,
     multiSlide: true,
-    pagesMode: false,
+    pagesMode: true,
   }
 }
 
@@ -412,6 +462,7 @@ export function StoryView({
   aiModeBar,
   headerEnd,
   onAddToChat,
+  onMonitorConfirm,
   onSlideIndexChange,
   entrance,
   mapHidden = false,
@@ -481,6 +532,18 @@ export function StoryView({
     left: number
   } | null>(null)
   const [cardConfig, setCardConfig] = useState<{ slideId: string; cardId: InsightCardId } | null>(null)
+  const [monitorTarget, setMonitorTarget] = useState<{ slideId: string; cardId: InsightCardId } | null>(null)
+  /** Saved monitoring workflows, keyed `${slideId}:${cardId}`. */
+  const [monitors, setMonitors] = useState<Record<string, MonitorConfig>>({})
+  const [filterMenu, setFilterMenu] = useState<{
+    slideId: string
+    target: 'upper' | 'lower'
+    filterId: string
+    label: string
+    remove: () => void
+    top: number
+    left: number
+  } | null>(null)
   const [regeneratingSlideId, setRegeneratingSlideId] = useState<string | null>(null)
   const [layoutBySlide, setLayoutBySlide] = useState<Record<string, StoryViewLayout>>({})
   const [gridColumnsBySlide, setGridColumnsBySlide] = useState<Record<string, GridColumns>>({})
@@ -762,9 +825,10 @@ export function StoryView({
   }, [timelinePlaying, timeline.frame, frameStepMs, slide.id, frameCount])
 
   const cardPrefs = cardPrefsBySlide[slide.id] ?? {}
-  const openCardMenu = cardMenu?.slideId === slide.id && storyMode === 'edit' ? cardMenu : null
-  const openCardPrefs = openCardMenu ? (cardPrefs[openCardMenu.cardId] ?? {}) : {}
-  const openCardConfig = cardConfig?.slideId === slide.id && storyMode === 'edit' ? cardConfig : null
+  const openCardMenu = cardMenu?.slideId === slide.id ? cardMenu : null
+  const openFilterMenu = filterMenu?.slideId === slide.id && storyMode === 'edit' ? filterMenu : null
+  const openCardConfig = cardConfig?.slideId === slide.id ? cardConfig : null
+  const openMonitor = monitorTarget?.slideId === slide.id ? monitorTarget : null
 
   const chartKpi = (cardId: ChartCardId) => {
     const config = cardPrefs[cardId]?.kpi
@@ -914,6 +978,48 @@ export function StoryView({
     setLayoutMenuOpen(false)
   }
 
+  const toggleFilterMenu = (target: 'upper' | 'lower', filter: StoryFilter, remove: () => void, button: HTMLElement) => {
+    if (openFilterMenu?.target === target && openFilterMenu.filterId === filter.id) {
+      setFilterMenu(null)
+      return
+    }
+    const rect = button.getBoundingClientRect()
+    const below = rect.bottom + 6
+    setFilterMenu({
+      slideId: slide.id,
+      target,
+      filterId: filter.id,
+      label: filter.label,
+      remove,
+      top:
+        below + FILTER_MENU_HEIGHT > window.innerHeight - 8
+          ? Math.max(8, rect.top - 6 - FILTER_MENU_HEIGHT)
+          : below,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - FILTER_MENU_WIDTH - 8)),
+    })
+    setStoryMenuOpen(false)
+    setSlideMenuOpen(false)
+    setLayoutMenuOpen(false)
+    setCardMenu(null)
+  }
+
+  useEffect(() => {
+    if (!openFilterMenu) return
+    const onPointerDown = (event: PointerEvent) => {
+      if ((event.target as Element).closest('#story-filter-menu, [data-filter-menu-trigger]')) return
+      setFilterMenu(null)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFilterMenu(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [openFilterMenu])
+
   const toggleLayoutMenu = () => {
     const rect = layoutMenuRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -921,10 +1027,10 @@ export function StoryView({
       setLayoutMenuOpen(false)
       return
     }
-    const above = rect.top - 6 - LAYOUT_MENU_HEIGHT
+    const below = rect.bottom + 6
     setLayoutMenuPos({
-      top: above < 8 ? rect.bottom + 6 : above,
-      left: Math.max(8, Math.min(rect.right - LAYOUT_MENU_WIDTH, window.innerWidth - LAYOUT_MENU_WIDTH - 8)),
+      top: below + LAYOUT_MENU_HEIGHT > window.innerHeight - 8 ? rect.top - 6 - LAYOUT_MENU_HEIGHT : below,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - LAYOUT_MENU_WIDTH - 8)),
     })
     setStoryMenuOpen(false)
     setSlideMenuOpen(false)
@@ -969,7 +1075,7 @@ export function StoryView({
   }, [openCardMenu])
 
   const canAddToChat = Boolean(onAddToChat)
-  const addCardToChat = (id: ChartCardId, button: HTMLElement) => {
+  const addCardToChat = (id: InsightCardId, button: HTMLElement) => {
     onAddToChat?.({ id, label: INSIGHT_CARD_LABELS[id] }, button.getBoundingClientRect())
     button.blur()
   }
@@ -993,7 +1099,6 @@ export function StoryView({
         ? restoredCards.ids.indexOf(id) * 110 + 260
         : null
     const period = isChartCardId(id) && inPeriod(id)
-    const chattable = canAddToChat && isChartCardId(id)
     return (
       <section
         key={focused ? `${id}-${aiFocus.key}` : restored ? `${id}-restored-${restoredCards.key}` : id}
@@ -1011,61 +1116,41 @@ export function StoryView({
         style={focusDelay === null ? style : ({ ...style, '--focus-delay': `${focusDelay}ms` } as CSSProperties)}
       >
         {children}
-        {chattable ? (
-          <div
-            className={`${styles.cardActions}${menuOpen ? ` ${styles.cardActionsOpen}` : ''}`}
-            role="toolbar"
-            aria-label={`${title} actions`}
-          >
-            <button
-              type="button"
-              className={`${styles.cardAction} ${styles.cardActionIcon}`}
-              aria-label={`Add ${title} to chat`}
-              title="Add to chat"
-              onClick={(event) => addCardToChat(id, event.currentTarget)}
+        <div
+          className={`${styles.cardActions}${menuOpen ? ` ${styles.cardActionsOpen}` : ''}`}
+          role="toolbar"
+          aria-label={`${title} actions`}
+        >
+          {canAddToChat ? (
+            <CardActionButton
+              label="Add to chat"
+              ariaLabel={`Add ${title} to chat`}
+              onClick={(button) => addCardToChat(id, button)}
             >
               <ChatCircleText size={16} aria-hidden />
-            </button>
-            {storyMode === 'edit' ? (
-              <button
-                type="button"
-                data-card-menu-trigger
-                className={`${styles.cardAction} ${styles.cardActionIcon}${menuOpen ? ` ${styles.cardActionActive}` : ''}`}
-                aria-label={`More options for ${title}`}
-                title="More options"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                aria-controls={menuOpen ? 'insight-card-menu' : undefined}
-                onClick={(event) => toggleCardMenu(id, event.currentTarget)}
-              >
-                <DotsThree size={16} weight="bold" aria-hidden />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={`${styles.cardAction} ${styles.cardActionIcon}`}
-                aria-label={`More options for ${title}`}
-                title="More options"
-              >
-                <DotsThree size={16} weight="bold" aria-hidden />
-              </button>
-            )}
-          </div>
-        ) : null}
-        {storyMode === 'edit' && !chattable ? (
-          <button
-            type="button"
-            data-card-menu-trigger
-            className={`${styles.storyMenuBtn} ${styles.insightCardMenuBtn}${menuOpen ? ` ${styles.storyMenuBtnOpen}` : ''}`}
-            aria-label={`${title} actions`}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            aria-controls={menuOpen ? 'insight-card-menu' : undefined}
-            onClick={(event) => toggleCardMenu(id, event.currentTarget)}
+            </CardActionButton>
+          ) : null}
+          <CardActionButton
+            label="Monitor this"
+            ariaLabel={`Monitor ${title}`}
+            active={Boolean(monitors[`${slide.id}:${id}`])}
+            onClick={() => {
+              setCardMenu(null)
+              setMonitorTarget({ slideId: slide.id, cardId: id })
+            }}
           >
-            <DotsThreeVertical size={20} weight="bold" aria-hidden />
-          </button>
-        ) : null}
+            <Broadcast size={16} weight={monitors[`${slide.id}:${id}`] ? 'fill' : 'regular'} aria-hidden />
+          </CardActionButton>
+          <CardActionButton
+            label="More options"
+            ariaLabel={`More options for ${title}`}
+            active={menuOpen}
+            menu={{ open: menuOpen }}
+            onClick={(button) => toggleCardMenu(id, button)}
+          >
+            <DotsThreeVertical size={16} weight="bold" aria-hidden />
+          </CardActionButton>
+        </div>
       </section>
     )
   }
@@ -1474,14 +1559,25 @@ export function StoryView({
               {filterIcon(f.id)}
               <span>{f.label}</span>
               {storyMode === 'edit' ? (
-                <button
-                  type="button"
-                  className={styles.filterRemove}
-                  aria-label={`Remove ${f.label}`}
-                  onClick={() => onRemove(f.id)}
-                >
-                  <X size={12} weight="bold" aria-hidden />
-                </button>
+                <>
+                  <CaretDown className={styles.filterCaret} size={14} weight="bold" aria-hidden />
+                  <button
+                    type="button"
+                    className={`${styles.filterMenuBtn}${
+                      openFilterMenu?.target === target && openFilterMenu.filterId === f.id
+                        ? ` ${styles.filterMenuBtnOpen}`
+                        : ''
+                    }`}
+                    data-filter-menu-trigger
+                    aria-label={`${f.label} filter options`}
+                    aria-haspopup="menu"
+                    aria-expanded={openFilterMenu?.target === target && openFilterMenu.filterId === f.id}
+                    aria-controls="story-filter-menu"
+                    onClick={(event) => toggleFilterMenu(target, f, () => onRemove(f.id), event.currentTarget)}
+                  >
+                    <DotsThreeVertical size={16} weight="bold" aria-hidden />
+                  </button>
+                </>
               ) : null}
             </span>
             {f.id === 'year' && index < list.length - 1 ? <span className={styles.filterDivider} aria-hidden /> : null}
@@ -1910,22 +2006,6 @@ export function StoryView({
                 </div>
               ) : null}
             </div>
-            {storyMode === 'edit' ? (
-              <button
-                ref={layoutMenuRef}
-                type="button"
-                className={`${styles.layoutBtn}${layoutMenuOpen ? ` ${styles.layoutBtnOpen}` : ''}`}
-                aria-label="Layout"
-                aria-haspopup="menu"
-                aria-expanded={layoutMenuOpen}
-                aria-controls="story-layout-menu"
-                onClick={toggleLayoutMenu}
-              >
-                <Layout size={18} weight="regular" aria-hidden />
-                Layout
-                <CaretDown className={styles.layoutBtnCaret} size={14} weight="bold" aria-hidden />
-              </button>
-            ) : null}
             {headerEnd ? <div className={styles.headerEnd}>{headerEnd}</div> : null}
           </div>
           {filterRow('upper', filters, (filterId) =>
@@ -1957,6 +2037,42 @@ export function StoryView({
           }
           dir={presentationSettings.textDirection}
         >
+          {storyMode === 'edit' ? (
+            <div className={styles.layoutBar}>
+              <button
+                ref={layoutMenuRef}
+                type="button"
+                className={`${styles.layoutBtn}${layoutMenuOpen ? ` ${styles.layoutBtnOpen}` : ''}`}
+                aria-label="Layout"
+                aria-haspopup="menu"
+                aria-expanded={layoutMenuOpen}
+                aria-controls="story-layout-menu"
+                onClick={toggleLayoutMenu}
+              >
+                <Layout size={18} weight="regular" aria-hidden />
+                Layout
+                <CaretDown className={styles.layoutBtnCaret} size={14} weight="bold" aria-hidden />
+              </button>
+              {viewLayout === 'grid' ? (
+                <ColumnsControl
+                  label="Grid width"
+                  options={GRID_COLUMN_OPTIONS}
+                  value={gridColumns}
+                  onChange={(columns) => setGridColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
+                />
+              ) : null}
+              {viewLayout === 'sidebar' ? (
+                <ColumnsControl
+                  label="Sidebar width"
+                  options={SIDEBAR_COLUMN_OPTIONS}
+                  value={sidebarColumns}
+                  onChange={(columns) =>
+                    setSidebarColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))
+                  }
+                />
+              ) : null}
+            </div>
+          ) : null}
           {viewLayout === 'grid' ? (
             <aside
               className={`${styles.insight} ${styles.insightLayoutGrid}${storyMode === 'edit' ? ` ${styles.insightLayoutGridEditing}` : ''}`}
@@ -2190,23 +2306,6 @@ export function StoryView({
               </div>
             ) : null}
           </div>
-        ) : null}
-
-        {storyMode === 'edit' && viewLayout === 'grid' ? (
-          <ColumnsControl
-            label="Grid width"
-            options={GRID_COLUMN_OPTIONS}
-            value={gridColumns}
-            onChange={(columns) => setGridColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
-          />
-        ) : null}
-        {storyMode === 'edit' && viewLayout === 'sidebar' ? (
-          <ColumnsControl
-            label="Sidebar width"
-            options={SIDEBAR_COLUMN_OPTIONS}
-            value={sidebarColumns}
-            onChange={(columns) => setSidebarColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
-          />
         ) : null}
 
         {viewLayout === 'comparison' ? (
@@ -2609,6 +2708,44 @@ export function StoryView({
           document.body,
         )
       : null}
+    {openFilterMenu
+      ? createPortal(
+          <div
+            id="story-filter-menu"
+            className={styles.storyMenu}
+            role="menu"
+            aria-label={`${openFilterMenu.label} filter`}
+            style={{ top: openFilterMenu.top, left: openFilterMenu.left }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setFilterMenu(null)
+                setDirectSlideEditor(false)
+                setFilterTarget(openFilterMenu.target)
+                setEditSection('filters')
+              }}
+            >
+              <GearSix size={16} weight="regular" aria-hidden />
+              Configure
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.storyMenuDanger}
+              onClick={() => {
+                openFilterMenu.remove()
+                setFilterMenu(null)
+              }}
+            >
+              <Trash size={16} weight="regular" aria-hidden />
+              Remove
+            </button>
+          </div>,
+          document.body,
+        )
+      : null}
     {openCardMenu
       ? createPortal(
           <div
@@ -2618,53 +2755,23 @@ export function StoryView({
             aria-label="Card actions"
             style={{ top: openCardMenu.top, left: openCardMenu.left }}
           >
-            {openCardMenu.cardId === 'summary' || isChartCardId(openCardMenu.cardId) ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setCardMenu(null)
-                  setDirectSlideEditor(false)
-                  setEditSection(null)
-                  setCardConfig({ slideId: slide.id, cardId: openCardMenu.cardId })
-                }}
-              >
-                <GearSix size={16} weight="regular" aria-hidden />
-                Configure
-              </button>
-            ) : null}
             <button
               type="button"
               role="menuitem"
+              disabled={openCardMenu.cardId !== 'summary' && !isChartCardId(openCardMenu.cardId)}
               onClick={() => {
-                updateCard(openCardMenu.cardId, { hidden: !openCardPrefs.hidden })
                 setCardMenu(null)
+                setDirectSlideEditor(false)
+                setEditSection(null)
+                setCardConfig({ slideId: slide.id, cardId: openCardMenu.cardId })
               }}
             >
-              <IdentificationCard size={16} weight="regular" aria-hidden />
-              {openCardPrefs.hidden ? 'Show Card' : 'Hide Card'}
+              <GearSix size={16} weight="regular" aria-hidden />
+              Configure
             </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                updateCard(openCardMenu.cardId, { border: !openCardPrefs.border })
-                setCardMenu(null)
-              }}
-            >
-              <BoundingBox size={16} weight="regular" aria-hidden />
-              {openCardPrefs.border ? 'Hide Border' : 'Show Border'}
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                updateCard(openCardMenu.cardId, { outline: !openCardPrefs.outline })
-                setCardMenu(null)
-              }}
-            >
-              <Selection size={16} weight="regular" aria-hidden />
-              {openCardPrefs.outline ? 'Hide Outline' : 'Show Outline'}
+            <button type="button" role="menuitem" onClick={() => setCardMenu(null)}>
+              <Compass size={16} weight="regular" aria-hidden />
+              Explore
             </button>
             <button
               type="button"
@@ -2676,7 +2783,7 @@ export function StoryView({
               }}
             >
               <Trash size={16} weight="regular" aria-hidden />
-              Delete
+              Remove
             </button>
           </div>,
           document.body,
@@ -2704,6 +2811,24 @@ export function StoryView({
             setCardConfig(null)
           }}
           onClose={() => setCardConfig(null)}
+        />
+      ) : null}
+      {openMonitor ? (
+        <StoryMonitorModal
+          key={`${openMonitor.slideId}-${openMonitor.cardId}`}
+          cardTitle={INSIGHT_CARD_LABELS[openMonitor.cardId]}
+          initial={monitors[`${openMonitor.slideId}:${openMonitor.cardId}`] ?? defaultMonitorConfig()}
+          onConfirm={(config) => {
+            const key = `${openMonitor.slideId}:${openMonitor.cardId}`
+            setMonitors((current) => ({ ...current, [key]: config }))
+            setMonitorTarget(null)
+            const cardTitle = INSIGHT_CARD_LABELS[openMonitor.cardId]
+            onMonitorConfirm?.(
+              monitorWorkflowProposal(`monitor-${key}-${Date.now()}`, cardTitle, config),
+              monitorPrompt(cardTitle, config),
+            )
+          }}
+          onClose={() => setMonitorTarget(null)}
         />
       ) : null}
       {aiModeBar}
