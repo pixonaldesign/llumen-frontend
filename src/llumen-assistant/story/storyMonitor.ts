@@ -2,15 +2,19 @@ import type { AssistantReplyPayload, WorkflowProposal } from '../assistantReplyT
 
 export type MonitorUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
 export type MonitorWeekday = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
-export type MonitorMetric = 'value' | 'change' | 'percentChange'
 export type MonitorOperator = 'gt' | 'gte' | 'lt' | 'lte' | 'eq'
 
 export type MonitorCondition = {
-  metric: MonitorMetric
+  id: string
+  /** A field name, or a `{{ Node.field }}` reference. */
+  field: string
   operator: MonitorOperator
-  /** `null` leaves the monitor unconditional. */
+  /** `null` leaves the condition out. */
   value: number | null
 }
+
+/** Whether every condition has to hold, or any one of them. */
+export type MonitorMatch = 'all' | 'any'
 
 export type MonitorConfig = {
   every: number
@@ -21,9 +25,11 @@ export type MonitorConfig = {
   weekday: MonitorWeekday
   monthDay: number
   timezone: string
-  /** Which of `condition` and `instructions` decides when to notify; the other is ignored. */
+  /** Which of `conditions` and `instructions` decides when to notify; the other is ignored. */
   notifyBy: MonitorNotifyBy
-  condition: MonitorCondition
+  /** In the order they are checked. */
+  conditions: MonitorCondition[]
+  match: MonitorMatch
   instructions: string
 }
 
@@ -79,16 +85,18 @@ export function defaultMonitorConfig(): MonitorConfig {
     monthDay: 1,
     timezone: 'UTC',
     notifyBy: 'instructions',
-    condition: { metric: 'value', operator: 'gt', value: null },
+    conditions: [newMonitorCondition()],
+    match: 'all',
     instructions: '',
   }
 }
 
-export const MONITOR_METRICS: { value: MonitorMetric; label: string }[] = [
-  { value: 'value', label: 'Latest value' },
-  { value: 'change', label: 'Change since last run' },
-  { value: 'percentChange', label: 'Percent change since last run' },
-]
+let conditionCount = 0
+
+export function newMonitorCondition(): MonitorCondition {
+  conditionCount += 1
+  return { id: `condition-${conditionCount}`, field: '', operator: 'gt', value: null }
+}
 
 export const MONITOR_OPERATORS: { value: MonitorOperator; label: string }[] = [
   { value: 'gt', label: 'is greater than' },
@@ -98,13 +106,18 @@ export const MONITOR_OPERATORS: { value: MonitorOperator; label: string }[] = [
   { value: 'eq', label: 'is equal to' },
 ]
 
-/** e.g. “latest value is greater than 1,000”, or `null` when no value is set. */
-export function describeMonitorCondition({ metric, operator, value }: MonitorCondition) {
-  if (value == null) return null
-  const metricLabel = MONITOR_METRICS.find((option) => option.value === metric)?.label ?? ''
+/** e.g. “volume is greater than 1,000”, or `null` until both the field and the value are set. */
+export function describeMonitorCondition({ field, operator, value }: MonitorCondition) {
+  if (!field.trim() || value == null) return null
   const operatorLabel = MONITOR_OPERATORS.find((option) => option.value === operator)?.label ?? ''
-  const amount = `${value.toLocaleString('en-US')}${metric === 'percentChange' ? '%' : ''}`
-  return `${metricLabel.toLowerCase()} ${operatorLabel} ${amount}`
+  return `${field.trim()} ${operatorLabel} ${value.toLocaleString('en-US')}`
+}
+
+/** The complete conditions, joined by “and” or “or”; `null` when none has one. */
+export function describeMonitorConditions(config: MonitorConfig) {
+  if (config.notifyBy !== 'condition') return null
+  const parts = config.conditions.map(describeMonitorCondition).filter((part) => part !== null)
+  return parts.length ? parts.join(config.match === 'all' ? ' and ' : ' or ') : null
 }
 
 /** `13:05` → `1:05 PM`. */
@@ -145,15 +158,55 @@ export function describeMonitorSchedule(config: MonitorConfig) {
 export function monitorWorkflowProposal(id: string, cardTitle: string, config: MonitorConfig): WorkflowProposal {
   const schedule = describeMonitorSchedule(config)
   const instructions = config.notifyBy === 'instructions' ? config.instructions.replace(/[.\s]+$/, '') : ''
-  const condition = config.notifyBy === 'condition' ? describeMonitorCondition(config.condition) : null
+  const condition = describeMonitorConditions(config)
   const checks = `${schedule} (${config.timezone}), checks ${cardTitle}`
   let summary = `${checks} for notable changes.`
-  if (condition) summary = `${checks} and notifies you when its ${condition}.`
+  if (condition) summary = `${checks} and notifies you when ${condition}.`
   else if (instructions) summary = `${checks}: ${instructions}.`
 
-  const steps: WorkflowProposal['steps'] = [
+  const head: WorkflowProposal['steps'] = [
     { id: 'trigger', label: 'Schedule Trigger', tone: 'trigger', lane: 'spine' },
-    { id: 'read', label: `Read ${cardTitle}`, tone: 'step', lane: 'spine' },
+    { id: 'read', label: `Read ${cardTitle}`, tone: 'source', lane: 'spine' },
+  ]
+  const complete = condition ? config.conditions.filter((item) => describeMonitorCondition(item) !== null) : []
+
+  // Two or more conditions are checked side by side, one branch each, and meet again at the notification.
+  if (complete.length > 1) {
+    const branches = complete.map((item, index) => {
+      const operator = MONITOR_OPERATORS.find((option) => option.value === item.operator)?.label ?? ''
+      const lane = index === 0 ? 'left' : 'right'
+      return [
+        { id: `${item.id}-field`, label: `Read ${item.field.trim()}`, tone: 'source', lane },
+        {
+          id: `${item.id}-check`,
+          label: `Check it ${operator} ${item.value?.toLocaleString('en-US')}`,
+          tone: 'source',
+          lane,
+        },
+      ] satisfies WorkflowProposal['steps']
+    })
+    const notify = {
+      id: 'notify',
+      label: config.match === 'all' ? 'Notify you when all match' : 'Notify you when any matches',
+      tone: 'delivery',
+      lane: 'join',
+    } satisfies WorkflowProposal['steps'][number]
+    return {
+      ...monitorProposalBase(id, cardTitle, schedule, condition, instructions, summary),
+      steps: [...head, ...branches.flat(), notify],
+      edges: [
+        ['trigger', 'read'],
+        ...branches.flatMap(([field, check]): [string, string][] => [
+          ['read', field.id],
+          [field.id, check.id],
+          [check.id, notify.id],
+        ]),
+      ],
+    }
+  }
+
+  const steps: WorkflowProposal['steps'] = [
+    ...head,
     condition
       ? { id: 'condition', label: `If ${condition}`, tone: 'step', lane: 'spine' }
       : {
@@ -166,6 +219,21 @@ export function monitorWorkflowProposal(id: string, cardTitle: string, config: M
   ]
 
   return {
+    ...monitorProposalBase(id, cardTitle, schedule, condition, instructions, summary),
+    steps,
+    edges: steps.slice(1).map((step, index): [string, string] => [steps[index].id, step.id]),
+  }
+}
+
+function monitorProposalBase(
+  id: string,
+  cardTitle: string,
+  schedule: string,
+  condition: string | null,
+  instructions: string,
+  summary: string,
+) {
+  return {
     id,
     intro: "I'll monitor this card on the schedule you set:",
     clauses: [
@@ -176,8 +244,6 @@ export function monitorWorkflowProposal(id: string, cardTitle: string, config: M
     ],
     title: `Monitor ${cardTitle}`,
     summary,
-    steps,
-    edges: steps.slice(1).map((step, index): [string, string] => [steps[index].id, step.id]),
   }
 }
 
@@ -185,8 +251,8 @@ export function monitorWorkflowProposal(id: string, cardTitle: string, config: M
 export function monitorPrompt(cardTitle: string, config: MonitorConfig) {
   const schedule = `${describeMonitorSchedule(config).replace(/^Runs /, '')} (${config.timezone})`
   const instructions = config.notifyBy === 'instructions' ? config.instructions.replace(/[.\s]+$/, '') : ''
-  const condition = config.notifyBy === 'condition' ? describeMonitorCondition(config.condition) : null
-  if (condition) return `Monitor ${cardTitle} ${schedule} and notify me when its ${condition}.`
+  const condition = describeMonitorConditions(config)
+  if (condition) return `Monitor ${cardTitle} ${schedule} and notify me when ${condition}.`
   if (instructions) return `Monitor ${cardTitle} ${schedule}. ${instructions}.`
   return `Monitor ${cardTitle} ${schedule} and notify me about notable changes.`
 }

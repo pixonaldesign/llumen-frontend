@@ -1,9 +1,5 @@
-/* The monitored card, with Add assets at the far end. */
 .context {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   min-width: 0;
   padding-top: 8px;
   font: var(--lc-font-body);
@@ -12,16 +8,6 @@
 .context > * {
   min-width: 0;
   margin: 0;
-}
-
-.context > .contextAdd {
-  flex-shrink: 0;
-  min-height: 28px;
-  height: 28px;
-  padding: 4px 10px;
-  gap: 6px;
-  font: var(--lc-font-small);
-  font-weight: var(--lc-weight-medium);
 }
 
 .body {
@@ -48,6 +34,11 @@
 
 .notify {
   padding-top: 16px;
+}
+
+/* The prompt or the conditions sit further from the select than the label does. */
+.notify > .control + * {
+  margin-top: 6px;
 }
 
 .notify .fieldHead > :first-child {
@@ -176,21 +167,244 @@
   white-space: nowrap;
 }
 
+.conditions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+/* Shows once there is a second condition, to choose whether all of them or any one must hold. */
+.match {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.matchLabel {
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-small);
+}
+
+.matchToggle {
+  grid-auto-columns: 44px;
+  padding: 2px;
+}
+
+.matchToggle > button {
+  height: 24px;
+  font-weight: var(--lc-weight-medium);
+}
+
+/*
+ * Holds two cards, then scrolls. The list runs into the body's right margin so its thumb sits on the
+ * panel edge; the cards keep the fields' width.
+ */
+.conditionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(2 * 136px + 8px);
+  margin: 0 calc(-1 * var(--space-2xl)) 0 0;
+  padding: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb) transparent;
+}
+
+/* Chromium drops ::-webkit-scrollbar sizing when scrollbar-color is set, which brings back the thick system bar. */
+@supports selector(::-webkit-scrollbar) {
+  .conditionList {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.conditionList::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.conditionList::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.conditionList::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.conditionList::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-full);
+  background: var(--lc-scrollbar-thumb);
+}
+
+.conditionList > li {
+  flex-shrink: 0;
+  margin-right: var(--space-2xl);
+}
+
+/* Chromium treats overlay as auto, so the thumb takes width; give it back so the cards stay aligned with the fields. */
+.conditionList[data-scrolls] > li {
+  margin-right: calc(var(--space-2xl) - var(--lc-scrollbar-size));
+}
+
+.conditionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--lc-border-default);
+  border-radius: 12px;
+  background: #ffffff05;
+  transition: opacity 0.15s;
+}
+
+.conditionCard[data-dragging] {
+  opacity: 0.4;
+}
+
+.conditionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.conditionTitle {
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
+  font-weight: var(--lc-weight-medium);
+}
+
+.conditionActions {
+  display: flex;
+  gap: 2px;
+  margin-right: -4px;
+}
+
+.conditionAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--lc-text-tertiary);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.conditionHandle {
+  cursor: grab;
+}
+
+.conditionHandle:active {
+  cursor: grabbing;
+}
+
+.conditionAction:hover {
+  background: var(--lc-bg-default);
+  color: var(--lc-text-primary);
+}
+
+.conditionRemove:hover {
+  background: #be414133;
+  color: var(--lc-text-negative);
+}
+
+.conditionAction:focus-visible,
+.addCondition:focus-visible {
+  outline: 2px solid var(--lc-text-brand);
+  outline-offset: 2px;
+}
+
 .condition {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: 8px;
 }
 
-.conditionLead {
+.conditionField {
+  position: relative;
   grid-column: 1 / -1;
-  margin: 0 0 2px;
-  color: var(--lc-text-tertiary);
-  font: var(--lc-font-small);
 }
 
-.conditionMetric {
-  grid-column: 1 / -1;
+.conditionField > input {
+  padding-right: 40px;
+}
+
+.conditionField > input::placeholder {
+  color: var(--lc-text-tertiary);
+}
+
+.conditionFieldRef {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--lc-text-tertiary);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.conditionFieldRef:hover {
+  background: var(--lc-bg-default);
+  color: var(--lc-text-primary);
+}
+
+.conditionFieldRef:focus-visible {
+  outline: 2px solid var(--lc-text-brand);
+  outline-offset: 2px;
+}
+
+.addCondition {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px dashed var(--lc-border-default);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
+  font-weight: var(--lc-weight-medium);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.addCondition:hover {
+  border-color: #ffffff33;
+  background: var(--lc-bg-default);
+  color: var(--lc-text-primary);
 }
 
 .body input[type='number'],

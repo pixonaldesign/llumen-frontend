@@ -1574,7 +1574,7 @@
   cursor: pointer;
 }
 
-.assetsNext:hover {
+.assetsNext:hover:not(:disabled) {
   filter: brightness(1.05);
 }
 
