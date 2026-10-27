@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { ArrowsOutSimple, X } from '@phosphor-icons/react'
+import { X } from '@phosphor-icons/react'
 import type { FirstResponse } from './firstResponseDemo'
 import { InteractiveMap } from './InteractiveMap'
 import { AssetCard } from './landing/BriefingAssets'
@@ -113,15 +113,6 @@ export function FirstResponseCard({
           <div className={cardStyles.titleRow}>
             <h3 className={cardStyles.title}>{response.headline}</h3>
             <div className={cardStyles.titleMeta}>
-              <button
-                type="button"
-                className={cardStyles.expandBtn}
-                aria-label="Open in full screen"
-                title="Open in full screen"
-                onClick={onExpand}
-              >
-                <ArrowsOutSimple size={20} weight="regular" aria-hidden />
-              </button>
               <button type="button" className={cardStyles.expandBtn} aria-label="Dismiss" onClick={onClose}>
                 <X size={20} weight="regular" aria-hidden />
               </button>
@@ -129,6 +120,15 @@ export function FirstResponseCard({
           </div>
           <Visual response={response} map={map} />
           <p className={response.kind === 'text' ? styles.answer : cardStyles.summary}>{response.text}</p>
+          <div className={cardStyles.footer}>
+            <button
+              type="button"
+              className={`${cardStyles.action} ${cardStyles.actionOutline} ${styles.continue}`}
+              onClick={onExpand}
+            >
+              Continue in conversation
+            </button>
+          </div>
         </div>
       </article>
     </div>

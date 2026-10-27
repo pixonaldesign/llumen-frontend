@@ -30,6 +30,17 @@
   inset: 0;
 }
 
+.wrap .continue {
+  border-color: rgba(255, 255, 255, 0.85);
+  background: transparent;
+  color: #fff;
+}
+
+.wrap .continue:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 .loader {
   display: flex;
   align-items: center;

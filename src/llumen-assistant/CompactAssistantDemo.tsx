@@ -2955,6 +2955,7 @@ export function CompactAssistantDemo() {
         findingsStyle={findingsStyle}
         onFindingsStyleChange={onFindingsStyleChange}
         alert={alertTakesCentre}
+        dimmed={firstResponse !== null && !landingAsk}
         findingToast={toastInFindings ? noticeToast(false) : null}
         view={briefingView}
         onViewChange={setBriefingView}

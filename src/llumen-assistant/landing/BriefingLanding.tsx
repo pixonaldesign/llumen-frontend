@@ -231,6 +231,8 @@ export type BriefingLandingProps = {
   onFindingsStyleChange?: (style: FindingsStyle) => void
   /** An alert aurora holds the middle of the findings stage: the greeting and finding step aside, and the carousel waits. */
   alert?: boolean
+  /** An answer floats over the AI bar: the findings soften behind it. */
+  dimmed?: boolean
   /** A toast finding shown in the finding's place until it is dismissed; the carousel waits underneath. */
   findingToast?: ReactNode
   /** The top bar's Briefing / Studio switch; the Studio covers the page under the bar. Uncontrolled when unset. */
@@ -254,6 +256,7 @@ export function BriefingLanding({
   findingsStyle = DEFAULT_FINDINGS_STYLE,
   onFindingsStyleChange,
   alert = false,
+  dimmed = false,
   findingToast = null,
   view: viewProp,
   onViewChange,
@@ -757,6 +760,7 @@ export function BriefingLanding({
       className={styles.root}
       data-findings-style={findingsStyle}
       data-alert={alert}
+      data-dimmed={dimmed || undefined}
       data-story={storyState}
       inert={opening || returnHeld}
       style={{

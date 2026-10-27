@@ -177,7 +177,14 @@
   inset: 0;
   z-index: 4;
   pointer-events: none;
-  transition: opacity 320ms ease;
+  transition:
+    opacity 320ms ease,
+    filter 320ms ease;
+}
+
+.root[data-dimmed='true'] .stage .dockLayer {
+  filter: blur(4px);
+  opacity: 0.72;
 }
 
 /* The alert aurora takes the middle of the stage (FindingReveal centre mode). */
