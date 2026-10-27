@@ -127,7 +127,7 @@
   pointer-events: none;
 }
 
-/* Blurs the map more strongly towards the bottom, under the greeting, finding and composer. */
+/* Blurs the map more strongly towards the bottom, under the finding and composer. */
 .fadeBlur {
   position: absolute;
   right: 0;
@@ -592,6 +592,38 @@
   --finding-w: min(800px, calc(100vw - 2 * var(--side-peek) - 176px));
 }
 
+/*
+ * Style 8: the finding starts the lower third, its category on the 2/3 line for a two-line finding (146px
+ * from category to actions); a chart grows up above it. On short screens it keeps --finding-under above
+ * the composer and --finding-over below the top bar, and its chart and text scroll within that room.
+ */
+.root[data-findings-style='8'] .chatDock {
+  --finding-over: 24px;
+  --finding-under: max(32px, calc(100dvh / 3 - var(--dock-top, var(--side-composer)) - 146px));
+  padding-top: var(--finding-over);
+  padding-bottom: var(--finding-under);
+}
+
+.root[data-findings-style='8'] .bubbleBody {
+  max-height: calc(
+    100dvh - var(--briefing-bar-h, 64px) - var(--dock-top, var(--side-composer)) - var(--finding-over) -
+      var(--finding-under)
+  );
+}
+
+.root[data-findings-style='8'] .findingMain {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+
+.root[data-findings-style='8'] .findingMain > * {
+  flex-shrink: 0;
+}
+
 /* The bubble's height eases between findings; bottom-aligning its content keeps the text still meanwhile. */
 .root[data-findings-style='6'] .bubble,
 .root[data-findings-style='8'] .bubble {
@@ -731,7 +763,21 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 36px;
   margin: 0 0 16px;
+}
+
+/* Style 8's Add menu and close: level with the title, over the grid's right edge; the board starts level with the filters. */
+.sideTools {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding-right: 28px;
 }
 
 .sideTitle {
@@ -787,6 +833,7 @@
 }
 
 .sideHead,
+.sideTools,
 .sideGreeting,
 .sideMoreTitle,
 .sideInsights {
@@ -838,6 +885,7 @@
 
 .sideView[data-shown='true'] .assetsIntroTitle,
 .sideView[data-shown='true'] .sideHead,
+.sideView[data-shown='true'] .sideTools,
 .sideView[data-shown='true'] .assetsFilters,
 .sideView[data-shown='true'] .sideGreeting,
 .sideView[data-shown='true'] .assetsSummary,
@@ -853,7 +901,8 @@
 }
 
 .sideView[data-shown='true'] .assetsIntroTitle,
-.sideView[data-shown='true'] .sideHead {
+.sideView[data-shown='true'] .sideHead,
+.sideView[data-shown='true'] .sideTools {
   --reveal-d: 420ms;
 }
 
@@ -920,16 +969,17 @@
 }
 
 /*
- * As wide as the summary at its minimum (SIDE_INTRO_MIN), the 64px gap and a two-column grid (2 x 260 +
- * 12) in its 4px / 28px paddings, past the modal's own 28px start padding.
+ * A sheet from the right edge, square there: as wide as the summary at its minimum (SIDE_INTRO_MIN), the
+ * 64px gap and a two-column grid (2 x 260 + 12) in its 4px / 28px paddings, past the modal's own 28px
+ * start padding, plus the 24px it once stood off the edge.
  */
 .root[data-findings-style='8'] .sideView {
-  inset: calc(var(--briefing-bar-h, 64px) + 24px) 24px calc(var(--side-composer) + 28px) auto;
+  inset: calc(var(--briefing-bar-h, 64px) + 24px) 0 calc(var(--side-composer) + 28px) auto;
   z-index: 6;
-  width: min(calc(28px + 480px + 64px + 4px + 532px + 28px), calc(100% - 88px));
+  width: min(calc(28px + 480px + 64px + 4px + 532px + 28px + 24px), calc(100% - 64px));
   padding: 28px 0 0 28px;
   overflow: hidden;
-  border-radius: var(--radius-2xl);
+  border-radius: var(--radius-2xl) 0 0 var(--radius-2xl);
   background:
     linear-gradient(
       160deg,
@@ -948,7 +998,7 @@
     inset 0 -1px 0 rgba(255, 255, 255, 0.1),
     inset 0 0 48px rgba(255, 255, 255, 0.05);
   opacity: 0;
-  transform: translateX(calc(100% + 24px));
+  transform: translateX(100%);
   transition:
     transform var(--side-slide),
     opacity 520ms ease,
@@ -962,12 +1012,12 @@
   transform: none;
 }
 
-/* The rim: a 1px ring masked out of a diagonal light, over the content so cards never cover it. */
+/* The rim: a 1px ring open at the screen edge, masked out of a diagonal light, over the content. */
 .root[data-findings-style='8'] .sideView::before {
   content: '';
   position: absolute;
   inset: 0;
-  padding: 1px;
+  padding: 1px 0 1px 1px;
   border-radius: inherit;
   background: linear-gradient(
     135deg,
@@ -1450,6 +1500,18 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* My Board's Add menu, fixed under its button (BoardAddMenu sets top and right), in the More options glass. */
+.addMenu {
+  position: fixed;
+  left: auto;
+  z-index: 50;
+  min-width: 160px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+}
+
 .assetsIntroTitle,
 .assetsFilters,
 .assetsSummary,
@@ -1533,42 +1595,6 @@
   color: rgba(255, 255, 255, 0.72);
   font-size: 14px;
   line-height: 20px;
-}
-
-.greeting {
-  box-sizing: border-box;
-  width: var(--finding-w);
-  margin: 0;
-  padding-inline: 4px;
-  color: #fff;
-  font-size: 20px;
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-  text-shadow: 0 2px 18px rgba(5, 10, 20, 0.7);
-}
-
-/* Greets above the first finding only; collapses away for the rest. */
-.greetingWrap {
-  display: grid;
-  grid-template-rows: 1fr;
-  margin-bottom: 0;
-  opacity: 1;
-  transition:
-    grid-template-rows 320ms ease,
-    margin-bottom 320ms ease,
-    opacity 200ms ease;
-}
-
-.greetingWrap > .greeting {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.greetingWrap[data-shown='false'] {
-  grid-template-rows: 0fr;
-  margin-bottom: -16px;
-  opacity: 0;
 }
 
 /* The carousel rides on the actions row's right edge, outside the bubble so it doesn't fade between findings. */
@@ -1768,10 +1794,17 @@
   pointer-events: auto;
 }
 
+/* No taller than a 2 x 2 visual on the My Board modal's grid (2 x ROOMY_BOARD_CELL + BOARD_GAP); the plot gives way. */
 .bubble .chart {
   width: 100%;
+  max-height: calc(2 * 260px + 12px);
   box-sizing: border-box;
   margin-bottom: 8px;
+}
+
+.bubble .chart .linePlot,
+.bubble .chart .columnPlot {
+  min-height: 0;
 }
 
 .bubbleMeta {

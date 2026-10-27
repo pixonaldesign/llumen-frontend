@@ -1,4 +1,4 @@
-import { ArrowUpRight, LinkSimple, Plus, PresentationChart } from '@phosphor-icons/react'
+import { ArrowUpRight, PresentationChart } from '@phosphor-icons/react'
 import {
   useEffect,
   useLayoutEffect,
@@ -31,8 +31,6 @@ const DRAG_START_PX = 6
 const SWAP_COOLDOWN_MS = 160
 const SETTLE_MS = 260
 const SETTLE_EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
-/** The Add Assets card's width in cells, as wide as a small asset. */
-const ADD_COLS = 2
 
 type Fit = Omit<BoardFit, 'id'>
 /**
@@ -141,17 +139,14 @@ function follow(board: HTMLElement, drag: Drag) {
 /**
  * Assets and dashboard apps on a grid of 184px cells (260px when `roomy`) with 12px gaps: `columns` of
  * them, or as many as fit its own width. With `onReorder`, cards drag to new places: the others make room
- * as the dragged card passes over them. With `onAdd`, Add Assets and Add App Links cards start a row of
- * their own under the rest. A `preview` is a picture of the grid only: nothing in it takes focus or the
- * pointer.
+ * as the dragged card passes over them. A `preview` is a picture of the grid only: nothing in it takes
+ * focus or the pointer.
  */
 export function BriefingAssetBoard({
   order,
   columns: fixedColumns,
   roomy = false,
   onReorder,
-  onAdd,
-  onAddAppLink,
   play = true,
   preview = false,
   edge,
@@ -161,9 +156,6 @@ export function BriefingAssetBoard({
   /** Bigger cells, where the small charts take a column each (ROOMY_FITS). */
   roomy?: boolean
   onReorder?: (order: string[]) => void
-  onAdd?: () => void
-  /** With `onAdd`: the Add App Links card's button. */
-  onAddAppLink?: () => void
   play?: boolean
   preview?: boolean
   /**
@@ -351,11 +343,6 @@ export function BriefingAssetBoard({
 
   const template = `repeat(${columns}, ${cell}px)`
   const playing = (play && mounted) || reduce
-  const adding = onAdd && !preview
-  /** Add Assets and Add App Links share a row, a cell each on a narrow board; one column stacks them. */
-  const linksBeside = columns >= 2
-  const addCols = linksBeside ? Math.min(ADD_COLS, Math.floor(columns / 2)) : 1
-  const rows = layout.rows + (adding ? (linksBeside ? 1 : 2) : 0)
 
   return (
     <div ref={wrapRef} className={styles.wrap} inert={preview} aria-hidden={preview || undefined}>
@@ -375,7 +362,7 @@ export function BriefingAssetBoard({
       >
         {onReorder ? (
           <div className={styles.cells} style={{ gridTemplateColumns: template }} aria-hidden>
-            {Array.from({ length: columns * rows }, (_, index) => (
+            {Array.from({ length: columns * layout.rows }, (_, index) => (
               <span key={index} className={styles.cell} />
             ))}
           </div>
@@ -419,39 +406,6 @@ export function BriefingAssetBoard({
             </div>
           )
         })}
-        {adding ? (
-          <>
-            <div
-              className={styles.item}
-              data-below={fold !== undefined ? 'true' : undefined}
-              style={{ gridColumn: `1 / span ${addCols}`, gridRow: `${layout.rows + 1}` }}
-            >
-              <div className={styles.add}>
-                <p className={styles.addHint}>Pin an asset to this board</p>
-                <button type="button" className={styles.addButton} onClick={onAdd}>
-                  <Plus size={20} weight="regular" aria-hidden />
-                  Add Assets
-                </button>
-              </div>
-            </div>
-            <div
-              className={styles.item}
-              data-below={fold !== undefined ? 'true' : undefined}
-              style={{
-                gridColumn: `${linksBeside ? addCols + 1 : 1} / span ${addCols}`,
-                gridRow: `${rows}`,
-              }}
-            >
-              <div className={styles.add}>
-                <p className={styles.addHint}>Pin an app to this board</p>
-                <button type="button" className={styles.addButton} onClick={onAddAppLink}>
-                  <LinkSimple size={20} weight="regular" aria-hidden />
-                  Add App Links
-                </button>
-              </div>
-            </div>
-          </>
-        ) : null}
       </div>
     </div>
   )

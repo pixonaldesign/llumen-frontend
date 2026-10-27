@@ -12,6 +12,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   ArrowRight,
@@ -23,8 +24,10 @@ import {
   ChatText,
   Check,
   MapPin,
+  Plus,
   ThumbsDown,
   ThumbsUp,
+  X,
 } from '@phosphor-icons/react'
 import { useRevealScrollbarOnScroll } from '../useRevealScrollbarOnScroll'
 import { BriefingAgentGrid } from './BriefingAgents'
@@ -160,7 +163,7 @@ const FEED_AUTOPLAY_MS = 9000
 const FINDING_FADE_MS = 320
 /** Dots shown at once; with more findings, the last two on a side with more shrink and fade. */
 const FEED_DOTS_VISIBLE = 7
-/** How far past the finding's content (greeting to actions) the pointer still holds autoplay, in px. */
+/** How far past the finding's content (category to actions) the pointer still holds autoplay, in px. */
 const HOLD_ZONE = { x: 70, top: 220, bottom: 144 }
 
 /** One-section glide; longer jumps (Home, End) take up to the max. */
@@ -928,6 +931,38 @@ export function BriefingLanding({
 const ASSET_LOCATIONS = ['Abu Dhabi Emirate', 'Abu Dhabi City', 'Al Ain', 'Al Dhafra'] as const
 const ASSET_PERIODS = ['Today', 'Last 7 days', 'Last 30 days', 'This year'] as const
 
+/**
+ * A dropdown's open state: a press outside `wrapRef` (and `menuRef`, for a menu portalled out of it)
+ * closes it, and so does Escape, which it takes before the modal's own Escape can close the modal too.
+ */
+function useDropdown() {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (wrapRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [open])
+
+  return { open, setOpen, wrapRef, menuRef }
+}
+
 function FilterSelect<T extends string>({
   label,
   icon,
@@ -941,25 +976,7 @@ function FilterSelect<T extends string>({
   value: T
   onChange: (value: T) => void
 }) {
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onPointer = (event: PointerEvent) => {
-      if (wrapRef.current?.contains(event.target as Node)) return
-      setOpen(false)
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointer)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open])
+  const { open, setOpen, wrapRef } = useDropdown()
 
   return (
     <div className={styles.filterWrap} ref={wrapRef}>
@@ -1109,8 +1126,68 @@ function AppsSection({ sectionRef }: { sectionRef?: RefObject<HTMLElement | null
 }
 
 /**
+ * My Board's Add menu, over the grid's right edge: pin an asset or an app link to the board. The menu
+ * portals to the body: inside the modal, under its backdrop filter, its own frost would not render.
+ */
+function BoardAddMenu({ onAddAsset }: { onAddAsset: () => void }) {
+  const { open, setOpen, wrapRef, menuRef } = useDropdown()
+  const [anchor, setAnchor] = useState({ top: 0, right: 0 })
+
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('resize', close)
+    return () => window.removeEventListener('resize', close)
+  }, [open, setOpen])
+
+  const toggle = () => {
+    const box = wrapRef.current?.getBoundingClientRect()
+    if (box) setAnchor({ top: box.bottom + 8, right: window.innerWidth - box.right })
+    setOpen((next) => !next)
+  }
+
+  return (
+    <div className={styles.filterWrap} ref={wrapRef}>
+      <button type="button" className={styles.filterPill} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
+        <Plus size={18} weight="regular" aria-hidden />
+        <span>Add</span>
+        <CaretDown size={14} weight="bold" aria-hidden />
+      </button>
+      {open
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className={`${styles.filterMenu} ${styles.addMenu}`}
+              style={anchor}
+              role="menu"
+              aria-label="Add to My Board"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className={styles.filterMenuItem}
+                onClick={() => {
+                  setOpen(false)
+                  onAddAsset()
+                }}
+              >
+                Asset
+              </button>
+              <button type="button" role="menuitem" className={styles.filterMenuItem} onClick={() => setOpen(false)}>
+                App Link
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  )
+}
+
+/**
  * Findings style 6's second page, pushed in from the right: the Assets summary on the left and the
- * Assets grid, dashboard apps included, filling the rest. The grid scrolls on its own.
+ * Assets grid, dashboard apps included, filling the rest. The grid scrolls on its own. Style 8's modal
+ * (`tools`) has Add and close over the grid instead of a back button.
  */
 function AssetsAppsView({
   shown,
@@ -1137,7 +1214,7 @@ function AssetsAppsView({
   edge: { room: number; min: number; partial?: number }
   onReorder: (order: string[]) => void
   onBack: () => void
-  /** Findings style 8's modal: an Add assets card closes the grid. */
+  /** Findings style 8's modal. */
   tools?: { onAddAssets: () => void }
 }) {
   const revealScrollbar = useRevealScrollbarOnScroll()
@@ -1161,9 +1238,11 @@ function AssetsAppsView({
     >
       <div className={styles.sideIntro}>
         <div className={styles.sideHead}>
-          <button type="button" className={styles.sideBack} onClick={onBack} aria-label="Back to Findings">
-            <ArrowLeft size={18} weight="regular" aria-hidden />
-          </button>
+          {tools ? null : (
+            <button type="button" className={styles.sideBack} onClick={onBack} aria-label="Back to Findings">
+              <ArrowLeft size={18} weight="regular" aria-hidden />
+            </button>
+          )}
           <h2 className={styles.sideTitle}>My Board</h2>
         </div>
         <AssetsFilters />
@@ -1181,15 +1260,16 @@ function AssetsAppsView({
         </ul>
       </div>
       <div className={styles.sideBoard}>
+        {tools ? (
+          <div className={styles.sideTools}>
+            <BoardAddMenu onAddAsset={tools.onAddAssets} />
+            <button type="button" className={styles.sideBack} onClick={onBack} aria-label="Close My Board">
+              <X size={18} weight="regular" aria-hidden />
+            </button>
+          </div>
+        ) : null}
         <div ref={setGrid} className={styles.sideGrid}>
-          <BriefingAssetBoard
-            order={order}
-            columns={columns}
-            roomy={roomy}
-            edge={edge}
-            onReorder={onReorder}
-            onAdd={tools?.onAddAssets}
-          />
+          <BriefingAssetBoard order={order} columns={columns} roomy={roomy} edge={edge} onReorder={onReorder} />
         </div>
       </div>
     </section>
@@ -1276,7 +1356,7 @@ function ConversationalBubble({
   controls: ReactNode
   /** Replaces the carousel and finding while it is up; they stay mounted underneath so nothing re-measures. */
   toast: ReactNode
-  /** True while the mouse is in HOLD_ZONE around the greeting, finding and controls, or keyboard focus is inside. */
+  /** True while the mouse is in HOLD_ZONE around the finding and controls, or keyboard focus is inside. */
   onHoldChange: (held: boolean) => void
 }) {
   const innerRef = useRef<HTMLDivElement>(null)
@@ -1427,7 +1507,6 @@ function ConversationalBubble({
 
   const askGreeting = findingsStyle === 2 || findingsStyle === 3 || findingsStyle === 4 || findingsStyle === 5
   const navAbove = findingsStyle === 5
-  const greet = !askGreeting && shown.id === FEED_STOPS[0].id
 
   return (
     <div
@@ -1450,13 +1529,6 @@ function ConversationalBubble({
         </p>
       ) : null}
       <div ref={chatDockRef} className={styles.chatDock} data-toast={toast ? 'true' : undefined}>
-        <div className={styles.greetingWrap} data-shown={greet} aria-hidden={!greet}>
-          <p className={styles.greeting}>
-            Good morning, Omar,
-            <br />
-            here is what requires your attention today
-          </p>
-        </div>
         {navAbove ? <div className={styles.findingNav}>{controls}</div> : null}
         <div className={styles.findingRow}>
           <div className={styles.bubble} style={height != null ? { height } : undefined}>
@@ -1493,9 +1565,10 @@ function FindingBody({
   onOpenStory?: (storyId: string) => void
 }) {
   const finding = `${stop.before}${stop.highlight}${stop.after}`.trim()
+  const revealScrollbar = useRevealScrollbarOnScroll()
   return (
     <>
-      <div className={styles.findingMain} data-chart={Boolean(stop.chart)}>
+      <div ref={revealScrollbar} className={styles.findingMain} data-chart={Boolean(stop.chart)}>
         {stop.chart ? <FeedChartCard key={stop.id} chart={stop.chart} /> : null}
         <div className={styles.findingCopy}>
           <p className={styles.bubbleMeta}>{stop.domain}</p>
