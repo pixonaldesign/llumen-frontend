@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { X } from '@phosphor-icons/react'
+import { ChatText, X } from '@phosphor-icons/react'
 import type { FirstResponse } from './firstResponseDemo'
 import { InteractiveMap } from './InteractiveMap'
 import { AssetCard } from './landing/BriefingAssets'
@@ -126,6 +126,7 @@ export function FirstResponseCard({
               className={`${cardStyles.action} ${cardStyles.actionOutline} ${styles.continue}`}
               onClick={onExpand}
             >
+              <ChatText className={styles.continueIcon} size={16} weight="regular" aria-hidden />
               Continue in conversation
             </button>
           </div>

@@ -160,8 +160,9 @@ export type StoryViewProps = {
   onBack: (from?: StoryMapView) => void
   /** Opens left agent rail with current story/slide context. */
   onAsk?: (context: { story: LandingStory; slideIndex: number; sourceRect: DOMRect }) => void
-  /** When the agent rail is open, hide the Ask icon. */
+  /** The agent is open; the Ask orb stays on screen and closes it through `onCloseAsk`. */
   agentOpen?: boolean
+  onCloseAsk?: () => void
   /** Red dot when findings were dismissed before every entry was seen. */
   findingUnread?: boolean
   /** Reopens findings that were dismissed before every entry was seen. */
@@ -455,6 +456,7 @@ export function StoryView({
   onBack,
   onAsk,
   agentOpen = false,
+  onCloseAsk,
   findingUnread = false,
   onRestoreFindings,
   aiState,
@@ -2414,12 +2416,17 @@ export function StoryView({
         )}
 
         <div className={styles.lowerNav} aria-label="Story navigation">
-          {!agentOpen && onAsk ? (
+          {onAsk ? (
             <button
               type="button"
               className={styles.askBtn}
-              aria-label="Ask about this story"
+              aria-label={agentOpen ? 'Close the assistant' : 'Ask about this story'}
+              aria-expanded={agentOpen}
               onClick={(event) => {
+                if (agentOpen) {
+                  onCloseAsk?.()
+                  return
+                }
                 const sourceRect = event.currentTarget.getBoundingClientRect()
                 if (findingUnread && onRestoreFindings) {
                   onRestoreFindings(sourceRect)

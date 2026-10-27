@@ -36,6 +36,11 @@
   color: #fff;
 }
 
+.wrap[data-size='compact'] .continue .continueIcon {
+  width: 16px;
+  height: 16px;
+}
+
 .wrap .continue:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;

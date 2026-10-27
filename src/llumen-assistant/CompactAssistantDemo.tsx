@@ -2955,7 +2955,6 @@ export function CompactAssistantDemo() {
         findingsStyle={findingsStyle}
         onFindingsStyleChange={onFindingsStyleChange}
         alert={alertTakesCentre}
-        dimmed={firstResponse !== null && !landingAsk}
         findingToast={toastInFindings ? noticeToast(false) : null}
         view={briefingView}
         onViewChange={setBriefingView}
@@ -3024,6 +3023,7 @@ export function CompactAssistantDemo() {
               onBack={leaveStory}
               onAsk={isHub ? openStoryAsk : undefined}
               agentOpen={open || hubStoryOpen}
+              onCloseAsk={hubStoryOpen ? () => setCompactRestoreToken((n) => n + 1) : undefined}
               findingUnread={findingUnread}
               onRestoreFindings={restoreUnreadFindings}
               aiState={storyAiState}
@@ -3126,38 +3126,46 @@ export function CompactAssistantDemo() {
                 />
               </div>
             ) : null}
-            {!storyActive && !landingAsk && firstResponse?.loading ? (
-              <div key={firstResponse.response.id} className={styles.composerWorkflow}>
-                <FirstResponseLoader
-                  steps={(firstResponse.landing?.reply ?? firstResponse.response.reply).timeline.map(
-                    (step) => step.titleInProgress ?? step.title,
-                  )}
-                  onDone={firstResponseLoaded}
-                />
-              </div>
-            ) : null}
-            {!storyActive && !landingAsk && firstResponse && !firstResponse.loading ? (
-              <div key={firstResponse.response.id} className={styles.composerWorkflow}>
-                <FirstResponseCard
-                  response={firstResponse.response}
-                  map={
-                    firstResponse.landing?.map ? (
-                      <LandingAskMap
-                        preview
-                        snapshot={firstResponse.landing.map.snapshot}
-                        capture={null}
-                        onCapture={storeMapCapture}
-                      />
-                    ) : undefined
-                  }
-                  onExpand={() => openFirstResponse()}
-                  onClose={() => setFirstResponse(null)}
-                  onRunFailed={reportWorkflowRunFailed}
-                  onOpenWorkflow={(proposal) => {
-                    openHubChat()
-                    setSubcontext({ view: 'workflow', proposal })
-                  }}
-                />
+            {!storyActive && !landingAsk && firstResponse ? (
+              <div
+                key={firstResponse.response.id}
+                className={`${styles.composerWorkflow} ${styles.composerAnswer}`}
+              >
+                <div className={styles.answerBackdrop} aria-hidden>
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                {firstResponse.loading ? (
+                  <FirstResponseLoader
+                    steps={(firstResponse.landing?.reply ?? firstResponse.response.reply).timeline.map(
+                      (step) => step.titleInProgress ?? step.title,
+                    )}
+                    onDone={firstResponseLoaded}
+                  />
+                ) : (
+                  <FirstResponseCard
+                    response={firstResponse.response}
+                    map={
+                      firstResponse.landing?.map ? (
+                        <LandingAskMap
+                          preview
+                          snapshot={firstResponse.landing.map.snapshot}
+                          capture={null}
+                          onCapture={storeMapCapture}
+                        />
+                      ) : undefined
+                    }
+                    onExpand={() => openFirstResponse()}
+                    onClose={() => setFirstResponse(null)}
+                    onRunFailed={reportWorkflowRunFailed}
+                    onOpenWorkflow={(proposal) => {
+                      openHubChat()
+                      setSubcontext({ view: 'workflow', proposal })
+                    }}
+                  />
+                )}
               </div>
             ) : null}
             <HubChatbox
