@@ -1,0 +1,661 @@
+/* Minimal node style: plain content card named inside (charts and maps underneath), details on hover, ports floating outside. */
+
+.node {
+  --card-pad: var(--canvas-card-pad, var(--space-xl));
+  --card-radius: var(--canvas-card-radius, var(--radius-3xl));
+  /* Read by the shared resize handles and data panel. */
+  --node-radius: var(--card-radius);
+  --node-pad: var(--card-pad);
+  --port-size: var(--canvas-port-size, 10px);
+  --port-gap: 10px;
+  /* Text and line colour on the card; a custom appearance can switch it to dark. */
+  --ink-rgb: 255 255 255;
+
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 350px;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: grab;
+}
+
+.node :where(button) {
+  cursor: pointer;
+}
+
+.raised {
+  z-index: 1;
+}
+
+.selected {
+  z-index: 2;
+}
+
+.dragging {
+  z-index: 3;
+  cursor: grabbing;
+}
+
+/* ---------- Name: first row inside the card ---------- */
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  font-size: var(--lc-font-caption-size);
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.titleIcon {
+  flex-shrink: 0;
+  color: var(--node-accent);
+}
+
+.name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.title .name {
+  color: rgb(var(--ink-rgb) / 0.92);
+}
+
+/* Charts and maps: the name above the card, run details at the end of the row. */
+.previewHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: 0 var(--space-xxs);
+}
+
+/* Hidden details as chips: tucked under the title rather than a full hero gap away. */
+.heroBadges {
+  margin-top: calc(var(--space-xs) - var(--space-lg));
+}
+
+.previewBadges {
+  margin: calc(var(--space-xs) - var(--space-md)) 0 0;
+  padding: 0 var(--space-xxs);
+}
+
+/* Triggers lead with a big category tile and the name in display type. */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xs);
+}
+
+.heroTop {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.heroIcon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--node-accent);
+  color: var(--node-on-accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 6px 18px color-mix(in srgb, var(--node-accent) 22%, transparent);
+}
+
+:global([data-card-icon='circle']) .heroIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  box-shadow: none;
+}
+
+:global([data-card-icon='none']) .heroIcon {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  color: var(--node-accent);
+  box-shadow: none;
+}
+
+.heroTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: -0.01em;
+}
+
+.heroTitle .name {
+  color: rgb(var(--ink-rgb) / 0.95);
+}
+
+.heroTitle .status {
+  width: 7px;
+  height: 7px;
+}
+
+.status {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+}
+
+.status_skipped {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.spinner {
+  flex-shrink: 0;
+  color: var(--canvas-accent);
+  animation: spin 0.9s linear infinite;
+}
+
+/* Run details and the result badge, pushed to the end of the row. */
+.runInfo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--lc-font-small-size);
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.badge_success {
+  color: #22c55e;
+  background: rgb(34 197 94 / 0.2);
+}
+
+.badge_error {
+  color: rgb(var(--run-fail-rgb, 239, 68, 68));
+  background: rgba(var(--run-fail-rgb, 239, 68, 68), 0.2);
+}
+
+.badge_default {
+  color: rgb(var(--ink-rgb) / 0.7);
+  background: rgb(var(--ink-rgb) / 0.1);
+}
+
+.meta {
+  flex-shrink: 0;
+  color: rgb(var(--ink-rgb) / 0.45);
+  font-size: var(--lc-font-small-size);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Run details show on hover or selection; hidden, they take no width so the name can use the row. */
+.meta {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--lc-duration) var(--lc-ease);
+}
+
+.node:hover .meta,
+.selected .meta {
+  max-width: none;
+  opacity: 1;
+}
+
+/* ---------- Card ---------- */
+
+.card {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-height: 56px;
+  padding: var(--card-pad);
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  border-radius: var(--card-radius);
+  color: rgb(var(--ink-rgb) / 0.9);
+  /* Keeps a custom background layer (z-index -1) above the card's own fill, below its content. */
+  isolation: isolate;
+  background: linear-gradient(to bottom, #202127, #1b1c21);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  /* Only visible where the card's fill is see-through. */
+  backdrop-filter: var(--card-backdrop, none);
+  -webkit-backdrop-filter: var(--card-backdrop, none);
+  transition: border-color var(--lc-duration) var(--lc-ease), box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+/* Canvas-wide card surface (canvas background panel); a custom background layer still paints over it. */
+:global([data-card-surface]) .card {
+  border-color: var(--card-line);
+  background: linear-gradient(to bottom, var(--card-top), var(--card-bottom));
+  backdrop-filter: var(--card-backdrop);
+}
+
+:global([data-card-ink='dark']) .card {
+  --ink-rgb: 24 24 27;
+}
+
+.node:hover .card {
+  border-color: rgb(var(--ink-rgb) / 0.16);
+}
+
+/* The outer ring keeps one screen pixel at any zoom. */
+.selected .card,
+.selected:hover .card {
+  border-color: var(--canvas-accent);
+  box-shadow:
+    0 0 0 calc(1px / var(--zoom, 1)) var(--canvas-accent),
+    0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+.cardMap {
+  padding: 0;
+}
+
+.note .card {
+  border-color: color-mix(in srgb, var(--node-accent) 30%, transparent);
+  background: color-mix(in srgb, var(--node-accent) 12%, #1c1d22);
+}
+
+/* ---------- Run states ---------- */
+
+.run_running .card {
+  border-color: color-mix(in srgb, var(--canvas-accent) 55%, transparent);
+  animation: runPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes runPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(115, 173, 245, 0), 0 8px 24px rgba(0, 0, 0, 0.22);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(115, 173, 245, 0.16), 0 0 28px rgba(115, 173, 245, 0.22);
+  }
+}
+
+/* Failed node: ring and glow in the run-result failure colour; stays until the node runs again. */
+.run_error .card,
+.run_error:hover .card {
+  border-color: rgba(var(--run-fail-rgb, 239, 68, 68), 0.9);
+  box-shadow:
+    0 0 0 calc(1px / var(--zoom, 1)) rgba(var(--run-fail-rgb, 239, 68, 68), 0.9),
+    0 0 32px rgba(var(--run-fail-rgb, 239, 68, 68), 0.35),
+    0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+/* Indeterminate progress line along the card's bottom edge. */
+.progress {
+  position: absolute;
+  right: var(--card-radius);
+  bottom: -1px;
+  left: var(--card-radius);
+  height: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(115, 173, 245, 0.15);
+}
+
+.progress::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, var(--canvas-accent), transparent);
+  animation: progressSlide 1.2s ease-in-out infinite;
+}
+
+@keyframes progressSlide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run_running .card,
+  .progress::after,
+  .spinner {
+    animation: none;
+  }
+}
+
+/* ---------- Content ---------- */
+
+.description,
+.prompt,
+.noteText {
+  margin: 0;
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+}
+
+.description {
+  color: rgb(var(--ink-rgb) / 0.5);
+}
+
+.prompt {
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgb(var(--ink-rgb) / 0.75);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.noteText {
+  flex: 1;
+  color: rgb(var(--ink-rgb) / 0.75);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+}
+
+.field dt {
+  flex-shrink: 0;
+  color: rgb(var(--ink-rgb) / 0.5);
+}
+
+.field dd {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--lc-font-data);
+  font-size: var(--lc-font-small-size);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.field dd[data-muted] {
+  color: rgb(var(--ink-rgb) / 0.45);
+  font-family: inherit;
+}
+
+/* Values panel: the values in their own panel 4px under the card, tinted dark from the category colour. */
+/* A touch smaller than the card; zoom scales layout too, so the node measures what it draws. */
+.values {
+  zoom: 0.95;
+  width: 95%;
+  align-self: center;
+  margin-top: calc(4px - var(--space-md));
+  padding: var(--space-lg) var(--card-pad);
+  border: 1px solid rgb(var(--node-glow-rgb, 255 255 255) / 0.16);
+  border-radius: var(--card-radius);
+  color: rgb(var(--ink-rgb) / 0.9);
+  background: color-mix(in srgb, rgb(var(--node-glow-rgb, 255 255 255)) 16%, rgb(6 7 9 / 0.88));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+  backdrop-filter: var(--card-backdrop, none);
+  -webkit-backdrop-filter: var(--card-backdrop, none);
+}
+
+.values .field dt {
+  color: var(--node-accent);
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 36px;
+  padding-block: 8px;
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+}
+
+.row + .row {
+  border-top: 1px solid rgb(var(--ink-rgb) / 0.06);
+}
+
+.rowIndex {
+  flex-shrink: 0;
+  width: 14px;
+  color: rgb(var(--ink-rgb) / 0.4);
+  font-size: var(--lc-font-small-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.rowDot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  margin-inline: 4px;
+  border-radius: var(--radius-full);
+}
+
+.rowDot_positive {
+  background: #22c55e;
+}
+
+.rowDot_negative {
+  background: #ef4444;
+}
+
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rowLabelMuted {
+  color: rgb(var(--ink-rgb) / 0.5);
+}
+
+/* Takes its space up front so revealing it on hover doesn't move anything. */
+.addRow {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-sm);
+  margin-left: calc(-1 * var(--space-md));
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgb(var(--ink-rgb) / 0.55);
+  font-size: var(--lc-font-caption-size);
+  opacity: 0;
+  transition: opacity var(--lc-duration) var(--lc-ease), background var(--lc-duration) var(--lc-ease);
+}
+
+.node:hover .addRow,
+.selected .addRow,
+.addRow:focus-visible {
+  opacity: 1;
+}
+
+.addRow:hover {
+  background: rgb(var(--ink-rgb) / 0.06);
+  color: rgb(var(--ink-rgb));
+}
+
+.issue,
+.errorText {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  font-size: var(--lc-font-small-size);
+  line-height: 18px;
+}
+
+.issue {
+  background: rgb(252 211 77 / 0.1);
+  color: #fcd34d;
+}
+
+.errorText {
+  background: rgb(252 165 165 / 0.1);
+  color: #fca5a5;
+}
+
+[data-ink='dark'] .issue {
+  background: rgb(146 64 14 / 0.1);
+  color: #92400e;
+}
+
+[data-ink='dark'] .errorText {
+  background: rgb(185 28 28 / 0.1);
+  color: #b91c1c;
+}
+
+.cardMap .issue,
+.cardMap .errorText {
+  position: absolute;
+  bottom: var(--space-md);
+  left: var(--space-lg);
+}
+
+/* ---------- Ports: hollow dots floating just outside the card ---------- */
+
+/* Shown on the selected node and where an edge is attached; see the canvas for the zoom cut-off. */
+.port {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  width: var(--port-size);
+  height: var(--port-size);
+  border: var(--port-line-width, 1.5px) solid var(--port-line, rgba(255, 255, 255, 0.4));
+  border-radius: var(--radius-full);
+  background: var(--port-fill, #121212);
+  cursor: crosshair;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition:
+    opacity var(--lc-duration) var(--lc-ease),
+    border-color var(--lc-duration) var(--lc-ease),
+    background var(--lc-duration) var(--lc-ease),
+    box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+.selected .port,
+.node:hover .port,
+.node[data-near] .port,
+.port[data-connected] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* While dragging a connection, only the ports it can land on, and the one it started from, show. */
+:global([data-connecting]) .node .port {
+  opacity: 0;
+  pointer-events: none;
+}
+
+:global([data-connecting='out']) .node .port[data-port-side='in'],
+:global([data-connecting='in']) .node .port[data-port-side='out'],
+:global([data-connecting]) .node .portActive {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+:global([data-ports-hidden]) .node .port {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.port::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: var(--radius-full);
+}
+
+.port:hover,
+.portActive {
+  border-color: var(--canvas-accent);
+  background: var(--canvas-accent);
+  box-shadow: 0 0 0 4px rgba(115, 173, 245, 0.25);
+}
+
+.portIn {
+  left: calc(-1px - var(--port-gap) - var(--port-size));
+}
+
+.portOut {
+  right: calc(-1px - var(--port-gap) - var(--port-size));
+}
+
+.rowPortIn {
+  left: calc(-1 * var(--card-pad) - 1px - var(--port-gap) - var(--port-size));
+}
+
+.rowPortOut {
+  right: calc(-1 * var(--card-pad) - 1px - var(--port-gap) - var(--port-size));
+}
+
+/* ---------- Data card ---------- */
+
+/* Hangs below the node, outside its box, so opening it leaves the node's size and saved frame alone. */
+.panel {
+  position: absolute;
+  top: calc(100% + var(--space-md));
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--card-radius);
+  background: #1a1b20;
+  cursor: default;
+}
+
+.panelTabs {
+  composes: segmented from '../llumen-assistant/story/StoryBackground.module.css';
+  width: max-content;
+  margin: var(--space-md) var(--space-lg) var(--space-xs) var(--card-pad);
+}
+
+.segment {
+  composes: segment from '../llumen-assistant/story/StoryBackground.module.css';
+}
+
+.segmentActive {
+  composes: segmentActive from '../llumen-assistant/story/StoryBackground.module.css';
+}

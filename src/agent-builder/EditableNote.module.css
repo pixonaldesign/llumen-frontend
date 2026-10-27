@@ -1,0 +1,29 @@
+.note {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.placeholder {
+  opacity: 0.5;
+}
+
+.editor {
+  display: block;
+  width: 100%;
+  min-height: 20px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  resize: none;
+  field-sizing: content;
+}
+
+.editor::placeholder {
+  color: inherit;
+  opacity: 0.5;
+}

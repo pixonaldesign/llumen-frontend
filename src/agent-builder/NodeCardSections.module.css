@@ -1,0 +1,947 @@
+/* Sectioned node style: header (icon, category), content (title, then what the node holds), footer (run data). */
+/* The node, ports, run details, and rows come from the minimal style, so placement and states behave the same. */
+
+.node {
+  composes: node from './NodeCardMinimal.module.css';
+}
+
+.selected {
+  composes: selected from './NodeCardMinimal.module.css';
+}
+
+/* ---------- Card: tinted dark from the category colour ---------- */
+
+.card {
+  --card-pad: var(--canvas-card-pad, 16px);
+  --well-radius: var(--radius-xl);
+  --section-line: rgb(var(--node-glow-rgb, 255 255 255) / 0.14);
+
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 56px;
+  border: 1px solid var(--card-frame, rgb(var(--node-glow-rgb, 255 255 255) / 0.18));
+  border-radius: var(--card-radius);
+  color: rgb(var(--ink-rgb) / 0.9);
+  /* Keeps a custom background layer (z-index -1) above the card's own fill, below its content. */
+  isolation: isolate;
+  background: var(--card-surface, color-mix(in srgb, rgb(var(--node-glow-rgb, 255 255 255)) 16%, rgb(6 7 9 / 0.88)));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+  backdrop-filter: var(--card-backdrop, none);
+  -webkit-backdrop-filter: var(--card-backdrop, none);
+  transition: border-color var(--lc-duration) var(--lc-ease), box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+:global([data-card-ink='dark']) .card {
+  --ink-rgb: 24 24 27;
+}
+
+.node:hover .card {
+  border-color: var(--card-frame-hover, rgb(var(--node-glow-rgb, 255 255 255) / 0.34));
+}
+
+/* The outer ring keeps one screen pixel at any zoom. */
+.selected .card,
+.selected:hover .card {
+  border-color: var(--canvas-accent);
+  box-shadow:
+    0 0 0 calc(1px / var(--zoom, 1)) var(--canvas-accent),
+    0 8px 24px rgba(0, 0, 0, 0.24);
+}
+
+.run_running .card {
+  border-color: color-mix(in srgb, var(--canvas-accent) 55%, transparent);
+  animation: runPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes runPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(115, 173, 245, 0), 0 8px 24px rgba(0, 0, 0, 0.24);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(115, 173, 245, 0.16), 0 0 28px rgba(115, 173, 245, 0.22);
+  }
+}
+
+.run_error .card,
+.run_error:hover .card {
+  border-color: rgba(var(--run-fail-rgb, 239, 68, 68), 0.9);
+  box-shadow:
+    0 0 0 calc(1px / var(--zoom, 1)) rgba(var(--run-fail-rgb, 239, 68, 68), 0.9),
+    0 0 32px rgba(var(--run-fail-rgb, 239, 68, 68), 0.35),
+    0 8px 24px rgba(0, 0, 0, 0.24);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run_running .card {
+    animation: none;
+  }
+}
+
+/* ---------- Header ---------- */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  padding: 12px var(--card-pad);
+  border-bottom: 1px solid var(--section-line);
+}
+
+.headerIcon {
+  flex-shrink: 0;
+  color: var(--node-accent);
+}
+
+.category {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: rgb(var(--ink-rgb) / 0.72);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Node-specific buttons at the end of the header, on hover: the details toggle, and whatever the kind adds. */
+.headerActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  margin: -2px 0;
+  opacity: 0;
+  transition: opacity var(--lc-duration) var(--lc-ease);
+}
+
+.node:hover .headerActions,
+.selected .headerActions,
+.headerActions:focus-within {
+  opacity: 1;
+}
+
+.headerAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgb(var(--ink-rgb) / 0.9);
+  transition: background var(--lc-duration) var(--lc-ease), color var(--lc-duration) var(--lc-ease);
+}
+
+.headerAction:hover {
+  background: rgb(var(--ink-rgb) / 0.1);
+}
+
+.headerAction[aria-pressed='true'] {
+  background: rgb(var(--ink-rgb) / 0.14);
+  color: var(--node-accent);
+}
+/* Run result and details above the card's top-right corner, out of flow so a run doesn't move the card. */
+.runAbove {
+  position: absolute;
+  right: 7px;
+  bottom: calc(100% + 8px);
+  display: flex;
+}
+
+/* Branch outputs as dots stacked on the right edge; each item is zero-width at the card's inner edge, so the dots sit where a single output's would. */
+/* Kept outside the card: the card's backdrop blur would otherwise stop the labels' blur from reaching the edges behind them. */
+.edgeOutputs {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  right: 1px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.edgeOutput {
+  --edge-label-gap: 8px;
+
+  position: relative;
+  height: var(--port-size);
+}
+
+/* A chip on the dot's centre line; an edge leaving the dot runs behind it and shows blurred. */
+.edgeOutputLabel {
+  position: absolute;
+  top: 50%;
+  left: calc(1px + var(--port-gap) + var(--port-size) + var(--edge-label-gap));
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.1);
+  color: rgb(var(--ink-rgb) / 0.85);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-50%);
+  backdrop-filter: blur(12px);
+  transition: opacity var(--lc-duration) var(--lc-ease);
+}
+
+.node:hover .edgeOutputLabel,
+.node[data-near] .edgeOutputLabel,
+.selected .edgeOutputLabel,
+.edgeOutput:has([data-connected]) .edgeOutputLabel {
+  opacity: 1;
+}
+
+/* ---------- Content ---------- */
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--card-pad);
+}
+
+/* A branching kind's outputs, one box each; a row's port measures from the box's edge, which stays the
+   content's edge. */
+.branches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.branch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: rgb(var(--ink-rgb) / 0.1);
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+}
+
+.branches > .branch + .branch {
+  border-top-color: transparent;
+}
+
+/* Under `.content` to outrank the canvas's `button { font: inherit }` reset. */
+.content .addBranch {
+  border-color: rgb(var(--ink-rgb) / 0.2);
+  border-style: dashed;
+  background: transparent;
+  color: rgb(var(--ink-rgb) / 0.6);
+  justify-content: center;
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease), color var(--lc-duration) var(--lc-ease);
+}
+
+.content .addBranch:hover {
+  background: rgb(var(--ink-rgb) / 0.06);
+  color: rgb(var(--ink-rgb) / 0.9);
+}
+
+/* Only as wide as its text, so the count badge sits right after the name. */
+.branchLabel {
+  flex: 0 1 auto;
+}
+
+/* Rows an input received, or a branch sent, on the last run. */
+.branchCount {
+  flex-shrink: 0;
+  padding: 1px var(--space-sm);
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  border-radius: 11px;
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: rgb(var(--ink-rgb) / 0.75);
+  font-size: var(--lc-font-small-size);
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fixed height inside the row's 20px line, so showing them on hover doesn't change the row's height; pushed to
+   the row's end, after the name and its count. */
+.branchActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  height: 20px;
+  margin: 0 -6px 0 auto;
+  opacity: 0;
+  transition: opacity var(--lc-duration) var(--lc-ease);
+}
+
+.branch:hover .branchActions,
+.branchActions:focus-within {
+  opacity: 1;
+}
+
+.branchAction {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-block: -2px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgb(var(--ink-rgb) / 0.6);
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease), color var(--lc-duration) var(--lc-ease);
+}
+
+.branchAction:hover {
+  background: rgb(var(--ink-rgb) / 0.1);
+  color: rgb(var(--ink-rgb) / 0.95);
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  color: rgb(var(--ink-rgb) / 0.95);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  color: rgb(var(--ink-rgb) / 0.5);
+  font-size: var(--lc-font-caption-size);
+  line-height: 18px;
+}
+
+.badges {
+  margin-top: var(--space-xs);
+}
+
+/* Inset surface for what the node holds: a prompt, an asset. */
+.well {
+  border: 1px solid rgb(var(--ink-rgb) / 0.07);
+  border-radius: var(--well-radius);
+  background: rgb(0 0 0 / 0.22);
+}
+
+/* Takes the height a resized node gives the content, so the chart or map grows with it. */
+.asset {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.asset[data-preview='chart'] {
+  padding: 12px 12px 4px;
+}
+
+.prompt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: 10px 12px;
+  cursor: text;
+  transition: border-color var(--lc-duration) var(--lc-ease);
+}
+
+.prompt:focus-within {
+  border-color: color-mix(in srgb, var(--node-accent) 55%, transparent);
+}
+
+.promptLabel {
+  color: rgb(var(--ink-rgb) / 0.45);
+  font-size: var(--lc-font-small-size);
+  line-height: 16px;
+}
+
+/* Grows with its text rather than scrolling. */
+.promptInput {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgb(var(--ink-rgb) / 0.88);
+  font: inherit;
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+  resize: none;
+  cursor: text;
+}
+
+.promptInput::placeholder {
+  color: rgb(var(--ink-rgb) / 0.35);
+}
+
+/* ---------- Footer: the last run's data ---------- */
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--section-line);
+  border-radius: 0 0 calc(var(--card-radius) - 1px) calc(var(--card-radius) - 1px);
+  background: rgb(0 0 0 / 0.2);
+  cursor: default;
+}
+
+.footerHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--space-sm);
+  min-height: 20px;
+  padding: 10px var(--card-pad) 8px;
+  color: rgb(var(--ink-rgb) / 0.45);
+  font-size: var(--lc-font-small-size);
+  line-height: 16px;
+}
+
+.footerLabel {
+  color: rgb(var(--ink-rgb) / 0.75);
+  font-weight: 500;
+}
+
+/* Its own line under the label and count. */
+.footerHint {
+  flex-basis: 100%;
+}
+
+.footerBody {
+  padding: 0 var(--card-pad) 14px;
+}
+
+.footerStatus {
+  margin: 0;
+  padding: 0 var(--card-pad) 14px;
+  color: rgb(var(--ink-rgb) / 0.55);
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+}
+
+.countdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: 10px 12px 12px;
+  border-radius: var(--radius-lg);
+  background: rgb(var(--ink-rgb) / 0.1);
+}
+
+.countdownHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  color: rgb(var(--ink-rgb) / 0.55);
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+}
+
+.countdownTime {
+  color: rgb(var(--ink-rgb) / 0.95);
+  font-family: var(--lc-font-data);
+  font-size: var(--lc-font-body-size);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdownTrack {
+  overflow: hidden;
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(var(--ink-rgb) / 0.1);
+}
+
+.countdownFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--node-accent);
+  transform-origin: left;
+}
+
+.footerStatus[data-tone='error'] {
+  margin: 0 var(--card-pad) 14px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  background: rgb(252 165 165 / 0.1);
+  color: #fca5a5;
+}
+
+[data-ink='dark'] .footerStatus[data-tone='error'] {
+  background: rgb(185 28 28 / 0.1);
+  color: #b91c1c;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  list-style: none;
+}
+
+.result {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  color: rgb(var(--ink-rgb) / 0.55);
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+}
+
+/* Same treatment as the card's error and warning states. */
+.result[data-tone='critical'] {
+  background: rgb(252 165 165 / 0.1);
+  color: #fca5a5;
+}
+
+.result[data-tone='warning'] {
+  background: rgb(252 211 77 / 0.1);
+  color: #fcd34d;
+}
+
+[data-ink='dark'] .result[data-tone='critical'] {
+  background: rgb(185 28 28 / 0.1);
+  color: #b91c1c;
+}
+
+[data-ink='dark'] .result[data-tone='warning'] {
+  background: rgb(146 64 14 / 0.1);
+  color: #92400e;
+}
+
+/* Full-bleed so the scrollbars sit on the card edge; the cells carry the inset. */
+.tableScroll {
+  max-height: 156px;
+  overflow: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+  user-select: text;
+}
+
+.tableScroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+  height: var(--lc-scrollbar-size);
+}
+
+.tableScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+.table {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: var(--lc-font-small-size);
+  line-height: 18px;
+}
+
+.table th,
+.table td {
+  max-width: 180px;
+  padding: 6px 12px;
+  overflow: hidden;
+  border-top: 1px solid rgb(var(--ink-rgb) / 0.06);
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: var(--card-pad);
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-right: var(--card-pad);
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background: color-mix(in srgb, rgb(var(--node-glow-rgb, 255 255 255)) 10%, #0b0c0f);
+  color: rgb(var(--ink-rgb) / 0.5);
+  font-weight: 500;
+}
+
+.table td {
+  color: rgb(var(--ink-rgb) / 0.85);
+  font-family: var(--lc-font-data);
+}
+
+.table td[data-type='number'] {
+  color: #93c5fd;
+  text-align: right;
+}
+
+.table td[data-type='boolean'] {
+  color: #fcd34d;
+}
+
+.text {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: rgb(var(--ink-rgb) / 0.8);
+  font-size: var(--lc-font-caption-size);
+  line-height: 20px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.made {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.savedChart {
+  height: 160px;
+}
+
+/* A map keeps the Asset node's rounded frame; a chart sits straight on the footer. */
+.savedChart[data-map] {
+  overflow: hidden;
+  border-radius: var(--well-radius);
+}
+
+/* The chart sizes itself for the config window; on the card it fills the box. Its SVG takes the box's
+   client size, padding included, so the box has none. */
+.savedChart > div {
+  height: 100%;
+  padding: 0;
+}
+
+/* Axis text in the card's font, as on the Asset node's chart. */
+.savedChart text {
+  font-family: inherit;
+}
+
+.madeTitle {
+  margin: 0;
+  color: rgb(var(--ink-rgb) / 0.9);
+  font-size: var(--lc-font-caption-size);
+  font-weight: 500;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.madeMeta {
+  margin: 0;
+  color: rgb(var(--ink-rgb) / 0.45);
+  font-size: var(--lc-font-small-size);
+  line-height: 16px;
+}
+
+.slides {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+}
+
+.slide,
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  border-radius: var(--radius-md);
+  background: rgb(var(--ink-rgb) / 0.04);
+}
+
+.slide {
+  aspect-ratio: 16 / 9;
+}
+
+.slide:first-child {
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--node-accent) 22%, transparent);
+}
+
+.page {
+  flex-shrink: 0;
+  width: 54px;
+  aspect-ratio: 3 / 4;
+}
+
+.document {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  min-width: 0;
+}
+
+.documentText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Placeholder text lines inside a slide or page thumbnail. */
+.line {
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(var(--ink-rgb) / 0.18);
+}
+
+.line:nth-child(2n) {
+  width: 70%;
+}
+
+.lineStrong {
+  height: 4px;
+  width: 80%;
+  background: rgb(var(--ink-rgb) / 0.55);
+}
+
+/* ---------- Style 3 (and Style 4 on top): a category-colour frame holding the header, content and data in black panels ---------- */
+
+/* Colours go through the card's variables so the selected and run rings still win. */
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node {
+  --card-radius: var(--canvas-card-radius, 16px);
+  --card-frame: rgb(var(--node-glow-rgb, 255 255 255));
+  --card-frame-hover: color-mix(in srgb, rgb(var(--node-glow-rgb, 255 255 255)) 70%, #fff);
+  --card-surface: rgb(var(--node-glow-rgb, 255 255 255) / 0.2);
+}
+
+/* Panels sit 6px in from the frame, with corners that follow its radius; --card-pad is the frame-to-text distance the row ports measure from. */
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .card {
+  --panel-pad: var(--canvas-card-pad, 10px);
+  --panel-radius: max(2px, calc(var(--card-radius) - 6px));
+  --card-pad: calc(6px + var(--panel-pad));
+
+  gap: 6px;
+  padding: 0 6px 6px;
+}
+
+/* The content panel sits right under the header; the card's gap only separates content from footer. */
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .header {
+  gap: 8px;
+  min-height: 40px;
+  margin-bottom: -6px;
+  padding: 8px 6px;
+  border-bottom: none;
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .headerActions {
+  margin: 0;
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .category {
+  color: var(--node-accent);
+  font-size: 14px;
+  line-height: 20px;
+  text-transform: uppercase;
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .content,
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .footer {
+  border-radius: var(--panel-radius);
+  background: rgb(0 0 0 / 0.6);
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .content {
+  gap: 12px;
+  padding: var(--panel-pad);
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .footer {
+  border-top: none;
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .footerHead {
+  padding: 10px var(--panel-pad) 8px;
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .footerBody,
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .footerStatus {
+  padding: 0 var(--panel-pad) var(--panel-pad);
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .footerStatus[data-tone='error'] {
+  margin: 0 var(--panel-pad) var(--panel-pad);
+  padding: 6px 8px;
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .table th:first-child,
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .table td:first-child {
+  padding-left: var(--panel-pad);
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .table th:last-child,
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .table td:last-child {
+  padding-right: var(--panel-pad);
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .table th {
+  background: #0d0e10;
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .well {
+  border-color: rgb(var(--ink-rgb) / 0.06);
+  background: rgb(var(--ink-rgb) / 0.04);
+}
+
+/* The chart sits straight on the panel; the map keeps a frame of its own. */
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .asset {
+  border: none;
+  background: none;
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .asset[data-preview='chart'] {
+  padding: 0;
+}
+
+:global(:is([data-card-glow='panel'], [data-card-glow='gradient'], [data-card-glow='iconHeader'])) .asset[data-preview='map'] {
+  border-radius: 8px;
+}
+
+/* Style 4: Style 3 with a gradient frame. The fill and border fade from the category colour to its dark ends (HSB 15/15 and 20/20). */
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node {
+  --card-frame: transparent;
+  --card-frame-hover: transparent;
+  --card-surface: linear-gradient(to bottom, rgb(var(--node-glow-rgb) / 0.2), rgb(var(--node-deep-rgb) / 0.2) 32%);
+}
+
+/* A border can't take a gradient with rounded corners, so the frame is a masked layer over the transparent border. */
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node .card::before {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, rgb(var(--node-glow-rgb)), rgb(var(--node-edge-rgb)) 29%) border-box;
+  content: '';
+  pointer-events: none;
+  mask:
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  transition: opacity var(--lc-duration) var(--lc-ease);
+}
+
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node:hover .card::before {
+  filter: brightness(1.3);
+}
+
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .run_running .card::before,
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .run_error .card::before {
+  opacity: 0;
+}
+
+/* Selected keeps the gradient frame and rings it in the category colour; the ring keeps 2 screen pixels at any zoom. */
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .selected:not(.run_error) .card,
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .selected:not(.run_error):hover .card {
+  border-color: transparent;
+  box-shadow:
+    0 0 0 calc(3px / var(--zoom, 1)) rgb(var(--node-glow-rgb) / 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.24);
+}
+
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node .headerIcon,
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node .category {
+  color: rgb(255 255 255 / 0.7);
+}
+
+:global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node .category {
+  text-transform: none;
+}
+
+/* Style 5: Style 4 with only the icon in the header; the actions keep to the right edge. */
+:global([data-card-glow='iconHeader']) .node .category {
+  display: none;
+}
+
+:global([data-card-glow='iconHeader']) .node .headerActions {
+  margin-left: auto;
+}
+
+/* Triggers in Style 5: no header; the icon and actions, then the title, open the content panel. */
+.card[data-headless] {
+  padding-top: 6px;
+}
+
+/* 8px from the icon to the title, 10px from the title to the badges and between the blocks below. */
+.card[data-headless] .content {
+  gap: 10px;
+}
+
+.card[data-headless] .titleBlock {
+  gap: 8px;
+}
+
+.card[data-headless] .badges {
+  margin-top: 2px;
+}
+
+/* The map runs to the content panel's sides, and its bottom when it's the last block. */
+.card[data-headless] .asset[data-preview='map'] {
+  margin-inline: calc(-1 * var(--panel-pad));
+  border-radius: 0;
+}
+
+.card[data-headless] .asset[data-preview='map']:last-child {
+  margin-bottom: calc(-1 * var(--panel-pad));
+  border-radius: 0 0 var(--panel-radius) var(--panel-radius);
+}
+
+.contentHead {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+}
+
+.card[data-headless] .headerActions {
+  margin: -2px 0 -2px auto;
+}
+
+/* A card background picked in the card style panel replaces only the fill (Styles 2 to 5); the category frame stays. */
+:global([data-section-surface]) .node {
+  --card-surface: linear-gradient(to bottom, var(--section-card-top), var(--section-card-bottom));
+}
+
+/* Styles 4 and 5 keep the category colour fading in from the top over it. */
+:global([data-section-surface]:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node {
+  --card-surface:
+    linear-gradient(to bottom, rgb(var(--node-glow-rgb) / 0.2), transparent 32%),
+    linear-gradient(to bottom, var(--section-card-top), var(--section-card-bottom));
+}

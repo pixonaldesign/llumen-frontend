@@ -1,0 +1,514 @@
+/* Per-kind editors in the configuration window; cards, fields, and inputs come from ConfigControls. */
+
+.textarea {
+  height: auto;
+  min-height: 84px;
+  padding: var(--space-md) var(--space-lg);
+  line-height: 19px;
+  resize: vertical;
+}
+
+.mono {
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.inputWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Segmented control ---------- */
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+button.segment {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--space-md);
+  border: none;
+  border-radius: calc(var(--radius-lg) - 2px);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease), color var(--lc-duration) var(--lc-ease);
+}
+
+button.segment:hover {
+  color: #fff;
+}
+
+button.segment[aria-checked='true'] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+button.segment:focus-visible {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: -2px;
+}
+
+/* ---------- Source modes ---------- */
+
+.modeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: var(--space-md);
+}
+
+button.modeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.16);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--lc-duration) var(--lc-ease), background var(--lc-duration) var(--lc-ease);
+}
+
+button.modeCard:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+button.modeCard[aria-checked='true'] {
+  border-color: color-mix(in srgb, var(--canvas-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--canvas-accent) 12%, transparent);
+  color: #fff;
+}
+
+.modeIcon {
+  display: flex;
+  color: var(--canvas-accent);
+}
+
+/* ---------- Lists: conditions, cases, fields ---------- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.conditionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.9fr) 28px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.conditionRowUnary {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.9fr) 28px;
+}
+
+.pairRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 28px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.tripleRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 28px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.methodRow {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.singleRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.joiner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.joiner::before,
+.joiner::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+button.joinerToggle {
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+button.joinerToggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+button.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+}
+
+button.iconButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+button.iconButton:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+button.addButton {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  height: 28px;
+  padding: 0 var(--space-md);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+button.addButton:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.addRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+/* A case, category, or rule inside a card. */
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.14);
+  transition: border-color var(--lc-duration) var(--lc-ease), background var(--lc-duration) var(--lc-ease), box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+/* The item the window opened on (see `useFocusItem`). */
+.item[data-highlighted] {
+  border-color: color-mix(in srgb, var(--node-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--node-accent) 8%, rgba(0, 0, 0, 0.14));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--node-accent) 18%, transparent);
+}
+
+.itemHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.itemHead > input {
+  flex: 1;
+}
+
+.itemIndex {
+  flex-shrink: 0;
+  min-width: 18px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: var(--lc-font-data);
+  font-size: 11px;
+}
+
+/* ---------- Chips ---------- */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 4px 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+}
+
+button.chipRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+button.chipRemove:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+button.chipAdd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+button.chipAdd:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+button.chipAdd:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---------- Notices and read-outs ---------- */
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  margin: 0;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.notice > svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.notice_warn {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fcd34d;
+}
+
+.notice_error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+}
+
+.notice_success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+}
+
+.notice code,
+.hintCode {
+  padding: 0 4px;
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.08);
+  font-family: var(--lc-font-data);
+  font-size: 11px;
+}
+
+.sql {
+  margin: 0;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.readout div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.readout dt {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.readout dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.verdict_fires {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+}
+
+.verdict_quiet {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+/* ---------- Template references ---------- */
+
+.fieldTools {
+  display: flex;
+  justify-content: flex-end;
+}
+
+button.refButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--lc-font-data);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+button.refButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.timeInput {
+  font-family: var(--lc-font-data);
+  font-variant-numeric: tabular-nums;
+  color-scheme: dark;
+}
+
+/* ---------- Side-effect confirmation ---------- */
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 300px;
+  padding: var(--space-lg);
+}
+
+.confirmTitle {
+  margin: 0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}

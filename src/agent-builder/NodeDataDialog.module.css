@@ -1,0 +1,213 @@
+/* A node's input or output schema beside the node; the same glass as the overlay menus. Positioned from script. */
+
+.window {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: min(360px, calc(100% - 32px));
+  height: min(420px, calc(100% - 100px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(71, 71, 71, 0.6);
+  backdrop-filter: blur(60px);
+  -webkit-backdrop-filter: blur(60px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.92);
+  outline: none;
+  animation: windowIn 140ms var(--lc-ease);
+}
+
+@keyframes windowIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window {
+    animation: none;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-md) var(--space-md) var(--space-lg);
+}
+
+.headIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--node-accent) 18%, transparent);
+  color: var(--node-accent);
+}
+
+.headTitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+button.close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+
+button.close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: 0 var(--space-lg) var(--space-md);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.count {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sideLabel {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  height: 32px;
+  padding: 0 var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.search:focus-within {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Full-bleed scrollport so the overlay thumb runs along the window edge; rows carry the inset. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-xs) 0 var(--space-md);
+  overflow: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  user-select: text;
+}
+
+.scroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.schema {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: 6px var(--space-lg);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.field + .field {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.fieldName {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--lc-font-data);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fieldType {
+  flex-shrink: 0;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--lc-font-data);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-lg);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.error {
+  color: #fca5a5;
+}

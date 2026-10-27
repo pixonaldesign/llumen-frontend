@@ -1,0 +1,272 @@
+/*
+ * Floating glass controls shared by full-screen builders (story builder, agent canvas).
+ * StoryView.module.css and StoryAnnotations.module.css compose these, so edit here to restyle both.
+ */
+
+/* ---------- Round glass icon button (back, history) ---------- */
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(34, 42, 42, 0.5);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+  color: #fff;
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)),
+    rgba(34, 42, 42, 0.5);
+}
+
+/* ---------- Header titles ---------- */
+
+.eyebrow {
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Bottom toolbar ---------- */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+}
+
+.barButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+}
+
+.barButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.barButton:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.barButtonActive {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.barAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.barAction:hover,
+.barActionActive {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.barDivider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 22px;
+  margin: 0 4px 0 6px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ---------- Dropdown menu (placement is up to the caller) ---------- */
+
+.menu {
+  max-height: min(520px, calc(100dvh - 72px));
+  padding: 6px 0;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(71, 71, 71, 0.6);
+  backdrop-filter: blur(60px);
+  -webkit-backdrop-filter: blur(60px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.menu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.menu::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 12px);
+  margin: 0 6px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menuItem + .menuItem {
+  margin-top: 4px;
+}
+
+.menuItem:hover,
+.menuItemActive {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.menuItem:disabled {
+  color: rgba(255, 255, 255, 0.4);
+  cursor: default;
+}
+
+.menuItem:disabled:hover {
+  background: transparent;
+}
+
+.menuItem:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+/* ---------- Ask Llumen orb ---------- */
+
+.askButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: var(--lc-bg-launcher, rgba(26, 26, 26, 0.55));
+  backdrop-filter: blur(var(--lc-blur-launcher, 30px));
+  -webkit-backdrop-filter: blur(var(--lc-blur-launcher, 30px));
+  cursor: pointer;
+}
+
+.askButton:hover {
+  background: rgba(40, 40, 40, 0.7);
+}
+
+.askIcon {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+/* ---------- Segmented tabs ---------- */
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(34, 42, 42, 0.5);
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  margin: 0;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segment:hover {
+  color: #fff;
+}
+
+.segmentActive {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}

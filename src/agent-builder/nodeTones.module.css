@@ -1,0 +1,41 @@
+/* Node accent colours, shared by the canvas cards, toolbar, library, and configure window. One colour per library category. */
+/* Set from the card style panel's category colours (`categoryVars`); the fallbacks are its defaults. */
+
+.tone_trigger {
+  --node-accent: var(--cat-trigger-accent, #2676c4);
+  --node-on-accent: var(--cat-trigger-on-accent, #ffffff);
+  --node-glow-rgb: var(--glow-trigger-rgb, 38 118 196);
+  --node-deep-rgb: var(--glow-trigger-deep-rgb, 33 37 38);
+  --node-edge-rgb: var(--glow-trigger-edge-rgb, 41 49 51);
+}
+
+.tone_data,
+.tone_create {
+  --node-accent: var(--cat-data-accent, #079ca6);
+  --node-on-accent: var(--cat-data-on-accent, #011c1e);
+  --node-glow-rgb: var(--glow-data-rgb, 7 156 166);
+  --node-deep-rgb: var(--glow-data-deep-rgb, 33 37 38);
+  --node-edge-rgb: var(--glow-data-edge-rgb, 41 49 51);
+}
+
+.tone_analysis {
+  --node-accent: var(--cat-agents-accent, #b03157);
+  --node-on-accent: var(--cat-agents-on-accent, #ffffff);
+  --node-glow-rgb: var(--glow-agents-rgb, 163 15 60);
+  --node-deep-rgb: var(--glow-agents-deep-rgb, 33 37 38);
+  --node-edge-rgb: var(--glow-agents-edge-rgb, 41 49 51);
+}
+
+.tone_output,
+.tone_action {
+  --node-accent: var(--cat-action-accent, #6a3ee4);
+  --node-on-accent: var(--cat-action-on-accent, #ffffff);
+  --node-glow-rgb: var(--glow-action-rgb, 97 50 226);
+  --node-deep-rgb: var(--glow-action-deep-rgb, 33 37 38);
+  --node-edge-rgb: var(--glow-action-edge-rgb, 41 49 51);
+}
+
+.tone_note {
+  --node-accent: #f8dc5b;
+  --node-on-accent: #262008;
+}

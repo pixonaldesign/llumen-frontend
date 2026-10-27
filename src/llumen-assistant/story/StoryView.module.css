@@ -189,25 +189,7 @@
 }
 
 .backBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-  width: 36px;
-  height: 36px;
-  margin: 0;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 40px;
-  background: rgba(34, 42, 42, 0.5);
-  backdrop-filter: blur(46px);
-  -webkit-backdrop-filter: blur(46px);
-  color: #fff;
-  cursor: pointer;
-}
-
-.backBtn:hover {
-  background: rgba(34, 42, 42, 0.72);
+  composes: iconButton from '../FloatingControls.module.css';
 }
 
 .headerEnd {
@@ -318,18 +300,7 @@
 }
 
 .storyTitle {
-  margin: 0;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 14px;
-  letter-spacing: 0.08em;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
+  composes: eyebrow from '../FloatingControls.module.css';
 }
 
 .slideTitleRow {
@@ -342,14 +313,7 @@
 }
 
 .slideTitle {
-  margin: 0;
-  overflow: hidden;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 24px;
-  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.2);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  composes: title from '../FloatingControls.module.css';
 }
 
 .infoBtn {
@@ -1766,24 +1730,7 @@
 }
 
 .askBtn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  margin: 0;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  background: var(--lc-bg-launcher, rgba(26, 26, 26, 0.55));
-  backdrop-filter: blur(var(--lc-blur-launcher, 30px));
-  -webkit-backdrop-filter: blur(var(--lc-blur-launcher, 30px));
-  cursor: pointer;
-}
-
-.askBtn:hover {
-  background: rgba(40, 40, 40, 0.7);
+  composes: askButton from '../FloatingControls.module.css';
 }
 
 .unreadDot {
@@ -1800,22 +1747,11 @@
 }
 
 .askIcon {
-  width: 24px;
-  height: 24px;
-  display: block;
+  composes: askIcon from '../FloatingControls.module.css';
 }
 
 .modeSwitch {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 44px;
-  padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  background: rgba(26, 26, 26, 0.5);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  composes: bar from '../FloatingControls.module.css';
 }
 
 .modeActions {
@@ -1850,27 +1786,11 @@
 }
 
 .modeAction {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  height: 36px;
-  margin: 0;
-  padding: 0 12px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: #fff;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
+  composes: barAction from '../FloatingControls.module.css';
 }
 
-.modeAction:hover,
 .modeActionActive {
-  background: rgba(255, 255, 255, 0.1);
+  composes: barActionActive from '../FloatingControls.module.css';
 }
 
 .setupMenu {
@@ -1916,35 +1836,15 @@
 }
 
 .modeDivider {
-  flex-shrink: 0;
-  width: 1px;
-  height: 22px;
-  margin: 0 4px 0 6px;
-  background: rgba(255, 255, 255, 0.22);
+  composes: barDivider from '../FloatingControls.module.css';
 }
 
 .modeBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.88);
-  cursor: pointer;
-}
-
-.modeBtn:hover {
-  color: #fff;
+  composes: barButton from '../FloatingControls.module.css';
 }
 
 .modeBtnActive {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  composes: barButtonActive from '../FloatingControls.module.css';
 }
 
 .navCluster {
