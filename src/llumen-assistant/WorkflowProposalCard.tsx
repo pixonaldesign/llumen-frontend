@@ -777,6 +777,7 @@ export function WorkflowProposalCard({
   onExpand,
   onOpenConversation,
   onClose,
+  compact = false,
 }: {
   proposal: WorkflowProposal
   active?: boolean
@@ -786,6 +787,8 @@ export function WorkflowProposalCard({
   /** The card moves into a full-screen conversation as the reply to its request. */
   onOpenConversation?: (proposal: WorkflowProposal) => void
   onClose?: () => void
+  /** Toast size, for the card that floats over the AI bar. */
+  compact?: boolean
 }) {
   const runState = useWorkflowRun(proposal.id)
   const [stepsOpen, setStepsOpen] = useState(false)
@@ -798,7 +801,12 @@ export function WorkflowProposalCard({
   }, [runState.error])
 
   return (
-    <div className={styles.wrap} data-workflow-id={proposal.id} data-active={active ? 'true' : 'false'}>
+    <div
+      className={styles.wrap}
+      data-workflow-id={proposal.id}
+      data-active={active ? 'true' : 'false'}
+      data-size={compact ? 'compact' : undefined}
+    >
       <article className={styles.card} aria-label={proposal.title}>
         <div className={styles.body}>
           <div className={styles.titleRow}>

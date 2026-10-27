@@ -30,8 +30,8 @@ export type MonitorConfig = {
 export type MonitorNotifyBy = 'condition' | 'instructions'
 
 export const MONITOR_NOTIFY_BY: { value: MonitorNotifyBy; label: string }[] = [
-  { value: 'condition', label: 'Condition' },
   { value: 'instructions', label: 'Instructions' },
+  { value: 'condition', label: 'Condition' },
 ]
 
 export const MONITOR_EVERY_MAX = 999
@@ -78,7 +78,7 @@ export function defaultMonitorConfig(): MonitorConfig {
     weekday: 'sunday',
     monthDay: 1,
     timezone: 'UTC',
-    notifyBy: 'condition',
+    notifyBy: 'instructions',
     condition: { metric: 'value', operator: 'gt', value: null },
     instructions: '',
   }

@@ -576,6 +576,50 @@ function AiAssetCard() {
   )
 }
 
+const NO_FILTERS: StoryFilter[] = []
+
+/** The Add Assets picker on its own, on its charts (My Board's Add → Asset). */
+export function AssetsPickerModal({
+  onClose,
+  onAddCharts,
+}: {
+  onClose: () => void
+  onAddCharts?: (chartIds: string[]) => void
+}) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  return createPortal(
+    <div className={styles.modalRoot}>
+      <button type="button" className={styles.modalBackdrop} aria-label="Close Add Assets" onClick={onClose} />
+      <div
+        id="story-edit-modal"
+        className={`${styles.panel} ${styles.modal} ${styles.assetsModal}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="story-edit-modal-title"
+        dir="ltr"
+      >
+        <AssetsPicker
+          filters={NO_FILTERS}
+          onFiltersChange={() => {}}
+          onAddCharts={onAddCharts}
+          onClose={onClose}
+          chartsOnly
+        />
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 function AssetsPicker({
   filters,
   onFiltersChange,

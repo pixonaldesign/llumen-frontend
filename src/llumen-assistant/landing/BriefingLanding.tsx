@@ -35,8 +35,8 @@ import { BriefingAppHighlights, BriefingAppsCarousel } from './BriefingApps'
 import { BOARD_CELL, ROOMY_BOARD_CELL, boardColumnsFor } from './assetBoardLayout'
 import { paletteFromPixels } from './mapPalette'
 import { BriefingAssetBoard } from './BriefingAssetBoard'
-import { BriefingAssetGrid } from './BriefingAssets'
-import { DEFAULT_BOARD_ORDER } from './briefingAssetData'
+import { AssetCard, BriefingAssetGrid } from './BriefingAssets'
+import { BOARD_ASSETS, DEFAULT_BOARD_ORDER } from './briefingAssetData'
 import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
 import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
 import { BRIEFING_PLACES } from './briefingMapPlaces'
@@ -49,7 +49,9 @@ import { DEFAULT_FINDINGS_STYLE, type FindingsStyle, type TopBarVariant } from '
 import home from './LandingHome.module.css'
 import styles from './BriefingLanding.module.css'
 
-const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
+const AssetsPickerModal = lazy(() =>
+  import('../story/StoryEditPanel').then((module) => ({ default: module.AssetsPickerModal })),
+)
 const StudioView = lazy(() => import('../studio/StudioView').then((module) => ({ default: module.StudioView })))
 
 /** One read-out across every asset in the grid; numbers match briefingAssetData. */
@@ -275,6 +277,7 @@ export function BriefingLanding({
   const sideways = findingsStyle === 6 || floating
   const [sideAssets, setSideAssets] = useState(false)
   const [addingAsset, setAddingAsset] = useState(false)
+  const closeAddAsset = useCallback(() => setAddingAsset(false), [])
   const sideViewRef = useRef<HTMLElement>(null)
   /** Where each asset sits on the Assets grid; dragging a card reorders it, and the edge peek follows. */
   const [boardOrder, setBoardOrder] = useState<readonly string[]>(DEFAULT_BOARD_ORDER)
@@ -725,7 +728,7 @@ export function BriefingLanding({
     [],
   )
 
-  /** Escape leaves the modal, unless the asset builder is over it. */
+  /** Escape leaves the modal, unless the Add Assets picker is over it. */
   useEffect(() => {
     if (!floating || !sideAssets || addingAsset) return
     const onKey = (event: KeyboardEvent) => {
@@ -891,7 +894,7 @@ export function BriefingLanding({
             />
             {addingAsset ? (
               <Suspense fallback={null}>
-                <AssetBuilder onClose={() => setAddingAsset(false)} />
+                <AssetsPickerModal onClose={closeAddAsset} />
               </Suspense>
             ) : null}
             <div
@@ -1218,6 +1221,7 @@ function AssetsAppsView({
   tools?: { onAddAssets: () => void }
 }) {
   const revealScrollbar = useRevealScrollbarOnScroll()
+  const revealIntroScrollbar = useRevealScrollbarOnScroll()
   const setGrid = useCallback(
     (el: HTMLDivElement | null) => {
       gridRef.current = el
@@ -1246,18 +1250,20 @@ function AssetsAppsView({
           <h2 className={styles.sideTitle}>My Board</h2>
         </div>
         <AssetsFilters />
-        <p className={styles.sideGreeting}>Good morning, Omar</p>
-        <p className={styles.assetsSummary}>
-          <SummaryText parts={ASSETS_STATEMENT} />
-        </p>
-        <h3 className={`${styles.eyebrow} ${styles.sideMoreTitle}`}>More insights</h3>
-        <ul className={styles.sideInsights}>
-          {ASSETS_INSIGHTS.map((parts) => (
-            <li key={parts[0].text}>
-              <SummaryText parts={parts} />
-            </li>
-          ))}
-        </ul>
+        <div ref={revealIntroScrollbar} className={styles.sideScroll}>
+          <p className={styles.sideGreeting}>Good morning, Omar</p>
+          <p className={styles.assetsSummary}>
+            <SummaryText parts={ASSETS_STATEMENT} />
+          </p>
+          <h3 className={`${styles.eyebrow} ${styles.sideMoreTitle}`}>More insights</h3>
+          <ul className={styles.sideInsights}>
+            {ASSETS_INSIGHTS.map((parts) => (
+              <li key={parts[0].text}>
+                <SummaryText parts={parts} />
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
       <div className={styles.sideBoard}>
         {tools ? (
@@ -1728,7 +1734,20 @@ function useChartPlay() {
 export function FeedChartCard({ chart }: { chart: FeedChart }) {
   if (chart.kind === 'line') return <FeedLineChart chart={chart} />
   if (chart.kind === 'columns') return <FeedColumnChart chart={chart} />
+  if (chart.kind === 'asset') return <FeedAssetChart chart={chart} />
   return <FeedBarChart chart={chart} />
+}
+
+/** A board asset on the finding's glass: charts take a 2 x 2 board visual's height, a KPI one cell's. */
+function FeedAssetChart({ chart }: { chart: Extract<FeedChart, { kind: 'asset' }> }) {
+  const play = useChartPlay()
+  const asset = BOARD_ASSETS.find((item) => item.id === chart.assetId)
+  if (!asset) return null
+  return (
+    <div className={`${styles.chart} ${styles.assetChart}`} data-play={play} data-kpi={asset.kind === 'kpi'}>
+      <AssetCard asset={asset} play={play} delay={CHART_SURFACE_MS} spark={false} />
+    </div>
+  )
 }
 
 /** After the card lands the columns rise left to right, then their values, the threshold line and the alert pill. */

@@ -20,6 +20,8 @@ export type FeedChart =
       max: number
       columns: ChartColumn[]
     }
+  /** A My Board asset (briefingAssetData), drawn as the board draws it, across the finding's width. */
+  | { kind: 'asset'; assetId: string }
 
 export type FeedStop = {
   id: string
@@ -131,6 +133,15 @@ export const FEED_STOPS: FeedStop[] = [
     chart: LAND_USE,
   },
   {
+    id: 'permit-deviation',
+    domain: 'Compliance',
+    title: 'Permit limit deviation',
+    before: 'Non-compliant facilities are running ',
+    highlight: '14% over their permit limits',
+    after: ', more than double the 6% of ten weeks ago.',
+    chart: { kind: 'asset', assetId: 'permit-deviation' },
+  },
+  {
     id: 'population',
     domain: 'Operations',
     title: 'Population composition across the capital',
@@ -166,6 +177,15 @@ export const FEED_STOPS: FeedStop[] = [
     highlight: 'down 12% this week',
     after: '.',
     storyId: 'r4',
+  },
+  {
+    id: 'station-uptime',
+    domain: 'Environment',
+    title: 'Monitoring station availability',
+    before: 'Al Dhafra’s monitoring stations have slipped to ',
+    highlight: '76% availability',
+    after: ', the lowest of the four regions and still falling.',
+    chart: { kind: 'asset', assetId: 'station-uptime' },
   },
   {
     id: 'water-network',

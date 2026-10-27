@@ -17,7 +17,6 @@ import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   ArrowRight,
-  Broadcast,
   Buildings,
   CalendarBlank,
   CaretDown,
@@ -46,6 +45,7 @@ import {
   Sidebar,
   Student,
   SquaresFour,
+  Target,
   Toolbox,
   Trash,
   type IconProps,
@@ -1130,17 +1130,18 @@ export function StoryView({
               <ChatCircleText size={16} aria-hidden />
             </CardActionButton>
           ) : null}
-          <CardActionButton
-            label="Monitor this"
-            ariaLabel={`Monitor ${title}`}
-            active={Boolean(monitors[`${slide.id}:${id}`])}
-            onClick={() => {
-              setCardMenu(null)
-              setMonitorTarget({ slideId: slide.id, cardId: id })
-            }}
-          >
-            <Broadcast size={16} weight={monitors[`${slide.id}:${id}`] ? 'fill' : 'regular'} aria-hidden />
-          </CardActionButton>
+          {id === 'summary' ? null : (
+            <CardActionButton
+              label="Monitor this"
+              ariaLabel={`Monitor ${title}`}
+              onClick={() => {
+                setCardMenu(null)
+                setMonitorTarget({ slideId: slide.id, cardId: id })
+              }}
+            >
+              <Target size={16} weight="regular" aria-hidden />
+            </CardActionButton>
+          )}
           <CardActionButton
             label="More options"
             ariaLabel={`More options for ${title}`}

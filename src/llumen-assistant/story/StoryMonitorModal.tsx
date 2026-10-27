@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { CaretDown, ChartLineUp, X } from '@phosphor-icons/react'
+import { At, CaretDown, ChartLineUp, Paperclip, Plus, X } from '@phosphor-icons/react'
 import assistant from '../compact-assistant.module.css'
 import { ConfigSelect } from './StoryConfigSelect'
 import {
@@ -43,19 +43,24 @@ const DROPDOWN_WIDTH = 400
 const DROPDOWN_GAP = 6
 const DROPDOWN_EDGE = 8
 
+/** A setting behind a select-style trigger. Its menu applies on Apply; Cancel, Escape or a press outside discard. */
 function MonitorSection({
   id,
   title,
   summary,
   open,
-  onToggle,
+  onOpen,
+  onCancel,
+  onApply,
   children,
 }: {
   id: string
   title: string
   summary: string
   open: boolean
-  onToggle: () => void
+  onOpen: () => void
+  onCancel: () => void
+  onApply: () => void
   children: ReactNode
 }) {
   const headRef = useRef<HTMLButtonElement>(null)
@@ -86,12 +91,12 @@ function MonitorSection({
       if (headRef.current?.contains(target) || menuRef.current?.contains(target)) return
       // Selects inside the menu list their options in a portal of their own.
       if (target.closest('[role="listbox"]')) return
-      onToggle()
+      onCancel()
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || document.querySelector('[role="listbox"]')) return
       event.stopImmediatePropagation()
-      onToggle()
+      onCancel()
       headRef.current?.focus()
     }
     document.addEventListener('pointerdown', onPointerDown)
@@ -104,27 +109,32 @@ function MonitorSection({
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [menuOpen, onToggle, place])
+  }, [menuOpen, onCancel, place])
 
   return (
-    <section className={`${styles.section}${open ? ` ${styles.sectionOpen}` : ''}`}>
+    <section className={`${styles.section} ${edit.field} ${styles.trigger}`}>
+      <span id={`${id}-label`} className={styles.sectionTitle}>
+        {title}
+      </span>
       <button
         ref={headRef}
         type="button"
-        className={styles.sectionHead}
+        className={`${edit.logoSelect}${open ? ` ${edit.logoSelectOpen}` : ''}`}
+        aria-labelledby={`${id}-label ${id}-summary`}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls={open ? `${id}-body` : undefined}
         onClick={() => {
-          if (!open) place()
-          onToggle()
+          if (open) {
+            onCancel()
+            return
+          }
+          place()
+          onOpen()
         }}
       >
-        <span className={styles.sectionCopy}>
-          <span className={styles.sectionTitle}>{title}</span>
-          <span className={styles.sectionSummary}>{summary}</span>
-        </span>
-        <CaretDown className={styles.sectionCaret} size={16} weight="bold" aria-hidden />
+        <span id={`${id}-summary`}>{summary}</span>
+        <CaretDown className={edit.logoSelectCaret} size={16} weight="bold" aria-hidden />
       </button>
       {menuOpen
         ? createPortal(
@@ -137,6 +147,28 @@ function MonitorSection({
               style={{ top: position.top, left: position.left, width: position.width }}
             >
               {children}
+              <div className={styles.dropdownActions}>
+                <button
+                  type="button"
+                  className={edit.secondaryBtn}
+                  onClick={() => {
+                    onCancel()
+                    headRef.current?.focus()
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={edit.assetsNext}
+                  onClick={() => {
+                    onApply()
+                    headRef.current?.focus()
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
             </div>,
             document.body,
           )
@@ -162,7 +194,14 @@ export function StoryMonitorModal({
   const [minute, setMinute] = useState(String(initial.minute))
   const [monthDay, setMonthDay] = useState(String(initial.monthDay))
   const [threshold, setThreshold] = useState(initial.condition.value == null ? '' : String(initial.condition.value))
-  const [triggerOpen, setTriggerOpen] = useState(false)
+  /** The schedule as it was when the trigger menu opened, for Cancel to restore; `null` while it is closed. */
+  const [triggerSaved, setTriggerSaved] = useState<{
+    draft: MonitorConfig
+    every: string
+    minute: string
+    monthDay: string
+  } | null>(null)
+  const triggerOpen = triggerSaved !== null
 
   const patch = <K extends keyof MonitorConfig>(key: K, value: MonitorConfig[K]) =>
     setDraft((current) => ({ ...current, [key]: value }))
@@ -186,7 +225,7 @@ export function StoryMonitorModal({
 
   const timeField = (
     <div className={edit.field}>
-      <FieldHead label="Runs At" hint="Local to selected timezone" htmlFor={`${fieldId}-time`} />
+      <FieldHead label="Runs At" htmlFor={`${fieldId}-time`} />
       <input
         id={`${fieldId}-time`}
         className={`${edit.input} ${styles.timeInput}`}
@@ -201,7 +240,7 @@ export function StoryMonitorModal({
   )
   const timezoneField = (
     <div className={edit.field}>
-      <FieldHead label="Timezone" hint="IANA name (e.g. America/Los_Angeles)" />
+      <FieldHead label="Timezone" />
       <ConfigSelect
         label="Timezone"
         hideLabel
@@ -247,13 +286,38 @@ export function StoryMonitorModal({
                 </span>
                 <span className={assistant.inlineMentionLabel}>{cardTitle}</span>
               </span>
+              <button type="button" className={`${edit.addBtn} ${styles.contextAdd}`}>
+                <Plus size={14} weight="bold" aria-hidden />
+                Add assets
+              </button>
             </div>
             <MonitorSection
               id={`${fieldId}-trigger`}
               title="Schedule Trigger"
               summary={describeMonitorSchedule(preview)}
               open={triggerOpen}
-              onToggle={() => setTriggerOpen((current) => !current)}
+              onOpen={() => setTriggerSaved({ draft, every, minute, monthDay })}
+              onCancel={() => {
+                if (!triggerSaved) return
+                setDraft(triggerSaved.draft)
+                setEvery(triggerSaved.every)
+                setMinute(triggerSaved.minute)
+                setMonthDay(triggerSaved.monthDay)
+                setTriggerSaved(null)
+              }}
+              onApply={() => {
+                const applied = settled()
+                setDraft((current) => ({
+                  ...current,
+                  every: applied.every,
+                  minute: applied.minute,
+                  monthDay: applied.monthDay,
+                }))
+                setEvery(String(applied.every))
+                setMinute(String(applied.minute))
+                setMonthDay(String(applied.monthDay))
+                setTriggerSaved(null)
+              }}
             >
               <div className={styles.grid}>
                 <div className={edit.field}>
@@ -299,7 +363,7 @@ export function StoryMonitorModal({
                   </div>
                 ) : null}
                 {draft.unit === 'weeks' ? (
-                  <div className={edit.field}>
+                  <div className={`${edit.field} ${styles.wide}`}>
                     <FieldHead label="Day of the week" />
                     <ConfigSelect
                       label="Day of the week"
@@ -312,7 +376,7 @@ export function StoryMonitorModal({
                   </div>
                 ) : null}
                 {draft.unit === 'months' ? (
-                  <div className={edit.field}>
+                  <div className={`${edit.field} ${styles.wide}`}>
                     <FieldHead
                       label="Day of the month"
                       hint="1–28 (29–31 not supported)"
@@ -376,13 +440,24 @@ export function StoryMonitorModal({
                   />
                 </div>
               ) : (
-                <textarea
-                  className={`${edit.textarea} ${styles.prompt}`}
-                  aria-label="Instructions"
-                  value={draft.instructions}
-                  placeholder="Type your prompt"
-                  onChange={(event) => patch('instructions', event.target.value)}
-                />
+                <div className={`${edit.textarea} ${styles.promptBox}`}>
+                  <textarea
+                    className={styles.prompt}
+                    aria-label="Instructions"
+                    value={draft.instructions}
+                    placeholder="Type your prompt"
+                    onChange={(event) => patch('instructions', event.target.value)}
+                  />
+                  <div className={styles.promptTools}>
+                    <button type="button" className={styles.promptIcon} aria-label="Attach file">
+                      <Paperclip size={18} weight="regular" aria-hidden />
+                    </button>
+                    <button type="button" className={styles.promptLabel}>
+                      <At size={16} weight="regular" aria-hidden />
+                      Add context
+                    </button>
+                  </div>
+                </div>
               )}
             </section>
           </div>
@@ -393,7 +468,7 @@ export function StoryMonitorModal({
             Cancel
           </button>
           <button type="button" className={edit.assetsNext} onClick={() => onConfirm(settled())}>
-            Confirm
+            Send request
           </button>
         </footer>
       </div>

@@ -2983,6 +2983,7 @@ export function CompactAssistantDemo() {
             {storyActive && storyWorkflow ? (
               <div key={storyWorkflow.proposal.id} className={styles.composerWorkflow}>
                 <WorkflowProposalCard
+                  compact
                   proposal={storyWorkflow.proposal}
                   onRunFailed={reportWorkflowRunFailed}
                   onExpand={(proposal) => {

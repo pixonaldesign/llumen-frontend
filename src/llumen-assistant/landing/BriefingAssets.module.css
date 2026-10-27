@@ -564,6 +564,10 @@
   font-size: clamp(32px, min(22cqi, 28cqh), 64px);
 }
 
+.captionFoot {
+  margin-top: auto;
+}
+
 .spark {
   position: relative;
   flex: 1 1 auto;

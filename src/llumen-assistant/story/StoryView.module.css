@@ -21,41 +21,42 @@
   opacity: 0;
 }
 
+/* Slow enough to watch each piece land on the map: about 1.9s from the header to the navigation. */
 .root[data-entrance='play'] .header {
-  animation: entranceDown 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation: entranceDown 720ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .root[data-entrance='play'] .insight > * {
-  --enter-d: 0ms;
-  animation: entranceLeft 460ms cubic-bezier(0.16, 1, 0.3, 1) var(--enter-d) backwards;
+  --enter-d: 160ms;
+  animation: entranceLeft 960ms cubic-bezier(0.16, 1, 0.3, 1) var(--enter-d) backwards;
 }
 
 .root[data-entrance='play'] .insight > :nth-child(2) {
-  --enter-d: 35ms;
+  --enter-d: 300ms;
 }
 
 .root[data-entrance='play'] .insight > :nth-child(3) {
-  --enter-d: 70ms;
+  --enter-d: 440ms;
 }
 
 .root[data-entrance='play'] .insight > :nth-child(4) {
-  --enter-d: 105ms;
+  --enter-d: 580ms;
 }
 
 .root[data-entrance='play'] .insight > :nth-child(5) {
-  --enter-d: 140ms;
+  --enter-d: 720ms;
 }
 
 .root[data-entrance='play'] .insight > :nth-child(n + 6) {
-  --enter-d: 175ms;
+  --enter-d: 860ms;
 }
 
 .root[data-entrance='play'] .mapStack {
-  animation: entranceRight 460ms cubic-bezier(0.16, 1, 0.3, 1) 40ms backwards;
+  animation: entranceRight 960ms cubic-bezier(0.16, 1, 0.3, 1) 520ms backwards;
 }
 
 .root[data-entrance='play'] .lowerNav {
-  animation: entranceUp 420ms cubic-bezier(0.16, 1, 0.3, 1) 80ms backwards;
+  animation: entranceUp 720ms cubic-bezier(0.16, 1, 0.3, 1) 1180ms backwards;
 }
 
 /* The way out sends the chrome back off the map while the Briefing map underneath flies home. */
@@ -104,14 +105,14 @@
 @keyframes entranceLeft {
   from {
     opacity: 0;
-    translate: -48px 0;
+    translate: -72px 0;
   }
 }
 
 @keyframes entranceRight {
   from {
     opacity: 0;
-    translate: 48px 0;
+    translate: 72px 0;
   }
 }
 
@@ -1227,9 +1228,9 @@
   padding: 2px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 40px;
-  background: rgba(14, 18, 26, 0.82);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
   opacity: 0;
   pointer-events: none;

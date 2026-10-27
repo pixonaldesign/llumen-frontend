@@ -63,8 +63,17 @@ export function BriefingAssetGrid({
   )
 }
 
-/** Without `legend`, a donut or pie leaves its slices' names and shares to the hover tips. */
-export function AssetCard({ asset, play, delay, legend = true }: Play & { asset: BriefingAsset; legend?: boolean }) {
+/**
+ * Without `legend`, a donut or pie leaves its slices' names and shares to the hover tips. Without `spark`,
+ * a KPI is its value, with the caption at the foot of the card.
+ */
+export function AssetCard({
+  asset,
+  play,
+  delay,
+  legend = true,
+  spark = true,
+}: Play & { asset: BriefingAsset; legend?: boolean; spark?: boolean }) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [tip, setTip] = useState<PlacedTip | null>(null)
   const showTip = useCallback<ShowTip>((next) => {
@@ -92,7 +101,14 @@ export function AssetCard({ asset, play, delay, legend = true }: Play & { asset:
         <h3 className={styles.cardTitle}>{asset.title}</h3>
       </header>
       <div ref={bodyRef} className={styles.body} onPointerLeave={() => setTip(null)}>
-        <AssetVisual asset={asset} play={play} delay={delay + CHART_LAG_MS} showTip={showTip} legend={legend} />
+        <AssetVisual
+          asset={asset}
+          play={play}
+          delay={delay + CHART_LAG_MS}
+          showTip={showTip}
+          legend={legend}
+          spark={spark}
+        />
         {tip ? (
           <div
             className={`${styles.tip}${tip.side ? ` ${tip.side === 'left' ? styles.tipLeft : styles.tipRight}` : ''}`}
@@ -121,7 +137,8 @@ function AssetVisual({
   delay,
   showTip,
   legend,
-}: Play & { asset: BriefingAsset; showTip: ShowTip; legend: boolean }) {
+  spark,
+}: Play & { asset: BriefingAsset; showTip: ShowTip; legend: boolean; spark: boolean }) {
   switch (asset.kind) {
     case 'area':
       return <AreaVisual asset={asset} play={play} delay={delay} showTip={showTip} />
@@ -203,15 +220,17 @@ function AssetVisual({
             <CountUp value={asset.value} play={play} delay={delay} />
             {asset.suffix}
           </p>
-          <p className={styles.caption}>{asset.caption}</p>
-          <Sparkline
-            points={asset.spark}
-            showTip={showTip}
-            describe={(i) => ({
-              label: i === last ? 'This week' : `${last - i} wk ago`,
-              value: `${asset.prefix ?? ''}${asset.spark[i]}${asset.suffix ?? ''}`,
-            })}
-          />
+          <p className={`${styles.caption}${spark ? '' : ` ${styles.captionFoot}`}`}>{asset.caption}</p>
+          {spark ? (
+            <Sparkline
+              points={asset.spark}
+              showTip={showTip}
+              describe={(i) => ({
+                label: i === last ? 'This week' : `${last - i} wk ago`,
+                value: `${asset.prefix ?? ''}${asset.spark[i]}${asset.suffix ?? ''}`,
+              })}
+            />
+          ) : null}
         </>
       )
     }

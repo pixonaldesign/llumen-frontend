@@ -748,10 +748,29 @@
 }
 
 .sideIntro {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding-bottom: var(--feed-pad, 106px);
   overflow: hidden;
+}
+
+.sideIntro > .sideHead,
+.sideIntro > .assetsFilters {
+  flex-shrink: 0;
+}
+
+/* Under the filters, the greeting, statement, and insights scroll on short screens. */
+.sideScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: var(--feed-pad, 106px);
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+.sideScroll > * {
+  padding-inline-end: 12px;
 }
 
 .sideIntro .assetsDetail {
@@ -1059,7 +1078,7 @@
   transition-delay: 60ms;
 }
 
-.root[data-findings-style='8'] .sideIntro {
+.root[data-findings-style='8'] .sideScroll {
   padding-bottom: 28px;
 }
 
@@ -1885,6 +1904,27 @@
   transition:
     opacity 320ms ease,
     transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* A board asset (2 x ROOMY_BOARD_CELL + BOARD_GAP tall, or one cell for a KPI); the glass is its surface. */
+.assetChart {
+  height: calc(2 * 260px + 12px);
+  padding: 0;
+}
+
+.assetChart[data-kpi='true'] {
+  height: 260px;
+}
+
+.assetChart > article {
+  flex: 1 1 auto;
+  padding: 22px 22px 18px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .barChart .chartBar {
