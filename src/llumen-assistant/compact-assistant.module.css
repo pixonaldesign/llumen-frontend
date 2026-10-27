@@ -398,6 +398,10 @@
     filter 320ms ease;
 }
 
+.composerDockCenter[data-findings-style='8'] {
+  bottom: 48px;
+}
+
 .composerDockCenter[data-findings-style='6'][data-alert='true'],
 .composerDockCenter[data-findings-style='8'][data-alert='true'] {
   filter: opacity(0);
@@ -3412,8 +3416,36 @@
 .slashCommandMenu {
   width: auto;
   max-width: calc(100vw - 24px);
+  max-height: min(440px, 60vh);
   box-sizing: border-box;
+  padding-right: 0;
   border-radius: var(--radius-3xl, 24px);
+  overflow-y: overlay;
+  scrollbar-gutter: auto;
+}
+
+.slashCommandMenu > * {
+  margin-right: var(--space-sm);
+}
+
+.slashCommandMenu::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.slashCommandMenu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.slashCommandMenu::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.18);
+}
+
+@supports selector(::-webkit-scrollbar) {
+  .slashCommandMenu {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
 }
 
 .slashCommandMenu .inlineContextMenuItemText {

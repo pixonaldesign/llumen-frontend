@@ -48,11 +48,20 @@ import {
   workflowWaitReply,
 } from './energyWorkflowDemo'
 import {
+  parseFirstResponseCommand,
   parseSlashCommand,
   slashChatTitle,
   underwayMessage,
   workUnderwayReply,
 } from './slashCommands'
+import { FirstResponseCard, FirstResponseLoader } from './FirstResponseCard'
+import {
+  FOLLOW_UP_PROMPTS,
+  firstResponseFor,
+  firstResponseKind,
+  followUpReply,
+  type FirstResponse,
+} from './firstResponseDemo'
 import type { HubChatComponent, HubWorkToast } from './landing/HubChatbox'
 import type { LandingTellMeMorePayload } from './landing/LandingHomeDefault'
 import { DUMPING_ALERT_BRIEFING, DUMPING_BRIEFING_SOURCES } from './landing/dumpingBriefing'
@@ -371,7 +380,69 @@ type LandingAskMapState = {
 const LANDING_MAP_CLOSED: LandingAskMapState = { open: false, snapshot: null, capture: null }
 type LandingAskSubject = { finding: LandingTellMeMorePayload } | { location: StoryLocation } | null
 
-/** Typed into the landing AI bar on first click: the story builder's location prompt, already set to Mussafah. */
+type LandingAskPlan = {
+  reply: AssistantReplyPayload
+  stateId: string
+  map: { snapshot: StoryAiSnapshot; captureDelay: number } | null
+}
+
+/**
+ * The reply to a schools prompt (city-wide, or in a location as the story builder asks it) or a finding's
+ * Tell Me More, and what it annotates on the map that joins it.
+ */
+function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
+  const slide = 0
+  const finding = subject && 'finding' in subject ? subject.finding : null
+  const location = subject && 'location' in subject ? subject.location : null
+  const experience = finding ? findingExperience(finding.id) : null
+  const stateId = `map-state-${Date.now()}`
+  if (experience) {
+    const snapshot: StoryAiSnapshot | null = experience.map
+      ? { cards: null, region: false, areaEffect: null, filterLabels: {}, findingPlace: experience.map.place }
+      : null
+    return {
+      stateId,
+      reply:
+        experience.map && snapshot
+          ? withMapState(experience.reply, { stateId, snapshot, ...experience.map })
+          : experience.reply,
+      map: snapshot ? { snapshot, captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS } : null,
+    }
+  }
+  const region = location ? locationRegion(location) : null
+  const annotation = location
+    ? locationAnnotation(slide, location)
+    : finding
+      ? schoolMarkersAnnotation(slide)
+      : topSchoolsAnnotation(slide)
+  const place = location?.name ?? 'Abu Dhabi'
+  const snapshot: StoryAiSnapshot = {
+    cards: null,
+    region: region !== null,
+    areaEffect: null,
+    filterLabels: region ? { loc: region.label } : {},
+    annotation: location ? { slide, location } : finding ? { slide, kind: 'markers' } : { slide },
+  }
+  return {
+    stateId,
+    reply: withMapState(finding ? findingReply(finding, annotation) : topSchoolsReply(annotation), {
+      stateId,
+      snapshot,
+      title: finding
+        ? `${finding.title} · on the map`
+        : location
+          ? `Schools exposed to factory emissions · ${place}`
+          : `Top ${annotation.schools.length} schools by traffic · ${place}`,
+      tag: place,
+      meta: finding
+        ? `${annotation.schools.length + annotation.junctions.length} places marked`
+        : `${annotation.schools.length} schools annotated`,
+    }),
+    map: { snapshot, captureDelay: region ? REGION_ANNOTATION_CAPTURE_DELAY_MS : ANNOTATION_CAPTURE_DELAY_MS },
+  }
+}
+
+/** Typed into the landing AI bar on the first keystroke: the story builder's location prompt, already set to Mussafah. */
 const LANDING_DEMO_PROMPT = locationPrompt(MUSSAFAH_LOCATION)
 
 function lastMapState(messages: ChatMessage[]): { stateId: string; snapshot: StoryAiSnapshot } | undefined {
@@ -515,6 +586,19 @@ export function CompactAssistantDemo() {
   const [railChatComponents, setRailChatComponents] = useState<ChatComponent[]>([])
   /** The last confirmed card monitor, drafted as a workflow above the story's chat input. */
   const [storyWorkflow, setStoryWorkflow] = useState<{ proposal: WorkflowProposal; prompt: string } | null>(null)
+  /**
+   * A prompt sent from the landing AI bar answers here first, after a loader while `loading`; `landing` is the
+   * annotated map it shows and opens.
+   */
+  const [firstResponse, setFirstResponse] = useState<{
+    response: FirstResponse
+    landing?: LandingAskPlan
+    loading: boolean
+  } | null>(null)
+  const firstResponseLoaded = useCallback(
+    () => setFirstResponse((current) => current && { ...current, loading: false }),
+    [],
+  )
   const pendingStoryApplyRef = useRef<PendingStoryApply | null>(null)
   const [storySlideIndex, setStorySlideIndex] = useState(0)
   const [hubRailMode, setHubRailMode] = useState<'thread' | 'sessions'>('thread')
@@ -1305,6 +1389,18 @@ export function CompactAssistantDemo() {
       if (isFindingSlashCommand(t)) {
         setDraft('')
         cueThenShowFindings()
+        return
+      }
+      const demo = parseFirstResponseCommand(t)
+      if (demo) {
+        const response = firstResponseFor(demo.kind, demo.rest || undefined)
+        setDraft('')
+        if (!titleEditedRef.current && !messages.some((msg) => msg.role === 'assistant')) {
+          setChatTitle(truncateTitle(response.chatTitle))
+        }
+        setActiveConversationId((id) => id ?? uid())
+        setMessages((m) => [...m, { id: uid(), role: 'user', text: response.prompt }])
+        startAssistantReply(response.reply)
         return
       }
       const slash = parseSlashCommand(t)
@@ -2254,6 +2350,7 @@ export function CompactAssistantDemo() {
     setLandingAsk((current) => current ?? { origin })
     setLandingChips([])
     setHubWorkToast(null)
+    setFirstResponse(null)
   }, [landingBarRect])
 
   /** The docked monitor opens full screen as the reply to the request its form wrote; its run state carries over. */
@@ -2280,58 +2377,11 @@ export function CompactAssistantDemo() {
     startAssistantReply(reply)
   }, [clearStream, closeSubcontextImmediately, open, openLandingAsk, settleReplies, startAssistantReply, storyWorkflow])
 
-  /**
-   * A schools prompt (city-wide, or in a location as the story builder asks it) or a finding's Tell Me More,
-   * annotated on the map that joins the reply.
-   */
+  /** Runs a landing ask: the reply streams in and the annotated map slides in alongside it. */
   const runLandingAsk = useCallback(
     (prompt: string, subject: LandingAskSubject) => {
-      const slide = 0
       const finding = subject && 'finding' in subject ? subject.finding : null
-      const location = subject && 'location' in subject ? subject.location : null
-      const experience = finding ? findingExperience(finding.id) : null
-      const stateId = `map-state-${Date.now()}`
-      let reply: AssistantReplyPayload
-      let map: { snapshot: StoryAiSnapshot; captureDelay: number } | null
-      if (experience) {
-        const snapshot: StoryAiSnapshot | null = experience.map
-          ? { cards: null, region: false, areaEffect: null, filterLabels: {}, findingPlace: experience.map.place }
-          : null
-        reply =
-          experience.map && snapshot
-            ? withMapState(experience.reply, { stateId, snapshot, ...experience.map })
-            : experience.reply
-        map = snapshot ? { snapshot, captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS } : null
-      } else {
-        const region = location ? locationRegion(location) : null
-        const annotation = location
-          ? locationAnnotation(slide, location)
-          : finding
-            ? schoolMarkersAnnotation(slide)
-            : topSchoolsAnnotation(slide)
-        const place = location?.name ?? 'Abu Dhabi'
-        const snapshot: StoryAiSnapshot = {
-          cards: null,
-          region: region !== null,
-          areaEffect: null,
-          filterLabels: region ? { loc: region.label } : {},
-          annotation: location ? { slide, location } : finding ? { slide, kind: 'markers' } : { slide },
-        }
-        reply = withMapState(finding ? findingReply(finding, annotation) : topSchoolsReply(annotation), {
-          stateId,
-          snapshot,
-          title: finding
-            ? `${finding.title} · on the map`
-            : location
-              ? `Schools exposed to factory emissions · ${place}`
-              : `Top ${annotation.schools.length} schools by traffic · ${place}`,
-          tag: place,
-          meta: finding
-            ? `${annotation.schools.length + annotation.junctions.length} places marked`
-            : `${annotation.schools.length} schools annotated`,
-        })
-        map = { snapshot, captureDelay: region ? REGION_ANNOTATION_CAPTURE_DELAY_MS : ANNOTATION_CAPTURE_DELAY_MS }
-      }
+      const { reply, stateId, map } = planLandingAsk(subject)
       resetConversation()
       openLandingAsk()
       setActiveConversationId(uid())
@@ -2431,6 +2481,46 @@ export function CompactAssistantDemo() {
 
   useEffect(() => () => window.clearTimeout(landingAskMapTimer.current), [])
 
+  /**
+   * The first response container opens full screen with its conversation already answered (no replay), and a
+   * map answer opens its annotated map beside the chat. A `followUp` sent from the AI bar is answered after it.
+   */
+  const openFirstResponse = useCallback(
+    (followUp?: string) => {
+      if (!firstResponse) return
+      const { response, landing } = firstResponse
+      const reply = landing?.reply ?? response.reply
+      if (open) {
+        settleReplies()
+        setOpen(false)
+      }
+      resetConversation()
+      setSources(response.kind === 'workflow' ? [] : sourcesForDemoConversation(true))
+      openLandingAsk()
+      setActiveConversationId(uid())
+      setActiveMapStateId(landing?.map ? landing.stateId : null)
+      setChatTitle(truncateTitle(landing ? titleFromReply(reply) : response.chatTitle))
+      const replyId = uid()
+      setMessages([
+        { id: uid(), role: 'user', text: response.prompt },
+        { id: replyId, role: 'assistant', text: '', reply },
+      ])
+      setSettledReplyIds((current) => new Set([...current, replyId]))
+      if (landing?.map) {
+        setLandingAskMap({
+          open: true,
+          snapshot: landing.map.snapshot,
+          capture: { stateId: landing.stateId, delay: landing.map.captureDelay },
+        })
+      }
+      if (followUp) {
+        setMessages((current) => [...current, { id: uid(), role: 'user', text: followUp }])
+        startAssistantReply(followUpReply(response, followUp))
+      }
+    },
+    [firstResponse, open, openLandingAsk, resetConversation, settleReplies, startAssistantReply],
+  )
+
   const submitLandingAsk = useCallback(
     (text: string, chips: LandingContextChip[]) => {
       if (isFindingSlashCommand(text)) {
@@ -2439,14 +2529,45 @@ export function CompactAssistantDemo() {
         return
       }
       const slash = parseSlashCommand(text)
-      if (landingTakeover) {
+      if (landingTakeover && chips.length === 0) {
         const prompt = text.trim()
-        if (!slash && chips.length === 0 && prompt === LANDING_DEMO_PROMPT) {
-          runLandingAsk(prompt, { location: MUSSAFAH_LOCATION })
+        const demo = parseFirstResponseCommand(prompt)
+        // A second prompt while the first answer is up (or still loading) continues full screen.
+        if (firstResponse && prompt && !slash && !demo) {
+          openFirstResponse(prompt)
           return
         }
-        if (!slash && chips.length === 0 && prompt === TOP_SCHOOLS_PROMPT) {
-          runLandingAsk(prompt, null)
+        const kind =
+          demo?.kind ??
+          (slash?.id === 'workflow'
+            ? 'workflow'
+            : !slash && prompt
+              ? prompt === LANDING_DEMO_PROMPT || prompt === TOP_SCHOOLS_PROMPT
+                ? 'map'
+                : firstResponseKind(prompt)
+              : null)
+        if (kind === 'map') {
+          // Map answers are the annotated schools map: city-wide traffic, or factory emissions in Mussafah.
+          const asked = demo ? demo.rest || LANDING_DEMO_PROMPT : prompt
+          const byTraffic = asked === TOP_SCHOOLS_PROMPT
+          setFirstResponse({
+            response: {
+              ...firstResponseFor('map', asked),
+              headline: byTraffic
+                ? 'Schools with the heaviest traffic around them'
+                : 'Schools most exposed to Mussafah emissions',
+              text: byTraffic
+                ? 'I ranked the schools by the traffic around them over the last 2 months and annotated the top 10.'
+                : 'I ranked the schools by their exposure to the factory emissions and annotated the top 10.',
+            },
+            landing: planLandingAsk(byTraffic ? null : { location: MUSSAFAH_LOCATION }),
+            loading: true,
+          })
+          return
+        }
+        if (kind) {
+          const asked = demo ? demo.rest || undefined : slash ? undefined : prompt
+          setFirstResponse({ response: firstResponseFor(kind, asked), loading: true })
           return
         }
       }
@@ -2489,7 +2610,16 @@ export function CompactAssistantDemo() {
       setExpanded(false)
       sendText(composed || fallback)
     },
-    [sendText, cueThenShowFindings, isHub, landingVariant, landingTakeover, openLandingAsk, runLandingAsk],
+    [
+      sendText,
+      cueThenShowFindings,
+      isHub,
+      landingVariant,
+      landingTakeover,
+      openLandingAsk,
+      firstResponse,
+      openFirstResponse,
+    ],
   )
 
   const onTellMeMore = useCallback(
@@ -2995,6 +3125,40 @@ export function CompactAssistantDemo() {
                 />
               </div>
             ) : null}
+            {!storyActive && !landingAsk && firstResponse?.loading ? (
+              <div key={firstResponse.response.id} className={styles.composerWorkflow}>
+                <FirstResponseLoader
+                  steps={(firstResponse.landing?.reply ?? firstResponse.response.reply).timeline.map(
+                    (step) => step.titleInProgress ?? step.title,
+                  )}
+                  onDone={firstResponseLoaded}
+                />
+              </div>
+            ) : null}
+            {!storyActive && !landingAsk && firstResponse && !firstResponse.loading ? (
+              <div key={firstResponse.response.id} className={styles.composerWorkflow}>
+                <FirstResponseCard
+                  response={firstResponse.response}
+                  map={
+                    firstResponse.landing?.map ? (
+                      <LandingAskMap
+                        preview
+                        snapshot={firstResponse.landing.map.snapshot}
+                        capture={null}
+                        onCapture={storeMapCapture}
+                      />
+                    ) : undefined
+                  }
+                  onExpand={() => openFirstResponse()}
+                  onClose={() => setFirstResponse(null)}
+                  onRunFailed={reportWorkflowRunFailed}
+                  onOpenWorkflow={(proposal) => {
+                    openHubChat()
+                    setSubcontext({ view: 'workflow', proposal })
+                  }}
+                />
+              </div>
+            ) : null}
             <HubChatbox
                 // Remount when leaving a story so draft/focus/files don't carry over engaged.
                 key={storyActive ? `story-${activeStoryId}` : 'landing'}
@@ -3051,7 +3215,13 @@ export function CompactAssistantDemo() {
                 }
                 onSubmitComponents={submitStoryComponents}
                 onSubmitLocation={storyActive && !streaming ? submitHubLocation : undefined}
-                demoPrompt={landingTakeover ? LANDING_DEMO_PROMPT : undefined}
+                demoPrompt={
+                  !landingTakeover
+                    ? undefined
+                    : firstResponse
+                      ? FOLLOW_UP_PROMPTS[firstResponse.response.kind]
+                      : LANDING_DEMO_PROMPT
+                }
               />
           </div>
         ) : null}

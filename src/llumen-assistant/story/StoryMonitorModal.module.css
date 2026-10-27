@@ -1,3 +1,8 @@
+/* The one-line title sits level with the close button. */
+.header {
+  align-items: center;
+}
+
 .context {
   display: flex;
   min-width: 0;
@@ -440,6 +445,9 @@
   flex-direction: column;
   min-height: 0;
   padding: var(--space-md) var(--space-lg) 6px;
+  /* Same surface as the dropdown above it, which has no blur. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .prompt {

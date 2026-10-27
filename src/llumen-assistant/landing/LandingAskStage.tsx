@@ -24,6 +24,7 @@ import {
 } from '../story/storyAnnotations'
 import type { StoryAiSnapshot, StoryMapCapture } from '../story/storyAiScenarios'
 import { StoryMap, type StoryMapAnnotationLayer, type StoryMapHandle } from '../story/StoryMap'
+import mapStyles from '../story/StoryMap.module.css'
 import styles from './LandingAskStage.module.css'
 import { findingAreas, findingRegion, findingSceneIndex, isFindingPlace } from './landingFindingExperiences'
 
@@ -291,10 +292,17 @@ export type LandingAskMapProps = {
   /** Screenshot for the reply's map-state card, once the annotation has animated in. */
   capture: { stateId: string; delay: number } | null
   onCapture: (stateId: string, capture: StoryMapCapture) => void
+  /** A small still-framed thumbnail of the same map, as in a first response container. */
+  preview?: boolean
 }
 
+/** Top room for the annotated columns and their pins. */
+const PREVIEW_PADDING = { top: 44, right: 8, bottom: 8, left: 8 }
+/** Pulls the camera out so a ~180px-tall preview frames what the full stage shows. */
+const PREVIEW_ZOOM_OFFSET = -1.7
+
 /** The story map with whatever the reply annotated on it. */
-export function LandingAskMap({ snapshot, capture, onCapture }: LandingAskMapProps) {
+export function LandingAskMap({ snapshot, capture, onCapture, preview = false }: LandingAskMapProps) {
   const handleRef = useRef<StoryMapHandle | null>(null)
   const onHandle = useCallback((handle: StoryMapHandle | null) => {
     handleRef.current = handle
@@ -329,7 +337,10 @@ export function LandingAskMap({ snapshot, capture, onCapture }: LandingAskMapPro
       sceneIndex={place ? findingSceneIndex(place) : 0}
       framePhase={0}
       flyToScene={false}
-      cameraPadding={MAP_PADDING}
+      cameraPadding={preview ? PREVIEW_PADDING : MAP_PADDING}
+      zoomOffset={preview ? PREVIEW_ZOOM_OFFSET : undefined}
+      interactive={!preview}
+      className={preview ? mapStyles.noActions : undefined}
       controlsClassName={styles.mapControls}
       region={region}
       annotation={annotation}

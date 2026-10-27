@@ -1,0 +1,53 @@
+/* Builds on the compact workflow card (WorkflowProposalCard.module.css `.wrap[data-size='compact']`). */
+
+/* Charts and KPI widgets bring their own card. */
+.wrap .visual {
+  align-self: stretch;
+  margin: 4px 0 2px;
+}
+
+/* A My Board KPI card, about one board cell tall. */
+.wrap .kpiAsset {
+  display: flex;
+  height: 200px;
+}
+
+.kpiAsset > article {
+  flex: 1;
+}
+
+.wrap .visualMap {
+  position: relative;
+  overflow: hidden;
+  height: 180px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+}
+
+.loader {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 16px;
+}
+
+.loaderText {
+  font-size: 14px;
+}
+
+.answer {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}

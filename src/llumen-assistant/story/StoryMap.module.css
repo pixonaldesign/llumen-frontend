@@ -354,6 +354,11 @@
   pointer-events: none;
 }
 
+/* Thumbnails show what was annotated, not the action it suggests. */
+.noActions .annotationActionMarker {
+  display: none;
+}
+
 .annotationActionBody {
   display: flex;
   flex-direction: column;

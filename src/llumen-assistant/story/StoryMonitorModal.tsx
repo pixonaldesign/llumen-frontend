@@ -323,7 +323,7 @@ export function StoryMonitorModal({
         aria-labelledby="monitor-modal-title"
         dir="ltr"
       >
-        <header className={edit.header}>
+        <header className={`${edit.header} ${styles.header}`}>
           <div className={edit.headerIdentity}>
             <div className={edit.headerCopy}>
               <h2 id="monitor-modal-title" className={edit.title}>

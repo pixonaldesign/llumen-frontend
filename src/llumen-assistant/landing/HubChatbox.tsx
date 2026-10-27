@@ -33,7 +33,6 @@ import {
   getSlashTrigger,
   insertSlashCommand,
   type SlashCommand,
-  type SlashCommandId,
   type SlashMenuPosition,
 } from '../slashCommands'
 import panelStyles from '../compact-assistant.module.css'
@@ -231,15 +230,15 @@ export type HubChatboxProps = {
   /** Story components attached via "Add to chat"; sending routes to `onSubmitComponents`. */
   components?: HubChatComponent[]
   onRemoveComponent?: (id: string) => void
-  /** Typed into the empty editor on the first click while components are attached. */
+  /** Typed into the empty editor on the first keystroke while components are attached. */
   componentPrompt?: string
   onSubmitComponents?: (text: string, components: HubChatComponent[]) => void
   /**
-   * Story only: once a location pill is in the editor, the first click types its prompt and sending
+   * Story only: once a location pill is in the editor, the first keystroke types its prompt and sending
    * runs the location demo here instead of `onSubmit`.
    */
   onSubmitLocation?: (location: StoryLocation) => void
-  /** Typed into the empty editor on the first click when nothing else is attached. */
+  /** Typed into the empty editor on the first keystroke when nothing else is attached. */
   demoPrompt?: string
   /** A new token types `text` into the bar, then sends it. */
   typeRequest?: { token: number; text: string } | null
@@ -365,12 +364,12 @@ export function HubChatbox({
   }
   const locationKey = (location: StoryLocation) => `location:${location.id}`
 
-  /** Typed on the first click: the attached components' re-plot, the picked location's prompt, or the demo prompt. */
+  /** Typed on the first keystroke: the attached components' re-plot, the picked location's prompt, or the demo prompt. */
   const autoPrompt = () => {
     if (componentPrompt && components.length > 0) return { key: componentsKey, text: componentPrompt }
     const location = locationInEditor()
     if (location) return { key: locationKey(location), text: locationPrompt(location) }
-    return demoPrompt ? { key: 'demo', text: demoPrompt } : null
+    return demoPrompt ? { key: `demo:${demoPrompt}`, text: demoPrompt } : null
   }
 
   const typeInto = (target: Text, full: string, onDone?: () => void) => {
@@ -388,17 +387,18 @@ export function HubChatbox({
     typingRef.current = { timer, full }
   }
 
+  /** Starts typing the auto prompt; false when there is none to type, so the keystroke goes in as usual. */
   const fillAutoPrompt = () => {
     const editor = editorRef.current
     const auto = autoPrompt()
-    if (!editor || !auto || interactionLocked) return
-    if (typedKeyRef.current === auto.key) return
+    if (!editor || !auto || interactionLocked) return false
+    if (typedKeyRef.current === auto.key) return false
     // Mention pills may stay; retype over our own earlier prompt, never over the user's text.
     const freeText = editorFreeText(editor)
     const ownNode = typedNodeRef.current && editor.contains(typedNodeRef.current) ? typedNodeRef.current : null
     const untouched =
       freeText === '' || typingRef.current !== null || (ownNode !== null && freeText === autoTextRef.current)
-    if (!untouched) return
+    if (!untouched) return false
     typedKeyRef.current = auto.key
     stopTyping()
     const full = auto.text
@@ -414,6 +414,7 @@ export function HubChatbox({
       typedNodeRef.current = node
     }
     typeInto(node, full)
+    return true
   }
 
   const closeMention = useCallback(() => {
@@ -468,7 +469,7 @@ export function HubChatbox({
   }, [slashMenu, expanded])
 
   const selectSlashCommand = useCallback(
-    (command: SlashCommand | SlashCommandId) => {
+    (command: SlashCommand | SlashCommand['id']) => {
       const editor = editorRef.current
       if (!editor || interactionLocked) return
       const id = typeof command === 'string' ? command : command.id
@@ -918,7 +919,6 @@ export function HubChatbox({
                 syncEditor()
                 refreshSlashMenu()
               }}
-              onPointerDown={fillAutoPrompt}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               onClick={() => {
@@ -928,6 +928,13 @@ export function HubChatbox({
                 if (!slashMenu) requestAnimationFrame(refreshSlashMenu)
               }}
               onKeyDown={(e) => {
+                // A printable key types the auto prompt; `/` stays a key so it can open the command menu.
+                const printable =
+                  e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !e.nativeEvent.isComposing
+                if (printable && e.key !== '/' && !slashMenu && (typingRef.current !== null || fillAutoPrompt())) {
+                  e.preventDefault()
+                  return
+                }
                 if (slashMenu) {
                   const listLength = slashCommands.length
                   if (e.key === 'ArrowDown') {
