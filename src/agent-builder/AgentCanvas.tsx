@@ -90,7 +90,7 @@ import { STICKY_MIN_SIZE, stickyStyle, type StickyStyle } from './stickyNote'
 import { cardDetails, defaultTriggerId, executableTriggers, type FlowState } from './triggerCard'
 import { nodeDataSides, nodeDataViews } from './cardSections'
 import { NodeConfigWindow, type NeighbourNode, type UpstreamNode } from './NodeConfigWindow'
-import { NodeDataDialog, type InputLayer } from './NodeDataDialog'
+import { NodeDataDialog, type DataGroup } from './NodeDataDialog'
 import { SHORTCUTS } from './shortcuts'
 import {
   DEFAULT_CANVAS_LOOK,
@@ -1904,27 +1904,45 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         .filter((step) => NODE_TYPES_BY_ID[step.typeId]?.category !== 'triggers'),
       upstream: ancestorsNearestFirst(node.id, doc.edges).flatMap(wiredStep),
     }))
+  /** The step an edge comes from, named with its branch when it has several. */
+  const sourceName = (edge: WorkflowEdge) => {
+    const from = nodesById[edge.from]
+    if (!from) return undefined
+    const fromType = nodeType(from)
+    const outputs = nodeOutputs(from, fromType)
+    const branch = outputs.length > 1 ? outputs.find((output) => output.id === edge.fromPort)?.label : undefined
+    return branch ? `${nodeName(from, fromType)} · ${branch}` : nodeName(from, fromType)
+  }
   /**
-   * What's wired in, as one entry, then the steps a kind reads beside it, each with its role and last rows;
-   * a saved asset shows the rows it was made from.
+   * Each wired step with the rows it sent, named by the port it feeds when there are several, then the steps a
+   * kind reads beside them, each with its role. A saved asset shows the rows it was made from.
    */
-  const inputLayers = (node: CanvasNode): InputLayer[] | undefined => {
+  const inputGroups = (node: CanvasNode): DataGroup[] | undefined => {
+    if (fixtures[node.id]) return undefined
+    const type = nodeType(node)
     const layers = kindInputLayers(node.type, node.config.params, ancestorsNearestFirst(node.id, doc.edges).flatMap(wiredStep))
-    if (!layers) return undefined
-    const wired = doc.edges
-      .filter((edge) => edge.to === node.id)
-      .flatMap((edge) => wiredStep(edge.from))
-      .filter((step) => NODE_TYPES_BY_ID[step.typeId]?.category !== 'triggers')
+    const portLabel = (edge: WorkflowEdge) =>
+      type.inputs.length > 1 ? (type.inputs.find((port) => port.id === edge.toPort)?.label ?? edge.toPort) : undefined
+    const wired = doc.edges.filter((edge) => edge.to === node.id && NODE_TYPES_BY_ID[nodesById[edge.from]?.type]?.category !== 'triggers')
+    const wiredIds = new Set(wired.map((edge) => edge.from))
     return [
-      ...(wired.length ? [{ id: 'wired', name: wired.map((step) => step.name).join(', '), role: layers.wired, records: inputFor(node.id) }] : []),
-      ...layers.references.flatMap((reference) =>
-        wiredStep(reference.id).map((step) => ({
-          id: step.id,
-          name: step.name,
-          role: reference.role,
-          records: runs[step.id]?.assetRows ?? runRows(runs[step.id]),
-        })),
-      ),
+      ...wired.flatMap((edge) => {
+        const name = sourceName(edge)
+        const from = nodesById[edge.from]
+        const role = layers?.wired ?? portLabel(edge)
+        return name && from ? [{ id: edge.id, name, typeId: from.type, role, records: runs[edge.from]?.ports?.[edge.fromPort] ?? null }] : []
+      }),
+      ...(layers?.references ?? [])
+        .filter((reference) => !wiredIds.has(reference.id))
+        .flatMap((reference) =>
+          wiredStep(reference.id).map((step) => ({
+            id: step.id,
+            name: step.name,
+            typeId: step.typeId,
+            role: reference.role,
+            records: runs[step.id]?.assetRows ?? runRows(runs[step.id]),
+          })),
+        ),
     ]
   }
   /** Per input port, the steps wired in, named with their branch when they have several, and the rows they sent. */
@@ -1934,14 +1952,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       type.inputs.flatMap((port) => {
         const edges = doc.edges.filter((edge) => edge.to === id && edge.toPort === port.id)
         if (!edges.length) return []
-        const names = edges.flatMap((edge) => {
-          const from = nodesById[edge.from]
-          if (!from) return []
-          const fromType = nodeType(from)
-          const outputs = nodeOutputs(from, fromType)
-          const branch = outputs.length > 1 ? outputs.find((output) => output.id === edge.fromPort)?.label : undefined
-          return [branch ? `${nodeName(from, fromType)} · ${branch}` : nodeName(from, fromType)]
-        })
+        const names = edges.flatMap((edge) => sourceName(edge) ?? [])
         const sent = edges.flatMap((edge) => runs[edge.from]?.ports?.[edge.fromPort] ?? [])
         const ran = edges.some((edge) => runs[edge.from]?.ports?.[edge.fromPort])
         return [[port.id, { names, rows: ran ? sent.length : null }]]
@@ -2076,7 +2087,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         run={runs[dataDialogNode.id] ?? IDLE}
         input={inputFor(dataDialogNode.id)}
         output={runRows(runs[dataDialogNode.id])}
-        inputLayers={inputLayers(dataDialogNode)}
+        inputGroups={inputGroups(dataDialogNode)}
         anchor={{
           ...toScreen(dataDialogPosition),
           right: toScreen({ x: dataDialogPosition.x + dataDialogSize.w, y: 0 }).left,

@@ -177,50 +177,6 @@ button.close:hover {
   color: rgba(255, 255, 255, 0.4);
 }
 
-/* One chip per output branch, plus All; the same pill as the configuration window's column chips. */
-.branches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: var(--space-md) var(--space-lg);
-}
-
-button.branch {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.7);
-  font: inherit;
-  font-size: 12px;
-  line-height: 18px;
-  cursor: pointer;
-  transition:
-    background var(--lc-duration) var(--lc-ease),
-    border-color var(--lc-duration) var(--lc-ease),
-    color var(--lc-duration) var(--lc-ease);
-}
-
-button.branch:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-button.branch[aria-pressed='true'] {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
-}
-
-.branchCount {
-  color: rgba(255, 255, 255, 0.5);
-  font-variant-numeric: tabular-nums;
-}
-
 /*
  * Full-bleed scrollport in both directions, so the thumbs run along the window's edges and the header row can stay
  * pinned; the table's edge cells carry the inset.
@@ -265,6 +221,93 @@ button.branch[aria-pressed='true'] {
 /* The table is the configuration window's; code font stays there, values here read as text. */
 .scroll tbody td {
   font-family: inherit;
+}
+
+/* The steps a node reads, one row each; an open row shows what that step sent. */
+.inputs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inputItem + .inputItem {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+button.inputHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--space-lg);
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.85);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease);
+}
+
+button.inputHead:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.inputCaret {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.5);
+  transition: transform var(--lc-duration) var(--lc-ease);
+}
+
+button.inputHead[aria-expanded='true'] .inputCaret {
+  transform: rotate(90deg);
+}
+
+.inputName {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The catch-all branch, Default or Unclassified, reads quieter, as on the card. */
+.inputName[data-muted] {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.inputRole,
+.inputCount {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 400;
+}
+
+.inputCount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Each table scrolls sideways on its own, so the row heads above and below keep the window's width. The content
+ * lines up with the step's name: the head's inset, its caret, and the gap after it.
+ */
+.inputBody {
+  --column-pad: calc(var(--space-lg) + 12px + var(--space-sm));
+
+  padding-bottom: var(--space-sm);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.inputBody .record,
+.inputBody .empty,
+.inputBody button.viewAll {
+  padding-inline: var(--column-pad);
 }
 
 /* Held at the scrollport's left edge so it stays in view when the table scrolls sideways. */

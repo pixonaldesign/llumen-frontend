@@ -1,11 +1,11 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { MagnifyingGlass, Warning, X } from '@phosphor-icons/react'
+import { CaretRight, MagnifyingGlass, Warning, X } from '@phosphor-icons/react'
 import slidesThumbnail from './assets/slides-thumbnail.jpg'
 import { nodeDataSides, nodeDataViews, type DataSide } from './cardSections'
 import { DataViewBody } from './DataViews'
 import { Tabs } from './NodeConfigWindow'
-import { nodeName, nodeOutputs, type CanvasNode, type DataRecord, type DataValue, type NodePort, type NodeRun, type NodeType } from './nodeCatalog'
-import { branchColumn, INSIGHT_TYPE_LABEL, paramsFor } from './nodeKinds'
+import { nodeName, nodeOutputs, type CanvasNode, type DataRecord, type DataValue, type NodeRun, type NodeType } from './nodeCatalog'
+import { INSIGHT_TYPE_LABEL, isFallbackBranch, paramsFor } from './nodeKinds'
 import { displayValue, fieldLabel, filterRecords } from './recordUtils'
 import styles from './NodeDataDialog.module.css'
 import tones from './nodeTones.module.css'
@@ -23,9 +23,6 @@ const SIDE_LABELS: Record<DataSide, string> = { input: 'Input', output: 'Output'
 const MAX_ROWS = 10
 /** A single record with more fields than this gets a search; a shorter one reads at a glance. */
 const SEARCH_FIELDS = 8
-
-/** A toggle above the rows: a branch with its row count, or an input layer with its step's name. */
-type Chip = { id: string | null; label: string; detail: string | number; pressed: boolean; onPick: () => void }
 
 const rowCount = (count: number) => `${count} ${count === 1 ? 'row' : 'rows'}`
 
@@ -63,6 +60,9 @@ const RECORD_LAYOUTS: Partial<Record<string, RecordLayout>> = {
     formats: { method: (value) => fieldLabel(displayValue(value)), visual_asset_id: () => 'Saved as an asset' },
   },
 }
+
+/** Branches the Output side leaves out: a filter shows only the rows that passed. */
+const HIDDEN_OUTPUTS: Partial<Record<string, readonly string[]>> = { filter: ['discarded'] }
 
 const CONFIDENCE_TONE: Record<string, string> = { high: 'positive', medium: 'warning', low: 'negative' }
 
@@ -119,8 +119,82 @@ function RecordFields({ record, query, layout = {} }: { record: DataRecord; quer
   )
 }
 
-/** A step a kind reads, named by its role, e.g. a GIS node's upper and land layers, and its last rows. */
-export type InputLayer = { id: string; name: string; role: string; records: readonly DataRecord[] | null }
+/**
+ * Rows from one place: a step a node reads, with its role or port, e.g. a GIS node's land layer, or one of the
+ * node's own branches; `muted` for the catch-all branch. `typeId` is the kind that produced the rows.
+ */
+export type DataGroup = { id: string; name: string; typeId: string; role?: string; muted?: boolean; records: readonly DataRecord[] | null }
+
+type RowsProps = { records: readonly DataRecord[]; query: string; layout?: RecordLayout; onViewAll: () => void }
+
+/** A kind's one-row output, e.g. a verdict, reads as a document; any other rows as a table. */
+const readsAsRecord = (records: readonly DataRecord[], layout: RecordLayout | undefined) => records.length === 1 && Boolean(layout)
+
+/** Rows as a table, cut off where "View all data" takes over; a kind's one-row output as a document. */
+function Rows({ records, query, layout, onViewAll }: RowsProps) {
+  if (readsAsRecord(records, layout)) return <RecordFields record={records[0]} query={query} layout={layout} />
+  const matches = filterRecords(records, query)
+  return (
+    <>
+      <DataViewBody view="table" records={matches.slice(0, MAX_ROWS)} query={query} bare />
+      {matches.length > MAX_ROWS ? (
+        <button type="button" className={styles.viewAll} onClick={onViewAll}>
+          View all data
+        </button>
+      ) : null}
+    </>
+  )
+}
+
+type GroupListProps = {
+  groups: readonly DataGroup[]
+  label: string
+  open: readonly string[]
+  onToggle: (id: string) => void
+  query: string
+  onViewAll: () => void
+}
+
+/**
+ * A node's inputs or branches, one per row, opened to show their rows; kept apart because a node's inputs rarely
+ * share columns, and a branch's rows read best on their own. A record reads as its kind's output would, its tag
+ * left out.
+ */
+function GroupList({ groups, label, open, onToggle, query, onViewAll }: GroupListProps) {
+  return (
+    <ul className={styles.inputs} aria-label={label}>
+      {groups.map((group) => {
+        const expanded = open.includes(group.id)
+        const rows = group.records ?? []
+        const layout = RECORD_LAYOUTS[group.typeId]
+        const shown = query.trim() && !readsAsRecord(rows, layout) ? filterRecords(rows, query).length : rows.length
+        return (
+          <li key={group.id} className={styles.inputItem}>
+            <button type="button" className={styles.inputHead} aria-expanded={expanded} title={group.name} onClick={() => onToggle(group.id)}>
+              <CaretRight className={styles.inputCaret} size={12} weight="bold" aria-hidden />
+              <span className={styles.inputName} data-muted={group.muted || undefined}>
+                {group.name}
+              </span>
+              {group.role ? <span className={styles.inputRole}>{group.role}</span> : null}
+              <span className={styles.inputCount}>
+                {!group.records ? 'Not run' : shown === rows.length ? rowCount(rows.length) : `${shown} of ${rows.length}`}
+              </span>
+            </button>
+            {expanded ? (
+              <div className={styles.inputBody}>
+                {rows.length ? (
+                  <Rows records={rows} query={query} layout={layout && { ...layout, header: undefined }} onViewAll={onViewAll} />
+                ) : (
+                  <p className={styles.empty}>{group.records ? 'No rows.' : 'No rows yet: run this step first.'}</p>
+                )}
+              </div>
+            ) : null}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
 
 /** A saved deck: its thumbnail and title, then the agent's summary and any warning; the id stays out of sight. */
 function SavedDeck({ record }: { record: DataRecord }) {
@@ -157,8 +231,8 @@ type NodeDataDialogProps = {
   run: NodeRun
   input: readonly DataRecord[] | null
   output: readonly DataRecord[] | null
-  /** For kinds that read more than what's wired in; the Input side switches between them, the first being the wired one. */
-  inputLayers?: readonly InputLayer[]
+  /** Each step the node reads, wired in or referenced; with more than one, the Input side lists them apart. */
+  inputGroups?: readonly DataGroup[]
   anchor: NodeDataAnchor
   /** Heights of the top and bottom chrome to stay between. */
   clearTop: number
@@ -175,7 +249,7 @@ export function NodeDataDialog({
   run,
   input,
   output,
-  inputLayers,
+  inputGroups,
   anchor,
   clearTop,
   clearBottom,
@@ -186,34 +260,38 @@ export function NodeDataDialog({
   const titleId = useId()
   const TypeIcon = type.icon
   const hasInputs = type.inputs.length > 0
-  const branches = nodeOutputs(node, type)
-  const ports = branches.length > 1 ? run.ports : undefined
-  const [branch, setBranch] = useState<string | null>(null)
-  const picked = branches.some((port) => port.id === branch) ? branch : null
-  /** Each row leads with its branch, so the merged table says where every row went. */
-  const column = branchColumn(type.id) ?? 'branch'
-  const branchRows = (port: NodePort): DataRecord[] =>
-    (ports?.[port.id] ?? []).map((row) => ({ [column]: row[column] ?? port.label ?? port.id, ...row }))
-  const outputRows = ports ? branches.filter((port) => !picked || port.id === picked).flatMap(branchRows) : output
-  const layers = inputLayers && inputLayers.length > 1 ? inputLayers : undefined
-  const [layerId, setLayerId] = useState<string | null>(null)
-  const layer = layers?.find((option) => option.id === layerId) ?? layers?.[0]
-  const views = nodeDataViews(run, layer ? layer.records : input, outputRows, type.category === 'triggers', hasInputs)
+  const hidden = HIDDEN_OUTPUTS[type.id] ?? []
+  const branches = nodeOutputs(node, type).filter((port) => !hidden.includes(port.id))
+  const ports = run.ports && (branches.length > 1 || hidden.length) ? run.ports : undefined
+  const outputGroups: DataGroup[] | undefined =
+    ports && branches.length > 1
+      ? branches.map((port) => ({ id: port.id, name: port.label ?? port.id, typeId: type.id, muted: isFallbackBranch(port.id), records: ports[port.id] ?? [] }))
+      : undefined
+  const inputs = inputGroups && inputGroups.length > 1 ? inputGroups : undefined
+  const merged = (groups: readonly DataGroup[]) => (groups.some((group) => group.records) ? groups.flatMap((group) => group.records ?? []) : null)
+  const shownOutput = outputGroups ? merged(outputGroups) : ports && branches[0] ? (ports[branches[0].id] ?? []) : output
+  const views = nodeDataViews(run, inputs ? merged(inputs) : input, shownOutput, type.category === 'triggers', hasInputs)
   const available = nodeDataSides(views, hasInputs)
   const sides: readonly DataSide[] = available.length ? available : ['output']
   const [chosen, setChosen] = useState<DataSide>(sides.includes('output') ? 'output' : sides[0])
   const side = sides.includes(chosen) ? chosen : sides[0]
   const [typed, setQuery] = useState('')
+  const groups = side === 'input' ? inputs : outputGroups
+  /** Open rows per side; all start closed. */
+  const [openBySide, setOpenBySide] = useState<Partial<Record<DataSide, readonly string[]>>>({})
+  const open = openBySide[side] ?? []
+  const openKey = open.join()
+  const toggleGroup = (id: string) => setOpenBySide({ ...openBySide, [side]: open.includes(id) ? open.filter((item) => item !== id) : [...open, id] })
 
   const tabbed = sides.length > 1
   const view = views[side]
   const records = view.records ?? []
   const savedDeck = side === 'output' && records.length === 1 && records[0].created_entity_kind === 'slides'
-  /** Only where there's something to sift: several rows, or one long record. */
-  const searchable = records.length > 1 || (records.length === 1 && !savedDeck && Object.keys(records[0]).length > SEARCH_FIELDS)
-  const query = searchable ? typed : ''
-  const matches = filterRecords(records, query)
   const layout = side === 'output' ? RECORD_LAYOUTS[type.id] : undefined
+  const asRecord = !groups && readsAsRecord(records, layout)
+  /** Only where there's something to sift: several rows, or one long record. */
+  const searchable = records.length > 1 || (asRecord && !savedDeck && Object.keys(records[0]).length > SEARCH_FIELDS)
+  const query = searchable ? typed : ''
   /** Read from the output whichever side is showing, so switching sides doesn't move the header. */
   const verdict = views.output.records?.length === 1 ? views.output.records[0] : undefined
   const confidence = RECORD_LAYOUTS[type.id]?.header === 'confidence' && typeof verdict?.confidence === 'string' ? verdict.confidence.toLowerCase() : undefined
@@ -245,7 +323,7 @@ export function NodeDataDialog({
     const top = Math.max(clearTop, beside ? Math.min(anchor.top, lowest) : anchor.top)
     element.style.left = `${left}px`
     element.style.top = `${top}px`
-  }, [anchor.left, anchor.top, anchor.right, anchor.bottom, clearTop, clearBottom, side, query, picked, layer?.id])
+  }, [anchor.left, anchor.top, anchor.right, anchor.bottom, clearTop, clearBottom, side, query, openKey])
 
   useEffect(() => {
     windowRef.current?.focus({ preventScroll: true })
@@ -270,27 +348,6 @@ export function NodeDataDialog({
   }, [node.id, onClose])
 
   const count = (target: DataSide) => (views[target].records ? rowCount(views[target].records.length) : 'Failed')
-  const chips: { group: string; items: Chip[] } | null =
-    ports && side === 'output' && views.output.records
-      ? {
-          group: 'Branches',
-          items: [
-            { id: null, label: 'All', detail: branches.reduce((sum, port) => sum + (ports[port.id]?.length ?? 0), 0) },
-            ...branches.map((port) => ({ id: port.id, label: port.label ?? port.id, detail: ports[port.id]?.length ?? 0 })),
-          ].map((item) => ({ ...item, pressed: picked === item.id, onPick: () => setBranch(item.id) })),
-        }
-      : layers && side === 'input'
-        ? {
-            group: 'Layers',
-            items: layers.map((option) => ({
-              id: option.id,
-              label: option.role,
-              detail: option.name,
-              pressed: option.id === layer?.id,
-              onPick: () => setLayerId(option.id),
-            })),
-          }
-        : null
 
   return (
     <div
@@ -339,24 +396,13 @@ export function NodeDataDialog({
             <input
               className={styles.searchInput}
               value={typed}
-              placeholder={records.length === 1 ? 'Search fields…' : 'Search rows…'}
-              aria-label={records.length === 1 ? 'Search fields' : 'Search rows'}
+              placeholder={asRecord ? 'Search fields…' : 'Search rows…'}
+              aria-label={asRecord ? 'Search fields' : 'Search rows'}
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
         ) : null}
       </div>
-
-      {chips ? (
-        <div className={styles.branches} role="group" aria-label={chips.group}>
-          {chips.items.map((chip) => (
-            <button key={chip.id ?? 'all'} type="button" className={styles.branch} aria-pressed={chip.pressed} onClick={chip.onPick}>
-              {chip.label}
-              <span className={styles.branchCount}>{chip.detail}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       <div
         className={styles.scroll}
@@ -365,21 +411,21 @@ export function NodeDataDialog({
       >
         {view.error && !view.records ? (
           <p className={`${styles.empty} ${styles.error}`}>{view.error}</p>
+        ) : groups ? (
+          <GroupList
+            groups={groups}
+            label={side === 'input' ? 'Inputs' : 'Branches'}
+            open={open}
+            onToggle={toggleGroup}
+            query={query}
+            onViewAll={onViewAll}
+          />
         ) : !records.length ? (
-          <p className={styles.empty}>{picked ? 'No rows on this branch.' : 'No rows.'}</p>
+          <p className={styles.empty}>No rows.</p>
         ) : savedDeck ? (
           <SavedDeck record={records[0]} />
-        ) : records.length === 1 ? (
-          <RecordFields record={records[0]} query={query} layout={layout} />
         ) : (
-          <>
-            <DataViewBody view="table" records={matches.slice(0, MAX_ROWS)} query={query} bare />
-            {matches.length > MAX_ROWS ? (
-              <button type="button" className={styles.viewAll} onClick={onViewAll}>
-                View all data
-              </button>
-            ) : null}
-          </>
+          <Rows records={records} query={query} layout={layout} onViewAll={onViewAll} />
         )}
       </div>
     </div>

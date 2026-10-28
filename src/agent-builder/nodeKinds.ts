@@ -859,9 +859,6 @@ export function addBranch(typeId: string, stored: unknown): Partial<AnyParams> |
   return undefined
 }
 
-/** The column a kind already writes each row's branch into, if it writes one. */
-export const branchColumn = (typeId: string) => (typeId === 'dataClassificationAgent' ? 'category' : undefined)
-
 /** The catch-all branch rows fall to when nothing else matches: Default or Unclassified. */
 export const isFallbackBranch = (portId: string) => portId === 'default' || portId === UNCLASSIFIED
 
