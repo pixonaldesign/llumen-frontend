@@ -45,7 +45,14 @@ import { storySceneAt } from '../story/storyDemoScenes'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
 import { VoteButton } from './VoteButton'
-import { DEFAULT_FINDINGS_STYLE, type FindingsStyle, type TopBarVariant } from '../prototypeChrome'
+import {
+  DEFAULT_FINDINGS_STYLE,
+  persistStudioStyle,
+  readStudioStyle,
+  type FindingsStyle,
+  type StudioStyle,
+  type TopBarVariant,
+} from '../prototypeChrome'
 import home from './LandingHome.module.css'
 import styles from './BriefingLanding.module.css'
 
@@ -264,6 +271,12 @@ export function BriefingLanding({
   const changeView = (next: TopBarView) => {
     if (viewProp === undefined) setOwnView(next)
     onViewChange?.(next)
+  }
+  const [studioStyle, setStudioStyle] = useState<StudioStyle>(() => readStudioStyle())
+  const changeStudioStyle = (next: StudioStyle) => {
+    persistStudioStyle(next)
+    setStudioStyle(next)
+    if (!inStudio) changeView('studio')
   }
   const [active, setActive] = useState(0)
   /** The story whose opening view the map is flying to; the page's chrome steps aside meanwhile. */
@@ -777,13 +790,15 @@ export function BriefingLanding({
           briefingTab
           findingsStyle={onFindingsStyleChange ? findingsStyle : undefined}
           onFindingsStyleChange={onFindingsStyleChange}
+          studioStyle={studioStyle}
+          onStudioStyleChange={changeStudioStyle}
           view={view}
           onViewChange={changeView}
         />
       </header>
       {inStudio ? (
         <Suspense fallback={null}>
-          <StudioView />
+          <StudioView scenario={studioStyle} />
         </Suspense>
       ) : null}
       <div
@@ -1504,9 +1519,10 @@ function ConversationalBubble({
   useLayoutEffect(() => {
     const inner = innerRef.current
     if (!inner) return
-    const sync = () => setHeight((current) => (current === inner.offsetHeight ? current : inner.offsetHeight))
-    sync()
-    const resize = new ResizeObserver(sync)
+    const sync = (next: number) => setHeight((current) => (current === next ? current : next))
+    sync(inner.offsetHeight)
+    // Rounded up: `offsetHeight` rounds down, and the bottom-aligned body would lose its top sub-pixel to the clip.
+    const resize = new ResizeObserver(([entry]) => sync(Math.ceil(entry.borderBoxSize[0].blockSize)))
     resize.observe(inner)
     return () => resize.disconnect()
   }, [])

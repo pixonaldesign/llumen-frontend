@@ -1,36 +1,12 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { MeshGradient } from '@paper-design/shaders-react'
-import {
-  Archive,
-  CaretRight,
-  Database,
-  FileText,
-  Funnel,
-  GearSix,
-  Info,
-  ShareFat,
-  SquaresFour,
-  UsersThree,
-  X,
-} from '@phosphor-icons/react'
+import { Archive, CaretRight, GearSix, Info, ShareFat, X } from '@phosphor-icons/react'
+import type { StudioStyle } from '../prototypeChrome'
 import { STUDIO_WORKSPACE_NAMES, type StudioPage } from './studioData'
-import {
-  ApisPage,
-  AssetsPage,
-  BriefingsPage,
-  DashboardsPage,
-  DatabasePage,
-  DataFlowPage,
-  FilesPage,
-  FiltersPage,
-  MembersPage,
-  ModelsPage,
-  RoomsPage,
-  SlidesPage,
-  WhiteboardsPage,
-  WorkflowsPage,
-} from './studioPages'
+import { PageBody } from './studioNav'
+import { NAV, groupOf, type NavGroup } from './studioNavItems'
+import { ScenarioShell } from './studioScenarios'
 import { Button, Dropdown } from './studioUi'
 import styles from './StudioView.module.css'
 
@@ -41,98 +17,15 @@ const STUDIO_SHADER_COLORS = ['#000000', '#03070f', '#08142b', '#000000', '#0b1a
 /** Cap the shader so a 2x display doesn't allocate a 4K buffer behind a mostly opaque page. */
 const STUDIO_SHADER_PIXELS = 1280 * 720
 
-type NavItem = { page: StudioPage; label: string }
-type NavGroup = {
-  id: 'sources' | 'content'
-  label: string
-  icon: ReactNode
-  items: NavItem[]
-}
-type NavEntry = (NavItem & { icon: ReactNode }) | NavGroup
-
-const NAV: NavEntry[] = [
-  {
-    page: 'assets',
-    label: 'Assets',
-    icon: <SquaresFour size={20} aria-hidden />,
-  },
-  { page: 'filters', label: 'Filters', icon: <Funnel size={20} aria-hidden /> },
-  {
-    id: 'sources',
-    label: 'Sources',
-    icon: <Database size={20} aria-hidden />,
-    items: [
-      { page: 'database', label: 'Database' },
-      { page: 'apis', label: 'APIs' },
-      { page: 'models', label: 'ML Models' },
-      { page: 'files', label: 'Files' },
-      { page: 'dataflow', label: 'Data Flow' },
-    ],
-  },
-  {
-    id: 'content',
-    label: 'Content',
-    icon: <FileText size={20} aria-hidden />,
-    items: [
-      { page: 'briefings', label: 'Briefings' },
-      { page: 'slides', label: 'Slides' },
-      { page: 'dashboards', label: 'Dashboards' },
-      { page: 'whiteboards', label: 'Whiteboards' },
-      { page: 'rooms', label: 'Command Rooms' },
-      { page: 'workflows', label: 'Workflows' },
-    ],
-  },
-  {
-    page: 'members',
-    label: 'Members',
-    icon: <UsersThree size={20} aria-hidden />,
-  },
-]
-
-function groupOf(page: StudioPage) {
-  return NAV.find((entry): entry is NavGroup => 'items' in entry && entry.items.some((item) => item.page === page))
-}
-
-function PageBody({ page, onCreateAsset }: { page: StudioPage; onCreateAsset: () => void }) {
-  switch (page) {
-    case 'assets':
-      return <AssetsPage onCreate={onCreateAsset} />
-    case 'filters':
-      return <FiltersPage />
-    case 'database':
-      return <DatabasePage />
-    case 'apis':
-      return <ApisPage />
-    case 'models':
-      return <ModelsPage />
-    case 'files':
-      return <FilesPage />
-    case 'dataflow':
-      return <DataFlowPage />
-    case 'briefings':
-      return <BriefingsPage />
-    case 'slides':
-      return <SlidesPage />
-    case 'dashboards':
-      return <DashboardsPage />
-    case 'whiteboards':
-      return <WhiteboardsPage />
-    case 'rooms':
-      return <RoomsPage />
-    case 'workflows':
-      return <WorkflowsPage />
-    case 'members':
-      return <MembersPage />
-  }
-}
-
 export type StudioViewProps = {
   /** Pauses the shader while the view is hidden. */
   active?: boolean
+  /** Which Studio experience to show; 1 is the sidebar and asset grid. */
+  scenario?: StudioStyle
 }
 
 /** The Studio: a workspace's assets, filters, sources, content and members under the landing's top bar. */
-export function StudioView({ active = true }: StudioViewProps) {
+export function StudioView({ active = true, scenario = 1 }: StudioViewProps) {
   const [page, setPage] = useState<StudioPage>('assets')
   const [workspace, setWorkspace] = useState<string>(STUDIO_WORKSPACE_NAMES[0])
   const [open, setOpen] = useState<Record<NavGroup['id'], boolean>>({
@@ -163,76 +56,89 @@ export function StudioView({ active = true }: StudioViewProps) {
           className={styles.shaderCanvas}
         />
       </div>
-      <aside className={styles.sidebar} aria-label="Studio">
-        <div className={styles.sideHead}>
-          <span className={styles.sideTitle}>Studio</span>
-          <Dropdown label="Workspace" options={STUDIO_WORKSPACE_NAMES} value={workspace} onChange={setWorkspace} full />
-        </div>
-        <nav className={styles.nav}>
-          <div className={styles.navGroup}>
-            {NAV.map((entry) => {
-              if (!('items' in entry)) {
-                return (
-                  <button
-                    key={entry.page}
-                    type="button"
-                    className={styles.navItem}
-                    aria-current={page === entry.page ? 'page' : undefined}
-                    onClick={() => go(entry.page)}
-                  >
-                    {entry.icon}
-                    <span className={styles.navLabel}>{entry.label}</span>
-                  </button>
-                )
-              }
-              const expanded = open[entry.id]
-              const holds = entry.items.some((item) => item.page === page)
-              return (
-                <div key={entry.id}>
-                  <button
-                    type="button"
-                    className={styles.navItem}
-                    data-holds={holds || undefined}
-                    aria-expanded={expanded}
-                    onClick={() => {
-                      if (!expanded && !holds) go(entry.items[0].page)
-                      else setOpen((prev) => ({ ...prev, [entry.id]: !expanded }))
-                    }}
-                  >
-                    {entry.icon}
-                    <span className={styles.navLabel}>{entry.label}</span>
-                    <CaretRight className={styles.navCaret} size={16} aria-hidden />
-                  </button>
-                  {expanded ? (
-                    <div className={styles.subNav}>
-                      {entry.items.map((item) => (
-                        <button
-                          key={item.page}
-                          type="button"
-                          className={`${styles.navItem} ${styles.subItem}`}
-                          aria-current={page === item.page ? 'page' : undefined}
-                          onClick={() => go(item.page)}
-                        >
-                          <span className={styles.navLabel}>{item.label}</span>
-                        </button>
-                      ))}
+      {scenario === 1 ? (
+        <>
+          <aside className={styles.sidebar} aria-label="Studio">
+            <div className={styles.sideHead}>
+              <span className={styles.sideTitle}>Studio</span>
+              <Dropdown label="Workspace" options={STUDIO_WORKSPACE_NAMES} value={workspace} onChange={setWorkspace} full />
+            </div>
+            <nav className={styles.nav}>
+              <div className={styles.navGroup}>
+                {NAV.map((entry) => {
+                  if (!('items' in entry)) {
+                    return (
+                      <button
+                        key={entry.page}
+                        type="button"
+                        className={styles.navItem}
+                        aria-current={page === entry.page ? 'page' : undefined}
+                        onClick={() => go(entry.page)}
+                      >
+                        {entry.icon}
+                        <span className={styles.navLabel}>{entry.label}</span>
+                      </button>
+                    )
+                  }
+                  const expanded = open[entry.id]
+                  const holds = entry.items.some((item) => item.page === page)
+                  return (
+                    <div key={entry.id}>
+                      <button
+                        type="button"
+                        className={styles.navItem}
+                        data-holds={holds || undefined}
+                        aria-expanded={expanded}
+                        onClick={() => {
+                          if (!expanded && !holds) go(entry.items[0].page)
+                          else setOpen((prev) => ({ ...prev, [entry.id]: !expanded }))
+                        }}
+                      >
+                        {entry.icon}
+                        <span className={styles.navLabel}>{entry.label}</span>
+                        <CaretRight className={styles.navCaret} size={16} aria-hidden />
+                      </button>
+                      {expanded ? (
+                        <div className={styles.subNav}>
+                          {entry.items.map((item) => (
+                            <button
+                              key={item.page}
+                              type="button"
+                              className={`${styles.navItem} ${styles.subItem}`}
+                              aria-current={page === item.page ? 'page' : undefined}
+                              onClick={() => go(item.page)}
+                            >
+                              <span className={styles.navLabel}>{item.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              )
-            })}
-          </div>
-          <div className={styles.navGroup}>
-            <button type="button" className={styles.navItem} onClick={() => setSettingsOpen(true)}>
-              <GearSix size={20} aria-hidden />
-              <span className={styles.navLabel}>Settings</span>
-            </button>
-          </div>
-        </nav>
-      </aside>
-      <main ref={mainRef} className={styles.main} key={page}>
-        <PageBody page={page} onCreateAsset={() => setCreatingAsset(true)} />
-      </main>
+                  )
+                })}
+              </div>
+              <div className={styles.navGroup}>
+                <button type="button" className={styles.navItem} onClick={() => setSettingsOpen(true)}>
+                  <GearSix size={20} aria-hidden />
+                  <span className={styles.navLabel}>Settings</span>
+                </button>
+              </div>
+            </nav>
+          </aside>
+          <main ref={mainRef} className={styles.main} key={page}>
+            <PageBody page={page} onCreateAsset={() => setCreatingAsset(true)} />
+          </main>
+        </>
+      ) : (
+        <ScenarioShell
+          key={scenario}
+          scenario={scenario}
+          workspace={workspace}
+          onWorkspaceChange={setWorkspace}
+          onSettings={() => setSettingsOpen(true)}
+          onCreateAsset={() => setCreatingAsset(true)}
+        />
+      )}
       {settingsOpen ? <StudioSettings workspace={workspace} onClose={() => setSettingsOpen(false)} /> : null}
       {creatingAsset ? (
         <Suspense fallback={null}>

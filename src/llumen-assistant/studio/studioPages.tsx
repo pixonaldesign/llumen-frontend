@@ -57,6 +57,8 @@ import {
   type Layout,
 } from './studioUi'
 import { useRefine } from './studioHooks'
+import { STUDIO_ASSET_CHARTS } from './studioAssetCharts'
+import { StudioAssetChart } from './StudioAssetChart'
 import styles from './StudioView.module.css'
 
 type Column = { label: string; width?: number }
@@ -210,10 +212,14 @@ export function AssetsPage({ onCreate }: { onCreate: () => void }) {
         <NoResults />
       ) : layout === 'grid' ? (
         <div className={`${styles.grid} ${styles.assetGrid}`}>
-          {list.rows.map((item) => (
+          {list.rows.map((item, index) => (
             <article key={item.id} className={styles.assetCard} aria-label={item.title}>
               <div className={styles.assetImage}>
-                <img src={item.image} alt={item.title} loading="lazy" />
+                {STUDIO_ASSET_CHARTS[item.id] ? (
+                  <StudioAssetChart chart={STUDIO_ASSET_CHARTS[item.id]} delay={Math.min(index, 8) * 60} />
+                ) : (
+                  <img src={item.image} alt={item.title} loading="lazy" />
+                )}
               </div>
               <div className={styles.assetMeta}>
                 <Tag icon={<ChartLine size={16} aria-hidden />}>{item.type}</Tag>

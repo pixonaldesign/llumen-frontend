@@ -1021,7 +1021,7 @@
   transition: 0.14s;
 }
 
-.segmentedBtn:hover {
+.segmentedBtn:hover:not(.segmentedBtnActive) {
   background: var(--lc-bg-default-hover);
   color: var(--lc-text-primary);
 }
@@ -1029,11 +1029,116 @@
 .segmentedBtnActive {
   background: var(--lc-bg-brand);
   color: var(--lc-text-on-brand);
+  cursor: default;
 }
 
 .segmentedControlCompact {
   flex: 0 0 240px;
   width: 240px;
+}
+
+.navModes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.navMode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--lc-border-control);
+  border-radius: var(--radius-md);
+  background: var(--lc-bg-default);
+  color: var(--lc-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.14s,
+    border-color 0.14s,
+    color 0.14s;
+}
+
+.navMode:hover:not(.navModeActive) {
+  border-color: var(--lc-border-hover);
+  background: var(--lc-bg-default-hover);
+  color: var(--lc-text-primary);
+}
+
+.navModeActive {
+  border-color: var(--lc-bg-brand);
+  background: var(--lc-bg-brand-subtle);
+  color: var(--lc-text-primary);
+  cursor: default;
+}
+
+.navMode:focus-visible {
+  outline: 2px solid var(--lc-text-brand);
+  outline-offset: 2px;
+}
+
+.navModeArt {
+  flex-shrink: 0;
+  width: 96px;
+  height: auto;
+}
+
+.navModeCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.navModeName {
+  font: var(--lc-font-body);
+  font-weight: var(--lc-weight-medium);
+}
+
+.navModeHint {
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-small);
+}
+
+.wfFrame {
+  fill: rgba(255, 255, 255, 0.03);
+  stroke: rgba(255, 255, 255, 0.24);
+}
+
+.wfMuted {
+  fill: rgba(255, 255, 255, 0.22);
+}
+
+.wfFaint {
+  fill: rgba(255, 255, 255, 0.07);
+}
+
+.wfOutline {
+  fill: rgba(255, 255, 255, 0.06);
+  stroke: rgba(255, 255, 255, 0.32);
+}
+
+.wfAccent {
+  fill: rgba(255, 255, 255, 0.5);
+}
+
+.wfAccentLine {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.2;
+}
+
+.navModeActive .wfAccent {
+  fill: var(--lc-text-brand);
+}
+
+.navModeActive .wfAccentLine {
+  stroke: var(--lc-text-brand);
 }
 
 .switch {

@@ -18,7 +18,7 @@ import {
   Users,
 } from '@phosphor-icons/react'
 import { landingAssets as a } from './landingAssets'
-import type { FindingsStyle, TopBarVariant } from '../prototypeChrome'
+import type { FindingsStyle, StudioStyle, TopBarVariant } from '../prototypeChrome'
 import { SearchOverlay } from './SearchOverlay'
 import home from './LandingHome.module.css'
 import styles from './LandingTopBar.module.css'
@@ -104,6 +104,9 @@ export type LandingTopBarProps = {
   /** Studio bar with the workspace in the logo: a findings layout menu beside the workspace. */
   findingsStyle?: FindingsStyle
   onFindingsStyleChange?: (style: FindingsStyle) => void
+  /** Beside the findings layout menu: which Studio experience the Studio view shows. */
+  studioStyle?: StudioStyle
+  onStudioStyleChange?: (style: StudioStyle) => void
 }
 
 export function LandingTopBar({
@@ -120,6 +123,8 @@ export function LandingTopBar({
   onViewChange,
   findingsStyle,
   onFindingsStyleChange,
+  studioStyle,
+  onStudioStyleChange,
 }: LandingTopBarProps) {
   if (variant === 'studio') {
     return (
@@ -136,13 +141,17 @@ export function LandingTopBar({
         onViewChange={onViewChange}
         findingsStyle={findingsStyle}
         onFindingsStyleChange={onFindingsStyleChange}
+        studioStyle={studioStyle}
+        onStudioStyleChange={onStudioStyleChange}
       />
     )
   }
   return <CurrentBar />
 }
 
-const FINDINGS_STYLES: readonly { style: FindingsStyle; label: string; hint: string }[] = [
+type StyleOption<T extends number> = { style: T; label: string; hint: string }
+
+const FINDINGS_STYLES: readonly StyleOption<FindingsStyle>[] = [
   { style: 1, label: 'Findings style 1', hint: 'Centred over the chat bar' },
   { style: 2, label: 'Findings style 2', hint: 'Chat bar on the left' },
   { style: 3, label: 'Findings style 3', hint: 'Chat bar above compact findings' },
@@ -153,7 +162,30 @@ const FINDINGS_STYLES: readonly { style: FindingsStyle; label: string; hint: str
   { style: 8, label: 'Findings style 8', hint: 'Assets and Apps open over the map' },
 ]
 
-function FindingsStyleMenu({ value, onChange }: { value: FindingsStyle; onChange: (style: FindingsStyle) => void }) {
+const STUDIO_STYLES: readonly StyleOption<StudioStyle>[] = [
+  { style: 1, label: 'Studio UX 1', hint: 'Classic sidebar and asset grid' },
+  { style: 2, label: 'Studio UX 2', hint: 'Icon rail and a home hub' },
+  { style: 3, label: 'Studio UX 3', hint: 'Top tabs, list and inspector' },
+  { style: 4, label: 'Studio UX 4', hint: 'Bento overview with a floating dock' },
+  { style: 5, label: 'Studio UX 5', hint: 'Status board beside saved views' },
+  { style: 6, label: 'Studio UX 6', hint: 'Gallery shelves and a lightbox' },
+  { style: 7, label: 'Studio UX 7', hint: 'Home command centre with pinned assets' },
+  { style: 8, label: 'Studio UX 8', hint: 'Spatial canvas with a command palette' },
+]
+
+function StyleMenu<T extends number>({
+  label,
+  icon,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  icon: ReactNode
+  options: readonly StyleOption<T>[]
+  value: T
+  onChange: (style: T) => void
+}) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -183,15 +215,15 @@ function FindingsStyleMenu({ value, onChange }: { value: FindingsStyle; onChange
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((open) => !open)}
       >
-        <Layout size={18} weight="regular" aria-hidden />
+        {icon}
         <span className={styles.workspaceName}>
-          Findings style {value}
+          {label} {value}
           <CaretDown size={16} weight="bold" aria-hidden />
         </span>
       </button>
       {menuOpen ? (
-        <div className={`${styles.menu} ${styles.stylesMenu}`} role="menu" aria-label="Findings style">
-          {FINDINGS_STYLES.map((option) => {
+        <div className={`${styles.menu} ${styles.stylesMenu}`} role="menu" aria-label={label}>
+          {options.map((option) => {
             const selected = option.style === value
             return (
               <button
@@ -334,6 +366,8 @@ function StudioBar({
   onViewChange,
   findingsStyle,
   onFindingsStyleChange,
+  studioStyle,
+  onStudioStyleChange,
 }: {
   workspace?: string
   workspaces?: readonly WorkspaceOption[]
@@ -347,6 +381,8 @@ function StudioBar({
   onViewChange?: (view: TopBarView) => void
   findingsStyle?: FindingsStyle
   onFindingsStyleChange?: (style: FindingsStyle) => void
+  studioStyle?: StudioStyle
+  onStudioStyleChange?: (style: StudioStyle) => void
 }) {
   const workspaceOptions = workspaces ?? STUDIO_WORKSPACES
   const categoryOptions = categories ?? STUDIO_CATEGORIES
@@ -497,7 +533,22 @@ function StudioBar({
           </a>
           {showWorkspace ? workspaceSelector : null}
           {findingsStyle && onFindingsStyleChange ? (
-            <FindingsStyleMenu value={findingsStyle} onChange={onFindingsStyleChange} />
+            <StyleMenu
+              label="Findings style"
+              icon={<Layout size={18} weight="regular" aria-hidden />}
+              options={FINDINGS_STYLES}
+              value={findingsStyle}
+              onChange={onFindingsStyleChange}
+            />
+          ) : null}
+          {studioStyle && onStudioStyleChange ? (
+            <StyleMenu
+              label="Studio UX"
+              icon={<ChartDonut size={18} weight="regular" aria-hidden />}
+              options={STUDIO_STYLES}
+              value={studioStyle}
+              onChange={onStudioStyleChange}
+            />
           ) : null}
         </div>
       ) : (

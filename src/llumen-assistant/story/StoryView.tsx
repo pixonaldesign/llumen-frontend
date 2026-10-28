@@ -17,6 +17,7 @@ import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowsClockwise,
   Buildings,
   CalendarBlank,
   CaretDown,
@@ -324,6 +325,13 @@ const SIDEBAR_COLUMN_OPTIONS = [2, 3, 4] as const
 type SidebarColumns = (typeof SIDEBAR_COLUMN_OPTIONS)[number]
 const DEFAULT_SIDEBAR_COLUMNS: SidebarColumns = 2
 
+/** Demo summaries read as generated a little before the story was opened. */
+const SUMMARY_SEEDED_AGO_MS = 12 * 60_000
+const SUMMARY_TIME = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+
+/** Width of a card's hover toolbar with `buttons` icons; the summary pill slides left by it. */
+const cardActionsWidth = (buttons: number) => buttons * 26 + (buttons - 1) * 2 + 6
+
 /** An icon in a card's hover toolbar, named by a tooltip on hover and focus. */
 function CardActionButton({
   label,
@@ -399,6 +407,9 @@ function ColumnsControl<T extends number>({
     </div>
   )
 }
+/** Matches `.infoPopover`'s width. */
+const INFO_POPOVER_W = 340
+
 /** Space kept clear around the grid: sides, top, and the bottom toolbar. */
 const GRID_INSET_X = 20
 const GRID_INSET_TOP = 20
@@ -493,7 +504,21 @@ export function StoryView({
   const [slideMenuPos, setSlideMenuPos] = useState({ top: 0, left: 0 })
   const slideMenuRef = useRef<HTMLButtonElement>(null)
   const [directSlideEditor, setDirectSlideEditor] = useState(false)
-  const [infoOpen, setInfoOpen] = useState(false)
+  /** The open description tooltip, placed under its info icon in the title group's coordinates. */
+  const [info, setInfo] = useState<{ kind: 'story' | 'slide'; left: number; top: number } | null>(null)
+  const titleGroupRef = useRef<HTMLDivElement>(null)
+  const toggleInfo = (kind: 'story' | 'slide', button: HTMLElement) => {
+    const group = titleGroupRef.current
+    if (info?.kind === kind || !group) {
+      setInfo(null)
+      return
+    }
+    const bounds = group.getBoundingClientRect()
+    const icon = button.getBoundingClientRect()
+    const width = Math.min(INFO_POPOVER_W, window.innerWidth - 40)
+    const x = Math.max(20, Math.min(icon.left - 8, window.innerWidth - 20 - width))
+    setInfo({ kind, left: x - bounds.left, top: icon.bottom - bounds.top + 6 })
+  }
   const [layers, setLayers] = useState<StoryMapLayerVisibility>({
     junctions: true,
     distribution: true,
@@ -547,6 +572,8 @@ export function StoryView({
     left: number
   } | null>(null)
   const [regeneratingSlideId, setRegeneratingSlideId] = useState<string | null>(null)
+  const [summaryUpdatedAt, setSummaryUpdatedAt] = useState<Record<string, number>>({})
+  const [storyOpenedAt] = useState(() => Date.now() - SUMMARY_SEEDED_AGO_MS)
   const [layoutBySlide, setLayoutBySlide] = useState<Record<string, StoryViewLayout>>({})
   const [gridColumnsBySlide, setGridColumnsBySlide] = useState<Record<string, GridColumns>>({})
   const [sidebarColumnsBySlide, setSidebarColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
@@ -948,7 +975,10 @@ export function StoryView({
 
   useEffect(() => {
     if (!regeneratingSlideId) return
-    const timer = window.setTimeout(() => setRegeneratingSlideId(null), SUMMARY_REGENERATE_MS)
+    const timer = window.setTimeout(() => {
+      setSummaryUpdatedAt((current) => ({ ...current, [regeneratingSlideId]: Date.now() }))
+      setRegeneratingSlideId(null)
+    }, SUMMARY_REGENERATE_MS)
     return () => window.clearTimeout(timer)
   }, [regeneratingSlideId])
 
@@ -1082,6 +1112,34 @@ export function StoryView({
     button.blur()
   }
 
+  const summaryRegenerating = regeneratingSlideId === slide.id
+  const summaryStatusStyle = {
+    '--actions-w': `${cardActionsWidth(canAddToChat ? 2 : 1)}px`,
+  } as CSSProperties
+  const summaryRegenerate = (
+    <button
+      type="button"
+      className={styles.summaryStatus}
+      style={summaryStatusStyle}
+      data-busy={summaryRegenerating || undefined}
+      disabled={summaryRegenerating}
+      onClick={() => setRegeneratingSlideId(slide.id)}
+    >
+      <ArrowsClockwise size={14} className={styles.summaryStatusIcon} aria-hidden />
+      {summaryRegenerating ? 'Regenerating…' : 'Regenerate'}
+    </button>
+  )
+  const summaryUpdated = (
+    <span className={styles.summaryUpdated} data-busy={summaryRegenerating || undefined} role="status">
+      {summaryRegenerating ? (
+        <ArrowsClockwise size={12} className={styles.summaryStatusIcon} aria-hidden />
+      ) : null}
+      {summaryRegenerating
+        ? 'Updating…'
+        : `Last updated ${SUMMARY_TIME.format(summaryUpdatedAt[slide.id] ?? storyOpenedAt)}`}
+    </span>
+  )
+
   const insightCard = (
     id: InsightCardId,
     className: string,
@@ -1118,6 +1176,7 @@ export function StoryView({
         style={focusDelay === null ? style : ({ ...style, '--focus-delay': `${focusDelay}ms` } as CSSProperties)}
       >
         {children}
+        {id === 'summary' && storyMode === 'edit' ? summaryRegenerate : null}
         <div
           className={`${styles.cardActions}${menuOpen ? ` ${styles.cardActionsOpen}` : ''}`}
           role="toolbar"
@@ -1403,9 +1462,9 @@ export function StoryView({
             type="button"
             className={styles.infoBtn}
             aria-label="Show slide description"
-            aria-expanded={infoOpen}
-            aria-describedby={infoOpen ? 'slide-description' : undefined}
-            onClick={() => setInfoOpen((open) => !open)}
+            aria-expanded={info?.kind === 'slide'}
+            aria-describedby={info?.kind === 'slide' ? 'slide-description' : undefined}
+            onClick={(event) => toggleInfo('slide', event.currentTarget)}
           >
             <Info size={18} weight="regular" aria-hidden />
           </button>
@@ -1741,6 +1800,7 @@ export function StoryView({
         'Executive Summary',
         <>
           <h2 className={styles.summaryTitle}>Executive Summary</h2>
+          {summaryUpdated}
           {aiRegion && regionInsight ? (
             <p className={styles.summaryBody}>
               {aiRegion.label}&apos;s traffic volume rose{' '}
@@ -1946,7 +2006,7 @@ export function StoryView({
 
       <div className={styles.overlay}>
         <header className={styles.header} dir={presentationSettings.textDirection}>
-          <div className={`${styles.titleRow}${pagesNav ? ` ${styles.titleRowPages}` : ''}`}>
+          <div className={styles.titleRow}>
             <button
               type="button"
               className={styles.backBtn}
@@ -1955,9 +2015,21 @@ export function StoryView({
             >
               <ArrowLeft size={20} weight="regular" aria-hidden />
             </button>
-            <div className={styles.titleGroup}>
+            <div ref={titleGroupRef} className={styles.titleGroup}>
               <div className={styles.storyTitleRow}>
                 <h1 className={styles.storyTitle}>{storyTitle}</h1>
+                {storyMode === 'view' ? (
+                  <button
+                    type="button"
+                    className={`${styles.infoBtn} ${styles.infoBtnSmall}`}
+                    aria-label="Show story description"
+                    aria-expanded={info?.kind === 'story'}
+                    aria-describedby={info?.kind === 'story' ? 'story-description' : undefined}
+                    onClick={(event) => toggleInfo('story', event.currentTarget)}
+                  >
+                    <Info size={14} weight="regular" aria-hidden />
+                  </button>
+                ) : null}
                 {storyMode === 'edit' ? (
                   <button
                     ref={storyMenuRef}
@@ -1994,18 +2066,23 @@ export function StoryView({
                       type="button"
                       className={styles.infoBtn}
                       aria-label="Show slide description"
-                      aria-expanded={infoOpen}
-                      aria-describedby={infoOpen ? 'slide-description' : undefined}
-                      onClick={() => setInfoOpen((open) => !open)}
+                      aria-expanded={info?.kind === 'slide'}
+                      aria-describedby={info?.kind === 'slide' ? 'slide-description' : undefined}
+                      onClick={(event) => toggleInfo('slide', event.currentTarget)}
                     >
                       <Info size={18} weight="regular" aria-hidden />
                     </button>
                   )}
                 </div>
               )}
-              {storyMode === 'view' && infoOpen ? (
-                <div id="slide-description" className={styles.infoPopover} role="tooltip">
-                  {slide.finding || 'No description added.'}
+              {storyMode === 'view' && info ? (
+                <div
+                  id={`${info.kind}-description`}
+                  className={styles.infoPopover}
+                  style={{ left: info.left, top: info.top }}
+                  role="tooltip"
+                >
+                  {(info.kind === 'story' ? storyDescription : slide.finding) || 'No description added.'}
                 </div>
               ) : null}
             </div>
@@ -2520,7 +2597,7 @@ export function StoryView({
                 setStoryMenuOpen(false)
                 setSlideMenuOpen(false)
                 setLayoutMenuOpen(false)
-                setInfoOpen(false)
+                setInfo(null)
                 leaveAnnotationEditing()
               }}
             >
@@ -2533,7 +2610,7 @@ export function StoryView({
               aria-pressed={storyMode === 'edit'}
               onClick={() => {
                 setStoryMode('edit')
-                setInfoOpen(false)
+                setInfo(null)
               }}
             >
               <PencilSimple size={20} weight="regular" aria-hidden />

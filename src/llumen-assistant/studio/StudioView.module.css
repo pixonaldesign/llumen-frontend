@@ -939,6 +939,7 @@
   inset: 0;
   background: linear-gradient(rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01));
   mix-blend-mode: plus-lighter;
+  pointer-events: none;
   content: '';
 }
 

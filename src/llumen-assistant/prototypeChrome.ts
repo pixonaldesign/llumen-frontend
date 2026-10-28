@@ -20,12 +20,26 @@ export type FindingsStyle = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 
 export const DEFAULT_FINDINGS_STYLE: FindingsStyle = 8
 
+/**
+ * Studio experiences: 1 the sidebar and asset grid, 2 an icon rail and a home hub, 3 top tabs over a list
+ * and inspector, 4 a bento overview with a floating dock, 5 a status board beside saved views, 6 a gallery
+ * library with shelves and a lightbox.
+ */
+export type StudioStyle = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+
+export const DEFAULT_STUDIO_STYLE: StudioStyle = 1
+
 const LANDING_KEY = 'llumen.landingVariant'
 const TOP_BAR_KEY = 'llumen.topBarVariant'
 const FINDINGS_STYLE_KEY = 'llumen.findingsStyle'
+const STUDIO_STYLE_KEY = 'llumen.studioStyle'
 
 function toFindingsStyle(value: string | null): FindingsStyle | null {
   return value !== null && /^[1-8]$/.test(value) ? (Number(value) as FindingsStyle) : null
+}
+
+function toStudioStyle(value: string | null): StudioStyle | null {
+  return value !== null && /^[1-8]$/.test(value) ? (Number(value) as StudioStyle) : null
 }
 
 function isLanding(value: string | null): value is LandingVariant {
@@ -116,4 +130,25 @@ export function persistFindingsStyle(style: FindingsStyle) {
     /* private mode */
   }
   writeParam('findings', String(style), String(DEFAULT_FINDINGS_STYLE))
+}
+
+export function readStudioStyle(): StudioStyle {
+  if (typeof window === 'undefined') return DEFAULT_STUDIO_STYLE
+  const fromUrl = toStudioStyle(new URLSearchParams(window.location.search).get('studio'))
+  if (fromUrl) return fromUrl
+  try {
+    return toStudioStyle(window.sessionStorage.getItem(STUDIO_STYLE_KEY)) ?? DEFAULT_STUDIO_STYLE
+  } catch {
+    return DEFAULT_STUDIO_STYLE
+  }
+}
+
+export function persistStudioStyle(style: StudioStyle) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(STUDIO_STYLE_KEY, String(style))
+  } catch {
+    /* private mode */
+  }
+  writeParam('studio', String(style), String(DEFAULT_STUDIO_STYLE))
 }

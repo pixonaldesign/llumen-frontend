@@ -336,10 +336,6 @@
   gap: 16px;
 }
 
-.titleRowPages {
-  align-items: flex-end;
-}
-
 .backBtn {
   display: inline-flex;
   align-items: center;
@@ -366,21 +362,21 @@
  * Edit mode: one control above the insight cards, the slide's Layout menu and, for the sidebar and grid
  * layouts, their width in columns.
  */
+/* Same pill as the bottom toolbar (`.modeSwitch`). */
 .layoutBar {
+  box-sizing: border-box;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  height: 44px;
   margin: 16px 0 0;
   padding: 4px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  border-radius: 999px;
   background: rgba(26, 26, 26, 0.5);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  box-shadow:
-    0 12px 16px -4px rgba(10, 13, 18, 0.24),
-    0 4px 6px -2px rgba(10, 13, 18, 0.16);
   pointer-events: auto;
 }
 
@@ -405,11 +401,11 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  height: 32px;
+  height: 36px;
   margin: 0;
-  padding: 0 10px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: transparent;
   color: #fff;
   font: inherit;
@@ -421,7 +417,7 @@
 
 .layoutBtn:hover,
 .layoutBtnOpen {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .layoutBtnCaret {
@@ -598,6 +594,12 @@
   pointer-events: auto;
 }
 
+.infoBtnSmall {
+  width: 22px;
+  height: 22px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
 .infoBtn:hover,
 .infoBtn[aria-expanded='true'] {
   background: rgba(255, 255, 255, 0.1);
@@ -633,10 +635,9 @@
   cursor: default;
 }
 
+/* Placed under its info icon from StoryView (`INFO_POPOVER_W` matches the width). */
 .infoPopover {
   position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
   z-index: 20;
   width: min(340px, calc(100vw - 40px));
   padding: 12px 14px;
@@ -1060,26 +1061,33 @@
 .gridColumnsControl {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-inline-start: 4px;
-  padding-inline-start: 8px;
-  border-inline-start: 1px solid rgba(255, 255, 255, 0.14);
+  gap: 2px;
+}
+
+/* The toolbar's `.modeDivider`. */
+.gridColumnsControl::before {
+  content: '';
+  flex-shrink: 0;
+  width: 1px;
+  height: 22px;
+  margin: 0 4px 0 6px;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .gridColumnsIcon {
-  margin: 0 4px;
+  margin: 0 6px;
   color: rgba(255, 255, 255, 0.56);
 }
 
 .gridColumnsOption {
-  min-width: 40px;
-  height: 32px;
+  min-width: 36px;
+  height: 36px;
   margin: 0;
   padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.88);
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
@@ -1087,18 +1095,17 @@
 }
 
 .gridColumnsOption:hover {
-  background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
 .gridColumnsOptionActive,
 .gridColumnsOptionActive:hover {
-  background: #70aeff;
-  color: #0c0e10;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .gridColumnsOption:focus-visible {
-  outline: 2px solid #70aeff;
+  outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 1px;
 }
 
@@ -1326,8 +1333,140 @@
   transition: color 300ms ease;
 }
 
+.summaryStatus {
+  --status-shift: calc(-1 * var(--actions-w, 0px) - 4px);
+
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  height: 32px;
+  margin: 0;
+  padding: 0 10px 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(var(--status-shift), -4px);
+  transition:
+    opacity 160ms ease-out,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 140ms ease,
+    color 140ms ease;
+}
+
+button.summaryStatus {
+  cursor: pointer;
+}
+
+button.summaryStatus:hover:not(:disabled) {
+  background: rgba(56, 56, 56, 0.72);
+}
+
+button.summaryStatus:disabled {
+  cursor: progress;
+}
+
+.summaryStatus:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+.insightCard:hover > .summaryStatus,
+.insightCard:has(> .cardActions:is(.cardActionsOpen, :focus-within)) > .summaryStatus,
+.summaryStatus:focus-visible,
+.summaryStatus[data-busy] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(var(--status-shift));
+}
+
+.summaryUpdated {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: flex-start;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 20px;
+  margin-top: -2px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 40px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.summaryStatusIcon {
+  flex-shrink: 0;
+}
+
+.summaryStatus[data-busy] .summaryStatusIcon,
+.summaryUpdated[data-busy] .summaryStatusIcon {
+  animation: summaryStatusSpin 0.9s linear infinite;
+}
+
+@keyframes summaryStatusSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .summaryRegenerating .summaryBody {
   animation: summaryRegenerate 1.4s ease both;
+}
+
+.summaryRegenerating::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  background: linear-gradient(
+      105deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.06) 44%,
+      color-mix(in srgb, var(--summary-accent, #70aeff) 26%, transparent) 50%,
+      rgba(255, 255, 255, 0.06) 56%,
+      transparent 65%
+    )
+    no-repeat;
+  background-size: 260% 100%;
+  pointer-events: none;
+  animation: summaryShimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes summaryShimmer {
+  from {
+    background-position: 130% 0;
+  }
+
+  to {
+    background-position: -30% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .summaryStatus[data-busy] .summaryStatusIcon,
+  .summaryUpdated[data-busy] .summaryStatusIcon,
+  .summaryRegenerating::after {
+    animation: none;
+  }
 }
 
 @keyframes summaryRegenerate {

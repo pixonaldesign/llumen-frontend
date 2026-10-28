@@ -295,21 +295,24 @@ export function StoryEditPanel({
         />
       ) : section === 'tools' ? (
         <ToolsSection />
+      ) : section === 'story' ? (
+        <StoryConfigForm
+          storyTitle={storyTitle}
+          storyDescription={storyDescription}
+          presentationSettings={presentationSettings}
+          onConfirm={(draft) => {
+            if (draft.title !== storyTitle) onStoryTitleChange(draft.title)
+            if (draft.description !== storyDescription) onStoryDescriptionChange(draft.description)
+            if (draft.settings !== presentationSettings) onPresentationSettingsChange(draft.settings)
+            onClose()
+          }}
+          onCancel={onClose}
+        />
       ) : (
       <div
         key={section === 'slide' && isEditingSlide ? `slide-${slide.id}` : section}
         className={styles.scroll}
       >
-        {section === 'story' ? (
-          <MainContentTab
-            storyTitle={storyTitle}
-            storyDescription={storyDescription}
-            presentationSettings={presentationSettings}
-            onStoryTitleChange={onStoryTitleChange}
-            onStoryDescriptionChange={onStoryDescriptionChange}
-            onPresentationSettingsChange={onPresentationSettingsChange}
-          />
-        ) : null}
         {section === 'slide' ? (
           isEditingSlide ? (
             <SlideEditor
@@ -983,6 +986,53 @@ function ToolsSection() {
   )
 }
 
+type StoryConfigDraft = { title: string; description: string; settings: StoryPresentationSettings }
+
+/** The story's settings stay a draft until Confirm; Cancel, Escape, the backdrop and the close button drop it. */
+function StoryConfigForm({
+  storyTitle,
+  storyDescription,
+  presentationSettings,
+  onConfirm,
+  onCancel,
+}: {
+  storyTitle: string
+  storyDescription: string
+  presentationSettings: StoryPresentationSettings
+  onConfirm: (draft: StoryConfigDraft) => void
+  onCancel: () => void
+}) {
+  const [draft, setDraft] = useState<StoryConfigDraft>(() => ({
+    title: storyTitle,
+    description: storyDescription,
+    settings: presentationSettings,
+  }))
+  const canConfirm = draft.title.trim().length > 0
+
+  return (
+    <>
+      <div className={styles.scroll}>
+        <MainContentTab
+          storyTitle={draft.title}
+          storyDescription={draft.description}
+          presentationSettings={draft.settings}
+          onStoryTitleChange={(title) => setDraft((current) => ({ ...current, title }))}
+          onStoryDescriptionChange={(description) => setDraft((current) => ({ ...current, description }))}
+          onPresentationSettingsChange={(settings) => setDraft((current) => ({ ...current, settings }))}
+        />
+      </div>
+      <footer className={styles.mapStyleFooter}>
+        <button type="button" className={styles.secondaryBtn} onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" className={styles.assetsNext} disabled={!canConfirm} onClick={() => onConfirm(draft)}>
+          Confirm
+        </button>
+      </footer>
+    </>
+  )
+}
+
 function MainContentTab({
   storyTitle,
   storyDescription,
@@ -1032,33 +1082,64 @@ function MainContentTab({
         onChange={(checked) => patchSettings('autoplay', checked)}
       />
       {presentationSettings.multiSlide ? (
-        <div className={styles.inlineSetting}>
+        <div className={styles.field}>
           <span className={styles.label}>Navigation mode</span>
-          <div
-            className={`${styles.segmentedControl} ${styles.segmentedControlCompact}`}
-            role="group"
-            aria-label="Navigation mode"
-          >
-            <button
-              type="button"
-              className={`${styles.segmentedBtn}${presentationSettings.pagesMode ? ` ${styles.segmentedBtnActive}` : ''}`}
-              aria-pressed={presentationSettings.pagesMode}
-              onClick={() => patchSettings('pagesMode', true)}
-            >
-              Tabbed
-            </button>
-            <button
-              type="button"
-              className={`${styles.segmentedBtn}${!presentationSettings.pagesMode ? ` ${styles.segmentedBtnActive}` : ''}`}
-              aria-pressed={!presentationSettings.pagesMode}
-              onClick={() => patchSettings('pagesMode', false)}
-            >
-              Sequential
-            </button>
+          <div className={styles.navModes} role="group" aria-label="Navigation mode">
+            {NAV_MODES.map((mode) => {
+              const selected = presentationSettings.pagesMode === (mode.id === 'tabbed')
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  className={`${styles.navMode}${selected ? ` ${styles.navModeActive}` : ''}`}
+                  aria-pressed={selected}
+                  onClick={() => patchSettings('pagesMode', mode.id === 'tabbed')}
+                >
+                  <NavModeWireframe mode={mode.id} />
+                  <span className={styles.navModeCopy}>
+                    <span className={styles.navModeName}>{mode.label}</span>
+                    <span className={styles.navModeHint}>{mode.hint}</span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       ) : null}
     </section>
+  )
+}
+
+type NavModeId = 'tabbed' | 'sequential'
+
+const NAV_MODES: { id: NavModeId; label: string; hint: string }[] = [
+  { id: 'tabbed', label: 'Tabbed', hint: 'Page titles as tabs across the top' },
+  { id: 'sequential', label: 'Sequential', hint: 'Step through slides with arrows' },
+]
+
+/** A miniature story slide: insight cards down the left over the map, and the mode's navigation. */
+function NavModeWireframe({ mode }: { mode: NavModeId }) {
+  return (
+    <svg className={styles.navModeArt} viewBox="0 0 120 68" aria-hidden>
+      <rect className={styles.wfFrame} x="0.5" y="0.5" width="119" height="67" rx="6" />
+      {mode === 'tabbed' ? (
+        <>
+          <rect className={styles.wfAccent} x="8" y="7" width="26" height="8" rx="4" />
+          <rect className={styles.wfMuted} x="37" y="7" width="22" height="8" rx="4" />
+          <rect className={styles.wfMuted} x="62" y="7" width="22" height="8" rx="4" />
+        </>
+      ) : (
+        <>
+          <rect className={styles.wfMuted} x="8" y="8" width="34" height="6" rx="3" />
+          <rect className={styles.wfOutline} x="41.5" y="52.5" width="37" height="10" rx="5" />
+          <path className={styles.wfAccentLine} d="M50 55.5 47.5 57.5 50 59.5M70 55.5 72.5 57.5 70 59.5" />
+          <rect className={styles.wfAccent} x="55" y="56" width="10" height="3" rx="1.5" />
+        </>
+      )}
+      <rect className={styles.wfMuted} x="8" y="21" width="28" height="12" rx="2" />
+      <rect className={styles.wfMuted} x="8" y="36" width="28" height="12" rx="2" />
+      <rect className={styles.wfFaint} x="44" y="21" width="68" height="27" rx="3" />
+    </svg>
   )
 }
 
