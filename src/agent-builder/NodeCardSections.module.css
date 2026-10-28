@@ -668,13 +668,15 @@
   line-height: 16px;
 }
 
-.slides {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-sm);
+.deckThumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  border-radius: var(--radius-md);
 }
 
-.slide,
 .page {
   display: flex;
   flex-direction: column;
@@ -683,18 +685,6 @@
   border: 1px solid rgb(var(--ink-rgb) / 0.08);
   border-radius: var(--radius-md);
   background: rgb(var(--ink-rgb) / 0.04);
-}
-
-.slide {
-  aspect-ratio: 16 / 9;
-}
-
-.slide:first-child {
-  justify-content: flex-end;
-  background: color-mix(in srgb, var(--node-accent) 22%, transparent);
-}
-
-.page {
   flex-shrink: 0;
   width: 54px;
   aspect-ratio: 3 / 4;

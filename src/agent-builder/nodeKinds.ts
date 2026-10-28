@@ -798,8 +798,21 @@ export function kindWiringIssue(typeId: string, stored: unknown, graph: () => Wi
   return gisUpperIssue(wired) ?? gisLandIssue(paramsFor(typeId, stored), upstream, wired[0]?.id)
 }
 
-/** Kinds that read a referenced step beside the wired one, each named by its role, e.g. a GIS node's land layer. */
-export function kindInputLayers(typeId: string, stored: unknown): { wired: string; references: readonly { id: string; role: string }[] } | undefined {
+/** Upstream steps whose asset a deck can place: bound Asset nodes and Create Asset steps. */
+export const isDeckAsset = (typeId: string) => typeId === 'asset' || typeId === 'createAsset'
+
+/**
+ * Kinds that read steps beside what's wired in, each named by its role: a GIS node's land layer, or the
+ * assets upstream a deck can place.
+ */
+export function kindInputLayers(
+  typeId: string,
+  stored: unknown,
+  upstream: readonly WiredStep[],
+): { wired: string; references: readonly { id: string; role: string }[] } | undefined {
+  if (typeId === 'slidesAgent') {
+    return { wired: 'Input', references: upstream.filter((step) => isDeckAsset(step.typeId)).map((step) => ({ id: step.id, role: 'Asset' })) }
+  }
   if (typeId !== 'gisCorrelationAgent') return undefined
   const { bottomRef } = paramsFor(typeId, stored)
   return { wired: 'Upper layer', references: bottomRef ? [{ id: bottomRef, role: 'Land layer' }] : [] }

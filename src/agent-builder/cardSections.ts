@@ -39,7 +39,7 @@ export type DataPreview =
   | { kind: 'results'; rows: number; tiles: readonly ResultTile[]; caption?: string; hint?: string }
   | { kind: 'asset'; title: string; settings: CreateAssetSettings; records: readonly DataRecord[] }
   | { kind: 'text'; text: string }
-  | { kind: 'slides'; title: string; slides: number; chapters: number }
+  | { kind: 'slides'; title: string }
   | { kind: 'document'; title: string; sections: number; words: number }
 
 export type CardHeader = { category: string }
@@ -191,7 +191,7 @@ export function dataPreview(records: readonly DataRecord[] | null): DataPreview 
   if (!records?.length) return null
   const [first] = records
   if (records.length === 1) {
-    if (first.kind === 'slides') return { kind: 'slides', title: text(first.title), slides: count(first.slides), chapters: count(first.chapters) }
+    if (first.created_entity_kind === 'slides') return { kind: 'slides', title: text(first.created_entity_title) }
     if (first.kind === 'briefing') return { kind: 'document', title: text(first.title), sections: count(first.sections), words: count(first.words) }
     if (first.kind === 'text' && typeof first.text === 'string') return { kind: 'text', text: first.text }
   }

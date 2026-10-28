@@ -18,6 +18,7 @@ import {
   UNCLASSIFIED,
   bodyAllowed,
   emailList,
+  isDeckAsset,
   kindIssue,
   paramsFor,
   scheduleSummary,
@@ -767,12 +768,42 @@ function runOutputAgent(input: StepInput, kind: 'slides' | 'briefing' | 'dashboa
   const data = profile(rows)
   const top = data.ranked[0]?.label
   if (kind === 'dashboard') return done({ out: [{ kind: 'text', text: `Dashboard draft: ${narrative(rows)}` }] }, 30, { cost: agentCost(rows.length, 0.006) })
-  const title = top ? `${top} and ${Math.max(0, data.ranked.length - 1)} other hotspots` : 'Workflow results'
-  const record: DataRecord =
-    kind === 'slides'
-      ? { kind: 'slides', created_entity_id: stableId('sld', input.node.id), title, chapters: 3, slides: 8 + Math.min(6, data.count) }
-      : { kind: 'briefing', created_entity_id: stableId('brf', input.node.id), title, sections: 4, words: 520 + data.count * 18 }
-  return done({ out: [record] }, 70, { cost: agentCost(rows.length, kind === 'slides' ? 0.02 : 0.014), note: input.stepTest ? undefined : `Saved as a new ${kind}.` })
+  const others = data.ranked.length - 1
+  const title = top ? (others > 0 ? `${top} and ${others} other ${others === 1 ? 'hotspot' : 'hotspots'}` : top) : 'Workflow results'
+  if (kind === 'slides') return runSlides(input, rows, title)
+  const record: DataRecord = { kind: 'briefing', created_entity_id: stableId('brf', input.node.id), title, sections: 4, words: 520 + data.count * 18 }
+  return done({ out: [record] }, 70, { cost: agentCost(rows.length, 0.014), note: input.stepTest ? undefined : 'Saved as a new briefing.' })
+}
+
+/** A deck title from the prompt's subject, e.g. "Build an executive deck on X." reads "X". */
+function promptTitle(instructions: string) {
+  const subject = instructions
+    .trim()
+    .replace(/[.!?]+$/, '')
+    .replace(/^(?:build|create|make|write|draft|prepare)\b.*?\b(?:on|about|covering|for)\s+/i, '')
+  return subject && subject.length <= 80 ? subject.charAt(0).toUpperCase() + subject.slice(1) : undefined
+}
+
+const listFormat = new Intl.ListFormat('en', { type: 'conjunction' })
+
+/** The engine's output document for a saved deck; every run saves one, test runs included. */
+function runSlides(input: StepInput, rows: readonly DataRecord[], fallbackTitle: string): StepResult {
+  const assets = input.ancestors.filter((ancestor) => isDeckAsset(ancestor.typeId) && ancestor.rows?.length)
+  if (!rows.length && !assets.length) {
+    return fail('WF_OUTPUT_NOT_PERSISTED', 'The agent didn’t draft any slides: no rows or assets reached it, so no deck was saved.', 40)
+  }
+  const title = promptTitle(paramsFor('slidesAgent', input.node.config.params).instructions) ?? fallbackTitle
+  const findings = Math.max(1, Math.min(4, rows.length))
+  const placed = assets.map((asset) => asset.name)
+  const record: DataRecord = {
+    created_entity_id: stableId('sld', `${input.node.id}:${input.runId}`),
+    created_entity_kind: 'slides',
+    created_entity_title: title,
+    text:
+      `Built “${title}”: a title slide, ${findings} findings ${findings === 1 ? 'slide' : 'slides'} and a closing slide on next steps.` +
+      (placed.length ? ` It places ${listFormat.format(placed)} beside the findings ${placed.length === 1 ? 'it supports' : 'they support'}.` : ''),
+  }
+  return done({ out: [record] }, 70, { cost: agentCost(rows.length, 0.02), note: 'Saved as a new deck in Slides.' })
 }
 
 /* ---------- Actions ---------- */

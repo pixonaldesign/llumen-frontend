@@ -36,7 +36,7 @@ const ABOUT: Record<string, string> = {
   insightGenerator: 'Writes one insight with the fields you name, from the rows it receives.',
   dataAnalyst: 'Returns a verdict document. If the data can’t answer the question, the step fails with WF_AGENT_CANNOT_PERFORM.',
   gisCorrelationAgent: 'Overlays the wired layer on a land layer and says how they relate.',
-  slidesAgent: 'Builds a slide deck from its input. Flow runs save the deck; test runs only preview it.',
+  slidesAgent: 'Builds a slide deck from its input and the assets upstream. Every run saves a new deck, test runs included.',
   dashboardAgent: 'Returns a text document laying out the dashboard: KPIs, charts, and what each shows.',
   briefingAgent: 'Writes a briefing from its input. Flow runs save it; test runs only preview it.',
 }

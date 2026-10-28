@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { AssetPreviewChart } from './AssetPreviewChart'
+import slidesThumbnail from './assets/slides-thumbnail.jpg'
 import type { ContentBlock, DataPreview } from './cardSections'
 import { isMapLayer } from './createAsset'
 import { NodeAssetPreview } from './NodeAssetPreview'
@@ -145,21 +146,12 @@ const PREVIEW_VIEWS: { [K in DataPreview['kind']]: (props: { preview: PreviewOf<
   ),
   slides: ({ preview }) => (
     <div className={`${styles.footerBody} ${styles.made}`}>
-      <div className={styles.slides} aria-hidden>
-        {[0, 1, 2].map((index) => (
-          <span key={index} className={styles.slide}>
-            <span className={`${styles.line} ${index === 0 ? styles.lineStrong : ''}`} />
-            <span className={styles.line} />
-          </span>
-        ))}
-      </div>
+      <img className={styles.deckThumb} src={slidesThumbnail} alt="" />
       <div>
         <p className={styles.madeTitle} title={preview.title}>
           {preview.title}
         </p>
-        <p className={styles.madeMeta}>
-          {plural(preview.slides, 'slide')} · {plural(preview.chapters, 'chapter')}
-        </p>
+        <p className={styles.madeMeta}>Saved to Slides</p>
       </div>
     </div>
   ),

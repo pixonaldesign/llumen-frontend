@@ -12,8 +12,6 @@ import {
 } from 'react'
 import {
   ArrowLeft,
-  ArrowsInSimple,
-  ArrowsOutSimple,
   ArrowUUpLeft,
   ArrowUUpRight,
   CaretDown,
@@ -1906,15 +1904,26 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         .filter((step) => NODE_TYPES_BY_ID[step.typeId]?.category !== 'triggers'),
       upstream: ancestorsNearestFirst(node.id, doc.edges).flatMap(wiredStep),
     }))
-  /** The wired input and the steps a kind references beside it, each with its role and last rows; one entry is no choice. */
+  /**
+   * What's wired in, as one entry, then the steps a kind reads beside it, each with its role and last rows;
+   * a saved asset shows the rows it was made from.
+   */
   const inputLayers = (node: CanvasNode): InputLayer[] | undefined => {
-    const layers = kindInputLayers(node.type, node.config.params)
+    const layers = kindInputLayers(node.type, node.config.params, ancestorsNearestFirst(node.id, doc.edges).flatMap(wiredStep))
     if (!layers) return undefined
-    const wired = doc.edges.filter((edge) => edge.to === node.id).flatMap((edge) => wiredStep(edge.from))
+    const wired = doc.edges
+      .filter((edge) => edge.to === node.id)
+      .flatMap((edge) => wiredStep(edge.from))
+      .filter((step) => NODE_TYPES_BY_ID[step.typeId]?.category !== 'triggers')
     return [
-      ...wired.map((step) => ({ id: step.id, name: step.name, role: layers.wired, records: inputFor(node.id) })),
+      ...(wired.length ? [{ id: 'wired', name: wired.map((step) => step.name).join(', '), role: layers.wired, records: inputFor(node.id) }] : []),
       ...layers.references.flatMap((reference) =>
-        wiredStep(reference.id).map((step) => ({ id: step.id, name: step.name, role: reference.role, records: runRows(runs[step.id]) })),
+        wiredStep(reference.id).map((step) => ({
+          id: step.id,
+          name: step.name,
+          role: reference.role,
+          records: runs[step.id]?.assetRows ?? runRows(runs[step.id]),
+        })),
       ),
     ]
   }
@@ -2048,19 +2057,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   /** Hidden mid-drag, like FigJam, so it doesn't trail the node around. */
   const selectedNode =
     selection?.kind === 'node' && draggingNode !== selection.id && !connection ? nodesById[selection.id] : undefined
-  const detailNodes = doc.nodes.filter((node) => {
-    const details = cardDetails(node, nodeType(node).category === 'triggers', flowState)
-    return details.fields.length > 0 || Boolean(details.text)
-  })
-  const allCollapsed = detailNodes.length > 0 && detailNodes.every((node) => node.config.hideDetails)
-  /** One undo step for the whole canvas. */
-  const setAllDetails = (hidden: boolean) => {
-    const ids = new Set(detailNodes.map((node) => node.id))
-    commit({
-      ...doc,
-      nodes: doc.nodes.map((node) => (ids.has(node.id) ? { ...node, config: { ...node.config, hideDetails: hidden || undefined } } : node)),
-    })
-  }
   const nodeFrame = (node: CanvasNode | undefined) => {
     const position = node && doc.positions[node.id]
     const size = node && layouts[node.id]
@@ -2669,16 +2665,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
             onClick={tidyUp}
           >
             <TreeStructure size={20} weight="regular" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className={controls.barButton}
-            aria-label={allCollapsed ? 'Expand all' : 'Collapse all'}
-            data-tooltip={allCollapsed ? 'Show all details' : 'Hide all details'}
-            disabled={detailNodes.length === 0}
-            onClick={() => setAllDetails(!allCollapsed)}
-          >
-            {allCollapsed ? <ArrowsOutSimple size={20} weight="regular" aria-hidden /> : <ArrowsInSimple size={20} weight="regular" aria-hidden />}
           </button>
         </div>
       </footer>

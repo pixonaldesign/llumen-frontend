@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { MagnifyingGlass, X } from '@phosphor-icons/react'
+import { MagnifyingGlass, Warning, X } from '@phosphor-icons/react'
+import slidesThumbnail from './assets/slides-thumbnail.jpg'
 import { nodeDataSides, nodeDataViews, type DataSide } from './cardSections'
 import { DataViewBody } from './DataViews'
 import { Tabs } from './NodeConfigWindow'
@@ -20,6 +21,8 @@ const TOOLBAR_WIDTH = 240
 const SIDE_LABELS: Record<DataSide, string> = { input: 'Input', output: 'Output' }
 /** Rows shown before "View all data" hands over to the configuration window. */
 const MAX_ROWS = 10
+/** A single record with more fields than this gets a search; a shorter one reads at a glance. */
+const SEARCH_FIELDS = 8
 
 /** A toggle above the rows: a branch with its row count, or an input layer with its step's name. */
 type Chip = { id: string | null; label: string; detail: string | number; pressed: boolean; onPick: () => void }
@@ -119,6 +122,35 @@ function RecordFields({ record, query, layout = {} }: { record: DataRecord; quer
 /** A step a kind reads, named by its role, e.g. a GIS node's upper and land layers, and its last rows. */
 export type InputLayer = { id: string; name: string; role: string; records: readonly DataRecord[] | null }
 
+/** A saved deck: its thumbnail and title, then the agent's summary and any warning; the id stays out of sight. */
+function SavedDeck({ record }: { record: DataRecord }) {
+  return (
+    <div className={styles.made}>
+      <figure className={styles.deck}>
+        <img className={styles.deckThumb} src={slidesThumbnail} alt="" />
+        <figcaption className={styles.deckCaption}>
+          <span className={styles.deckText}>
+            <span className={styles.deckTitle} title={displayValue(record.created_entity_title)}>
+              {displayValue(record.created_entity_title)}
+            </span>
+            <span className={styles.deckMeta}>Saved to Slides</span>
+          </span>
+          <button type="button" className={styles.deckOpen}>
+            Open slides
+          </button>
+        </figcaption>
+      </figure>
+      {record.text ? <p className={styles.recordValue}>{displayValue(record.text)}</p> : null}
+      {record.warning ? (
+        <p className={styles.madeWarning}>
+          <Warning size={14} weight="fill" aria-hidden />
+          {displayValue(record.warning)}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 type NodeDataDialogProps = {
   node: CanvasNode
   type: NodeType
@@ -171,14 +203,16 @@ export function NodeDataDialog({
   const sides: readonly DataSide[] = available.length ? available : ['output']
   const [chosen, setChosen] = useState<DataSide>(sides.includes('output') ? 'output' : sides[0])
   const side = sides.includes(chosen) ? chosen : sides[0]
-  const [query, setQuery] = useState('')
+  const [typed, setQuery] = useState('')
 
   const tabbed = sides.length > 1
   const view = views[side]
   const records = view.records ?? []
+  const savedDeck = side === 'output' && records.length === 1 && records[0].created_entity_kind === 'slides'
+  /** Only where there's something to sift: several rows, or one long record. */
+  const searchable = records.length > 1 || (records.length === 1 && !savedDeck && Object.keys(records[0]).length > SEARCH_FIELDS)
+  const query = searchable ? typed : ''
   const matches = filterRecords(records, query)
-  /** Kept while either side has rows, so switching sides doesn't move the tabs. */
-  const searchable = sides.some((option) => Boolean(views[option].records?.length))
   const layout = side === 'output' ? RECORD_LAYOUTS[type.id] : undefined
   /** Read from the output whichever side is showing, so switching sides doesn't move the header. */
   const verdict = views.output.records?.length === 1 ? views.output.records[0] : undefined
@@ -284,19 +318,7 @@ export function NodeDataDialog({
         </button>
       </header>
 
-      <div className={styles.controls} data-tabbed={tabbed || undefined}>
-        {searchable ? (
-          <label className={styles.search}>
-            <MagnifyingGlass size={14} aria-hidden />
-            <input
-              className={styles.searchInput}
-              value={query}
-              placeholder={records.length === 1 ? 'Search fields…' : 'Search rows…'}
-              aria-label={records.length === 1 ? 'Search fields' : 'Search rows'}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-        ) : null}
+      <div className={styles.controls} data-tabbed={tabbed || undefined} data-search={searchable || undefined}>
         {tabbed ? (
           <Tabs
             tabs={sides.map((option) => ({ id: option, label: SIDE_LABELS[option] }))}
@@ -311,6 +333,18 @@ export function NodeDataDialog({
             <span className={styles.count}>{count(side)}</span>
           </p>
         )}
+        {searchable ? (
+          <label className={styles.search}>
+            <MagnifyingGlass size={14} aria-hidden />
+            <input
+              className={styles.searchInput}
+              value={typed}
+              placeholder={records.length === 1 ? 'Search fields…' : 'Search rows…'}
+              aria-label={records.length === 1 ? 'Search fields' : 'Search rows'}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+        ) : null}
       </div>
 
       {chips ? (
@@ -333,6 +367,8 @@ export function NodeDataDialog({
           <p className={`${styles.empty} ${styles.error}`}>{view.error}</p>
         ) : !records.length ? (
           <p className={styles.empty}>{picked ? 'No rows on this branch.' : 'No rows.'}</p>
+        ) : savedDeck ? (
+          <SavedDeck record={records[0]} />
         ) : records.length === 1 ? (
           <RecordFields record={records[0]} query={query} layout={layout} />
         ) : (

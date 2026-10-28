@@ -33,7 +33,7 @@ const SHOWCASE_CONFIG: Readonly<Record<string, NodeConfig>> = {
 
 const SHOWCASE_INPUT: Readonly<Record<string, readonly DataRecord[]>> = { 'forecast-1': SENSOR_READINGS }
 
-const SHOWCASE_RUNS = ['manualTrigger-1', 'asset-1', 'asset-2', 'mlModel-1', 'forecast-1', 'createAsset-1', 'filter-1', 'switchCases-1', 'insightGenerator-1', 'sendEmail-1', 'generalAgent-1']
+const SHOWCASE_RUNS = ['manualTrigger-1', 'asset-1', 'asset-2', 'mlModel-1', 'forecast-1', 'createAsset-1', 'filter-1', 'switchCases-1', 'insightGenerator-1', 'sendEmail-1', 'generalAgent-1', 'slidesAgent-1']
 
 /** Shown as a workflow run rather than a step test, so the card shows what the run saved. */
 const SHOWCASE_SAVES: ReadonlySet<string> = new Set(['createAsset-1'])

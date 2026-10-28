@@ -115,15 +115,12 @@ button.close:hover {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  padding: 0 var(--space-lg) var(--space-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 var(--column-pad);
 }
 
-/* The tab bar's own rule closes the controls; its height already spaces it from the search. */
-.controls[data-tabbed] {
-  gap: var(--space-xs);
-  padding-bottom: 0;
-  border-bottom: none;
+/* The tab bar's rule, or the side label's, closes the controls, or sits between them and the search under them. */
+.controls[data-search] {
+  padding-bottom: var(--space-md);
 }
 
 .count {
@@ -135,11 +132,14 @@ button.close:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* Full width, like the tab bar, so its rule runs edge to edge. */
 .sideLabel {
   display: flex;
   align-items: baseline;
   gap: var(--space-sm);
-  margin: 0;
+  margin: 0 calc(-1 * var(--column-pad));
+  padding: 0 var(--column-pad) var(--space-md);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   font-size: 12px;
   font-weight: 500;
   line-height: 18px;
@@ -368,6 +368,98 @@ button.viewAll:hover {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* What an output agent saved: the thing itself, then the agent's account of it. */
+.made {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-md) var(--space-lg) 0;
+}
+
+.deck {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Cropped from the top so the window's height still leaves room for the summary. */
+.deckThumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 2;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.deckCaption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.deckText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.deckTitle {
+  overflow: hidden;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.deckMeta {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+button.deckOpen {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+button.deckOpen:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.madeWarning {
+  display: flex;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fcd34d;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.madeWarning svg {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .empty {
