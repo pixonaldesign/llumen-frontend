@@ -1,12 +1,12 @@
-/* A node's input or output schema beside the node; the same glass as the overlay menus. Positioned from script. */
+/* A node's input or output rows beside the node; the same glass as the overlay menus. Positioned from script. */
 
 .window {
   position: absolute;
   z-index: 30;
   display: flex;
   flex-direction: column;
-  width: min(360px, calc(100% - 32px));
-  height: min(420px, calc(100% - 100px));
+  width: min(440px, calc(100% - 32px));
+  max-height: min(420px, calc(100% - 100px));
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
@@ -63,6 +63,32 @@
   text-overflow: ellipsis;
 }
 
+.headTag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--node-accent) 18%, transparent);
+  color: var(--node-accent);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.headTag[data-tone='positive'] {
+  background: rgba(74, 222, 128, 0.14);
+  color: #86efac;
+}
+
+.headTag[data-tone='warning'] {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fcd34d;
+}
+
+.headTag[data-tone='negative'] {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+}
+
 button.close {
   display: flex;
   align-items: center;
@@ -84,11 +110,20 @@ button.close:hover {
 }
 
 .controls {
+  --column-pad: var(--space-lg);
+
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   padding: 0 var(--space-lg) var(--space-md);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* The tab bar's own rule closes the controls; its height already spaces it from the search. */
+.controls[data-tabbed] {
+  gap: var(--space-xs);
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .count {
@@ -142,11 +177,60 @@ button.close:hover {
   color: rgba(255, 255, 255, 0.4);
 }
 
-/* Full-bleed scrollport so the overlay thumb runs along the window edge; rows carry the inset. */
+/* One chip per output branch, plus All; the same pill as the configuration window's column chips. */
+.branches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--space-md) var(--space-lg);
+}
+
+button.branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  transition:
+    background var(--lc-duration) var(--lc-ease),
+    border-color var(--lc-duration) var(--lc-ease),
+    color var(--lc-duration) var(--lc-ease);
+}
+
+button.branch:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+button.branch[aria-pressed='true'] {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.branchCount {
+  color: rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Full-bleed scrollport in both directions, so the thumbs run along the window's edges and the header row can stay
+ * pinned; the table's edge cells carry the inset.
+ */
 .scroll {
-  flex: 1;
+  --column-pad: var(--space-lg);
+
+  flex: 0 1 auto;
   min-height: 0;
-  padding: var(--space-xs) 0 var(--space-md);
+  padding: 0 0 var(--space-md);
   overflow: auto;
   overflow-y: overlay;
   scrollbar-width: thin;
@@ -156,6 +240,7 @@ button.close:hover {
 
 .scroll::-webkit-scrollbar {
   width: var(--lc-scrollbar-size, 4px);
+  height: var(--lc-scrollbar-size, 4px);
 }
 
 .scroll::-webkit-scrollbar-thumb {
@@ -163,41 +248,126 @@ button.close:hover {
   background: rgba(255, 255, 255, 0.28);
 }
 
-.schema {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.scroll::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
-.field {
+/* Collapsed borders don't travel with a sticky cell, so the header's rule is a shadow. */
+.scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: none;
+  background: rgb(52 52 54 / 0.96);
+  box-shadow: inset 0 -1px rgba(255, 255, 255, 0.08);
+}
+
+/* The table is the configuration window's; code font stays there, values here read as text. */
+.scroll tbody td {
+  font-family: inherit;
+}
+
+/* Held at the scrollport's left edge so it stays in view when the table scrolls sideways. */
+button.viewAll {
+  position: sticky;
+  left: 0;
+  display: block;
+  margin: var(--space-xs) 0 0;
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  background: none;
+  color: var(--canvas-accent, #70aeff);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+button.viewAll:hover {
+  text-decoration: underline;
+}
+
+/* A single row as a document; the scrollport stays full-bleed and the fields carry the inset. */
+.record {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--space-lg);
-  padding: 6px var(--space-lg);
+  margin: 0;
+  padding: var(--space-md) var(--space-lg) 0;
+}
+
+.recordField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.recordLabel {
+  color: rgba(255, 255, 255, 0.5);
   font-size: 12px;
   line-height: 18px;
 }
 
-.field + .field {
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+.recordValue {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.fieldName {
-  min-width: 0;
-  overflow: hidden;
-  font-family: var(--lc-font-data);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* What the node was asked, answered; the rest of the record backs it up. */
+.recordValue[data-lead] {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
 }
 
-.fieldType {
-  flex-shrink: 0;
-  padding: 0 var(--space-sm);
-  border-radius: var(--radius-xs);
-  background: rgba(255, 255, 255, 0.08);
+.recordValue[data-muted] {
   color: rgba(255, 255, 255, 0.6);
-  font-family: var(--lc-font-data);
+}
+
+/* A nested object's pairs, e.g. a verdict's key metrics, as a wrapping grid of small read-outs. */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-sm);
+  margin: 2px 0 0;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.metric dt {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.metric dd {
+  margin: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .empty {

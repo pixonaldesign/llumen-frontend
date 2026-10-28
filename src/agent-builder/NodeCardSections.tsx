@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowsInSimple, ArrowsOutSimple, Info, Minus, PencilSimple, Plus, Warning } from '@phosphor-icons/react'
+import { ArrowsInSimple, ArrowsOutSimple, BracketsAngle, Minus, PencilSimple, Plus, Warning } from '@phosphor-icons/react'
 import { ContentBlockView, DataPreviewView } from './CardSectionViews'
 import {
   cardContent,
@@ -32,7 +32,7 @@ import {
   type PortSide,
 } from './nodeCatalog'
 import { plural } from './kindEditor'
-import { branchAddLabel, isAuthoredBranch } from './nodeKinds'
+import { branchAddLabel, isAuthoredBranch, isFallbackBranch } from './nodeKinds'
 import tones from './nodeTones.module.css'
 import minimal from './NodeCardMinimal.module.css'
 import styles from './NodeCardSections.module.css'
@@ -142,6 +142,7 @@ export function NodeCardSections({
   onOpenConfig,
   onRemoveOutput,
   inputSources,
+  wiringIssue,
   headless = false,
   onOpenData,
   flow = UNPUBLISHED,
@@ -153,7 +154,7 @@ export function NodeCardSections({
   const blocks = cardContent(node)
   const values = cardValues(node, type, flow)
   const hidden = Boolean(node.config.hideDetails)
-  const issue = nodeIssue(node) ?? nodeNotice(node)
+  const issue = nodeIssue(node) ?? wiringIssue ?? nodeNotice(node)
   const outputs = nodeOutputs(node, type)
   const addLabel = branchAddLabel(type.id)
   const edgeOutputs = outputs.length > 1 && cardEdgeOutputs(type)
@@ -168,7 +169,7 @@ export function NodeCardSections({
     actions.push({ id: 'editAsset', label: 'Edit asset', icon: PencilSimple, onSelect: () => onOpenConfig() })
   }
   if (headless) {
-    if (onOpenData) actions.push({ id: 'data', label: 'Input and output', icon: Info, onSelect: onOpenData })
+    if (onOpenData) actions.push({ id: 'data', label: 'Input and output', icon: BracketsAngle, onSelect: onOpenData })
   } else if (onToggleDetails && footer) {
     const label = `${hidden ? 'Show' : 'Hide'} ${footer.view}`
     actions.push({ id: 'footer', label, icon: hidden ? ArrowsOutSimple : ArrowsInSimple, onSelect: onToggleDetails })
@@ -332,9 +333,9 @@ export function NodeCardSections({
                   {value.tone && value.tone !== 'neutral' ? (
                     <span className={`${minimal.rowDot} ${minimal[`rowDot_${value.tone}`]}`} aria-hidden />
                   ) : (
-                    <span className={minimal.rowIndex}>{value.id === 'default' ? '–' : index + 1}</span>
+                    <span className={minimal.rowIndex}>{isFallbackBranch(value.id) ? '–' : index + 1}</span>
                   )}
-                  <span className={`${minimal.rowLabel} ${styles.branchLabel} ${value.id === 'default' ? minimal.rowLabelMuted : ''}`}>{value.label}</span>
+                  <span className={`${minimal.rowLabel} ${styles.branchLabel} ${isFallbackBranch(value.id) ? minimal.rowLabelMuted : ''}`}>{value.label}</span>
                   {run.ports?.[value.id] ? <span className={styles.branchCount}>{plural(run.ports[value.id].length, 'row')}</span> : null}
                   {isAuthoredBranch(type.id, value.id) && (onOpenConfig || onRemoveOutput) ? (
                     <span className={styles.branchActions}>

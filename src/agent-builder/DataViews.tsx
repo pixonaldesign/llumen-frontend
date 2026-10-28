@@ -20,13 +20,15 @@ type DataViewProps = {
   records: readonly DataRecord[]
   /** Narrows the schema to matching fields and the table and JSON to matching rows. */
   query?: string
+  /** The table without its own sideways scroller, for a container that scrolls both ways and pins the header. */
+  bare?: boolean
 }
 
-export function DataViewBody({ view, records, query = '' }: DataViewProps) {
+export function DataViewBody({ view, records, query = '', bare = false }: DataViewProps) {
   if (view === 'schema') return <SchemaList records={records} query={query} />
   const rows = filterRecords(records, query)
   if (rows.length === 0) return <p className={styles.noMatch}>Nothing matches “{query.trim()}”.</p>
-  return view === 'table' ? <DataTable records={rows} /> : <pre className={styles.json}>{JSON.stringify(rows, null, 2)}</pre>
+  return view === 'table' ? <DataTable records={rows} bare={bare} /> : <pre className={styles.json}>{JSON.stringify(rows, null, 2)}</pre>
 }
 
 function SchemaList({ records, query }: { records: readonly DataRecord[]; query: string }) {
@@ -53,30 +55,35 @@ function SchemaList({ records, query }: { records: readonly DataRecord[]; query:
   )
 }
 
-function DataTable({ records }: { records: readonly DataRecord[] }) {
+function DataTable({ records, bare }: { records: readonly DataRecord[]; bare: boolean }) {
   const columns = [...new Set(records.flatMap((record) => Object.keys(record)))]
-  return (
-    <div className={styles.tableScroll} data-native-scroll>
-      <table className={styles.dataTable}>
-        <thead>
-          <tr>
+  const table = (
+    <table className={styles.dataTable}>
+      <thead>
+        <tr>
+          {columns.map((column) => (
+            <th key={column}>{column}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {records.map((record, index) => (
+          <tr key={index}>
             {columns.map((column) => (
-              <th key={column}>{column}</th>
+              <td key={column} data-type={valueKind(record[column])}>
+                {displayValue(record[column])}
+              </td>
             ))}
           </tr>
-        </thead>
-        <tbody>
-          {records.map((record, index) => (
-            <tr key={index}>
-              {columns.map((column) => (
-                <td key={column} data-type={valueKind(record[column])}>
-                  {displayValue(record[column])}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        ))}
+      </tbody>
+    </table>
+  )
+  return bare ? (
+    table
+  ) : (
+    <div className={styles.tableScroll} data-native-scroll>
+      {table}
     </div>
   )
 }

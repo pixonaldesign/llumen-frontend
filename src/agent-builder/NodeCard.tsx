@@ -18,7 +18,7 @@ import {
   portKey,
   type NodePort,
 } from './nodeCatalog'
-import { branchAddLabel } from './nodeKinds'
+import { branchAddLabel, isFallbackBranch } from './nodeKinds'
 import tones from './nodeTones.module.css'
 import styles from './NodeCard.module.css'
 
@@ -50,6 +50,7 @@ export function NodeCard({
   dataOpen,
   onDataOpen,
   onNoteChange,
+  wiringIssue,
   flow = UNPUBLISHED,
 }: NodeCardProps) {
   const [tab, setTab] = useState<FooterTab | null>(null)
@@ -61,7 +62,7 @@ export function NodeCard({
   const details = cardDetails(node, isTrigger, flow)
   const fields = config.hideDetails ? [] : details.fields
   const text = config.hideDetails ? undefined : details.text
-  const issue = nodeIssue(node)
+  const issue = nodeIssue(node) ?? wiringIssue
   const notice = nodeNotice(node)
   const preview = nodePreview(node)
   const addLabel = branchAddLabel(type.id)
@@ -184,10 +185,10 @@ export function NodeCard({
                 <li key={port.id} className={styles.row}>
                   {port.tone && port.tone !== 'neutral' ? (
                     <span className={`${styles.rowDot} ${styles[`rowDot_${port.tone}`]}`} aria-hidden />
-                  ) : port.id === 'default' ? null : (
+                  ) : isFallbackBranch(port.id) ? null : (
                     <span className={styles.rowBadge}>{index + 1}</span>
                   )}
-                  <span className={port.id === 'default' ? `${styles.rowLabel} ${styles.rowLabelMuted}` : styles.rowLabel}>
+                  <span className={isFallbackBranch(port.id) ? `${styles.rowLabel} ${styles.rowLabelMuted}` : styles.rowLabel}>
                     {port.label}
                   </span>
                   {run.status === 'success' && run.ports?.[port.id]?.length ? (

@@ -126,6 +126,7 @@ export type ClassificationParams = InstructionsParams & { categories: readonly C
 
 export type InsightType = 'summary' | 'trend' | 'anomaly' | 'recommendation'
 export type InsightParams = InstructionsParams & { fields: readonly string[]; insightType: InsightType }
+export const INSIGHT_TYPE_LABEL: Record<InsightType, string> = { summary: 'Summary', trend: 'Trend', anomaly: 'Anomaly', recommendation: 'Recommendation' }
 
 export type UpperLayerKind = 'events' | 'values' | 'wind'
 export type BottomLayerKind = 'land_type' | 'land_measure' | 'values'
@@ -693,16 +694,11 @@ export function kindFields(typeId: string, stored: unknown): NodeField[] {
       return [{ label: 'Wait', value: waitText(paramsFor(typeId, stored)) }]
     case 'stopAndError':
       return [{ label: 'Message', value: paramsFor(typeId, stored).stopMessage || 'Workflow halted.' }]
-    case 'insightGenerator': {
-      const params = paramsFor(typeId, stored)
-      return params.fields.length ? [{ label: 'Fields', value: params.fields.join(', ') }] : []
-    }
+    case 'insightGenerator':
+      return [{ label: 'Type', value: INSIGHT_TYPE_LABEL[paramsFor(typeId, stored).insightType] }]
     case 'gisCorrelationAgent': {
       const params = paramsFor(typeId, stored)
-      return [
-        { label: 'Upper', value: UPPER_LABEL[params.upper.kind] },
-        { label: 'Land', value: BOTTOM_LABEL[params.bottom.kind] },
-      ]
+      return [{ label: 'Layers', value: `${UPPER_LABEL[params.upper.kind]} over ${BOTTOM_LABEL[params.bottom.kind].toLowerCase()}` }]
     }
     case 'aiFindings': {
       const alerts = paramsFor(typeId, stored).alerts
@@ -773,6 +769,42 @@ export function kindSummary(typeId: string, stored: unknown): string | undefined
 export const UPPER_LABEL: Record<UpperLayerKind, string> = { events: 'Events', values: 'Measured values', wind: 'Wind' }
 export const BOTTOM_LABEL: Record<BottomLayerKind, string> = { land_type: 'Land type', land_measure: 'Land measure', values: 'Values' }
 
+/** A step next to this one in the graph, as the wiring checks see it. */
+export type WiredStep = { id: string; typeId: string; name: string }
+
+/** What's wrong with the upper layer: the one step wired in, which must be an Asset node. Triggers don't count. */
+export function gisUpperIssue(wired: readonly WiredStep[]) {
+  if (!wired.length) return 'Wire an Asset node into this one; it’s the upper layer.'
+  if (wired.length > 1) return 'Only one layer can be wired in; the land layer is chosen in the settings.'
+  return wired[0].typeId === 'asset' ? undefined : `${wired[0].name} isn’t an Asset node. The upper layer must come straight from one.`
+}
+
+/** What's wrong with the land layer: another Asset node upstream, chosen in the settings. */
+export function gisLandIssue(params: GisParams, upstream: readonly WiredStep[], upperId?: string) {
+  const land = upstream.find((step) => step.id === params.bottomRef)
+  if (!params.bottomRef) return 'Choose the land layer: another Asset node upstream.'
+  if (!land) return 'The land layer is no longer upstream of this node.'
+  if (land.id === upperId) return 'The land layer and the upper layer must be different assets.'
+  return land.typeId === 'asset' ? undefined : `${land.name} isn’t an Asset node. The land layer must be one.`
+}
+
+/** What's wired straight in, triggers left out, and every ancestor; read only for kinds that check them. */
+export type WiringGraph = { wired: readonly WiredStep[]; upstream: readonly WiredStep[] }
+
+/** Problems only the graph shows, e.g. a GIS node with nothing wired in; the node's own settings can be fine. */
+export function kindWiringIssue(typeId: string, stored: unknown, graph: () => WiringGraph) {
+  if (typeId !== 'gisCorrelationAgent') return undefined
+  const { wired, upstream } = graph()
+  return gisUpperIssue(wired) ?? gisLandIssue(paramsFor(typeId, stored), upstream, wired[0]?.id)
+}
+
+/** Kinds that read a referenced step beside the wired one, each named by its role, e.g. a GIS node's land layer. */
+export function kindInputLayers(typeId: string, stored: unknown): { wired: string; references: readonly { id: string; role: string }[] } | undefined {
+  if (typeId !== 'gisCorrelationAgent') return undefined
+  const { bottomRef } = paramsFor(typeId, stored)
+  return { wired: 'Upper layer', references: bottomRef ? [{ id: bottomRef, role: 'Land layer' }] : [] }
+}
+
 /* ---------- Branches ---------- */
 
 export const UNCLASSIFIED = '_unclassified'
@@ -814,8 +846,14 @@ export function addBranch(typeId: string, stored: unknown): Partial<AnyParams> |
   return undefined
 }
 
+/** The column a kind already writes each row's branch into, if it writes one. */
+export const branchColumn = (typeId: string) => (typeId === 'dataClassificationAgent' ? 'category' : undefined)
+
+/** The catch-all branch rows fall to when nothing else matches: Default or Unclassified. */
+export const isFallbackBranch = (portId: string) => portId === 'default' || portId === UNCLASSIFIED
+
 /** Whether the card can edit or remove a branch; Default and Unclassified always stay. */
-export const isAuthoredBranch = (typeId: string, portId: string) => Boolean(branchAddLabel(typeId)) && portId !== 'default' && portId !== UNCLASSIFIED
+export const isAuthoredBranch = (typeId: string, portId: string) => Boolean(branchAddLabel(typeId)) && !isFallbackBranch(portId)
 
 /** The parameter change that removes one branch. */
 export function removeBranch(typeId: string, stored: unknown, portId: string): Partial<AnyParams> | undefined {

@@ -77,6 +77,7 @@ const NODES: readonly TestNode[] = [
     'insightGenerator',
     { params: { instructions: 'Say which sites and stations need action this week.', fields: ['headline', 'evidence', 'recommended_action'], insightType: 'summary' } },
   ],
+  ['a-analyst', 'dataAnalyst', { params: { instructions: 'Which sites and stations are outliers against the rest?' } }],
   ['o-briefing', 'briefingAgent'],
   [
     'x-email',
@@ -115,6 +116,7 @@ const LINKS: readonly TestLink[] = [
   ['f-sites', 'd-merge', 'kept', 'input1'],
   ['f-threshold', 'd-merge', 'true', 'input2'],
   ['d-merge', 'a-insight'],
+  ['d-merge', 'a-analyst'],
   ['a-insight', 'o-briefing'],
   ['a-insight', 'x-email'],
 ]
@@ -123,7 +125,7 @@ const LINKS: readonly TestLink[] = [
 const SECTIONS: readonly { id: string; name: string; fill: string; members: readonly string[] }[] = [
   { id: 'test-section-data', name: 'Load data', fill: '#4f7cff', members: ['d-land', 'd-sites', 'd-readings', 'd-forecast'] },
   { id: 'test-section-analyse', name: 'Analyse and alert', fill: '#22c3b0', members: ['f-sites', 'a-gis', 'f-threshold', 'c-asset', 'o-findings', 'x-chat', 'd-merge'] },
-  { id: 'test-section-report', name: 'Report', fill: '#a855f7', members: ['a-insight', 'o-briefing', 'x-email', 'n-report'] },
+  { id: 'test-section-report', name: 'Report', fill: '#a855f7', members: ['a-insight', 'a-analyst', 'o-briefing', 'x-email', 'n-report'] },
 ]
 
 const COMMENT_TIME = Date.UTC(2026, 9, 22, 5, 40)
@@ -151,7 +153,7 @@ export function annotateTestFlow(positions: Readonly<Record<string, Point>>, siz
 
   const trigger = box('t-manual')
   notes['n-start'] = { x: trigger.x, y: trigger.y + trigger.h + NOTE_GAP }
-  const reportNodes = boundsOf(['a-insight', 'o-briefing', 'x-email'].map(box))
+  const reportNodes = boundsOf(['a-insight', 'a-analyst', 'o-briefing', 'x-email'].map(box))
   if (reportNodes) notes['n-report'] = { x: reportNodes.x, y: reportNodes.y + reportNodes.h + NOTE_GAP }
   const place = (id: string) => (notes[id] ? { ...notes[id], ...size(id) } : box(id))
 

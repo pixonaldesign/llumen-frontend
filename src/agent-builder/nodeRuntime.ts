@@ -43,6 +43,8 @@ export type StepInput = {
   /** Rows per input port; a port is absent when nothing reached it. */
   inputs: Readonly<Record<string, readonly DataRecord[]>>
   parents: readonly { id: string; typeId: string }[]
+  /** The kinds wired straight after this step; empty when it ends the Flow. */
+  children: readonly string[]
   ancestors: readonly Ancestor[]
   /** The trigger kind that started a flow run. */
   triggerTypeId?: string
@@ -668,23 +670,34 @@ function runDataAnalyst(input: StepInput): StepResult {
   if (!data.measure) return fail('WF_AGENT_CANNOT_PERFORM', 'The analyst judged the input unusable: there is no numeric column to analyse.', 20)
   const threshold = data.mean + data.std
   const outliers = data.ranked.filter((item) => item.value > threshold)
+  const measure = words(data.measure)
+  const named = outliers.map((item) => `${item.label} (${round(item.value, 1)})`).join(', ')
+  /** The engine's verdict shape; `key_metrics` is a JSON object there, so it travels as JSON text here. */
+  const verdict: DataRecord = {
+    answer: outliers.length
+      ? `${outliers.map((item) => item.label).join(', ')} ${outliers.length === 1 ? 'is' : 'are'} above the baseline by more than one standard deviation.`
+      : `Every row is within one standard deviation of the ${round(data.mean, 1)} baseline.`,
+    classification: null,
+    reasoning:
+      `Across ${rows.length} rows the ${measure} baseline is ${round(data.mean, 1)} with a standard deviation of ${round(data.std, 1)}, ` +
+      `so anything above ${round(threshold, 1)} is an outlier.` +
+      (outliers.length ? ` ${named} ${outliers.length === 1 ? 'clears' : 'clear'} it.` : ' No row clears it.'),
+    key_metrics: JSON.stringify({
+      measure: data.measure,
+      baseline: round(data.mean, 1),
+      std_dev: round(data.std, 1),
+      threshold: round(threshold, 1),
+      outliers: outliers.length,
+      rows_analysed: rows.length,
+    }),
+    confidence: rows.length >= 30 ? 'high' : rows.length >= 8 ? 'medium' : 'low',
+    caveats:
+      rows.length < 30
+        ? `Only ${rows.length} rows, so one extreme value moves the baseline; a longer history would firm this up.`
+        : 'One standard deviation is a loose cut-off; a seasonal baseline could flag different rows.',
+  }
   return done(
-    {
-      out: [
-        {
-          answer: outliers.length
-            ? `${outliers.map((item) => item.label).join(', ')} ${outliers.length === 1 ? 'is' : 'are'} above the baseline by more than one standard deviation.`
-            : `Every row is within one standard deviation of the ${round(data.mean, 1)} baseline.`,
-          method: 'Baseline mean and standard deviation; outliers are above mean + 1σ',
-          measure: data.measure,
-          baseline: round(data.mean),
-          std_dev: round(data.std),
-          threshold: round(threshold),
-          outliers: outliers.length,
-          rows_analysed: rows.length,
-        },
-      ],
-    },
+    { out: [verdict] },
     48,
     { cost: agentCost(rows.length, 0.012) },
   )
@@ -722,23 +735,31 @@ function runGis(input: StepInput): StepResult {
   }
   const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1])
   const [topClass, topCount] = ranked[0] ?? ['—', 0]
-  const method = params.upper.kind === 'wind' ? 'Wind-sector exposure' : params.upper.kind === 'values' ? 'Value by land class' : 'Point-in-zone overlay'
-  return done(
-    {
-      out: [
-        {
-          answer: `${topCount} of ${upper.length} (${percent(topCount, upper.length)}%) fall in ${topClass} land.`,
-          method,
-          upper_layer: input.ancestors.find((item) => item.id === wired[0].id)?.name ?? 'Upper layer',
-          bottom_layer: bottom.name,
-          land_classes: ranked.map(([name, count]) => `${name}: ${count}`).join(', '),
-          features_compared: upper.length,
-        },
-      ],
-    },
-    62,
-    { cost: agentCost(upper.length, 0.015) },
-  )
+  const share = (count: number) => `${count} (${percent(count, upper.length)}%)`
+  const upperName = input.ancestors.find((item) => item.id === wired[0].id)?.name ?? 'upper layer'
+  const rest = ranked.slice(1).map(([name, count]) => `${name} ${count}`)
+  const tied = ranked.slice(1).flatMap(([name, count]) => (count === topCount ? [name] : []))
+  /** The engine only keeps the map when nothing after this step would consume it as data. */
+  const keepsMap = input.children.every((child) => child === 'asset' || child === 'aiFindings')
+  /** The engine's verdict shape: the analyst's six fields plus the method; `key_metrics` travels as JSON text. */
+  const verdict: DataRecord = {
+    answer:
+      `${topCount} of ${upper.length} features (${percent(topCount, upper.length)}%) fall in ${topClass} land` +
+      (tied.length ? `, level with ${tied.join(' and ')}.` : '.'),
+    method: params.upper.kind === 'wind' ? 'wind_sector_exposure' : params.upper.kind === 'values' ? 'value_by_land_class' : 'point_in_zone_overlay',
+    classification: null,
+    reasoning:
+      `Each of the ${upper.length} features in ${upperName} was matched to its nearest zone in ${bottom.name} by ${words(classField)}. ` +
+      `${topClass} takes ${topCount}` +
+      (rest.length ? `; the rest split ${rest.join(', ')}.` : ', every one of them.'),
+    key_metrics: JSON.stringify(Object.fromEntries(ranked.map(([name, count]) => [name, share(count)]))),
+    confidence: upper.length >= 30 ? 'high' : upper.length >= 8 ? 'medium' : 'low',
+    caveats: 'Features are matched to the nearest zone centre rather than its boundary, so points near a border can fall in the neighbouring class.',
+    ...(keepsMap
+      ? { visual_asset_id: stableId('ast', `${input.node.id}:map`) }
+      : { visual_warning: 'The map wasn’t kept: it’s only saved when this node ends the Flow or feeds only Asset or AI Findings steps.' }),
+  }
+  return done({ out: [verdict] }, 62, { cost: agentCost(upper.length, 0.015) })
 }
 
 function runOutputAgent(input: StepInput, kind: 'slides' | 'briefing' | 'dashboard'): StepResult {
@@ -1048,7 +1069,8 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
       return [{ id: ancestorId, name: nodeName(ancestor, NODE_TYPES_BY_ID[ancestor.type]), alias: aliases[ancestorId], typeId: ancestor.type, rows: runRows(results[ancestorId]) }]
     })
     const parents = inbound.map((edge) => ({ id: edge.from, typeId: byId.get(edge.from)?.type ?? '' }))
-    const input: StepInput = { node, type, inputs, parents, ancestors, triggerTypeId, hasChatTrigger, stepTest, runId }
+    const children = plan.edges.filter((edge) => edge.from === id).map((edge) => byId.get(edge.to)?.type ?? '')
+    const input: StepInput = { node, type, inputs, parents, children, ancestors, triggerTypeId, hasChatTrigger, stepTest, runId }
 
     let result = executeStep(input)
     if (plan.simulate === 'pass' && !result.ok) result = done({ [nodeOutputs(node, type)[0]?.id ?? 'out']: allRows(input) }, result.seconds)

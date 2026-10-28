@@ -257,18 +257,22 @@ function NeighbourPill({
 
 /* ---------- Columns ---------- */
 
-function Tabs<T extends string>({
+/** Small underlined tabs; the bar runs out to the column's edges by `--column-pad`. */
+export function Tabs<T extends string>({
   tabs,
   value,
   label,
   onChange,
+  trailing,
 }: {
   tabs: readonly { id: T; label: string }[]
   value: T
   label: string
   onChange: (value: T) => void
+  /** Sits at the bar's far end, outside the tab list, e.g. a count. */
+  trailing?: ReactNode
 }) {
-  return (
+  const list = (
     <div className={styles.tabs} role="tablist" aria-label={label}>
       {tabs.map((tab) => (
         <button
@@ -283,6 +287,14 @@ function Tabs<T extends string>({
         </button>
       ))}
     </div>
+  )
+  return trailing ? (
+    <div className={styles.tabsBar}>
+      {list}
+      <span className={styles.tabsTrailing}>{trailing}</span>
+    </div>
+  ) : (
+    list
   )
 }
 

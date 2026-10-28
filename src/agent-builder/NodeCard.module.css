@@ -151,7 +151,6 @@
 .field dd {
   min-width: 0;
   margin: 0;
-  font-family: var(--lc-font-data);
   font-size: var(--lc-font-small-size);
   text-align: right;
   overflow-wrap: anywhere;
@@ -215,7 +214,6 @@
 
 .part[data-role='value'] {
   color: color-mix(in srgb, var(--node-accent, currentColor) 70%, rgb(var(--ink-rgb)));
-  font-family: var(--lc-font-data);
 }
 
 .part[data-role='operator'],
@@ -459,7 +457,6 @@
 }
 
 .chart[data-labelled] .chartKpi strong {
-  font-family: var(--lc-font-data);
   font-size: 32px;
   font-weight: 500;
   line-height: 1;
@@ -687,7 +684,6 @@
   border: 1px solid rgb(var(--ink-rgb) / 0.1);
   border-radius: var(--radius-md);
   background: rgb(var(--ink-rgb) / 0.08);
-  font-family: var(--lc-font-data);
   font-size: var(--lc-font-small-size);
   line-height: 24px;
 }
@@ -857,7 +853,6 @@
 }
 
 .dataTable td {
-  font-family: var(--lc-font-data);
 }
 
 .dataTable td[data-type='number'] {
@@ -873,7 +868,6 @@
   margin: 0;
   padding: var(--space-xs) var(--node-pad) 0;
   color: rgba(255, 255, 255, 0.8);
-  font-family: var(--lc-font-data);
   font-size: var(--lc-font-small-size);
   line-height: 18px;
 }
@@ -894,7 +888,6 @@
 }
 
 .schemaName {
-  font-family: var(--lc-font-data);
 }
 
 .schemaType {
@@ -902,7 +895,6 @@
   border-radius: var(--radius-xs);
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.6);
-  font-family: var(--lc-font-data);
 }
 
 .dataEmpty {

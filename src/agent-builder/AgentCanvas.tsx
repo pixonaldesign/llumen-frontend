@@ -92,7 +92,7 @@ import { STICKY_MIN_SIZE, stickyStyle, type StickyStyle } from './stickyNote'
 import { cardDetails, defaultTriggerId, executableTriggers, type FlowState } from './triggerCard'
 import { nodeDataSides, nodeDataViews } from './cardSections'
 import { NodeConfigWindow, type NeighbourNode, type UpstreamNode } from './NodeConfigWindow'
-import { NodeDataDialog } from './NodeDataDialog'
+import { NodeDataDialog, type InputLayer } from './NodeDataDialog'
 import { SHORTCUTS } from './shortcuts'
 import {
   DEFAULT_CANVAS_LOOK,
@@ -120,7 +120,7 @@ import { useDismiss } from './useDismiss'
 import { NodeLibrarySheet } from './NodeLibrarySheet'
 import { buildShowcase, layoutShowcase, type CanvasGroupLabel } from './showcase'
 import { nodeAliases, planRun, runRows } from './nodeRuntime'
-import { addBranch, removeBranch, type AnyParams } from './nodeKinds'
+import { addBranch, kindInputLayers, kindWiringIssue, removeBranch, type AnyParams, type WiredStep } from './nodeKinds'
 import {
   createNode,
   isAnnotation,
@@ -1894,6 +1894,30 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     if (upstream.length === 0) return null
     return upstream.flatMap((edge) => runs[edge.from]?.ports?.[edge.fromPort] ?? [])
   }
+  const wiredStep = (id: string): WiredStep[] => {
+    const node = nodesById[id]
+    return node ? [{ id, typeId: node.type, name: nodeName(node, nodeType(node)) }] : []
+  }
+  const wiringIssue = (node: CanvasNode) =>
+    kindWiringIssue(node.type, node.config.params, () => ({
+      wired: doc.edges
+        .filter((edge) => edge.to === node.id)
+        .flatMap((edge) => wiredStep(edge.from))
+        .filter((step) => NODE_TYPES_BY_ID[step.typeId]?.category !== 'triggers'),
+      upstream: ancestorsNearestFirst(node.id, doc.edges).flatMap(wiredStep),
+    }))
+  /** The wired input and the steps a kind references beside it, each with its role and last rows; one entry is no choice. */
+  const inputLayers = (node: CanvasNode): InputLayer[] | undefined => {
+    const layers = kindInputLayers(node.type, node.config.params)
+    if (!layers) return undefined
+    const wired = doc.edges.filter((edge) => edge.to === node.id).flatMap((edge) => wiredStep(edge.from))
+    return [
+      ...wired.map((step) => ({ id: step.id, name: step.name, role: layers.wired, records: inputFor(node.id) })),
+      ...layers.references.flatMap((reference) =>
+        wiredStep(reference.id).map((step) => ({ id: step.id, name: step.name, role: reference.role, records: runRows(runs[step.id]) })),
+      ),
+    ]
+  }
   /** Per input port, the steps wired in, named with their branch when they have several, and the rows they sent. */
   const inputSources = (id: string, type: NodeType): Record<string, InputSource> | undefined => {
     if (type.inputs.length < 2) return undefined
@@ -2056,6 +2080,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         run={runs[dataDialogNode.id] ?? IDLE}
         input={inputFor(dataDialogNode.id)}
         output={runRows(runs[dataDialogNode.id])}
+        inputLayers={inputLayers(dataDialogNode)}
         anchor={{
           ...toScreen(dataDialogPosition),
           right: toScreen({ x: dataDialogPosition.x + dataDialogSize.w, y: 0 }).left,
@@ -2064,6 +2089,10 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         clearTop={CHROME_TOP}
         clearBottom={CHROME_BOTTOM}
         onClose={closeDataDialog}
+        onViewAll={() => {
+          closeDataDialog()
+          openConfig(dataDialogNode.id)
+        }}
       />
     ) : null
   const selectedFrame = nodeFrame(selectedNode)
@@ -2250,6 +2279,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                 run={nodeRun}
                 input={nodeInput}
                 inputSources={inputSources(node.id, type)}
+                wiringIssue={wiringIssue(node)}
                 output={nodeOutput}
                 activePorts={activePorts}
                 connectedPorts={connectedPorts}

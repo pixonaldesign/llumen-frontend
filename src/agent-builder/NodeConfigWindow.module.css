@@ -303,6 +303,27 @@ button.tab[aria-selected='true'] {
   color: #fff;
 }
 
+/* Tabs with something at the far end; the bar's rule spans both. */
+.tabsBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tabsBar > .tabs {
+  flex: 1;
+}
+
+.tabsTrailing {
+  position: absolute;
+  right: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
 .columnTools {
   display: flex;
   flex-direction: column;

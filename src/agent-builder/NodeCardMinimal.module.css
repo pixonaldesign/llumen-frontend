@@ -398,7 +398,6 @@
 .field dd {
   min-width: 0;
   margin: 0;
-  font-family: var(--lc-font-data);
   font-size: var(--lc-font-small-size);
   text-align: right;
   overflow-wrap: anywhere;

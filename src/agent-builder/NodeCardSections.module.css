@@ -400,7 +400,6 @@
 .promptInput::placeholder {
   color: rgb(var(--ink-rgb) / 0.35);
 }
-
 /* ---------- Footer: the last run's data ---------- */
 
 .footer {
@@ -468,7 +467,6 @@
 
 .countdownTime {
   color: rgb(var(--ink-rgb) / 0.95);
-  font-family: var(--lc-font-data);
   font-size: var(--lc-font-body-size);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -604,7 +602,6 @@
 
 .table td {
   color: rgb(var(--ink-rgb) / 0.85);
-  font-family: var(--lc-font-data);
 }
 
 .table td[data-type='number'] {
@@ -843,23 +840,34 @@
   --card-surface: linear-gradient(to bottom, rgb(var(--node-glow-rgb) / 0.2), rgb(var(--node-deep-rgb) / 0.2) 32%);
 }
 
+/* Where the frame finishes fading from the category colour; registered so a hover can animate it. */
+@property --frame-stop {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 29%;
+}
+
 /* A border can't take a gradient with rounded corners, so the frame is a masked layer over the transparent border. */
 :global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node .card::before {
   position: absolute;
   inset: -1px;
   border: 1px solid transparent;
   border-radius: inherit;
-  background: linear-gradient(to bottom, rgb(var(--node-glow-rgb)), rgb(var(--node-edge-rgb)) 29%) border-box;
+  background: linear-gradient(to bottom, rgb(var(--node-glow-rgb)), rgb(var(--node-edge-rgb)) var(--frame-stop)) border-box;
   content: '';
   pointer-events: none;
   mask:
     linear-gradient(#000 0 0) padding-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
-  transition: opacity var(--lc-duration) var(--lc-ease);
+  transition:
+    opacity var(--lc-duration) var(--lc-ease),
+    --frame-stop 400ms var(--lc-ease);
 }
 
+/* On hover the frame brightens and its category colour runs down to the card's middle. */
 :global(:is([data-card-glow='gradient'], [data-card-glow='iconHeader'])) .node:hover .card::before {
+  --frame-stop: 50%;
   filter: brightness(1.3);
 }
 

@@ -72,6 +72,8 @@ export type NodeCardProps = {
   onRemoveOutput?: (portId: string) => void
   /** What's wired into each input, by port, for kinds with more than one. */
   inputSources?: Readonly<Record<string, InputSource>>
+  /** A problem only the graph shows, e.g. nothing wired in; the card shows it after the node's own. */
+  wiringIssue?: string
   /** No header or footer: the icon, actions, and title open the content panel, without a description; input and output open over the canvas (sectioned style). */
   headless?: boolean
   /** Opens the node's input and output over the canvas. */

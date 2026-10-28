@@ -27,7 +27,6 @@ import { cardDetails, type FlowState } from './triggerCard'
 export type ContentBlock =
   | { kind: 'asset'; preview: AssetPreview }
   | { kind: 'prompt'; prompt: KindPrompt; label: string; placeholder: string }
-
 /** A critical result is one someone should act on; a warning is one worth watching. */
 export type ResultTone = 'critical' | 'warning'
 

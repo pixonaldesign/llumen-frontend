@@ -9,6 +9,8 @@ import { plural, stepColumns, useFocusItem, type EditorContext, type EditorProps
 import { AddButton, ColumnSelect, Notice, RemoveButton, Segmented, TemplateField, TextAreaField } from './KindControls'
 import {
   BOTTOM_LABEL,
+  gisUpperIssue,
+  INSIGHT_TYPE_LABEL,
   uid,
   UNCLASSIFIED,
   UPPER_LABEL,
@@ -126,10 +128,10 @@ export function ClassificationConfig({ params, set, ctx }: EditorProps<Classific
 /* ---------- Insight ---------- */
 
 const INSIGHT_TYPES: readonly SelectOption<InsightType>[] = [
-  { id: 'summary', label: 'Summary', description: 'What the data says, in brief.' },
-  { id: 'trend', label: 'Trend', description: 'What is rising or falling, and how fast.' },
-  { id: 'anomaly', label: 'Anomaly', description: 'What stands out from the rest.' },
-  { id: 'recommendation', label: 'Recommendation', description: 'What to do next, and why.' },
+  { id: 'summary', label: INSIGHT_TYPE_LABEL.summary, description: 'What the data says, in brief.' },
+  { id: 'trend', label: INSIGHT_TYPE_LABEL.trend, description: 'What is rising or falling, and how fast.' },
+  { id: 'anomaly', label: INSIGHT_TYPE_LABEL.anomaly, description: 'What stands out from the rest.' },
+  { id: 'recommendation', label: INSIGHT_TYPE_LABEL.recommendation, description: 'What to do next, and why.' },
 ]
 
 export function InsightConfig({ params, set, ctx }: EditorProps<InsightParams>) {
@@ -171,13 +173,7 @@ const BOTTOM_OPTIONS = (Object.keys(BOTTOM_LABEL) as BottomLayerKind[]).map((id)
 export function GisConfig({ params, set, ctx }: EditorProps<GisParams>) {
   const wired = ctx.upstream.filter((step) => step.direct && step.category !== 'triggers')
   const upper = wired.length === 1 ? wired[0] : undefined
-  const upperError = !wired.length
-    ? 'Wire an Asset node into this one; it’s the upper layer.'
-    : wired.length > 1
-      ? 'Only one layer can be wired in; the land layer is chosen below.'
-      : upper?.typeId !== 'asset'
-        ? `${upper?.name} isn’t an Asset node. The upper layer must come straight from one.`
-        : undefined
+  const upperError = gisUpperIssue(wired)
   const assets = ctx.upstream.filter((step) => step.typeId === 'asset' && step.id !== upper?.id)
   const bottom = ctx.upstream.find((step) => step.id === params.bottomRef)
   const upperColumns = upper?.records ? columnsOf(upper.records) : []

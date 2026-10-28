@@ -12,6 +12,12 @@ export const sentenceCase = (text: string) =>
     offset === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : /^[A-Z][a-z]+$/.test(word) ? word.toLowerCase() : word,
   )
 
+/** A field name as words, e.g. `recommended_action` reads "Recommended action"; references keep the name itself. */
+export const fieldLabel = (name: string) => {
+  const words = name.replace(/[_-]+/g, ' ').trim()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
 /** Emails, URLs and hosts read as written, so a badge never capitalises them. */
 const LITERAL = /@|:\/\/|^[\w-]+(\.[\w-]+)+(\/|$)/
 

@@ -20,7 +20,7 @@ import {
   type NodeRun,
   type PortSide,
 } from './nodeCatalog'
-import { branchAddLabel } from './nodeKinds'
+import { branchAddLabel, isFallbackBranch } from './nodeKinds'
 import tones from './nodeTones.module.css'
 import styles from './NodeCardMinimal.module.css'
 
@@ -91,6 +91,7 @@ export function NodeCardMinimal({
   appearanceOpen,
   dataOpen,
   onNoteChange,
+  wiringIssue,
   iconContainer = 'tile',
   valuesPanel = false,
   flow = UNPUBLISHED,
@@ -102,7 +103,7 @@ export function NodeCardMinimal({
   const details = cardDetails(node, isTrigger, flow)
   const fields = config.hideDetails ? [] : details.fields
   const text = config.hideDetails ? undefined : details.text
-  const issue = nodeIssue(node) ?? nodeNotice(node)
+  const issue = nodeIssue(node) ?? wiringIssue ?? nodeNotice(node)
   const preview = nodePreview(node)
   const addLabel = branchAddLabel(type.id)
   const outputs = nodeOutputs(node, type)
@@ -252,9 +253,9 @@ export function NodeCardMinimal({
                 {value.tone && value.tone !== 'neutral' ? (
                   <span className={`${styles.rowDot} ${styles[`rowDot_${value.tone}`]}`} aria-hidden />
                 ) : (
-                  <span className={styles.rowIndex}>{value.id === 'default' ? '–' : index + 1}</span>
+                  <span className={styles.rowIndex}>{isFallbackBranch(value.id) ? '–' : index + 1}</span>
                 )}
-                <span className={value.id === 'default' ? `${styles.rowLabel} ${styles.rowLabelMuted}` : styles.rowLabel}>
+                <span className={isFallbackBranch(value.id) ? `${styles.rowLabel} ${styles.rowLabelMuted}` : styles.rowLabel}>
                   {value.label}
                 </span>
                 {port(value, 'out', styles.rowPortOut)}
