@@ -12,7 +12,7 @@ import {
   type NodeRun,
   type NodeType,
 } from './nodeCatalog'
-import { GRAIN_LABEL, kindPrompt, paramsFor, type KindPrompt } from './nodeKinds'
+import { GRAIN_LABEL, kindPrompt, paramsFor, type AppNavigation, type KindPrompt } from './nodeKinds'
 import { sentenceCase } from './recordUtils'
 import { cardDetails, type FlowState } from './triggerCard'
 
@@ -39,8 +39,7 @@ export type DataPreview =
   | { kind: 'results'; rows: number; tiles: readonly ResultTile[]; caption?: string; hint?: string }
   | { kind: 'asset'; title: string; settings: CreateAssetSettings; records: readonly DataRecord[] }
   | { kind: 'text'; text: string }
-  | { kind: 'slides'; title: string }
-  | { kind: 'document'; title: string; sections: number; words: number }
+  | { kind: 'app'; title: string; pages: number; navigation: AppNavigation }
 
 export type CardHeader = { category: string }
 
@@ -191,8 +190,9 @@ export function dataPreview(records: readonly DataRecord[] | null): DataPreview 
   if (!records?.length) return null
   const [first] = records
   if (records.length === 1) {
-    if (first.created_entity_kind === 'slides') return { kind: 'slides', title: text(first.created_entity_title) }
-    if (first.kind === 'briefing') return { kind: 'document', title: text(first.title), sections: count(first.sections), words: count(first.words) }
+    if (first.created_entity_kind === 'app') {
+      return { kind: 'app', title: text(first.created_entity_title), pages: count(first.pages), navigation: first.navigation === 'sequential' ? 'sequential' : 'tabs' }
+    }
     if (first.kind === 'text' && typeof first.text === 'string') return { kind: 'text', text: first.text }
   }
   return { kind: 'table', records }

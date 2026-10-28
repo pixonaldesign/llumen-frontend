@@ -137,6 +137,11 @@ export type GisParams = InstructionsParams & {
   bottom: { kind: BottomLayerKind; class_field?: string; value_field?: string }
 }
 
+/** How readers move between the app's pages: tabs along the top, or one page after another. */
+export type AppNavigation = 'tabs' | 'sequential'
+export type AppParams = InstructionsParams & { navigation: AppNavigation }
+export const APP_NAVIGATION_LABEL: Record<AppNavigation, string> = { tabs: 'Tabbed', sequential: 'Sequential' }
+
 export type AlertMeasure = 'any_row' | 'every_row' | 'row_count' | 'sum' | 'avg' | 'min' | 'max'
 export type DataAlertCondition = { id: string; type: 'data'; sourceNodeId?: string; field: string; measure: AlertMeasure; operator: Operator; value: string }
 export type EventAlertCondition = { id: string; type: 'forecast_event'; withinHours: number; event: string }
@@ -200,9 +205,7 @@ export type KindParamsMap = {
   insightGenerator: InsightParams
   dataAnalyst: InstructionsParams
   gisCorrelationAgent: GisParams
-  slidesAgent: InstructionsParams
-  dashboardAgent: InstructionsParams
-  briefingAgent: InstructionsParams
+  createApp: AppParams
   aiFindings: AiFindingsParams
   sendChatMessage: ChatMessageParams
   sendEmail: EmailParams
@@ -269,9 +272,7 @@ export const KIND_DEFAULTS: { readonly [K in KindId]: KindParamsMap[K] } = {
     upper: { kind: 'events' },
     bottom: { kind: 'land_type' },
   },
-  slidesAgent: { instructions: 'Build an executive brief on this month’s contamination hotspots.' },
-  dashboardAgent: { instructions: 'Lay out the hotspot KPIs and trend charts for the operations team.' },
-  briefingAgent: { instructions: 'Write a one-page briefing for the director on sites that need action.' },
+  createApp: { instructions: 'Build an app on this month’s contamination hotspots.', navigation: 'tabs' },
   aiFindings: { instructions: '', alerts: { enabled: false, criteria: '', rules: [] } },
   sendChatMessage: { mode: 'send_message', responseType: 'free_text', message: '', approveLabel: 'Approve', rejectLabel: 'Reject' },
   sendEmail: { to: 'ops@llumen.ai', cc: '', bcc: '', subject: 'Daily anomaly brief', body: 'Today’s run flagged {{rows.count}} items.' },
@@ -583,9 +584,7 @@ export function kindIssue(typeId: string, stored: unknown): string | undefined {
     }
     case 'generalAgent':
     case 'dataAnalyst':
-    case 'slidesAgent':
-    case 'dashboardAgent':
-    case 'briefingAgent':
+    case 'createApp':
     case 'gisCorrelationAgent':
       return required(paramsFor(typeId, stored).instructions, 'Enter instructions for the agent')
     case 'dataClassificationAgent':
@@ -700,6 +699,8 @@ export function kindFields(typeId: string, stored: unknown): NodeField[] {
       const params = paramsFor(typeId, stored)
       return [{ label: 'Layers', value: `${UPPER_LABEL[params.upper.kind]} over ${BOTTOM_LABEL[params.bottom.kind].toLowerCase()}` }]
     }
+    case 'createApp':
+      return [{ label: 'Pages', value: APP_NAVIGATION_LABEL[paramsFor(typeId, stored).navigation] }]
     case 'aiFindings': {
       const alerts = paramsFor(typeId, stored).alerts
       return [{ label: 'Alerts', value: alerts.enabled ? `${alerts.rules.length} ${alerts.rules.length === 1 ? 'rule' : 'rules'}` : 'Off' }]
@@ -739,9 +740,7 @@ export function kindPrompt(typeId: string, stored: unknown): KindPrompt | undefi
     case 'insightGenerator':
     case 'dataAnalyst':
     case 'gisCorrelationAgent':
-    case 'slidesAgent':
-    case 'dashboardAgent':
-    case 'briefingAgent':
+    case 'createApp':
     case 'aiFindings':
       return { param: 'instructions', value: paramsFor(typeId, stored).instructions }
     case 'sendChatMessage':
@@ -798,20 +797,20 @@ export function kindWiringIssue(typeId: string, stored: unknown, graph: () => Wi
   return gisUpperIssue(wired) ?? gisLandIssue(paramsFor(typeId, stored), upstream, wired[0]?.id)
 }
 
-/** Upstream steps whose asset a deck can place: bound Asset nodes and Create Asset steps. */
-export const isDeckAsset = (typeId: string) => typeId === 'asset' || typeId === 'createAsset'
+/** Upstream steps whose asset an app can place: bound Asset nodes and Create Asset steps. */
+export const isAppAsset = (typeId: string) => typeId === 'asset' || typeId === 'createAsset'
 
 /**
  * Kinds that read steps beside what's wired in, each named by its role: a GIS node's land layer, or the
- * assets upstream a deck can place.
+ * assets upstream an app can place.
  */
 export function kindInputLayers(
   typeId: string,
   stored: unknown,
   upstream: readonly WiredStep[],
 ): { wired: string; references: readonly { id: string; role: string }[] } | undefined {
-  if (typeId === 'slidesAgent') {
-    return { wired: 'Input', references: upstream.filter((step) => isDeckAsset(step.typeId)).map((step) => ({ id: step.id, role: 'Asset' })) }
+  if (typeId === 'createApp') {
+    return { wired: 'Input', references: upstream.filter((step) => isAppAsset(step.typeId)).map((step) => ({ id: step.id, role: 'Asset' })) }
   }
   if (typeId !== 'gisCorrelationAgent') return undefined
   const { bottomRef } = paramsFor(typeId, stored)

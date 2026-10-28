@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { Bell, Lightbulb, MapTrifold, Robot, Stack, Tag } from '@phosphor-icons/react'
+import { Bell, Browsers, Lightbulb, MapTrifold, Robot, Stack, Tag } from '@phosphor-icons/react'
 import { evaluateRule, MEASURE_LABEL, ROW_MEASURES, type RuleVerdict } from './alerts'
 import { Card, Field, NumberInput, Select, SwitchRow, type SelectOption } from './ConfigControls'
 import { inputClass } from './configStyles'
@@ -8,6 +8,7 @@ import { columnsOf } from './createAsset'
 import { plural, stepColumns, useFocusItem, type EditorContext, type EditorProps } from './kindEditor'
 import { AddButton, ColumnSelect, Notice, RemoveButton, Segmented, TemplateField, TextAreaField } from './KindControls'
 import {
+  APP_NAVIGATION_LABEL,
   BOTTOM_LABEL,
   gisUpperIssue,
   INSIGHT_TYPE_LABEL,
@@ -18,6 +19,8 @@ import {
   type AlertCondition,
   type AlertMeasure,
   type AlertRule,
+  type AppNavigation,
+  type AppParams,
   type BottomLayerKind,
   type Category,
   type ClassificationParams,
@@ -36,9 +39,7 @@ const ABOUT: Record<string, string> = {
   insightGenerator: 'Writes one insight with the fields you name, from the rows it receives.',
   dataAnalyst: 'Returns a verdict document. If the data can’t answer the question, the step fails with WF_AGENT_CANNOT_PERFORM.',
   gisCorrelationAgent: 'Overlays the wired layer on a land layer and says how they relate.',
-  slidesAgent: 'Builds a slide deck from its input and the assets upstream. Every run saves a new deck, test runs included.',
-  dashboardAgent: 'Returns a text document laying out the dashboard: KPIs, charts, and what each shows.',
-  briefingAgent: 'Writes a briefing from its input. Flow runs save it; test runs only preview it.',
+  createApp: 'Builds an app from its input and the assets upstream. Every run saves a new app, test runs included.',
 }
 
 function InstructionsCard({ params, set, ctx, placeholder }: EditorProps<InstructionsParams> & { placeholder?: string }) {
@@ -62,6 +63,27 @@ function InstructionsCard({ params, set, ctx, placeholder }: EditorProps<Instruc
 
 export function AgentInstructionsConfig(props: EditorProps<InstructionsParams>) {
   return <InstructionsCard {...props} />
+}
+
+/* ---------- App ---------- */
+
+const NAVIGATION_OPTIONS = (Object.keys(APP_NAVIGATION_LABEL) as AppNavigation[]).map((id) => ({ id, label: APP_NAVIGATION_LABEL[id] }))
+
+export function AppConfig({ params, set, ctx }: EditorProps<AppParams>) {
+  return (
+    <>
+      <InstructionsCard params={params} set={set} ctx={ctx} placeholder="e.g. Build an app on this week’s contamination outliers." />
+      <Card
+        icon={<Browsers size={16} aria-hidden />}
+        title="Pages"
+        description={params.navigation === 'tabs' ? 'Readers switch pages with tabs along the top.' : 'Readers go through the pages in order, with Next and Back.'}
+      >
+        <Field label="Navigation">
+          <Segmented label="Page navigation" value={params.navigation} options={NAVIGATION_OPTIONS} onChange={(navigation) => set({ navigation }, 'navigation')} />
+        </Field>
+      </Card>
+    </>
+  )
 }
 
 /* ---------- Classification ---------- */

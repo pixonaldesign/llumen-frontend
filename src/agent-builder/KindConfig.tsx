@@ -1,6 +1,6 @@
 import { FlowArrow } from '@phosphor-icons/react'
 import { ApiRequestConfig, ChatMessageConfig, EmailConfig } from './ActionConfig'
-import { AgentInstructionsConfig, AiFindingsConfig, ClassificationConfig, GisConfig, InsightConfig } from './AgentConfig'
+import { AgentInstructionsConfig, AiFindingsConfig, AppConfig, ClassificationConfig, GisConfig, InsightConfig } from './AgentConfig'
 import { Card } from './ConfigControls'
 import { CreateAssetConfig } from './CreateAssetConfig'
 import { AssetConfig, ForecastConfig, MlModelConfig, SourceConfig } from './DataConfig'
@@ -95,10 +95,9 @@ export function KindConfig({ ctx, onParams }: KindConfigProps) {
       return <StopAndErrorConfig params={paramsFor(typeId, stored)} set={set} ctx={ctx} />
     case 'generalAgent':
     case 'dataAnalyst':
-    case 'slidesAgent':
-    case 'dashboardAgent':
-    case 'briefingAgent':
       return <AgentInstructionsConfig params={paramsFor(typeId, stored)} set={set} ctx={ctx} />
+    case 'createApp':
+      return <AppConfig params={paramsFor(typeId, stored)} set={set} ctx={ctx} />
     case 'dataClassificationAgent':
       return <ClassificationConfig params={paramsFor(typeId, stored)} set={set} ctx={ctx} />
     case 'insightGenerator':

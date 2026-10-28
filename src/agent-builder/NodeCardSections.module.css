@@ -668,57 +668,13 @@
   line-height: 16px;
 }
 
-.deckThumb {
+.appThumb {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
   border: 1px solid rgb(var(--ink-rgb) / 0.08);
   border-radius: var(--radius-md);
-}
-
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px;
-  border: 1px solid rgb(var(--ink-rgb) / 0.08);
-  border-radius: var(--radius-md);
-  background: rgb(var(--ink-rgb) / 0.04);
-  flex-shrink: 0;
-  width: 54px;
-  aspect-ratio: 3 / 4;
-}
-
-.document {
-  display: flex;
-  align-items: center;
-  gap: var(--space-lg);
-  min-width: 0;
-}
-
-.documentText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-/* Placeholder text lines inside a slide or page thumbnail. */
-.line {
-  height: 3px;
-  border-radius: 2px;
-  background: rgb(var(--ink-rgb) / 0.18);
-}
-
-.line:nth-child(2n) {
-  width: 70%;
-}
-
-.lineStrong {
-  height: 4px;
-  width: 80%;
-  background: rgb(var(--ink-rgb) / 0.55);
 }
 
 /* ---------- Style 3 (and Style 4 on top): a category-colour frame holding the header, content and data in black panels ---------- */

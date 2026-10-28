@@ -1,11 +1,11 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { CaretRight, MagnifyingGlass, Warning, X } from '@phosphor-icons/react'
-import slidesThumbnail from './assets/slides-thumbnail.jpg'
 import { nodeDataSides, nodeDataViews, type DataSide } from './cardSections'
+import { APP_THUMBNAIL } from './appThumbnail'
 import { DataViewBody } from './DataViews'
 import { Tabs } from './NodeConfigWindow'
 import { nodeName, nodeOutputs, type CanvasNode, type DataRecord, type DataValue, type NodeRun, type NodeType } from './nodeCatalog'
-import { INSIGHT_TYPE_LABEL, isFallbackBranch, paramsFor } from './nodeKinds'
+import { APP_NAVIGATION_LABEL, INSIGHT_TYPE_LABEL, isFallbackBranch, paramsFor } from './nodeKinds'
 import { displayValue, fieldLabel, filterRecords } from './recordUtils'
 import styles from './NodeDataDialog.module.css'
 import tones from './nodeTones.module.css'
@@ -196,21 +196,25 @@ function GroupList({ groups, label, open, onToggle, query, onViewAll }: GroupLis
   )
 }
 
-/** A saved deck: its thumbnail and title, then the agent's summary and any warning; the id stays out of sight. */
-function SavedDeck({ record }: { record: DataRecord }) {
+/** A saved app: its thumbnail and title, then the agent's summary and any warning; the id stays out of sight. */
+function SavedApp({ record }: { record: DataRecord }) {
+  const navigation = record.navigation === 'sequential' ? 'sequential' : 'tabs'
+  const pages = Number(record.pages) || 0
   return (
     <div className={styles.made}>
-      <figure className={styles.deck}>
-        <img className={styles.deckThumb} src={slidesThumbnail} alt="" />
-        <figcaption className={styles.deckCaption}>
-          <span className={styles.deckText}>
-            <span className={styles.deckTitle} title={displayValue(record.created_entity_title)}>
+      <figure className={styles.app}>
+        <img className={styles.appThumb} src={APP_THUMBNAIL[navigation]} alt="" />
+        <figcaption className={styles.appCaption}>
+          <span className={styles.appText}>
+            <span className={styles.appTitle} title={displayValue(record.created_entity_title)}>
               {displayValue(record.created_entity_title)}
             </span>
-            <span className={styles.deckMeta}>Saved to Slides</span>
+            <span className={styles.appMeta}>
+              {pages} {APP_NAVIGATION_LABEL[navigation].toLowerCase()} {pages === 1 ? 'page' : 'pages'} · Saved to Apps
+            </span>
           </span>
-          <button type="button" className={styles.deckOpen}>
-            Open slides
+          <button type="button" className={styles.appOpen}>
+            Open app
           </button>
         </figcaption>
       </figure>
@@ -286,11 +290,11 @@ export function NodeDataDialog({
   const tabbed = sides.length > 1
   const view = views[side]
   const records = view.records ?? []
-  const savedDeck = side === 'output' && records.length === 1 && records[0].created_entity_kind === 'slides'
+  const savedApp = side === 'output' && records.length === 1 && records[0].created_entity_kind === 'app'
   const layout = side === 'output' ? RECORD_LAYOUTS[type.id] : undefined
   const asRecord = !groups && readsAsRecord(records, layout)
   /** Only where there's something to sift: several rows, or one long record. */
-  const searchable = records.length > 1 || (asRecord && !savedDeck && Object.keys(records[0]).length > SEARCH_FIELDS)
+  const searchable = records.length > 1 || (asRecord && !savedApp && Object.keys(records[0]).length > SEARCH_FIELDS)
   const query = searchable ? typed : ''
   /** Read from the output whichever side is showing, so switching sides doesn't move the header. */
   const verdict = views.output.records?.length === 1 ? views.output.records[0] : undefined
@@ -422,8 +426,8 @@ export function NodeDataDialog({
           />
         ) : !records.length ? (
           <p className={styles.empty}>No rows.</p>
-        ) : savedDeck ? (
-          <SavedDeck record={records[0]} />
+        ) : savedApp ? (
+          <SavedApp record={records[0]} />
         ) : (
           <Rows records={records} query={query} layout={layout} onViewAll={onViewAll} />
         )}

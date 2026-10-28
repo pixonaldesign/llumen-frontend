@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   ArrowsMerge,
   ChatCircle,
   Clock,
@@ -8,7 +9,6 @@ import {
   Database,
   Empty,
   Envelope,
-  FileText,
   Funnel,
   GitBranch,
   Graph,
@@ -274,9 +274,7 @@ export const NODE_TYPES: readonly NodeType[] = [
   analysisAgent('dataAnalyst', 'Data Analyst', 'Statistical diagnosis of upstream data: baselines, trends, and outliers.', ListMagnifyingGlass),
   analysisAgent('gisCorrelationAgent', 'GIS Correlation Agent', 'Compares a map layer with the land layer underneath.', StackSimple),
 
-  outputAgent('slidesAgent', 'Create Slides', 'Generate and save slides from workflow context.', FileText),
-  outputAgent('dashboardAgent', 'Create Dashboard', 'Draft dashboard content from workflow context.', SquaresFour),
-  outputAgent('briefingAgent', 'Create Briefing', 'Generate and save a briefing from workflow context.', FileText),
+  outputAgent('createApp', 'Create App', 'Generate and save an app from workflow context.', AppWindow),
   outputAgent('aiFindings', 'AI Findings', 'Opt the published Flow into AI-written findings about its runs.', Lightbulb, {
     singleton: true,
     outputs: NONE,

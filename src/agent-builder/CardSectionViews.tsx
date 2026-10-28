@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { AssetPreviewChart } from './AssetPreviewChart'
-import slidesThumbnail from './assets/slides-thumbnail.jpg'
+import { APP_THUMBNAIL } from './appThumbnail'
 import type { ContentBlock, DataPreview } from './cardSections'
 import { isMapLayer } from './createAsset'
 import { NodeAssetPreview } from './NodeAssetPreview'
@@ -144,32 +144,14 @@ const PREVIEW_VIEWS: { [K in DataPreview['kind']]: (props: { preview: PreviewOf<
       <p className={styles.text}>{preview.text}</p>
     </div>
   ),
-  slides: ({ preview }) => (
+  app: ({ preview }) => (
     <div className={`${styles.footerBody} ${styles.made}`}>
-      <img className={styles.deckThumb} src={slidesThumbnail} alt="" />
+      <img className={styles.appThumb} src={APP_THUMBNAIL[preview.navigation]} alt="" />
       <div>
         <p className={styles.madeTitle} title={preview.title}>
           {preview.title}
         </p>
-        <p className={styles.madeMeta}>Saved to Slides</p>
-      </div>
-    </div>
-  ),
-  document: ({ preview }) => (
-    <div className={`${styles.footerBody} ${styles.document}`}>
-      <span className={styles.page} aria-hidden>
-        <span className={`${styles.line} ${styles.lineStrong}`} />
-        <span className={styles.line} />
-        <span className={styles.line} />
-        <span className={styles.line} />
-      </span>
-      <div className={styles.documentText}>
-        <p className={styles.madeTitle} title={preview.title}>
-          {preview.title}
-        </p>
-        <p className={styles.madeMeta}>
-          {plural(preview.sections, 'section')} · {preview.words.toLocaleString()} words
-        </p>
+        <p className={styles.madeMeta}>Saved to Apps · {plural(preview.pages, 'page')}</p>
       </div>
     </div>
   ),

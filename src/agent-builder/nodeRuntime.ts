@@ -18,7 +18,7 @@ import {
   UNCLASSIFIED,
   bodyAllowed,
   emailList,
-  isDeckAsset,
+  isAppAsset,
   kindIssue,
   paramsFor,
   scheduleSummary,
@@ -763,19 +763,7 @@ function runGis(input: StepInput): StepResult {
   return done({ out: [verdict] }, 62, { cost: agentCost(upper.length, 0.015) })
 }
 
-function runOutputAgent(input: StepInput, kind: 'slides' | 'briefing' | 'dashboard'): StepResult {
-  const rows = allRows(input)
-  const data = profile(rows)
-  const top = data.ranked[0]?.label
-  if (kind === 'dashboard') return done({ out: [{ kind: 'text', text: `Dashboard draft: ${narrative(rows)}` }] }, 30, { cost: agentCost(rows.length, 0.006) })
-  const others = data.ranked.length - 1
-  const title = top ? (others > 0 ? `${top} and ${others} other ${others === 1 ? 'hotspot' : 'hotspots'}` : top) : 'Workflow results'
-  if (kind === 'slides') return runSlides(input, rows, title)
-  const record: DataRecord = { kind: 'briefing', created_entity_id: stableId('brf', input.node.id), title, sections: 4, words: 520 + data.count * 18 }
-  return done({ out: [record] }, 70, { cost: agentCost(rows.length, 0.014), note: input.stepTest ? undefined : 'Saved as a new briefing.' })
-}
-
-/** A deck title from the prompt's subject, e.g. "Build an executive deck on X." reads "X". */
+/** An app title from the prompt's subject, e.g. "Build an app on X." reads "X". */
 function promptTitle(instructions: string) {
   const subject = instructions
     .trim()
@@ -786,24 +774,33 @@ function promptTitle(instructions: string) {
 
 const listFormat = new Intl.ListFormat('en', { type: 'conjunction' })
 
-/** The engine's output document for a saved deck; every run saves one, test runs included. */
-function runSlides(input: StepInput, rows: readonly DataRecord[], fallbackTitle: string): StepResult {
-  const assets = input.ancestors.filter((ancestor) => isDeckAsset(ancestor.typeId) && ancestor.rows?.length)
+/** The engine's output document for a saved app; every run saves one, test runs included. */
+function runApp(input: StepInput): StepResult {
+  const params = paramsFor('createApp', input.node.config.params)
+  const rows = allRows(input)
+  const assets = input.ancestors.filter((ancestor) => isAppAsset(ancestor.typeId) && ancestor.rows?.length)
   if (!rows.length && !assets.length) {
-    return fail('WF_OUTPUT_NOT_PERSISTED', 'The agent didn’t draft any slides: no rows or assets reached it, so no deck was saved.', 40)
+    return fail('WF_OUTPUT_NOT_PERSISTED', 'The agent didn’t draft any pages: no rows or assets reached it, so no app was saved.', 40)
   }
-  const title = promptTitle(paramsFor('slidesAgent', input.node.config.params).instructions) ?? fallbackTitle
-  const findings = Math.max(1, Math.min(4, rows.length))
+  const ranked = profile(rows).ranked
+  const others = ranked.length - 1
+  const fallbackTitle = ranked[0] ? (others > 0 ? `${ranked[0].label} and ${others} other ${others === 1 ? 'hotspot' : 'hotspots'}` : ranked[0].label) : 'Workflow results'
+  const title = promptTitle(params.instructions) ?? fallbackTitle
+  const findings = Math.max(1, Math.min(3, rows.length))
+  const pages = findings + 1
   const placed = assets.map((asset) => asset.name)
   const record: DataRecord = {
-    created_entity_id: stableId('sld', `${input.node.id}:${input.runId}`),
-    created_entity_kind: 'slides',
+    created_entity_id: stableId('app', `${input.node.id}:${input.runId}`),
+    created_entity_kind: 'app',
     created_entity_title: title,
+    navigation: params.navigation,
+    pages,
     text:
-      `Built “${title}”: a title slide, ${findings} findings ${findings === 1 ? 'slide' : 'slides'} and a closing slide on next steps.` +
+      `Built “${title}”: an overview page, then ${findings} ${findings === 1 ? 'page' : 'pages'} of findings, ` +
+      (params.navigation === 'tabs' ? 'each a tab along the top.' : 'read in order with Next and Back.') +
       (placed.length ? ` It places ${listFormat.format(placed)} beside the findings ${placed.length === 1 ? 'it supports' : 'they support'}.` : ''),
   }
-  return done({ out: [record] }, 70, { cost: agentCost(rows.length, 0.02), note: 'Saved as a new deck in Slides.' })
+  return done({ out: [record] }, 70, { cost: agentCost(rows.length, 0.02), note: 'Saved as a new app.' })
 }
 
 /* ---------- Actions ---------- */
@@ -938,12 +935,8 @@ export function executeStep(input: StepInput): StepResult {
       return runDataAnalyst(input)
     case 'gisCorrelationAgent':
       return runGis(input)
-    case 'slidesAgent':
-      return runOutputAgent(input, 'slides')
-    case 'briefingAgent':
-      return runOutputAgent(input, 'briefing')
-    case 'dashboardAgent':
-      return runOutputAgent(input, 'dashboard')
+    case 'createApp':
+      return runApp(input)
     case 'aiFindings':
       if (issue) return fail('WF_COMPILE_AI_FINDINGS_INVALID', `${issue}.`)
       return done({}, 0.05, { note: 'Findings are written for runs of the published Flow, not for test runs from the builder. Publish the Flow and run it to see its finding here.' })
