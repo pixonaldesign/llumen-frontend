@@ -29,7 +29,7 @@
   display: flex;
   padding-top: var(--briefing-bar-h, 64px);
   overflow: hidden;
-  background: #000;
+  background: #1b1d21;
   isolation: isolate;
 }
 
@@ -271,7 +271,7 @@
   justify-content: space-between;
   gap: 16px;
   min-height: 69px;
-  padding: 16px 20px;
+  padding: 16px var(--st-gutter, 20px);
   border-bottom: 1px solid var(--st-border);
 }
 
@@ -305,7 +305,7 @@
 }
 
 .tableHead {
-  padding: 12px 20px;
+  padding: 12px var(--st-gutter, 20px);
   border-bottom: 1px solid var(--st-border);
   color: var(--st-text-muted);
   font-size: 12px;
@@ -320,7 +320,7 @@
 }
 
 .row {
-  padding: 20px;
+  padding: 20px var(--st-gutter, 20px);
   border-bottom: 1px solid var(--st-border-subtle);
   transition: background-color 150ms ease;
 }
@@ -508,7 +508,7 @@
 
 .noResults {
   margin: 0;
-  padding: 48px 20px;
+  padding: 48px var(--st-gutter, 20px);
   color: var(--st-text-muted);
   text-align: center;
 }
@@ -884,7 +884,7 @@
 .grid {
   display: grid;
   gap: 16px;
-  padding: 20px;
+  padding: 20px var(--st-gutter, 20px);
 }
 
 /* Tracks sized so a 1920px window lands on Figma's columns: four cards, five briefings, two rooms. */
@@ -1056,6 +1056,13 @@
   padding: 16px;
 }
 
+.appChips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .roomCard .storyBody {
   flex: none;
 }
@@ -1224,7 +1231,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 48px 20px;
+  padding: 48px var(--st-gutter, 20px);
   text-align: center;
 }
 
@@ -1353,8 +1360,71 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  padding: 24px;
+  padding: 24px 0 24px 24px;
   overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+}
+
+.modalPanel > * {
+  margin-inline-end: 24px;
+}
+
+.modalPanel::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.modalPanel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modalPanel::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+.memberList {
+  display: flex;
+  flex-direction: column;
+  margin-top: -4px;
+  padding: 0;
+  list-style: none;
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--st-border);
+}
+
+.memberText {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.memberName,
+.memberEmail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberName {
+  font-weight: 500;
+}
+
+.memberEmail {
+  color: var(--st-text-muted);
+  font-size: 12px;
+}
+
+.memberRole {
+  flex: 0 0 180px;
 }
 
 .panelTitle {

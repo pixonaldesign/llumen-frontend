@@ -509,6 +509,21 @@
     width 760ms cubic-bezier(0.65, 0, 0.35, 1);
 }
 
+/*
+ * Over Studio experiences 9 and 10's overview: the Briefing's bottom slot, centred on the page, which in 9 starts
+ * after the sidebar (264px, .views in studio/StudioScenarios.module.css).
+ */
+.composerDockStudio {
+  --studio-nav: 0px;
+  left: var(--studio-nav);
+  bottom: 48px;
+  width: min(640px, calc(100vw - var(--studio-nav) - 48px));
+}
+
+.composerDockStudio[data-studio-bar='beside-sidebar'] {
+  --studio-nav: 264px;
+}
+
 .composerDockShifted {
   left: var(--lc-rail-width, 400px);
 }

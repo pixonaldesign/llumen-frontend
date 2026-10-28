@@ -441,6 +441,10 @@
   cursor: pointer;
 }
 
+.workspaceChip[data-mark='none'] {
+  padding-left: 14px;
+}
+
 .workspaceTile {
   width: 40px;
   height: 40px;
@@ -1934,6 +1938,54 @@
 .pill[aria-current='page'] {
   background: rgba(255, 255, 255, 0.14);
   color: var(--st-text) !important;
+}
+
+/* ── 10 · Overview ribbon ── */
+
+/* Pages keep the overview's 40px inset (--inset in StudioOverview.module.css); StudioView's rows read --st-gutter. */
+.ribbonShell {
+  --st-gutter: 40px;
+}
+
+/* The page's head (.head in StudioView.module.css) sits here, bare, above the page's scroller. */
+.headSlot {
+  position: relative;
+  z-index: 3;
+  flex: none;
+}
+
+.headSlot > * {
+  position: static;
+}
+
+.headSlot > *::before,
+.headSlot > *::after {
+  content: none;
+}
+
+.workspacePill {
+  padding: 0 12px 0 16px;
+  color: var(--st-text) !important;
+}
+
+.workspacePill:hover,
+.workspacePill[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pillIcon {
+  justify-content: center;
+  width: 34px;
+  margin-inline-end: 4px;
+  padding: 0;
+}
+
+.pillRule {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .gallery {

@@ -4,9 +4,7 @@ import {
   CaretDown,
   ChartDonut,
   ChartPieSlice,
-  Check,
   Cube,
-  Layout,
   LockSimple,
   MagnifyingGlass,
   Newspaper,
@@ -18,7 +16,7 @@ import {
   Users,
 } from '@phosphor-icons/react'
 import { landingAssets as a } from './landingAssets'
-import type { FindingsStyle, StudioStyle, TopBarVariant } from '../prototypeChrome'
+import type { TopBarVariant } from '../prototypeChrome'
 import { SearchOverlay } from './SearchOverlay'
 import home from './LandingHome.module.css'
 import styles from './LandingTopBar.module.css'
@@ -101,12 +99,6 @@ export type LandingTopBarProps = {
   /** Selected toggle option. Omit to keep the selection inside the studio bar. */
   view?: TopBarView
   onViewChange?: (view: TopBarView) => void
-  /** Studio bar with the workspace in the logo: a findings layout menu beside the workspace. */
-  findingsStyle?: FindingsStyle
-  onFindingsStyleChange?: (style: FindingsStyle) => void
-  /** Beside the findings layout menu: which Studio experience the Studio view shows. */
-  studioStyle?: StudioStyle
-  onStudioStyleChange?: (style: StudioStyle) => void
 }
 
 export function LandingTopBar({
@@ -121,10 +113,6 @@ export function LandingTopBar({
   myAssetsTab = false,
   view,
   onViewChange,
-  findingsStyle,
-  onFindingsStyleChange,
-  studioStyle,
-  onStudioStyleChange,
 }: LandingTopBarProps) {
   if (variant === 'studio') {
     return (
@@ -139,116 +127,10 @@ export function LandingTopBar({
         myAssetsTab={myAssetsTab}
         view={view}
         onViewChange={onViewChange}
-        findingsStyle={findingsStyle}
-        onFindingsStyleChange={onFindingsStyleChange}
-        studioStyle={studioStyle}
-        onStudioStyleChange={onStudioStyleChange}
       />
     )
   }
   return <CurrentBar />
-}
-
-type StyleOption<T extends number> = { style: T; label: string; hint: string }
-
-const FINDINGS_STYLES: readonly StyleOption<FindingsStyle>[] = [
-  { style: 1, label: 'Findings style 1', hint: 'Centred over the chat bar' },
-  { style: 2, label: 'Findings style 2', hint: 'Chat bar on the left' },
-  { style: 3, label: 'Findings style 3', hint: 'Chat bar above compact findings' },
-  { style: 4, label: 'Findings style 4', hint: 'Chat bar above the findings' },
-  { style: 5, label: 'Findings style 5', hint: 'Chat bar on the left' },
-  { style: 6, label: 'Findings style 6', hint: 'Assets and Apps slide in from the right' },
-  { style: 7, label: 'Findings style 7', hint: 'Assets panel on the right' },
-  { style: 8, label: 'Findings style 8', hint: 'Assets and Apps open over the map' },
-]
-
-const STUDIO_STYLES: readonly StyleOption<StudioStyle>[] = [
-  { style: 1, label: 'Studio UX 1', hint: 'Classic sidebar and asset grid' },
-  { style: 2, label: 'Studio UX 2', hint: 'Icon rail and a home hub' },
-  { style: 3, label: 'Studio UX 3', hint: 'Top tabs, list and inspector' },
-  { style: 4, label: 'Studio UX 4', hint: 'Bento overview with a floating dock' },
-  { style: 5, label: 'Studio UX 5', hint: 'Status board beside saved views' },
-  { style: 6, label: 'Studio UX 6', hint: 'Gallery shelves and a lightbox' },
-  { style: 7, label: 'Studio UX 7', hint: 'Home command centre with pinned assets' },
-  { style: 8, label: 'Studio UX 8', hint: 'Spatial canvas with a command palette' },
-]
-
-function StyleMenu<T extends number>({
-  label,
-  icon,
-  options,
-  value,
-  onChange,
-}: {
-  label: string
-  icon: ReactNode
-  options: readonly StyleOption<T>[]
-  value: T
-  onChange: (style: T) => void
-}) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const onPointer = (event: PointerEvent) => {
-      if (menuRef.current?.contains(event.target as Node)) return
-      setMenuOpen(false)
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointer)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onPointer)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [menuOpen])
-
-  return (
-    <div className={styles.workspaceWrap} ref={menuRef}>
-      <button
-        type="button"
-        className={styles.workspace}
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        onClick={() => setMenuOpen((open) => !open)}
-      >
-        {icon}
-        <span className={styles.workspaceName}>
-          {label} {value}
-          <CaretDown size={16} weight="bold" aria-hidden />
-        </span>
-      </button>
-      {menuOpen ? (
-        <div className={`${styles.menu} ${styles.stylesMenu}`} role="menu" aria-label={label}>
-          {options.map((option) => {
-            const selected = option.style === value
-            return (
-              <button
-                key={option.style}
-                type="button"
-                role="menuitemradio"
-                aria-checked={selected}
-                className={`${styles.menuItem} ${styles.styleItem}${selected ? ` ${styles.menuItemActive}` : ''}`}
-                onClick={() => {
-                  onChange(option.style)
-                  setMenuOpen(false)
-                }}
-              >
-                <span className={styles.styleText}>
-                  {option.label}
-                  <span className={styles.styleHint}>{option.hint}</span>
-                </span>
-                {selected ? <Check size={16} weight="bold" aria-hidden /> : null}
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
-    </div>
-  )
 }
 
 const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
@@ -364,10 +246,6 @@ function StudioBar({
   myAssetsTab,
   view,
   onViewChange,
-  findingsStyle,
-  onFindingsStyleChange,
-  studioStyle,
-  onStudioStyleChange,
 }: {
   workspace?: string
   workspaces?: readonly WorkspaceOption[]
@@ -379,10 +257,6 @@ function StudioBar({
   myAssetsTab: boolean
   view?: TopBarView
   onViewChange?: (view: TopBarView) => void
-  findingsStyle?: FindingsStyle
-  onFindingsStyleChange?: (style: FindingsStyle) => void
-  studioStyle?: StudioStyle
-  onStudioStyleChange?: (style: StudioStyle) => void
 }) {
   const workspaceOptions = workspaces ?? STUDIO_WORKSPACES
   const categoryOptions = categories ?? STUDIO_CATEGORIES
@@ -532,24 +406,6 @@ function StudioBar({
             <img className={home.logoMark} src={a.logoMark} alt="" />
           </a>
           {showWorkspace ? workspaceSelector : null}
-          {findingsStyle && onFindingsStyleChange ? (
-            <StyleMenu
-              label="Findings style"
-              icon={<Layout size={18} weight="regular" aria-hidden />}
-              options={FINDINGS_STYLES}
-              value={findingsStyle}
-              onChange={onFindingsStyleChange}
-            />
-          ) : null}
-          {studioStyle && onStudioStyleChange ? (
-            <StyleMenu
-              label="Studio UX"
-              icon={<ChartDonut size={18} weight="regular" aria-hidden />}
-              options={STUDIO_STYLES}
-              value={studioStyle}
-              onChange={onStudioStyleChange}
-            />
-          ) : null}
         </div>
       ) : (
         <a className={styles.logo} href="#top" aria-label="Llumen home">

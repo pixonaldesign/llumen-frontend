@@ -47,9 +47,9 @@ import { LandingTopBar, type TopBarView } from './LandingTopBar'
 import { VoteButton } from './VoteButton'
 import {
   DEFAULT_FINDINGS_STYLE,
-  persistStudioStyle,
-  readStudioStyle,
+  DEFAULT_STUDIO_STYLE,
   type FindingsStyle,
+  type StudioAskBar,
   type StudioStyle,
   type TopBarVariant,
 } from '../prototypeChrome'
@@ -235,7 +235,8 @@ export type BriefingLandingProps = {
   onScrollActivity?: (scrolling: boolean) => void
   /** Lays out the findings stage only; the composer dock follows it through the same value. */
   findingsStyle?: FindingsStyle
-  onFindingsStyleChange?: (style: FindingsStyle) => void
+  /** Which Studio experience the Studio view shows. */
+  studioStyle?: StudioStyle
   /** An alert aurora holds the middle of the findings stage: the greeting and finding step aside, and the carousel waits. */
   alert?: boolean
   /** A toast finding shown in the finding's place until it is dismissed; the carousel waits underneath. */
@@ -243,6 +244,8 @@ export type BriefingLandingProps = {
   /** The top bar's Briefing / Studio switch; the Studio covers the page under the bar. Uncontrolled when unset. */
   view?: TopBarView
   onViewChange?: (view: TopBarView) => void
+  /** Where the Studio page under the bar wants this page's AI bar docked over it, or null. */
+  onStudioAskBarChange?: (bar: StudioAskBar | null) => void
 }
 
 export function BriefingLanding({
@@ -259,11 +262,12 @@ export function BriefingLanding({
   onAssetsProgress,
   onScrollActivity,
   findingsStyle = DEFAULT_FINDINGS_STYLE,
-  onFindingsStyleChange,
+  studioStyle = DEFAULT_STUDIO_STYLE,
   alert = false,
   findingToast = null,
   view: viewProp,
   onViewChange,
+  onStudioAskBarChange,
 }: BriefingLandingProps) {
   const [ownView, setOwnView] = useState<TopBarView>('briefing')
   const view = viewProp ?? ownView
@@ -271,12 +275,6 @@ export function BriefingLanding({
   const changeView = (next: TopBarView) => {
     if (viewProp === undefined) setOwnView(next)
     onViewChange?.(next)
-  }
-  const [studioStyle, setStudioStyle] = useState<StudioStyle>(() => readStudioStyle())
-  const changeStudioStyle = (next: StudioStyle) => {
-    persistStudioStyle(next)
-    setStudioStyle(next)
-    if (!inStudio) changeView('studio')
   }
   const [active, setActive] = useState(0)
   /** The story whose opening view the map is flying to; the page's chrome steps aside meanwhile. */
@@ -321,6 +319,7 @@ export function BriefingLanding({
   /** The asset stack has flown into the grid's column: the grid's own cards take over and the rest follow. */
   const [landed, setLanded] = useState(false)
   const peekRef = useRef<HTMLDivElement>(null)
+  const peekFadeRef = useRef<HTMLDivElement>(null)
   const sideGridRef = useRef<HTMLDivElement>(null)
   const flightRef = useRef<Animation | null>(null)
   const rewindRef = useRef(0)
@@ -650,6 +649,11 @@ export function BriefingLanding({
       peek.style.setProperty('--peek-room', `${room}px`)
       const shift = floating ? 0 : Math.max(0, (room - stack.offsetHeight) / 2)
       peek.style.setProperty('--peek-shift', `${shift}px`)
+      const fade = peekFadeRef.current
+      if (fade) {
+        fade.style.setProperty('--peek-edge', `${top + shift + room}px`)
+        fade.style.setProperty('--peek-w', `${slot.width}px`)
+      }
     }
     fit()
     const resize = new ResizeObserver(fit)
@@ -788,17 +792,13 @@ export function BriefingLanding({
           workspaceInLogo
           showWorkspace={false}
           briefingTab
-          findingsStyle={onFindingsStyleChange ? findingsStyle : undefined}
-          onFindingsStyleChange={onFindingsStyleChange}
-          studioStyle={studioStyle}
-          onStudioStyleChange={changeStudioStyle}
           view={view}
           onViewChange={changeView}
         />
       </header>
       {inStudio ? (
         <Suspense fallback={null}>
-          <StudioView scenario={studioStyle} />
+          <StudioView scenario={studioStyle} onAskBarChange={onStudioAskBarChange} />
         </Suspense>
       ) : null}
       <div
@@ -929,6 +929,11 @@ export function BriefingLanding({
               }}
             >
               <BriefingAssetBoard order={boardOrder} columns={boardColumns} roomy={floating} edge={peekEdge} preview />
+            </div>
+            <div ref={peekFadeRef} className={styles.peekFade} data-away={away} aria-hidden>
+              <span />
+              <span />
+              <span />
             </div>
           </>
         ) : paneled ? (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
+  AppWindow,
   CaretDown,
   CaretRight,
   Check,
@@ -9,9 +10,10 @@ import {
   MagnifyingGlass,
   Plus,
   PushPin,
+  Sparkle,
   SquaresFour,
 } from '@phosphor-icons/react'
-import type { StudioStyle } from '../prototypeChrome'
+import type { StudioAskBar, StudioStyle } from '../prototypeChrome'
 import { STUDIO_ASSETS, STUDIO_WORKSPACE_NAMES, type StudioPage } from './studioData'
 import { ASSET_CATEGORIES, CATEGORY_COLOR, type Go } from './studioAssetMeta'
 import { CanvasAssets, CommandPalette, type CanvasHandle } from './studioCanvas'
@@ -19,7 +21,9 @@ import { BentoAssets, BoardAssets, GalleryAssets, HomeHub, InspectorAssets } fro
 import { RichHome } from './studioHome'
 import { useDismiss } from './studioHooks'
 import { PageBody } from './studioNav'
-import { NAV, groupOf, isGroup, pageLabel, type NavGroup } from './studioNavItems'
+import { NAV, groupOf, isGroup, pageLabel, type NavEntry, type NavGroup } from './studioNavItems'
+import { OverviewHome } from './studioOverview'
+import { PageHeadSlot } from './studioPageHeadSlot'
 import { Dropdown } from './studioUi'
 import view from './StudioView.module.css'
 import s from './StudioScenarios.module.css'
@@ -32,6 +36,8 @@ type ShellProps = {
   onWorkspaceChange: (workspace: string) => void
   onSettings: () => void
   onCreateAsset: () => void
+  /** Where the page wants the Briefing's AI bar docked over it, or null (experiences 9 and 10's overview). */
+  onAskBarChange?: (bar: StudioAskBar | null) => void
 }
 
 type Nav = { page: ShellPage; go: Go }
@@ -39,9 +45,26 @@ type Nav = { page: ShellPage; go: Go }
 /** Assets pinned to the sidebar and the home's spotlight in experience 7. */
 const PINNED = ['emissions-trajectory', 'groundwater-abstraction', 'species-detection', 'water-quality']
 
-/** Studio experiences 2–8: each its own navigation around its own take on Assets; other pages are shared. */
-export function ScenarioShell({ scenario, workspace, onWorkspaceChange, onSettings, onCreateAsset }: ShellProps) {
-  const [page, setPage] = useState<ShellPage>(scenario === 2 || scenario === 7 ? 'home' : 'assets')
+/** Studio experiences 2–10: each its own navigation around its own take on Assets; other pages are shared. */
+export function ScenarioShell({
+  scenario,
+  workspace,
+  onWorkspaceChange,
+  onSettings,
+  onCreateAsset,
+  onAskBarChange,
+}: ShellProps) {
+  const overview = scenario === 9 || scenario === 10
+  const [page, setPage] = useState<ShellPage>(scenario === 2 || scenario === 7 || overview ? 'home' : 'assets')
+  const askBar: StudioAskBar | null =
+    overview && page === 'home' ? (scenario === 9 ? 'beside-sidebar' : 'full-width') : null
+
+  useEffect(() => {
+    if (!askBar || !onAskBarChange) return
+    onAskBarChange(askBar)
+    return () => onAskBarChange(null)
+  }, [askBar, onAskBarChange])
+  const [headSlot, setHeadSlot] = useState<HTMLDivElement | null>(null)
   const [boardView, setBoardView] = useState('All assets')
   const [spotlight, setSpotlight] = useState(PINNED[0])
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -75,6 +98,8 @@ export function ScenarioShell({ scenario, workspace, onWorkspaceChange, onSettin
     switch (scenario) {
       case 2:
       case 7:
+      case 9:
+      case 10:
         return null
       case 3:
         return <InspectorAssets onCreate={onCreateAsset} />
@@ -93,13 +118,15 @@ export function ScenarioShell({ scenario, workspace, onWorkspaceChange, onSettin
     page === 'home' ? (
       scenario === 7 ? (
         <RichHome go={go} onCreate={onCreateAsset} pinned={PINNED} spotlight={spotlight} onSpotlight={setSpotlight} />
+      ) : overview ? (
+        <OverviewHome go={go} onCreate={onCreateAsset} />
       ) : (
         <HomeHub go={go} onCreate={onCreateAsset} workspace={workspace} onWorkspaceChange={onWorkspaceChange} />
       )
     ) : page === 'assets' && assets ? (
       assets
     ) : (
-      <PageBody page={page} onCreateAsset={onCreateAsset} />
+      <PageBody page={page} onCreateAsset={onCreateAsset} workflowNoun={overview ? 'Flow' : undefined} />
     )
 
   /** The inspector and board fill the height and scroll inside; everything else scrolls the page. */
@@ -205,6 +232,21 @@ export function ScenarioShell({ scenario, workspace, onWorkspaceChange, onSettin
         </div>
       )
     }
+    case 9:
+      return (
+        <div className={s.shellRow}>
+          <OverviewNav nav={nav} workspace={workspace} onWorkspaceChange={onWorkspaceChange} onSettings={onSettings} />
+          {main}
+        </div>
+      )
+    case 10:
+      return (
+        <div className={`${s.shellColumn} ${s.ribbonShell}`}>
+          <OverviewRibbon nav={nav} workspace={workspace} onWorkspaceChange={onWorkspaceChange} onSettings={onSettings} />
+          <div ref={setHeadSlot} className={s.headSlot} />
+          <PageHeadSlot.Provider value={headSlot}>{main}</PageHeadSlot.Provider>
+        </div>
+      )
   }
 }
 
@@ -263,26 +305,33 @@ function WorkspaceMenu({
   workspace,
   onWorkspaceChange,
   side,
-  compact = false,
+  look = 'chip',
+  mark = true,
 }: {
   workspace: string
   onWorkspaceChange: (workspace: string) => void
   side: 'right' | 'below' | 'above'
-  compact?: boolean
+  /** A bordered chip, the initial alone as a tile, or a pill sitting in a ribbon of pills. */
+  look?: 'chip' | 'tile' | 'pill'
+  /** The workspace's initial before its name; the tile always shows it. */
+  mark?: boolean
 }) {
   const [menuRef, menu] = useMenu()
+  const compact = look === 'tile'
+  const showMark = compact || mark
   return (
     <div className={s.menuAnchor} ref={menuRef}>
       <button
         type="button"
-        className={compact ? s.workspaceTile : s.workspaceChip}
+        className={compact ? s.workspaceTile : look === 'pill' ? `${s.pill} ${s.workspacePill}` : s.workspaceChip}
+        data-mark={showMark ? undefined : 'none'}
         aria-haspopup="menu"
         aria-expanded={menu.open}
         aria-label={`Workspace: ${workspace}`}
         title={workspace}
         onClick={() => menu.setOpen((open) => !open)}
       >
-        <span className={s.workspaceMark}>{workspace[0]}</span>
+        {showMark ? <span className={s.workspaceMark}>{workspace[0]}</span> : null}
         {compact ? null : (
           <>
             <span className={s.workspaceName}>{workspace}</span>
@@ -464,7 +513,7 @@ function DockNav({
 }) {
   return (
     <nav className={s.dock} aria-label="Studio">
-      <WorkspaceMenu workspace={workspace} onWorkspaceChange={onWorkspaceChange} side="above" compact />
+      <WorkspaceMenu workspace={workspace} onWorkspaceChange={onWorkspaceChange} side="above" look="tile" />
       <span className={s.dockRule} aria-hidden />
       {NAV.map((entry) =>
         isGroup(entry) ? (
@@ -642,9 +691,17 @@ function PillGroup({ group, nav }: { group: NavGroup; nav: Nav }) {
 }
 
 /** The workspace's pages as a vertical list, with Sources and Content expanding in place. */
-function LibraryLinks({ nav, includeAssets = true }: { nav: Nav; includeAssets?: boolean }) {
+function LibraryLinks({
+  nav,
+  includeAssets = true,
+  entries = NAV,
+}: {
+  nav: Nav
+  includeAssets?: boolean
+  entries?: NavEntry[]
+}) {
   const [open, setOpen] = useState<Record<NavGroup['id'], boolean>>({ sources: false, content: false })
-  return NAV.filter((entry) => includeAssets || isGroup(entry) || entry.page !== 'assets').map((entry) => {
+  return entries.filter((entry) => includeAssets || isGroup(entry) || entry.page !== 'assets').map((entry) => {
     if (!isGroup(entry)) {
       return (
         <button
@@ -774,6 +831,106 @@ function HomeSidebar({
         </button>
       </div>
     </aside>
+  )
+}
+
+/* ── 9 · Overview sidebar ──────────────────────────────────────────────── */
+
+/** Filters and Sources; Content gives way to Apps and Flows, and Members moves into Settings. */
+const OVERVIEW_LIBRARY = NAV.filter((entry) => (isGroup(entry) ? entry.id === 'sources' : entry.page === 'filters'))
+
+function OverviewNav({
+  nav,
+  workspace,
+  onWorkspaceChange,
+  onSettings,
+}: {
+  nav: Nav
+  workspace: string
+  onWorkspaceChange: (workspace: string) => void
+  onSettings: () => void
+}) {
+  const link = (page: ShellPage, label: string, icon: ReactNode) => (
+    <button
+      key={page}
+      type="button"
+      className={s.viewItem}
+      aria-current={nav.page === page ? 'page' : undefined}
+      onClick={() => nav.go(page)}
+    >
+      {icon}
+      <span className={s.viewName}>{label}</span>
+    </button>
+  )
+  return (
+    <aside className={s.views} aria-label="Studio">
+      <div className={s.viewsHead}>
+        <WorkspaceMenu workspace={workspace} onWorkspaceChange={onWorkspaceChange} side="below" mark={false} />
+      </div>
+      <div className={s.viewsScroll}>
+        <div className={s.viewsSection}>
+          {link('home', 'Overview', <House size={20} aria-hidden />)}
+          {link('assets', 'Assets', <SquaresFour size={20} aria-hidden />)}
+          <LibraryLinks nav={nav} entries={OVERVIEW_LIBRARY} />
+          {link('apps', 'Apps', <AppWindow size={20} aria-hidden />)}
+          {link('workflows', 'Flows', <Sparkle size={20} aria-hidden />)}
+        </div>
+      </div>
+      <div className={s.viewsFoot}>
+        <button type="button" className={s.viewItem} onClick={onSettings}>
+          <GearSix size={20} aria-hidden />
+          <span className={s.viewName}>Settings</span>
+        </button>
+      </div>
+    </aside>
+  )
+}
+
+/* ── 10 · Overview ribbon ──────────────────────────────────────────────── */
+
+/** Experience 9's pages as experience 6's pill ribbon, between the workspace and Settings. */
+function OverviewRibbon({
+  nav,
+  workspace,
+  onWorkspaceChange,
+  onSettings,
+}: {
+  nav: Nav
+  workspace: string
+  onWorkspaceChange: (workspace: string) => void
+  onSettings: () => void
+}) {
+  const pill = (page: ShellPage, label: string) => (
+    <button
+      key={page}
+      type="button"
+      className={s.pill}
+      aria-current={nav.page === page ? 'page' : undefined}
+      onClick={() => nav.go(page)}
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div className={s.pillBar}>
+      <span aria-hidden />
+      <nav className={s.pills} aria-label="Studio">
+        <WorkspaceMenu workspace={workspace} onWorkspaceChange={onWorkspaceChange} side="below" look="pill" mark={false} />
+        <span className={s.pillRule} aria-hidden />
+        {pill('home', 'Overview')}
+        {pill('assets', 'Assets')}
+        {OVERVIEW_LIBRARY.map((entry) =>
+          isGroup(entry) ? <PillGroup key={entry.id} group={entry} nav={nav} /> : pill(entry.page, entry.label),
+        )}
+        {pill('apps', 'Apps')}
+        {pill('workflows', 'Flows')}
+        <span className={s.pillRule} aria-hidden />
+        <button type="button" className={`${s.pill} ${s.pillIcon}`} aria-label="Settings" onClick={onSettings}>
+          <GearSix size={18} aria-hidden />
+        </button>
+      </nav>
+      <span aria-hidden />
+    </div>
   )
 }
 

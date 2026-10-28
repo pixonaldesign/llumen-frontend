@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { MeshGradient } from '@paper-design/shaders-react'
-import { Archive, CaretRight, GearSix, Info, ShareFat, X } from '@phosphor-icons/react'
-import type { StudioStyle } from '../prototypeChrome'
-import { STUDIO_WORKSPACE_NAMES, type StudioPage } from './studioData'
+import { Archive, CaretRight, GearSix, Info, ShareFat, UserPlus, UsersThree, X } from '@phosphor-icons/react'
+import type { StudioAskBar, StudioStyle } from '../prototypeChrome'
+import { STUDIO_MEMBERS, STUDIO_WORKSPACE_NAMES, type StudioPage } from './studioData'
 import { PageBody } from './studioNav'
 import { NAV, groupOf, type NavGroup } from './studioNavItems'
 import { ScenarioShell } from './studioScenarios'
@@ -12,8 +12,8 @@ import styles from './StudioView.module.css'
 
 const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
 
-/** Black to blue-black, with one pale blob for a hint of light. */
-const STUDIO_SHADER_COLORS = ['#000000', '#03070f', '#08142b', '#000000', '#0b1a38', '#01030a', '#5c6e8f']
+/** Charcoal to blue-charcoal, with one pale blob for a hint of light. */
+const STUDIO_SHADER_COLORS = ['#1b1d21', '#181b21', '#121b2d', '#1b1d21', '#14213b', '#16181d', '#5c6e8f']
 /** Cap the shader so a 2x display doesn't allocate a 4K buffer behind a mostly opaque page. */
 const STUDIO_SHADER_PIXELS = 1280 * 720
 
@@ -22,10 +22,12 @@ export type StudioViewProps = {
   active?: boolean
   /** Which Studio experience to show; 1 is the sidebar and asset grid. */
   scenario?: StudioStyle
+  /** Where the current page wants the Briefing's AI bar, or null; it steps aside while a modal is open. */
+  onAskBarChange?: (bar: StudioAskBar | null) => void
 }
 
 /** The Studio: a workspace's assets, filters, sources, content and members under the landing's top bar. */
-export function StudioView({ active = true, scenario = 1 }: StudioViewProps) {
+export function StudioView({ active = true, scenario = 1, onAskBarChange }: StudioViewProps) {
   const [page, setPage] = useState<StudioPage>('assets')
   const [workspace, setWorkspace] = useState<string>(STUDIO_WORKSPACE_NAMES[0])
   const [open, setOpen] = useState<Record<NavGroup['id'], boolean>>({
@@ -137,9 +139,12 @@ export function StudioView({ active = true, scenario = 1 }: StudioViewProps) {
           onWorkspaceChange={setWorkspace}
           onSettings={() => setSettingsOpen(true)}
           onCreateAsset={() => setCreatingAsset(true)}
+          onAskBarChange={settingsOpen || creatingAsset ? undefined : onAskBarChange}
         />
       )}
-      {settingsOpen ? <StudioSettings workspace={workspace} onClose={() => setSettingsOpen(false)} /> : null}
+      {settingsOpen ? (
+        <StudioSettings workspace={workspace} withMembers={scenario === 9 || scenario === 10} onClose={() => setSettingsOpen(false)} />
+      ) : null}
       {creatingAsset ? (
         <Suspense fallback={null}>
           <AssetBuilder onClose={() => setCreatingAsset(false)} />
@@ -149,13 +154,16 @@ export function StudioView({ active = true, scenario = 1 }: StudioViewProps) {
   )
 }
 
-type SettingsTab = 'General' | 'Permission' | 'Sharing'
+type SettingsTab = 'General' | 'Members' | 'Permission' | 'Sharing'
 
 const SETTINGS_TABS: { tab: SettingsTab; icon: ReactNode }[] = [
   { tab: 'General', icon: <Info size={16} aria-hidden /> },
+  { tab: 'Members', icon: <UsersThree size={16} aria-hidden /> },
   { tab: 'Permission', icon: <GearSix size={16} aria-hidden /> },
   { tab: 'Sharing', icon: <ShareFat size={16} aria-hidden /> },
 ]
+
+const MEMBER_ROLES = ['Editor', 'Contributor', 'Viewer'] as const
 
 const PERMISSION_CHOICES = ['Admins only', 'Admins and editors', 'Everyone in the workspace'] as const
 const DESCRIPTION_MAX = 2000
@@ -175,9 +183,18 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   )
 }
 
-/** Workspace settings: General, Permission and Sharing tabs over a Cancel / Save footer. */
-function StudioSettings({ workspace, onClose }: { workspace: string; onClose: () => void }) {
+/** Workspace settings: General, Permission and Sharing tabs (and Members, `withMembers`) over a Cancel / Save footer. */
+function StudioSettings({
+  workspace,
+  withMembers = false,
+  onClose,
+}: {
+  workspace: string
+  withMembers?: boolean
+  onClose: () => void
+}) {
   const [tab, setTab] = useState<SettingsTab>('General')
+  const [members, setMembers] = useState(STUDIO_MEMBERS)
   const [name, setName] = useState(workspace)
   const [description, setDescription] = useState('sales-team-perf-v2')
   const [permissions, setPermissions] = useState({
@@ -207,7 +224,7 @@ function StudioSettings({ workspace, onClose }: { workspace: string; onClose: ()
         </header>
         <div className={styles.modalBody}>
           <div className={styles.modalTabs} role="tablist" aria-orientation="vertical">
-            {SETTINGS_TABS.map((item) => (
+            {SETTINGS_TABS.filter((item) => withMembers || item.tab !== 'Members').map((item) => (
               <button
                 key={item.tab}
                 type="button"
@@ -255,6 +272,46 @@ function StudioSettings({ workspace, onClose }: { workspace: string; onClose: ()
                     Archive
                   </Button>
                 </div>
+              </>
+            ) : tab === 'Members' ? (
+              <>
+                <div className={`${styles.field} ${styles.fieldSplit}`}>
+                  <span className={styles.fieldLabel}>
+                    {members.length} people in {workspace}
+                  </span>
+                  <Button icon={<UserPlus size={20} aria-hidden />}>Invite</Button>
+                </div>
+                <ul className={styles.memberList}>
+                  {members.map((member) => (
+                    <li key={member.id} className={styles.memberRow}>
+                      <span className={styles.avatar} aria-hidden>
+                        {member.name
+                          .split(' ')
+                          .map((part) => part[0])
+                          .join('')}
+                      </span>
+                      <span className={styles.memberText}>
+                        <span className={styles.memberName}>{member.name}</span>
+                        <span className={styles.memberEmail}>{member.email}</span>
+                      </span>
+                      <span className={styles.memberRole}>
+                        <Dropdown
+                          label={`${member.name} role`}
+                          options={MEMBER_ROLES}
+                          value={member.role}
+                          onChange={(role) =>
+                            setMembers((prev) =>
+                              prev.map((item) =>
+                                item.id === member.id ? { ...item, role: role as (typeof MEMBER_ROLES)[number] } : item,
+                              ),
+                            )
+                          }
+                          full
+                        />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </>
             ) : tab === 'Permission' ? (
               <>

@@ -944,9 +944,19 @@ function Shelf({
   )
 }
 
-function GalleryCard({ asset, delay, onOpen }: { asset: StudioAsset; delay: number; onOpen: () => void }) {
+export function GalleryCard({
+  asset,
+  delay,
+  onOpen,
+  className,
+}: {
+  asset: StudioAsset
+  delay: number
+  onOpen: () => void
+  className?: string
+}) {
   return (
-    <article className={s.galleryCard} aria-label={asset.title}>
+    <article className={className ? `${s.galleryCard} ${className}` : s.galleryCard} aria-label={asset.title}>
       <ChartFrame asset={asset} delay={delay} />
       <div className={s.galleryCaption}>
         <span className={s.statusDot} style={{ background: STATUS_COLOR[asset.status] }} aria-label={asset.status} />
@@ -961,7 +971,7 @@ function GalleryCard({ asset, delay, onOpen }: { asset: StudioAsset; delay: numb
   )
 }
 
-function Lightbox({
+export function Lightbox({
   list,
   index,
   onIndex,

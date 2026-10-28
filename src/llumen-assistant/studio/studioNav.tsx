@@ -1,6 +1,7 @@
 import type { StudioPage } from './studioData'
 import {
   ApisPage,
+  AppsPage,
   AssetsPage,
   BriefingsPage,
   DashboardsPage,
@@ -16,7 +17,16 @@ import {
   WorkflowsPage,
 } from './studioPages'
 
-export function PageBody({ page, onCreateAsset }: { page: StudioPage; onCreateAsset: () => void }) {
+export function PageBody({
+  page,
+  onCreateAsset,
+  workflowNoun,
+}: {
+  page: StudioPage
+  onCreateAsset: () => void
+  /** What the Workflows page calls one workflow; see WorkflowsPage. */
+  workflowNoun?: string
+}) {
   switch (page) {
     case 'assets':
       return <AssetsPage onCreate={onCreateAsset} />
@@ -43,8 +53,10 @@ export function PageBody({ page, onCreateAsset }: { page: StudioPage; onCreateAs
     case 'rooms':
       return <RoomsPage />
     case 'workflows':
-      return <WorkflowsPage />
+      return <WorkflowsPage noun={workflowNoun} />
     case 'members':
       return <MembersPage />
+    case 'apps':
+      return <AppsPage />
   }
 }

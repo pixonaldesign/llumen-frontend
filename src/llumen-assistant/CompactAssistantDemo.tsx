@@ -72,12 +72,16 @@ import { CommandPalette } from './CommandPalette'
 import {
   persistFindingsStyle,
   persistLandingVariant,
+  persistStudioStyle,
   persistTopBarVariant,
   readFindingsStyle,
   readLandingVariant,
+  readStudioStyle,
   readTopBarVariant,
   type FindingsStyle,
   type LandingVariant,
+  type StudioAskBar,
+  type StudioStyle,
   type TopBarVariant,
 } from './prototypeChrome'
 import {
@@ -535,6 +539,7 @@ export function CompactAssistantDemo() {
     persistFindingsStyle(next)
     setFindingsStyle(next)
   }, [])
+  const [studioStyle, setStudioStyle] = useState<StudioStyle>(() => readStudioStyle())
   const [paletteOpen, setPaletteOpen] = useState(false)
   const composerDockRef = useRef<HTMLDivElement>(null)
   /** The Briefing page rests on its findings rather than Assets or below (where the composer docks at the bottom). */
@@ -2139,8 +2144,22 @@ export function CompactAssistantDemo() {
   const [storyRelease, setStoryRelease] = useState<StoryMapView | 'home' | null>(null)
   /** Remounts the Briefing page when a story is left before it has settled, dropping its flight state. */
   const [landingEpoch, setLandingEpoch] = useState(0)
-  /** The Briefing top bar's Briefing / Studio switch; the Studio has no hub composer. */
+  /** The Briefing top bar's Briefing / Studio switch; the Studio has no hub composer unless its page asks for it. */
   const [briefingView, setBriefingView] = useState<TopBarView>('briefing')
+  const [studioAskBar, setStudioAskBar] = useState<StudioAskBar | null>(null)
+  /** Picking a style from the palette also opens the view it styles. */
+  const pickFindingsStyle = useCallback(
+    (next: FindingsStyle) => {
+      onFindingsStyleChange(next)
+      setBriefingView('briefing')
+    },
+    [onFindingsStyleChange],
+  )
+  const pickStudioStyle = useCallback((next: StudioStyle) => {
+    persistStudioStyle(next)
+    setStudioStyle(next)
+    setBriefingView('studio')
+  }, [])
   const leaveStory = useCallback(
     (from?: StoryMapView) => {
       if (storyRelease) return
@@ -2794,7 +2813,7 @@ export function CompactAssistantDemo() {
   const inStudio = landingVariant === 'briefing' && !storyActive && briefingView === 'studio'
   const showHub =
     isHub &&
-    !inStudio &&
+    (!inStudio || studioAskBar !== null) &&
     (hubSessionsRail ||
       (!open && (!storyActive || hubStoryOpen)) ||
       (hubThreadRail && storyActive && hubStoryOpen))
@@ -2953,11 +2972,12 @@ export function CompactAssistantDemo() {
         onAssetsProgress={onBriefingAssetsProgress}
         onScrollActivity={onBriefingScroll}
         findingsStyle={findingsStyle}
-        onFindingsStyleChange={onFindingsStyleChange}
+        studioStyle={studioStyle}
         alert={alertTakesCentre}
         findingToast={toastInFindings ? noticeToast(false) : null}
         view={briefingView}
         onViewChange={setBriefingView}
+        onStudioAskBarChange={setStudioAskBar}
       />
     ) : landingVariant === 'briefing-2' ? (
       <Briefing2Landing
@@ -3102,9 +3122,14 @@ export function CompactAssistantDemo() {
           <div
             ref={composerDockRef}
             className={`${styles.composerDock}${storyActive ? ` ${styles.composerDockStory}` : ''}${
-              !storyActive && landingVariant === 'briefing' ? ` ${styles.composerDockCenter}` : ''
+              inStudio
+                ? ` ${styles.composerDockStudio}`
+                : !storyActive && landingVariant === 'briefing'
+                  ? ` ${styles.composerDockCenter}`
+                  : ''
             }${hubSessionsRail ? ` ${styles.composerDockShifted}` : ''}`}
-            data-findings-style={!storyActive && landingVariant === 'briefing' ? findingsStyle : undefined}
+            data-findings-style={!storyActive && !inStudio && landingVariant === 'briefing' ? findingsStyle : undefined}
+            data-studio-bar={inStudio ? (studioAskBar ?? undefined) : undefined}
             data-alert={alertTakesCentre ? 'true' : undefined}
             data-ask={landingAsk ? 'true' : undefined}
             data-story-flight={storyHandoff === 'flight' ? 'true' : undefined}
@@ -3469,6 +3494,10 @@ export function CompactAssistantDemo() {
           onLanding={onLandingVariantChange}
           onTopBar={onTopBarChange}
           onUx={onInteractionModelChange}
+          findingsStyle={findingsStyle}
+          studioStyle={studioStyle}
+          onFindingsStyle={pickFindingsStyle}
+          onStudioStyle={pickStudioStyle}
           onOpenAurora={() => onAuroraPanelOpenChange(true)}
           onCurrentAurora={launchCurrentAurora}
           onDualStateAurora={launchDualStateAurora}

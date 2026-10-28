@@ -208,6 +208,7 @@
 .root[data-story] .sidePanel,
 .root[data-story] .edgeArrow,
 .root[data-story] .assetPeek,
+.root[data-story] .peekFade,
 .root[data-story] .panel,
 .root[data-story] .sideView,
 .root[data-story] .lower {
@@ -230,6 +231,7 @@
 .root[data-story='back'] .sidePanel,
 .root[data-story='back'] .edgeArrow,
 .root[data-story='back'] .assetPeek,
+.root[data-story='back'] .peekFade,
 .root[data-story='back'] .panel,
 .root[data-story='back'] .sideView,
 .root[data-story='back'] .lower {
@@ -985,6 +987,66 @@
   height: var(--peek-room, auto);
   overflow-x: visible;
   overflow-y: clip;
+}
+
+/*
+ * Hides that cut with a progressive blur from 60px above it to 24px below, strongest on the cut. It can't
+ * be the peek's own mask (that would unfrost the cards too), so it follows the peek: hover, flight, story.
+ */
+.peekFade {
+  display: none;
+}
+
+.root[data-findings-style='8'] .peekFade {
+  display: block;
+  position: absolute;
+  top: calc(var(--peek-edge, 0px) - 60px);
+  right: calc(var(--side-peek) - var(--peek-w, 772px));
+  z-index: 8;
+  width: var(--peek-w, 772px);
+  height: 84px;
+  pointer-events: none;
+  transition:
+    translate 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 240ms ease 900ms;
+}
+
+/* Gone as the stack flies out; back only once it has flown home (SIDE_SLIDE_MS). */
+.root[data-findings-style='8'] .peekFade[data-away='true'] {
+  opacity: 0;
+  transition-duration: 420ms, 120ms;
+  transition-delay: 0ms;
+}
+
+.root[data-findings-style='8'] .assetPeek:not([data-away='true']):hover + .peekFade,
+.root[data-findings-style='8'] .assetPeek:not([data-away='true']):focus-visible + .peekFade {
+  translate: -12px 0;
+}
+
+.peekFade > span {
+  position: absolute;
+  inset: 0;
+}
+
+.peekFade > span:nth-child(1) {
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 82%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 82%, transparent);
+}
+
+.peekFade > span:nth-child(2) {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 30%, #000 58%, #000 80%, transparent 96%);
+  mask-image: linear-gradient(to bottom, transparent 30%, #000 58%, #000 80%, transparent 96%);
+}
+
+.peekFade > span:nth-child(3) {
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 50%, #000 66%, #000 76%, transparent 92%);
+  mask-image: linear-gradient(to bottom, transparent 50%, #000 66%, #000 76%, transparent 92%);
 }
 
 /*

@@ -25,6 +25,7 @@ export type StudioPage =
   | 'rooms'
   | 'workflows'
   | 'members'
+  | 'apps'
 
 export type StatusTone = 'positive' | 'warning' | 'negative' | 'neutral' | 'brand' | 'muted'
 
@@ -678,6 +679,59 @@ export const STUDIO_ROOMS: StudioStory[] = [
   updated,
   image: STUDIO_IMAGES.commandRoom,
 }))
+
+const appCover = (name: string) => `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/apps/${name}.jpg`
+
+export type AppKind = 'Dashboard' | 'Slides' | 'Command Room'
+
+/** Anything built for people to open: the Llumen dashboards first, then every dashboard, deck and room. */
+export type StudioApp = StudioStory & { kind: AppKind; description?: string }
+
+export const STUDIO_APPS: StudioApp[] = [
+  {
+    id: 'app-groundwater',
+    kind: 'Dashboard',
+    title: 'Groundwater Monitoring Network',
+    description: 'Water quality, exceedances and falling levels across 450 monitoring wells.',
+    status: 'Published',
+    sections: 9,
+    updated: '2 hours ago',
+    image: appCover('app-2'),
+  },
+  {
+    id: 'app-policies',
+    kind: 'Dashboard',
+    title: 'Policies & Regulations Dashboard',
+    description: '72 environmental policies from issue to rollout, with compliance by sector.',
+    status: 'Published',
+    sections: 12,
+    updated: '1 day ago',
+    image: appCover('app-1'),
+  },
+  {
+    id: 'app-mangrove',
+    kind: 'Dashboard',
+    title: 'Mangrove Ecosystem Health Monitoring',
+    description: 'Canopy, regeneration and stress hotspots along 175 km² of coast.',
+    status: 'Draft',
+    sections: 7,
+    updated: '3 days ago',
+    image: appCover('app-4'),
+  },
+  {
+    id: 'app-plastics',
+    kind: 'Dashboard',
+    title: 'Single Use Plastics Dashboard',
+    description: 'Environmental, social and economic impact of the single-use plastics policy.',
+    status: 'Unpublished',
+    sections: 16,
+    updated: '1 week ago',
+    image: appCover('app-3'),
+  },
+  ...STUDIO_DASHBOARDS.map((item) => ({ ...item, kind: 'Dashboard' as const })),
+  ...STUDIO_SLIDES.map((item) => ({ ...item, kind: 'Slides' as const })),
+  ...STUDIO_ROOMS.map((item) => ({ ...item, kind: 'Command Room' as const })),
+]
 
 /** How a workflow's card draws it: a chain of step icons, or its node graph. */
 export type WorkflowShape = 'chain' | 'graph'

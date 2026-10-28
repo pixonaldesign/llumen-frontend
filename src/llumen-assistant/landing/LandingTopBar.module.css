@@ -347,27 +347,6 @@
   min-width: 200px;
 }
 
-.stylesMenu {
-  min-width: 260px;
-}
-
-.styleItem {
-  justify-content: space-between;
-}
-
-.styleText {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.styleHint {
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 16px;
-}
-
 .soon {
   margin-left: auto;
   padding: 2px 8px;

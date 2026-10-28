@@ -1,4 +1,5 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useContext, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import {
   CalendarBlank,
   CalendarCheck,
@@ -15,11 +16,14 @@ import {
   Image as ImageIcon,
   Lightning,
   ListDashes,
+  Monitor,
   Play,
   Plus,
+  PresentationChart,
   Robot,
   SlidersHorizontal,
   Sparkle,
+  SquaresFour,
   TextAa,
   TreeStructure,
   UploadSimple,
@@ -27,6 +31,7 @@ import {
 } from '@phosphor-icons/react'
 import {
   STUDIO_APIS,
+  STUDIO_APPS,
   STUDIO_ASSETS,
   STUDIO_BRIEFINGS,
   STUDIO_DASHBOARDS,
@@ -38,6 +43,7 @@ import {
   STUDIO_SLIDES,
   STUDIO_WORKFLOWS,
   type ApiRequest,
+  type AppKind,
   type FilterKind,
   type StudioStory,
   type StudioWorkflow,
@@ -57,6 +63,7 @@ import {
   type Layout,
 } from './studioUi'
 import { useRefine } from './studioHooks'
+import { PageHeadSlot } from './studioPageHeadSlot'
 import { STUDIO_ASSET_CHARTS } from './studioAssetCharts'
 import { StudioAssetChart } from './StudioAssetChart'
 import styles from './StudioView.module.css'
@@ -96,7 +103,8 @@ function PageHead({
   tools?: ReactNode
   columns?: Column[]
 }) {
-  return (
+  const slot = useContext(PageHeadSlot)
+  const head = (
     <div className={styles.head}>
       <div className={styles.titleBar}>
         <div className={styles.titleGroup}>
@@ -125,6 +133,7 @@ function PageHead({
       ) : null}
     </div>
   )
+  return slot ? createPortal(head, slot) : head
 }
 
 function Row({ columns, children, onClick }: { columns: Column[]; children: ReactNode; onClick?: () => void }) {
@@ -839,6 +848,98 @@ function StoryLibrary({
   )
 }
 
+const APP_ICON: Record<AppKind, ReactNode> = {
+  Dashboard: <SquaresFour size={16} aria-hidden />,
+  Slides: <PresentationChart size={16} aria-hidden />,
+  'Command Room': <Monitor size={16} aria-hidden />,
+}
+
+const APP_COLUMNS: Column[] = [
+  { label: 'App' },
+  { label: 'Kind', width: 160 },
+  { label: 'Status', width: 160 },
+  { label: 'Last Updated', width: 160 },
+  { label: '', width: 32 },
+]
+
+/** Dashboards, slide decks and command rooms in one library, filtered by kind. */
+export function AppsPage() {
+  const [layout, setLayout] = useState<Layout>('grid')
+  const list = useRefine(STUDIO_APPS, {
+    text: (item) => `${item.title} ${item.description ?? ''}`,
+    name: (item) => item.title,
+    updated: (item) => item.updated,
+    fields: { Kind: (item) => item.kind, Status: (item) => item.status },
+  })
+  return (
+    <>
+      <PageHead
+        title="Apps"
+        placeholder="Search apps..."
+        query={list.query}
+        onQuery={list.setQuery}
+        action="Create App"
+        filters={(['Kind', 'Status'] as const).map((key) => (
+          <Dropdown
+            key={key}
+            label={key}
+            options={list.options[key]}
+            value={list.filter(key)}
+            onChange={(value) => list.setFilter(key, value)}
+          />
+        ))}
+        tools={
+          <>
+            <LayoutToggle value={layout} onChange={setLayout} />
+            <SortMenu value={list.sort} onChange={list.setSort} />
+          </>
+        }
+        columns={layout === 'list' ? APP_COLUMNS : undefined}
+      />
+      {list.rows.length === 0 ? (
+        <NoResults />
+      ) : layout === 'grid' ? (
+        <div className={`${styles.grid} ${styles.storyGrid}`}>
+          {list.rows.map((item) => (
+            <article key={item.id} className={styles.storyCard} aria-label={item.title}>
+              <div className={styles.storyCover}>
+                <img src={item.image} alt="" loading="lazy" />
+              </div>
+              <div className={styles.storyBody}>
+                <span className={styles.appChips}>
+                  <Tag icon={APP_ICON[item.kind]}>{item.kind}</Tag>
+                  <StatusChip label={item.status} />
+                </span>
+                <h3 className={`${styles.cardTitle} ${styles.twoLines}`}>{item.title}</h3>
+                <span className={styles.meta}>{item.updated}</span>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.table}>
+          {list.rows.map((item) => (
+            <Row key={item.id} columns={APP_COLUMNS}>
+              <span className={styles.lead}>
+                <span className={`${styles.preview} ${styles.previewCover}`}>
+                  <img src={item.image} alt="" loading="lazy" />
+                </span>
+                <NameBlock name={item.title} detail={item.description} />
+              </span>
+              <Cell>{item.kind}</Cell>
+              <Cell>
+                <StatusChip label={item.status} />
+              </Cell>
+              <Cell>{item.updated}</Cell>
+              <RowMenu label={item.title} />
+            </Row>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
 export function SlidesPage() {
   return <StoryLibrary title="Slides" noun="Slide" items={STUDIO_SLIDES} action="Create Slide" unit="Sections" />
 }
@@ -949,7 +1050,7 @@ export function RoomsPage() {
 const CHAIN_STEPS = [Database, FunnelSimple, ImageIcon, GearSix]
 
 /** A workflow drawn on its card: a pill of its steps, or its node graph, over a dotted canvas. */
-function WorkflowArt({ shape, compact = false }: { shape: StudioWorkflow['shape']; compact?: boolean }) {
+export function WorkflowArt({ shape, compact = false }: { shape: StudioWorkflow['shape']; compact?: boolean }) {
   return (
     <div className={styles.workflowArt} data-compact={compact || undefined}>
       {shape === 'chain' ? (
@@ -997,42 +1098,42 @@ function WorkflowArt({ shape, compact = false }: { shape: StudioWorkflow['shape'
   )
 }
 
-const WORKFLOW_COLUMNS: Column[] = [
-  { label: 'Workflow' },
+const WORKFLOW_DETAIL_COLUMNS: Column[] = [
   { label: 'Status', width: 160 },
   { label: 'Last Updated', width: 160 },
   { label: '', width: 64 },
 ]
 
-export function WorkflowsPage() {
+/** `noun` is what the page calls one of them: Studio UX 9 and 10 say Flow. */
+export function WorkflowsPage({ noun = 'Workflow' }: { noun?: string }) {
+  const plural = `${noun}s`
+  const columns: Column[] = [{ label: noun }, ...WORKFLOW_DETAIL_COLUMNS]
   const [layout, setLayout] = useState<Layout>('grid')
-  const [tab, setTab] = useState<'Workflows' | 'Executions'>('Workflows')
+  const [tab, setTab] = useState<string>(plural)
   const list = useRefine(STUDIO_WORKFLOWS, {
     text: (item) => `${item.title} ${item.description}`,
     name: (item) => item.title,
     updated: (item) => item.updated,
     fields: { Status: (item) => item.status },
   })
-  const tabs = (
-    <TextSegments label="Workflows" options={['Workflows', 'Executions'] as const} value={tab} onChange={setTab} />
-  )
+  const tabs = <TextSegments label={plural} options={[plural, 'Executions']} value={tab} onChange={setTab} />
   if (tab === 'Executions') {
     return (
       <>
         <PageHead
-          title="Workflows"
+          title={plural}
           titleExtra={tabs}
           placeholder="Search executions..."
           query={list.query}
           onQuery={list.setQuery}
-          action="Create Workflow"
+          action={`Create ${noun}`}
         />
         <EmptyState
           icon={<Lightning size={32} aria-hidden />}
           title="No Executions Yet"
-          body="Runs show up here with their steps, timings and outputs once a published workflow is triggered."
-          action="Run a Workflow"
-          onAction={() => setTab('Workflows')}
+          body={`Runs show up here with their steps, timings and outputs once a published ${noun.toLowerCase()} is triggered.`}
+          action={`Run a ${noun}`}
+          onAction={() => setTab(plural)}
         />
       </>
     )
@@ -1040,12 +1141,12 @@ export function WorkflowsPage() {
   return (
     <>
       <PageHead
-        title="Workflows"
+        title={plural}
         titleExtra={tabs}
-        placeholder="Search workflow..."
+        placeholder={`Search ${noun.toLowerCase()}...`}
         query={list.query}
         onQuery={list.setQuery}
-        action="Create Workflow"
+        action={`Create ${noun}`}
         filters={
           <Dropdown
             label="Status"
@@ -1060,7 +1161,7 @@ export function WorkflowsPage() {
             <SortMenu value={list.sort} onChange={list.setSort} />
           </>
         }
-        columns={layout === 'list' ? WORKFLOW_COLUMNS : undefined}
+        columns={layout === 'list' ? columns : undefined}
       />
       {list.rows.length === 0 ? (
         <NoResults />
@@ -1098,7 +1199,7 @@ export function WorkflowsPage() {
       ) : (
         <div className={styles.table}>
           {list.rows.map((item) => (
-            <Row key={item.id} columns={WORKFLOW_COLUMNS}>
+            <Row key={item.id} columns={columns}>
               <span className={styles.lead}>
                 <span className={`${styles.preview} ${styles.previewArt}`}>
                   <WorkflowArt shape={item.shape} compact />

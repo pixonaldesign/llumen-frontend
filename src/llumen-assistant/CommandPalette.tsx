@@ -2,7 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, MagnifyingGlass } from '@phosphor-icons/react'
 import type { ChatInteractionModel } from './interactionModel'
-import type { LandingVariant, TopBarVariant } from './prototypeChrome'
+import {
+  FINDINGS_STYLE_OPTIONS,
+  STUDIO_STYLE_OPTIONS,
+  type FindingsStyle,
+  type LandingVariant,
+  type StudioStyle,
+  type TopBarVariant,
+} from './prototypeChrome'
 import styles from './CommandPalette.module.css'
 
 type Command = {
@@ -14,6 +21,10 @@ type Command = {
   run: () => void
 }
 
+/** The tab row under the search: every command, or one group's. */
+const TABS = ['All', 'Landing', 'Findings', 'Studio', 'Top bar', 'UX', 'Aurora'] as const
+type Tab = (typeof TABS)[number]
+
 export type CommandPaletteProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -23,6 +34,10 @@ export type CommandPaletteProps = {
   onLanding: (next: LandingVariant) => void
   onTopBar: (next: TopBarVariant) => void
   onUx: (next: ChatInteractionModel) => void
+  findingsStyle: FindingsStyle
+  studioStyle: StudioStyle
+  onFindingsStyle: (next: FindingsStyle) => void
+  onStudioStyle: (next: StudioStyle) => void
   onOpenAurora: () => void
   onCurrentAurora: () => void
   onDualStateAurora: () => void
@@ -37,11 +52,16 @@ export function CommandPalette({
   onLanding,
   onTopBar,
   onUx,
+  findingsStyle,
+  studioStyle,
+  onFindingsStyle,
+  onStudioStyle,
   onOpenAurora,
   onCurrentAurora,
   onDualStateAurora,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
+  const [tab, setTab] = useState<Tab>('All')
   const [cursor, setCursor] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -108,6 +128,22 @@ export function CommandPalette({
         active: landing === 'feed-chat',
         run: choose(() => onLanding('feed-chat')),
       },
+      ...FINDINGS_STYLE_OPTIONS.map((option) => ({
+        id: `findings-${option.style}`,
+        group: 'Findings',
+        label: option.label,
+        hint: option.hint,
+        active: findingsStyle === option.style,
+        run: choose(() => onFindingsStyle(option.style)),
+      })),
+      ...STUDIO_STYLE_OPTIONS.map((option) => ({
+        id: `studio-${option.style}`,
+        group: 'Studio',
+        label: option.label,
+        hint: option.hint,
+        active: studioStyle === option.style,
+        run: choose(() => onStudioStyle(option.style)),
+      })),
       {
         id: 'bar-current',
         group: 'Top bar',
@@ -171,15 +207,35 @@ export function CommandPalette({
         },
       },
     ]
-  }, [landing, onCurrentAurora, onDualStateAurora, onLanding, onOpenAurora, onOpenChange, onTopBar, onUx, topBar, ux])
+  }, [
+    findingsStyle,
+    landing,
+    onCurrentAurora,
+    onDualStateAurora,
+    onFindingsStyle,
+    onLanding,
+    onOpenAurora,
+    onOpenChange,
+    onStudioStyle,
+    onTopBar,
+    onUx,
+    studioStyle,
+    topBar,
+    ux,
+  ])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return commands
-    return commands.filter((command) =>
-      `${command.group} ${command.label} ${command.hint}`.toLowerCase().includes(q),
-    )
-  }, [commands, query])
+    const inTab = tab === 'All' ? commands : commands.filter((command) => command.group === tab)
+    if (!q) return inTab
+    return inTab.filter((command) => `${command.group} ${command.label} ${command.hint}`.toLowerCase().includes(q))
+  }, [commands, query, tab])
+
+  const pickTab = (next: Tab) => {
+    setTab(next)
+    setCursor(0)
+    inputRef.current?.focus()
+  }
 
   const activeIndex = Math.min(cursor, Math.max(0, filtered.length - 1))
 
@@ -246,6 +302,10 @@ export function CommandPalette({
           } else if (event.key === 'Enter') {
             event.preventDefault()
             filtered[activeIndex]?.run()
+          } else if (event.key === 'Tab') {
+            event.preventDefault()
+            const step = event.shiftKey ? -1 : 1
+            pickTab(TABS[(TABS.indexOf(tab) + step + TABS.length) % TABS.length])
           }
         }}
       >
@@ -258,13 +318,30 @@ export function CommandPalette({
               setQuery(event.target.value)
               setCursor(0)
             }}
-            placeholder="Landing, top bar, UX, Aurora…"
+            placeholder="Landing, findings, Studio, top bar, UX, Aurora…"
             aria-label="Filter commands"
             aria-controls="command-palette-list"
             aria-activedescendant={filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined}
           />
           <kbd className={styles.kbd}>esc</kbd>
         </label>
+        <div className={styles.tabs} role="tablist" aria-label="Command groups">
+          {TABS.map((name) => (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              aria-selected={tab === name}
+              aria-controls="command-palette-list"
+              tabIndex={-1}
+              className={styles.tab}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => pickTab(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
         <div id="command-palette-list" className={styles.list} ref={listRef} role="listbox" aria-label="Commands">
           {filtered.length === 0 ? <p className={styles.empty}>No matches</p> : null}
           {groups.map((group) => (
