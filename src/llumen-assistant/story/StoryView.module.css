@@ -207,8 +207,13 @@
   pointer-events: none;
 }
 
+/* 5px under each map's header rule, as the story map's controls sit outside comparison. */
+.mapPaneUpper .comparisonControlsUpper {
+  top: calc(var(--story-header-end, 155px) + 5px);
+}
+
 .mapPaneLower .comparisonControls {
-  top: 20px;
+  top: calc(var(--comparison-title-end, 129px) + 5px);
 }
 
 .rootSplitDragging {
@@ -311,6 +316,72 @@
 .splitHandle:focus-visible .splitHandleGrip {
   outline: 2px solid #70aeff;
   outline-offset: 2px;
+}
+
+/*
+ * Vertical comparison: the story's map on the left, the compared one on the right. Each map is as wide as
+ * its pane (it resizes with the split) and the story's header, cards and controls keep to the left pane.
+ */
+.root[data-comparison='vertical'] .mapPaneUpper {
+  right: calc((1 - var(--comparison-split)) * 100%);
+  bottom: 0;
+}
+
+.root[data-comparison='vertical'] .mapPaneLower {
+  top: 0;
+  left: calc(var(--comparison-split) * 100%);
+}
+
+.root[data-comparison='vertical'] .mapPaneLower::after {
+  right: auto;
+  bottom: 0;
+  width: 1px;
+  height: auto;
+}
+
+.root[data-comparison='vertical'] .header,
+.root[data-comparison='vertical'] .body {
+  padding-right: calc((1 - var(--comparison-split)) * 100% + 20px);
+}
+
+/* A half-width map has no room beside its toolbar, so the cards end 12px above it (the cards pad 20px). */
+.root[data-comparison='vertical'] .bodyComparison {
+  margin-bottom: 0;
+  padding-bottom: 54px;
+}
+
+.root[data-comparison='vertical'] .comparisonTitle {
+  top: 0;
+  left: calc(var(--comparison-split) * 100% + 20px);
+}
+
+.root[data-comparison='vertical'] .splitHandle {
+  top: 0;
+  right: auto;
+  bottom: 0;
+  left: calc(var(--comparison-split) * 100%);
+  width: 16px;
+  height: auto;
+  transform: translateX(-50%);
+  cursor: col-resize;
+}
+
+.root[data-comparison='vertical'] .splitHandle::before {
+  top: 0;
+  right: auto;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  height: auto;
+}
+
+.root[data-comparison='vertical'] .splitHandleGrip {
+  width: 20px;
+  height: 48px;
+}
+
+.root[data-comparison='vertical'].rootSplitDragging {
+  cursor: col-resize;
 }
 
 .overlay {
@@ -1902,6 +1973,89 @@ button.summaryStatus:disabled {
   bottom: calc((1 - var(--comparison-split)) * 100% + 18px);
 }
 
+/*
+ * Each comparison map's data scrolls rather than run up over that map's controls: it stops 12px under
+ * them (the controls sit 5px under the header rule and are 104px tall).
+ */
+.mapStackComparisonUpper,
+.mapStackCompared {
+  --map-controls-room: 121px;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Chromium treats overlay as auto, so the thumb takes width. The scroller runs one thumb past the panels'
+ * edge, and the thumb takes that strip instead of narrowing the panels.
+ */
+.mapStack.mapStackComparisonUpper,
+.mapStack.mapStackCompared {
+  width: calc(300px + var(--lc-scrollbar-size));
+  margin-right: calc(-1 * var(--lc-scrollbar-size));
+}
+
+.mapStackComparisonUpper > *,
+.mapStackCompared > * {
+  flex-shrink: 0;
+  width: 300px;
+}
+
+/* The landing layer's inherited scrollbar-color makes Chromium drop ::-webkit-scrollbar sizing, bringing back the thick system bar. */
+@supports selector(::-webkit-scrollbar) {
+  .mapStackComparisonUpper,
+  .mapStackCompared {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.mapStackComparisonUpper::-webkit-scrollbar,
+.mapStackCompared::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.mapStackComparisonUpper::-webkit-scrollbar-track,
+.mapStackCompared::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mapStackComparisonUpper::-webkit-scrollbar-thumb,
+.mapStackCompared::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--lc-scrollbar-thumb);
+}
+
+.mapStack.mapStackComparisonUpper {
+  max-height: calc(
+    var(--comparison-split) * 100cqh - 18px - var(--story-header-end, 155px) - var(--map-controls-room)
+  );
+}
+
+.mapStack.mapStackCompared {
+  max-height: calc(
+    (1 - var(--comparison-split)) * 100cqh - 18px - var(--comparison-title-end, 129px) - var(--map-controls-room)
+  );
+}
+
+.root[data-comparison='vertical'] .mapStack.mapStackComparisonUpper {
+  max-height: calc(100cqh - 74px - var(--story-header-end, 155px) - var(--map-controls-room));
+}
+
+.root[data-comparison='vertical'] .mapStack.mapStackCompared {
+  max-height: calc(100cqh - 74px - var(--comparison-title-end, 129px) - var(--map-controls-room));
+}
+
+/* Side by side, each map's data sits 12px above its toolbar (18px from the bottom, 44px tall). */
+.root[data-comparison='vertical'] .mapStack {
+  bottom: 74px;
+}
+
+.root[data-comparison='vertical'] .mapStack.mapStackComparisonUpper {
+  right: calc((1 - var(--comparison-split)) * 100% + 20px);
+  bottom: 74px;
+}
+
 /* Comparison's Layout and Link maps pills, side by side where the Layout pill sits alone. */
 .layoutRow {
   display: flex;
@@ -2222,6 +2376,16 @@ button.summaryStatus:disabled {
 /* Comparison: the story's toolbar belongs to the upper map, just above the split; the lower map has its own. */
 .lowerNavUpper {
   bottom: calc((1 - var(--comparison-split)) * 100% + 18px);
+}
+
+/* Side by side, each toolbar is centred along the bottom of its own map. */
+.root[data-comparison='vertical'] .lowerNavUpper {
+  bottom: 18px;
+  left: calc(var(--comparison-split) * 50%);
+}
+
+.root[data-comparison='vertical'] .lowerNavCompared {
+  left: calc((1 + var(--comparison-split)) * 50%);
 }
 
 .askBtn {

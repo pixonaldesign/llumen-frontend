@@ -34,6 +34,16 @@ export type StudioAskBar = 'beside-sidebar' | 'full-width'
 
 export const DEFAULT_STUDIO_STYLE: StudioStyle = 10
 
+/** A story's Comparison layout: the maps one above the other (horizontal split) or side by side (vertical). */
+export type ComparisonSplit = 'horizontal' | 'vertical'
+
+export const DEFAULT_COMPARISON_SPLIT: ComparisonSplit = 'horizontal'
+
+export const COMPARISON_SPLIT_OPTIONS: readonly { split: ComparisonSplit; label: string; hint: string }[] = [
+  { split: 'horizontal', label: 'Horizontal comparison', hint: 'Story map on top, compared map below' },
+  { split: 'vertical', label: 'Vertical comparison', hint: 'Story map on the left, compared map on the right' },
+]
+
 export type StyleOption<T extends number> = { style: T; label: string; hint: string }
 
 export const FINDINGS_STYLE_OPTIONS: readonly StyleOption<FindingsStyle>[] = [
@@ -64,6 +74,11 @@ const LANDING_KEY = 'llumen.landingVariant'
 const TOP_BAR_KEY = 'llumen.topBarVariant'
 const FINDINGS_STYLE_KEY = 'llumen.findingsStyle'
 const STUDIO_STYLE_KEY = 'llumen.studioStyle'
+const COMPARISON_SPLIT_KEY = 'llumen.comparisonSplit'
+
+function isComparisonSplit(value: string | null): value is ComparisonSplit {
+  return value === 'horizontal' || value === 'vertical'
+}
 
 function toFindingsStyle(value: string | null): FindingsStyle | null {
   return value !== null && /^[1-8]$/.test(value) ? (Number(value) as FindingsStyle) : null
@@ -182,4 +197,26 @@ export function persistStudioStyle(style: StudioStyle) {
     /* private mode */
   }
   writeParam('studio', String(style), String(DEFAULT_STUDIO_STYLE))
+}
+
+export function readComparisonSplit(): ComparisonSplit {
+  if (typeof window === 'undefined') return DEFAULT_COMPARISON_SPLIT
+  const fromUrl = new URLSearchParams(window.location.search).get('comparison')
+  if (isComparisonSplit(fromUrl)) return fromUrl
+  try {
+    const stored = window.sessionStorage.getItem(COMPARISON_SPLIT_KEY)
+    return isComparisonSplit(stored) ? stored : DEFAULT_COMPARISON_SPLIT
+  } catch {
+    return DEFAULT_COMPARISON_SPLIT
+  }
+}
+
+export function persistComparisonSplit(split: ComparisonSplit) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(COMPARISON_SPLIT_KEY, split)
+  } catch {
+    /* private mode */
+  }
+  writeParam('comparison', split, DEFAULT_COMPARISON_SPLIT)
 }

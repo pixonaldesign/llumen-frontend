@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom'
 import { Check, MagnifyingGlass } from '@phosphor-icons/react'
 import type { ChatInteractionModel } from './interactionModel'
 import {
+  COMPARISON_SPLIT_OPTIONS,
   FINDINGS_STYLE_OPTIONS,
   STUDIO_STYLE_OPTIONS,
+  type ComparisonSplit,
   type FindingsStyle,
   type LandingVariant,
   type StudioStyle,
@@ -22,7 +24,7 @@ type Command = {
 }
 
 /** The tab row under the search: every command, or one group's. */
-const TABS = ['All', 'Landing', 'Findings', 'Studio', 'Top bar', 'UX', 'Aurora'] as const
+const TABS = ['All', 'Landing', 'Findings', 'Studio', 'Comparison', 'Top bar', 'UX', 'Aurora'] as const
 type Tab = (typeof TABS)[number]
 
 export type CommandPaletteProps = {
@@ -38,6 +40,8 @@ export type CommandPaletteProps = {
   studioStyle: StudioStyle
   onFindingsStyle: (next: FindingsStyle) => void
   onStudioStyle: (next: StudioStyle) => void
+  comparisonSplit: ComparisonSplit
+  onComparisonSplit: (next: ComparisonSplit) => void
   onOpenAurora: () => void
   onCurrentAurora: () => void
   onDualStateAurora: () => void
@@ -56,6 +60,8 @@ export function CommandPalette({
   studioStyle,
   onFindingsStyle,
   onStudioStyle,
+  comparisonSplit,
+  onComparisonSplit,
   onOpenAurora,
   onCurrentAurora,
   onDualStateAurora,
@@ -144,6 +150,14 @@ export function CommandPalette({
         active: studioStyle === option.style,
         run: choose(() => onStudioStyle(option.style)),
       })),
+      ...COMPARISON_SPLIT_OPTIONS.map((option) => ({
+        id: `comparison-${option.split}`,
+        group: 'Comparison',
+        label: option.label,
+        hint: option.hint,
+        active: comparisonSplit === option.split,
+        run: choose(() => onComparisonSplit(option.split)),
+      })),
       {
         id: 'bar-current',
         group: 'Top bar',
@@ -208,8 +222,10 @@ export function CommandPalette({
       },
     ]
   }, [
+    comparisonSplit,
     findingsStyle,
     landing,
+    onComparisonSplit,
     onCurrentAurora,
     onDualStateAurora,
     onFindingsStyle,
@@ -318,7 +334,7 @@ export function CommandPalette({
               setQuery(event.target.value)
               setCursor(0)
             }}
-            placeholder="Landing, findings, Studio, top bar, UX, Aurora…"
+            placeholder="Landing, findings, Studio, comparison, top bar, UX, Aurora…"
             aria-label="Filter commands"
             aria-controls="command-palette-list"
             aria-activedescendant={filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined}

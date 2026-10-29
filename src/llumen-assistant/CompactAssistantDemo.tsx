@@ -70,14 +70,17 @@ import { findingReply, tellMeMorePrompt } from './landing/landingAskReplies'
 import { findingExperience } from './landing/landingFindingExperiences'
 import { CommandPalette } from './CommandPalette'
 import {
+  persistComparisonSplit,
   persistFindingsStyle,
   persistLandingVariant,
   persistStudioStyle,
   persistTopBarVariant,
+  readComparisonSplit,
   readFindingsStyle,
   readLandingVariant,
   readStudioStyle,
   readTopBarVariant,
+  type ComparisonSplit,
   type FindingsStyle,
   type LandingVariant,
   type StudioAskBar,
@@ -540,6 +543,7 @@ export function CompactAssistantDemo() {
     setFindingsStyle(next)
   }, [])
   const [studioStyle, setStudioStyle] = useState<StudioStyle>(() => readStudioStyle())
+  const [comparisonSplit, setComparisonSplit] = useState<ComparisonSplit>(() => readComparisonSplit())
   const [paletteOpen, setPaletteOpen] = useState(false)
   const composerDockRef = useRef<HTMLDivElement>(null)
   /** The Briefing page rests on its findings rather than Assets or below (where the composer docks at the bottom). */
@@ -2160,6 +2164,10 @@ export function CompactAssistantDemo() {
     setStudioStyle(next)
     setBriefingView('studio')
   }, [])
+  const pickComparisonSplit = useCallback((next: ComparisonSplit) => {
+    persistComparisonSplit(next)
+    setComparisonSplit(next)
+  }, [])
   const leaveStory = useCallback(
     (from?: StoryMapView) => {
       if (storyRelease) return
@@ -3062,6 +3070,7 @@ export function CompactAssistantDemo() {
               onAddToChat={isHub ? addStoryComponentToChat : undefined}
               onMonitorConfirm={isHub ? showStoryWorkflow : undefined}
               onSlideIndexChange={setStorySlideIndex}
+              comparisonDirection={comparisonSplit}
             />
           ) : null}
         </div>
@@ -3498,6 +3507,8 @@ export function CompactAssistantDemo() {
           studioStyle={studioStyle}
           onFindingsStyle={pickFindingsStyle}
           onStudioStyle={pickStudioStyle}
+          comparisonSplit={comparisonSplit}
+          onComparisonSplit={pickComparisonSplit}
           onOpenAurora={() => onAuroraPanelOpenChange(true)}
           onCurrentAurora={launchCurrentAurora}
           onDualStateAurora={launchDualStateAurora}

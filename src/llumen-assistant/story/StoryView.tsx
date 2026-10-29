@@ -26,6 +26,7 @@ import {
   Compass,
   Copy,
   DotsSix,
+  DotsSixVertical,
   DotsThreeVertical,
   Export,
   Eye,
@@ -121,6 +122,7 @@ import { locationAnnotation, schoolMarkersAnnotation, snapshotRegion, topSchools
 import { basemapComparison, comparisonPhase, type ComparisonMapOption } from './storyComparison'
 import { createCameraLink } from './storyCameraLink'
 import type { BackgroundBasemap, StoryBackground } from './storyBackground'
+import { DEFAULT_COMPARISON_SPLIT, type ComparisonSplit } from '../prototypeChrome'
 import { StoryBackgroundLayer } from './StoryBackgroundLayer'
 import { BackgroundSettings } from './StoryBackgroundSettings'
 import { StoryAnnotationsPanel, type AnnotationDrawingState, type AnnotationPatch } from './StoryAnnotationsPanel'
@@ -189,6 +191,8 @@ export type StoryViewProps = {
   onMonitorConfirm?: (proposal: WorkflowProposal, prompt: string) => void
   /** Reports the slide on screen, so prompts sent from outside the story can use its data. */
   onSlideIndexChange?: (index: number) => void
+  /** How the Comparison layout splits the maps: the story's map on top or on the left. */
+  comparisonDirection?: ComparisonSplit
   /**
    * Arriving on the map from the Briefing: `wait` holds the header, insight cards, map data and
    * navigation back over the bare map; `play` brings them in. Leaving for the Briefing: `leave` sends
@@ -481,6 +485,7 @@ export function StoryView({
   onAddToChat,
   onMonitorConfirm,
   onSlideIndexChange,
+  comparisonDirection = DEFAULT_COMPARISON_SPLIT,
   entrance,
   mapHidden = false,
   onMapReady,
@@ -912,6 +917,25 @@ export function StoryView({
   const summaryConfig =
     cardPrefs.summary?.summary ?? defaultSummaryConfig(slide.id)
   const viewLayout = layoutBySlide[slide.id] ?? 'sidebar'
+  const sideBySide = viewLayout === 'comparison' && comparisonDirection === 'vertical'
+  const headerRef = useRef<HTMLElement>(null)
+  const comparisonTitleRef = useRef<HTMLElement>(null)
+  // Each comparison map's controls sit under its header's rule, which moves as the filters wrap.
+  useEffect(() => {
+    const root = rootRef.current
+    const header = headerRef.current
+    const title = comparisonTitleRef.current
+    if (viewLayout !== 'comparison' || !root || !header || !title) return
+    const measure = () => {
+      root.style.setProperty('--story-header-end', `${header.offsetTop + header.offsetHeight}px`)
+      root.style.setProperty('--comparison-title-end', `${title.offsetHeight}px`)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(header)
+    observer.observe(title)
+    return () => observer.disconnect()
+  }, [viewLayout, comparisonDirection])
   const basemap = basemapComparison(activeSlideIndex)
   const comparison: ComparisonChoice = comparisonBySlide[slide.id] ?? { option: basemap, layers: basemap.layers }
   const lowerFiltersFor = (option: ComparisonMapOption) =>
@@ -2151,6 +2175,7 @@ export function StoryView({
       ref={rootRef}
       className={`${styles.root}${splitDragging ? ` ${styles.rootSplitDragging}` : ''}`}
       style={{ '--comparison-split': comparisonSplit } as CSSProperties}
+      data-comparison={viewLayout === 'comparison' ? comparisonDirection : undefined}
       aria-label={`${story.storyTitle} story`}
       data-entrance={entrance}
       data-map-hidden={mapHidden || undefined}
@@ -2194,6 +2219,7 @@ export function StoryView({
             editing: annotationPane === 'upper' ? editingAnnotation : null,
             onEdited: (shape) => onAnnotationEdited(shape, 'upper'),
           }}
+          controlsClassName={viewLayout === 'comparison' ? styles.comparisonControlsUpper : undefined}
           onHandle={onMapHandle}
           onReady={onMapReady}
         />
@@ -2252,7 +2278,7 @@ export function StoryView({
       ) : null}
 
       <div className={styles.overlay}>
-        <header className={styles.header} dir={presentationSettings.textDirection}>
+        <header ref={headerRef} className={styles.header} dir={presentationSettings.textDirection}>
           <div className={styles.titleRow}>
             <button
               type="button"
@@ -2459,6 +2485,7 @@ export function StoryView({
 
         {viewLayout === 'comparison' ? (
           <header
+            ref={comparisonTitleRef}
             className={styles.comparisonTitle}
             dir={presentationSettings.textDirection}
           >
@@ -2477,7 +2504,7 @@ export function StoryView({
           <div
             className={`${styles.splitHandle}${splitDragging ? ` ${styles.splitHandleActive}` : ''}`}
             role="separator"
-            aria-orientation="horizontal"
+            aria-orientation={sideBySide ? 'vertical' : 'horizontal'}
             aria-label="Resize comparison maps"
             aria-valuemin={COMPARISON_SPLIT_MIN * 100}
             aria-valuemax={COMPARISON_SPLIT_MAX * 100}
@@ -2493,7 +2520,9 @@ export function StoryView({
               const root = rootRef.current
               if (!drag || !root) return
               const rect = root.getBoundingClientRect()
-              drag.value = clampSplit((event.clientY - rect.top) / rect.height)
+              drag.value = clampSplit(
+                sideBySide ? (event.clientX - rect.left) / rect.width : (event.clientY - rect.top) / rect.height,
+              )
               drag.frame ??= requestAnimationFrame(() => {
                 drag.frame = null
                 root.style.setProperty('--comparison-split', String(drag.value))
@@ -2503,14 +2532,15 @@ export function StoryView({
             onPointerCancel={endSplitDrag}
             onDoubleClick={() => setComparisonSplit(COMPARISON_SPLIT_DEFAULT)}
             onKeyDown={(event) => {
-              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+              const [back, forward] = sideBySide ? ['ArrowLeft', 'ArrowRight'] : ['ArrowUp', 'ArrowDown']
+              if (event.key !== back && event.key !== forward) return
               event.preventDefault()
-              const step = event.key === 'ArrowUp' ? -COMPARISON_SPLIT_STEP : COMPARISON_SPLIT_STEP
+              const step = event.key === back ? -COMPARISON_SPLIT_STEP : COMPARISON_SPLIT_STEP
               setComparisonSplit((current) => clampSplit(current + step))
             }}
           >
             <span className={styles.splitHandleGrip} aria-hidden>
-              <DotsSix size={16} weight="bold" />
+              {sideBySide ? <DotsSixVertical size={16} weight="bold" /> : <DotsSix size={16} weight="bold" />}
             </span>
           </div>
         ) : null}
@@ -2639,7 +2669,7 @@ export function StoryView({
               {timeSeries}
               {comparisonMapData('upper', mainLegend, layers, toggleLayer, legendPlace)}
             </div>
-            <div className={styles.mapStack}>
+            <div className={`${styles.mapStack} ${styles.mapStackCompared}`}>
               {mapsLinked ? null : lowerTimeSeries}
               {comparisonMapData('lower', comparisonScene.legend, comparison.layers, toggleComparisonLayer, 'Abu Dhabi')}
             </div>
@@ -2807,7 +2837,7 @@ export function StoryView({
           {modeSwitch('upper')}
         </div>
         {viewLayout === 'comparison' ? (
-          <div className={styles.lowerNav} aria-label="Comparison map toolbar">
+          <div className={`${styles.lowerNav} ${styles.lowerNavCompared}`} aria-label="Comparison map toolbar">
             {askButton}
             {modeSwitch('lower')}
           </div>
