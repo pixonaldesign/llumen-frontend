@@ -797,6 +797,48 @@ export const STUDIO_WORKFLOWS: StudioWorkflow[] = [
     updated: '5 days ago',
     shape: 'graph',
   },
+  {
+    id: 'wf-air-quality',
+    title: 'Air Quality Alerting',
+    description: 'Watches coastal stations overnight and alerts health teams when readings cross the sensitive-groups line',
+    status: 'Published',
+    updated: '2 hours ago',
+    shape: 'chain',
+    running: 2,
+  },
+  {
+    id: 'wf-permit-renewals',
+    title: 'Permit Renewal Reminders',
+    description: 'Finds permits expiring within 60 days and drafts reminders to each facility owner',
+    status: 'Published',
+    updated: '8 hours ago',
+    shape: 'chain',
+  },
+  {
+    id: 'wf-bus-delays',
+    title: 'Bus Delay Escalation',
+    description: 'Flags routes running more than ten minutes late and routes them to the operations desk',
+    status: 'Published',
+    updated: '30 min ago',
+    shape: 'graph',
+    running: 3,
+  },
+  {
+    id: 'wf-clinic-surge',
+    title: 'Clinic Surge Watch',
+    description: 'Tracks heat-related clinic visits by district and warns when a week runs above its baseline',
+    status: 'Unpublished',
+    updated: '1 day ago',
+    shape: 'graph',
+  },
+  {
+    id: 'wf-board-briefing',
+    title: 'Weekly Board Briefing',
+    description: 'Gathers the week’s findings into a slide deck and shares it with the board every Sunday',
+    status: 'Published',
+    updated: '3 days ago',
+    shape: 'chain',
+  },
 ]
 
 export type StudioMember = {

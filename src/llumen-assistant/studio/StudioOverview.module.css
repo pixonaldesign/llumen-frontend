@@ -53,7 +53,7 @@
 
 .quick {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
 }
 
@@ -134,10 +134,16 @@
   height: 32px;
 }
 
-/* Bleeds to the overview's edges; the first and last cards keep its inset. */
+/*
+ * Bleeds to the overview's edges; the first and last cards keep its inset. --columns whole cards fill the
+ * row after the inset, leaving --peek of the next showing at the far edge.
+ */
 .shelfRow {
+  --gap: 16px;
+  --peek: 56px;
+
   display: flex;
-  gap: 16px;
+  gap: var(--gap);
   margin: -6px calc(-1 * var(--inset)) 0;
   padding: 6px 0 4px;
   overflow-x: auto;
@@ -150,7 +156,8 @@
 }
 
 .shelfRow > * {
-  flex: 0 0 min(var(--card-w), 80%);
+  flex: 0 0 calc((100% - var(--inset) - var(--columns) * var(--gap) - var(--peek)) / var(--columns));
+  min-width: 0;
   scroll-snap-align: start;
   scroll-margin-left: var(--inset);
 }

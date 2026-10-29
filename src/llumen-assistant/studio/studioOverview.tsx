@@ -6,6 +6,8 @@ import {
   CaretLeft,
   CaretRight,
   Cube,
+  Database,
+  Funnel,
   Lightning,
   Robot,
   Sparkle,
@@ -57,6 +59,18 @@ export function OverviewHome({ go, onCreate }: { go: Go; onCreate: () => void })
       hint: 'Steps that AI agents run for you',
       onClick: () => go('workflows'),
     },
+    {
+      icon: <Database size={22} aria-hidden />,
+      title: 'Create source',
+      hint: 'A database, API or model to draw on',
+      onClick: () => go('database'),
+    },
+    {
+      icon: <Funnel size={22} aria-hidden />,
+      title: 'Create filter',
+      hint: 'A saved slice of your data to reuse',
+      onClick: () => go('filters'),
+    },
   ]
 
   return (
@@ -86,13 +100,13 @@ export function OverviewHome({ go, onCreate }: { go: Go; onCreate: () => void })
         </div>
       </section>
 
-      <Shelf id="assets" title="Recent assets" link="All assets" onLink={() => go('assets')} width={400}>
+      <Shelf id="assets" title="Recent assets" link="All assets" onLink={() => go('assets')} columns={4}>
         {recentAssets.map((asset, index) => (
           <GalleryCard key={asset.id} className={o.glassCard} asset={asset} delay={index * 80} onOpen={() => setLightbox(index)} />
         ))}
       </Shelf>
 
-      <Shelf id="apps" title="Recent apps" link="All apps" onLink={() => go('apps')} width={340}>
+      <Shelf id="apps" title="Recent apps" link="All apps" onLink={() => go('apps')} columns={5}>
         {recentApps.map((app) => (
           <article key={app.id} className={`${view.storyCard} ${o.appCard}`} aria-label={app.title}>
             <div className={view.storyCover}>
@@ -113,7 +127,7 @@ export function OverviewHome({ go, onCreate }: { go: Go; onCreate: () => void })
         ))}
       </Shelf>
 
-      <Shelf id="workflows" title="Recent flows" link="All flows" onLink={() => go('workflows')} width={340}>
+      <Shelf id="workflows" title="Recent flows" link="All flows" onLink={() => go('workflows')} columns={5}>
         {recentWorkflows.map((item) => (
           <article
             key={item.id}
@@ -166,20 +180,24 @@ function OpenButton({ label, onClick }: { label: string; onClick: () => void }) 
   )
 }
 
-/** A row that scrolls sideways, paged by the arrows in its head; they hide when everything fits. */
+/**
+ * A grid carousel: `columns` whole cards, sized to the row, with the next one peeking in at the edge. The
+ * arrows in its head page by all but one card, so the last card of a page leads the next; they hide when
+ * everything fits.
+ */
 function Shelf({
   id,
   title,
   link,
   onLink,
-  width,
+  columns,
   children,
 }: {
   id: string
   title: string
   link: string
   onLink: () => void
-  width: number
+  columns: number
   children: ReactNode
 }) {
   const rowRef = useRef<HTMLDivElement>(null)
@@ -198,8 +216,13 @@ function Shelf({
     observer.observe(row)
     return () => observer.disconnect()
   }, [])
-  const page = (direction: number) =>
-    rowRef.current?.scrollBy({ left: direction * rowRef.current.clientWidth * 0.8, behavior: 'smooth' })
+  const page = (direction: number) => {
+    const row = rowRef.current
+    const card = row?.firstElementChild
+    if (!row || !(card instanceof HTMLElement)) return
+    const step = card.offsetWidth + (parseFloat(getComputedStyle(row).columnGap) || 0)
+    row.scrollBy({ left: direction * Math.max(1, columns - 1) * step, behavior: 'smooth' })
+  }
   return (
     <section className={o.section} aria-labelledby={`overview-${id}`}>
       <div className={o.sectionHead}>
@@ -223,7 +246,7 @@ function Shelf({
           )}
         </div>
       </div>
-      <div ref={rowRef} className={o.shelfRow} style={{ '--card-w': `${width}px` } as CSSProperties} onScroll={sync}>
+      <div ref={rowRef} className={o.shelfRow} style={{ '--columns': columns } as CSSProperties} onScroll={sync}>
         {children}
       </div>
     </section>

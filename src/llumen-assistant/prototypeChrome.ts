@@ -32,7 +32,7 @@ export type StudioStyle = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
 /** Where the Briefing's AI bar centres over a Studio page: beside UX 9's sidebar, or across UX 10's full width. */
 export type StudioAskBar = 'beside-sidebar' | 'full-width'
 
-export const DEFAULT_STUDIO_STYLE: StudioStyle = 1
+export const DEFAULT_STUDIO_STYLE: StudioStyle = 10
 
 export type StyleOption<T extends number> = { style: T; label: string; hint: string }
 

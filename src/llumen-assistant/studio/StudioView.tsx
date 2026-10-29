@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'rea
 import { createPortal } from 'react-dom'
 import { MeshGradient } from '@paper-design/shaders-react'
 import { Archive, CaretRight, GearSix, Info, ShareFat, UserPlus, UsersThree, X } from '@phosphor-icons/react'
-import type { StudioAskBar, StudioStyle } from '../prototypeChrome'
+import { DEFAULT_STUDIO_STYLE, type StudioAskBar, type StudioStyle } from '../prototypeChrome'
 import { STUDIO_MEMBERS, STUDIO_WORKSPACE_NAMES, type StudioPage } from './studioData'
 import { PageBody } from './studioNav'
 import { NAV, groupOf, type NavGroup } from './studioNavItems'
@@ -20,14 +20,14 @@ const STUDIO_SHADER_PIXELS = 1280 * 720
 export type StudioViewProps = {
   /** Pauses the shader while the view is hidden. */
   active?: boolean
-  /** Which Studio experience to show; 1 is the sidebar and asset grid. */
+  /** Which Studio experience to show; 1 is the sidebar and asset grid, 10 the overview under a pill ribbon. */
   scenario?: StudioStyle
   /** Where the current page wants the Briefing's AI bar, or null; it steps aside while a modal is open. */
   onAskBarChange?: (bar: StudioAskBar | null) => void
 }
 
 /** The Studio: a workspace's assets, filters, sources, content and members under the landing's top bar. */
-export function StudioView({ active = true, scenario = 1, onAskBarChange }: StudioViewProps) {
+export function StudioView({ active = true, scenario = DEFAULT_STUDIO_STYLE, onAskBarChange }: StudioViewProps) {
   const [page, setPage] = useState<StudioPage>('assets')
   const [workspace, setWorkspace] = useState<string>(STUDIO_WORKSPACE_NAMES[0])
   const [open, setOpen] = useState<Record<NavGroup['id'], boolean>>({
