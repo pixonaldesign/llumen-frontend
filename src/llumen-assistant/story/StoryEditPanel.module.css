@@ -2260,6 +2260,21 @@
   width: min(440px, calc(100vw - 64px));
 }
 
+/* Also opens from the assistant, whose layers reach 10050. */
+.modalRoot.shareModalRoot {
+  z-index: 11000;
+}
+
+/* The people suggestions drop below the invite field and may run past the panel, so it doesn't clip. */
+.panel.modal.shareModal {
+  width: min(520px, calc(100vw - 64px));
+  overflow: visible;
+}
+
+.panel.modal.shareModal > .header {
+  border-radius: calc(var(--radius-2xl) - 1px) calc(var(--radius-2xl) - 1px) 0 0;
+}
+
 .panel.modal.comparisonModal {
   width: min(1080px, calc(100vw - 64px));
   height: min(760px, calc(100vh - 64px));

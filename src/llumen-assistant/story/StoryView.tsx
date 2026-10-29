@@ -118,8 +118,7 @@ import {
   type ChatComponent,
 } from './storyChartPeriod'
 import { locationAnnotation, schoolMarkersAnnotation, snapshotRegion, topSchoolsAnnotation } from './storyAnnotations'
-import { StoryComparisonModal } from './StoryComparisonModal'
-import { comparisonOptions, comparisonPhase, type ComparisonMapOption } from './storyComparison'
+import { basemapComparison, comparisonPhase, type ComparisonMapOption } from './storyComparison'
 import { createCameraLink } from './storyCameraLink'
 import type { BackgroundBasemap, StoryBackground } from './storyBackground'
 import { StoryBackgroundLayer } from './StoryBackgroundLayer'
@@ -277,7 +276,12 @@ type ComparisonChoice = {
   filters?: StoryFilter[]
   timeline?: SlideTimeline
   charts?: TimelineChartSeries[]
+  /** The lower map's own basemap; unset, it follows the story's. */
+  mapStyle?: BackgroundBasemap
 }
+
+/** Which comparison map a control acts on; outside comparison, always the story's map. */
+type MapPane = 'upper' | 'lower'
 
 const NO_TIMELINE_CHARTS: TimelineChartSeries[] = []
 type MapDataLayerKey = keyof StoryMapLayerVisibility
@@ -533,6 +537,11 @@ export function StoryView({
   const [mapDataTab, setMapDataTab] = useState<'layers' | 'annotations'>('layers')
   /** Annotations belong to the story's main map, so every slide shows them against its own data. */
   const [mapAnnotations, setMapAnnotations] = useState<MapAnnotationItem[]>([])
+  /** The comparison map's own annotations, against the data it shows. */
+  const [lowerAnnotations, setLowerAnnotations] = useState<MapAnnotationItem[]>([])
+  const [lowerMapDataTab, setLowerMapDataTab] = useState<'layers' | 'annotations'>('layers')
+  /** The map that the selection, drawing and reshaping below belong to. */
+  const [annotationPane, setAnnotationPane] = useState<MapPane>('upper')
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [annotationDrawing, setAnnotationDrawing] = useState<AnnotationDrawingState | null>(null)
   /** The annotation being reshaped on the flat map, and how it looked before, for Cancel. */
@@ -578,9 +587,7 @@ export function StoryView({
   const [gridColumnsBySlide, setGridColumnsBySlide] = useState<Record<string, GridColumns>>({})
   const [sidebarColumnsBySlide, setSidebarColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
   const [comparisonBySlide, setComparisonBySlide] = useState<Record<string, ComparisonChoice>>({})
-  const [comparisonPickerOpen, setComparisonPickerOpen] = useState(false)
   const [comparisonLegendOpen, setComparisonLegendOpen] = useState({ upper: false, lower: false })
-  const [comparisonInsightOpen, setComparisonInsightOpen] = useState(false)
   const [mapsLinked, setMapsLinked] = useState(true)
   const [lowerPlaying, setLowerPlaying] = useState(false)
   const [lowerSpeed, setLowerSpeed] = useState(1)
@@ -645,6 +652,10 @@ export function StoryView({
   const mapHandleRef = useRef<StoryMapHandle | null>(null)
   const onMapHandle = useCallback((handle: StoryMapHandle | null) => {
     mapHandleRef.current = handle
+  }, [])
+  const lowerMapHandleRef = useRef<StoryMapHandle | null>(null)
+  const onLowerMapHandle = useCallback((handle: StoryMapHandle | null) => {
+    lowerMapHandleRef.current = handle
   }, [])
   const aiCapture = aiState?.capture ?? null
   useEffect(() => {
@@ -753,56 +764,80 @@ export function StoryView({
   )
   const editingAnnotations = storyMode === 'edit'
   const showAnnotationsTab = editingAnnotations || mapAnnotations.length > 0
+  const annotationsOf = (pane: MapPane) => (pane === 'lower' ? lowerAnnotations : mapAnnotations)
+  const setAnnotationsOf = (pane: MapPane) => (pane === 'lower' ? setLowerAnnotations : setMapAnnotations)
   const editingAnnotationId = annotationEditing?.id ?? null
-  const editingAnnotation = useMemo(
-    () => (editingAnnotationId ? (mapAnnotations.find((item) => item.id === editingAnnotationId) ?? null) : null),
-    [editingAnnotationId, mapAnnotations],
-  )
+  const editingAnnotation = useMemo(() => {
+    if (!editingAnnotationId) return null
+    const items = annotationPane === 'lower' ? lowerAnnotations : mapAnnotations
+    return items.find((item) => item.id === editingAnnotationId) ?? null
+  }, [annotationPane, editingAnnotationId, lowerAnnotations, mapAnnotations])
   // The edited annotation is drawn by the editing session (with its handles) instead of the regular layers.
   const mapAnnotationItems = useMemo(
-    () => (editingAnnotationId ? mapAnnotations.filter((item) => item.id !== editingAnnotationId) : mapAnnotations),
-    [editingAnnotationId, mapAnnotations],
+    () =>
+      editingAnnotationId && annotationPane === 'upper'
+        ? mapAnnotations.filter((item) => item.id !== editingAnnotationId)
+        : mapAnnotations,
+    [annotationPane, editingAnnotationId, mapAnnotations],
   )
-  const startAnnotationDrawing = (tool: AnnotationDrawingState['tool']) => {
+  const lowerAnnotationItems = useMemo(
+    () =>
+      editingAnnotationId && annotationPane === 'lower'
+        ? lowerAnnotations.filter((item) => item.id !== editingAnnotationId)
+        : lowerAnnotations,
+    [annotationPane, editingAnnotationId, lowerAnnotations],
+  )
+  const startAnnotationDrawing = (tool: AnnotationDrawingState['tool'], pane: MapPane = 'upper') => {
+    setAnnotationPane(pane)
     setAnnotationEditing(null)
     setEditSection(null)
-    setMapDataTab('annotations')
-    setLegendOpen(true)
+    if (pane === 'lower') {
+      setLowerMapDataTab('annotations')
+      setComparisonLegendOpen((current) => ({ ...current, lower: true }))
+    } else {
+      setMapDataTab('annotations')
+      setLegendOpen(true)
+      setComparisonLegendOpen((current) => ({ ...current, upper: true }))
+    }
     setSelectedAnnotationId(null)
     setAnnotationDrawing({ tool, points: 0 })
   }
-  const onAnnotationDrawn = (shape: DrawnShape) => {
+  const onAnnotationDrawn = (shape: DrawnShape, pane: MapPane = 'upper') => {
     setAnnotationDrawing(null)
-    const item = createAnnotation(shape, mapAnnotations, annotationData, annotationDataLabel)
-    setMapAnnotations((items) => [item, ...items])
+    const item =
+      pane === 'lower'
+        ? createAnnotation(shape, lowerAnnotations, lowerAnnotationData, lowerAnnotationDataLabel)
+        : createAnnotation(shape, mapAnnotations, annotationData, annotationDataLabel)
+    setAnnotationsOf(pane)((items) => [item, ...items])
     setSelectedAnnotationId(item.id)
   }
-  const updateAnnotation = (id: string, patch: AnnotationPatch) =>
-    setMapAnnotations((items) =>
+  const updateAnnotation = (id: string, patch: AnnotationPatch, pane: MapPane = 'upper') =>
+    setAnnotationsOf(pane)((items) =>
       items.map((item) =>
         item.id === id ? { ...item, ...patch, style: patch.style ? { ...item.style, ...patch.style } : item.style } : item,
       ),
     )
-  const editAnnotationShape = (id: string) => {
-    const original = mapAnnotations.find((item) => item.id === id)
+  const editAnnotationShape = (id: string, pane: MapPane = 'upper') => {
+    const original = annotationsOf(pane).find((item) => item.id === id)
     if (!original) return
+    setAnnotationPane(pane)
     setAnnotationDrawing(null)
     setSelectedAnnotationId(id)
     setAnnotationEditing({ id, original })
   }
-  const onAnnotationEdited = (shape: DrawnShape) => {
+  const onAnnotationEdited = (shape: DrawnShape, pane: MapPane = 'upper') => {
     if (!editingAnnotationId) return
-    setMapAnnotations((items) =>
-      items.map((item) =>
-        item.id === editingAnnotationId ? reshapeAnnotation(item, shape, annotationData, annotationDataLabel) : item,
-      ),
+    const [data, label] =
+      pane === 'lower' ? [lowerAnnotationData, lowerAnnotationDataLabel] : [annotationData, annotationDataLabel]
+    setAnnotationsOf(pane)((items) =>
+      items.map((item) => (item.id === editingAnnotationId ? reshapeAnnotation(item, shape, data, label) : item)),
     )
   }
   const cancelAnnotationEditing = () => {
     if (annotationEditing) {
       const { id, original } = annotationEditing
       // Only the shape reverts; color, text and layer settings changed meanwhile stay.
-      setMapAnnotations((items) =>
+      setAnnotationsOf(annotationPane)((items) =>
         items.map((item) =>
           item.id === id ? { ...original, style: item.style, visible: item.visible, opacity: item.opacity } : item,
         ),
@@ -810,13 +845,21 @@ export function StoryView({
     }
     setAnnotationEditing(null)
   }
-  const reorderAnnotations = (from: number, to: number) =>
-    setMapAnnotations((items) => {
+  const reorderAnnotations = (from: number, to: number, pane: MapPane = 'upper') =>
+    setAnnotationsOf(pane)((items) => {
       const next = [...items]
       const [moved] = next.splice(from, 1)
       next.splice(to, 0, moved)
       return next
     })
+  const annotating = annotationDrawing !== null || annotationEditing !== null
+  const onDrawProgress = (points: number) =>
+    setAnnotationDrawing((current) => (current && current.points !== points ? { ...current, points } : current))
+  const deleteAnnotation = (id: string, pane: MapPane = 'upper') => {
+    setAnnotationsOf(pane)((items) => items.filter((item) => item.id !== id))
+    setSelectedAnnotationId(null)
+    if (editingAnnotationId === id) setAnnotationEditing(null)
+  }
   const leaveAnnotationEditing = () => {
     setAnnotationDrawing(null)
     setAnnotationEditing(null)
@@ -869,16 +912,8 @@ export function StoryView({
   const summaryConfig =
     cardPrefs.summary?.summary ?? defaultSummaryConfig(slide.id)
   const viewLayout = layoutBySlide[slide.id] ?? 'sidebar'
-  const comparisonMapOptions = comparisonOptions({
-    slides,
-    activeSlideIndex,
-    filters,
-    range: timelineRange,
-  })
-  const comparison: ComparisonChoice = comparisonBySlide[slide.id] ?? {
-    option: comparisonMapOptions[0],
-    layers: comparisonMapOptions[0].layers,
-  }
+  const basemap = basemapComparison(activeSlideIndex)
+  const comparison: ComparisonChoice = comparisonBySlide[slide.id] ?? { option: basemap, layers: basemap.layers }
   const lowerFiltersFor = (option: ComparisonMapOption) =>
     filters
       .filter((filter) => option.source !== 'filters' || option.id !== `filter-${filter.id}`)
@@ -933,6 +968,22 @@ export function StoryView({
     () => sceneAtPhase(comparisonBaseScene, comparisonFramePhase),
     [comparisonBaseScene, comparisonFramePhase],
   )
+  const lowerAnnotationData = useMemo<AnnotationData>(() => {
+    const state = sceneState(comparisonBaseScene)
+    return {
+      slideIndex: comparison.option.sceneIndex,
+      heights: state.heights,
+      radii: state.radii,
+      layers: comparison.layers,
+    }
+  }, [comparison.layers, comparison.option.sceneIndex, comparisonBaseScene])
+  const lowerAnnotationDataLabel = `${comparison.option.eyebrow} · ${comparison.option.title}`
+  const lowerAnnotationStates = useMemo(
+    () =>
+      Object.fromEntries(lowerAnnotations.map((item) => [item.id, annotationValidity(item, lowerAnnotationData)])),
+    [lowerAnnotationData, lowerAnnotations],
+  )
+  const lowerMapStyle = comparison.mapStyle ?? mapStyle
   const toggleComparisonLayer = (key: MapDataLayerKey) =>
     updateComparison((current) => ({
       ...current,
@@ -1221,6 +1272,15 @@ export function StoryView({
     setDirectSlideEditor(false)
     setEditSection((current) => (current === section ? null : section))
   }
+  /** In comparison, each map's controls open their panels for that map (filters, layers, basemap). */
+  const toolActive = (section: StoryEditSection, target: MapPane) =>
+    editSection === section && (viewLayout !== 'comparison' || filterTarget === target)
+  const toggleTool = (section: StoryEditSection, target: MapPane) => {
+    const open = toolActive(section, target)
+    setFilterTarget(target)
+    setDirectSlideEditor(false)
+    setEditSection(open ? null : section)
+  }
 
   useEffect(() => {
     if (!storyMenuOpen) return
@@ -1493,17 +1553,18 @@ export function StoryView({
     slides.length,
   ])
 
-  const backgroundButton = (
+  const backgroundButtonFor = (pane: MapPane) => (
     <button
       type="button"
-      className={`${styles.mapDataBackgroundBtn}${editSection === 'map' ? ` ${styles.mapDataBackgroundBtnActive}` : ''}`}
-      aria-pressed={editSection === 'map'}
-      onClick={() => toggleSection('map')}
+      className={`${styles.mapDataBackgroundBtn}${toolActive('map', pane) ? ` ${styles.mapDataBackgroundBtnActive}` : ''}`}
+      aria-pressed={toolActive('map', pane)}
+      onClick={() => toggleTool('map', pane)}
     >
       <MapTrifold size={16} weight="regular" aria-hidden />
       Background
     </button>
   )
+  const backgroundButton = backgroundButtonFor('upper')
 
   const timeSeries = (
     <StoryTimeSeries
@@ -1558,27 +1619,35 @@ export function StoryView({
     />
   )
 
+  const linkMapsHint = mapsLinked
+    ? 'Shared camera and time series; separate filters'
+    : 'Each map has its own camera, time series and filters'
   const linkMapsToggle = (
     <button
       type="button"
       role="switch"
       aria-checked={mapsLinked}
+      aria-description={linkMapsHint}
+      title={linkMapsHint}
       className={styles.linkMaps}
       onClick={() => setMapsLinking(!mapsLinked)}
     >
-      <span className={styles.linkMapsText}>
-        <span className={styles.linkMapsLabel}>Link maps</span>
-        <span className={styles.linkMapsHint}>
-          {mapsLinked
-            ? 'Shared camera and time series; separate filters'
-            : 'Each map has its own camera, time series and filters'}
-        </span>
-      </span>
+      Link maps
       <span className={`${styles.linkMapsSwitch}${mapsLinked ? ` ${styles.linkMapsSwitchOn}` : ''}`} aria-hidden>
         <span className={styles.linkMapsThumb} />
       </span>
     </button>
   )
+  /** Comparison sets the Link maps pill beside the Layout pill (or alone, outside edit mode). */
+  const withLinkMaps = (layoutBar: ReactNode) =>
+    viewLayout === 'comparison' ? (
+      <div className={styles.layoutRow}>
+        {layoutBar}
+        {linkMapsToggle}
+      </div>
+    ) : (
+      layoutBar
+    )
 
   const filterRow = (
     target: 'upper' | 'lower',
@@ -1650,7 +1719,8 @@ export function StoryView({
   }
 
   const editingLowerFilters =
-    editSection === 'filters' && filterTarget === 'lower' && viewLayout === 'comparison'
+    (editSection === 'filters' || editSection === 'assets') && filterTarget === 'lower' && viewLayout === 'comparison'
+  const editingLowerMap = editSection === 'map' && filterTarget === 'lower' && viewLayout === 'comparison'
   const setLowerFilters = (update: (current: StoryFilter[]) => StoryFilter[]) =>
     updateComparison((current) => ({ ...current, filters: update(current.filters ?? lowerFilters) }))
 
@@ -1663,6 +1733,7 @@ export function StoryView({
     onToggle: (key: MapDataLayerKey) => void,
     addLayer: boolean,
     place = 'Abu Dhabi',
+    pane: MapPane = 'upper',
   ) => (
     <div className={styles.mapDataBody}>
       <div className={styles.legendGroup}>
@@ -1751,9 +1822,9 @@ export function StoryView({
       {addLayer ? (
         <button
           type="button"
-          className={`${styles.addMapLayerBtn}${editSection === 'layers' ? ` ${styles.addMapLayerBtnActive}` : ''}`}
-          aria-pressed={editSection === 'layers'}
-          onClick={() => toggleSection('layers')}
+          className={`${styles.addMapLayerBtn}${toolActive('layers', pane) ? ` ${styles.addMapLayerBtnActive}` : ''}`}
+          aria-pressed={toolActive('layers', pane)}
+          onClick={() => toggleTool('layers', pane)}
         >
           <Plus size={16} weight="bold" aria-hidden />
           Map layer
@@ -1762,26 +1833,94 @@ export function StoryView({
     </div>
   )
 
-  /** Comparison maps: collapsible legend only; the background stays out of the comparison. */
+  /**
+   * Each comparison map's Map Data, as the sidebar layout's: its basemap, layers and annotations, for that
+   * map. Only a basemap shows behind a comparison map, so there are no background settings here.
+   */
   const comparisonMapData = (
-    pane: 'upper' | 'lower',
+    pane: MapPane,
     legend: StoryScene['legend'],
     layerState: StoryMapLayerVisibility,
     onToggle: (key: MapDataLayerKey) => void,
+    place: string,
   ) => {
-    const open = comparisonLegendOpen[pane]
+    const upper = pane === 'upper'
+    const open = comparisonLegendOpen[pane] || storyMode === 'edit'
+    const items = annotationsOf(pane)
+    const tab = upper ? mapDataTab : lowerMapDataTab
+    const setTab = upper ? setMapDataTab : setLowerMapDataTab
+    const showTabs = editingAnnotations || items.length > 0
+    const here = annotationPane === pane
+    const handle = upper ? mapHandleRef : lowerMapHandleRef
     return (
       <div className={styles.mapData}>
-        <button
-          type="button"
-          className={`${styles.mapDataHeader}${open ? '' : ` ${styles.mapDataHeaderSolo}`}`}
-          onClick={() => setComparisonLegendOpen((current) => ({ ...current, [pane]: !current[pane] }))}
-          aria-expanded={open}
-        >
-          <span>Map Data</span>
-          <CaretDown size={18} weight="regular" className={open ? undefined : styles.caretClosed} aria-hidden />
-        </button>
-        {open ? mapLegend(legend, layerState, onToggle, false) : null}
+        {storyMode === 'edit' ? (
+          <div className={`${styles.mapDataHeader} ${styles.mapDataHeaderEdit}`}>
+            <span>Map Data</span>
+            {backgroundButtonFor(pane)}
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={`${styles.mapDataHeader}${open ? '' : ` ${styles.mapDataHeaderSolo}`}`}
+            onClick={() => setComparisonLegendOpen((current) => ({ ...current, [pane]: !current[pane] }))}
+            aria-expanded={open}
+          >
+            <span>Map Data</span>
+            <CaretDown size={18} weight="regular" className={open ? undefined : styles.caretClosed} aria-hidden />
+          </button>
+        )}
+        {open ? (
+          <>
+            {showTabs ? (
+              <div className={annotationStyles.tabs} role="tablist" aria-label="Map data">
+                {(['layers', 'annotations'] as const).map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === name}
+                    className={`${annotationStyles.tab}${tab === name ? ` ${annotationStyles.tabActive}` : ''}`}
+                    onClick={() => {
+                      setTab(name)
+                      if (name === 'layers' && here) setSelectedAnnotationId(null)
+                    }}
+                  >
+                    {name === 'layers' ? 'Map layers' : 'Annotations'}
+                    {name === 'annotations' && items.length > 0 ? (
+                      <span className={annotationStyles.tabCount}>{items.length}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {showTabs && tab === 'annotations' ? (
+              <StoryAnnotationsPanel
+                items={items}
+                selectedId={here ? selectedAnnotationId : null}
+                editable={editingAnnotations}
+                drawing={here ? annotationDrawing : null}
+                editingId={here ? editingAnnotationId : null}
+                onStartDrawing={(tool) => startAnnotationDrawing(tool, pane)}
+                onFinishDrawing={() => handle.current?.finishDrawing()}
+                onUndoDrawing={() => handle.current?.undoDrawing()}
+                onCancelDrawing={() => setAnnotationDrawing(null)}
+                onSelect={(id) => {
+                  setAnnotationPane(pane)
+                  setSelectedAnnotationId(id)
+                }}
+                onChange={(id, patch) => updateAnnotation(id, patch, pane)}
+                onDelete={(id) => deleteAnnotation(id, pane)}
+                onEdit={(id) => editAnnotationShape(id, pane)}
+                onFinishEditing={() => setAnnotationEditing(null)}
+                onCancelEditing={cancelAnnotationEditing}
+                onReorder={(from, to) => reorderAnnotations(from, to, pane)}
+              />
+            ) : (
+              mapLegend(legend, layerState, onToggle, storyMode === 'edit', place, pane)
+            )}
+          </>
+        ) : null}
       </div>
     )
   }
@@ -1921,6 +2060,92 @@ export function StoryView({
     </>
   )
 
+  const askButton = onAsk ? (
+    <button
+      type="button"
+      className={styles.askBtn}
+      aria-label={agentOpen ? 'Close the assistant' : 'Ask about this story'}
+      aria-expanded={agentOpen}
+      onClick={(event) => {
+        if (agentOpen) {
+          onCloseAsk?.()
+          return
+        }
+        const sourceRect = event.currentTarget.getBoundingClientRect()
+        if (findingUnread && onRestoreFindings) {
+          onRestoreFindings(sourceRect)
+          return
+        }
+        onAsk({ story: previewStory, slideIndex: activeSlideIndex, sourceRect })
+      }}
+    >
+      <img className={styles.askIcon} src={llumenAssets.launcherOrb} alt="" width={24} height={24} />
+      {findingUnread ? <span className={styles.unreadDot} /> : null}
+    </button>
+  ) : null
+
+  const modeSwitch = (target: 'upper' | 'lower') => (
+    <div
+      className={`${styles.modeSwitch}${storyMode === 'edit' ? ` ${styles.modeSwitchEdit}` : ''}`}
+      role="group"
+      aria-label={target === 'lower' ? 'Comparison map mode' : 'Story mode'}
+    >
+      <button
+        type="button"
+        className={`${styles.modeBtn}${storyMode === 'view' ? ` ${styles.modeBtnActive}` : ''}`}
+        aria-label="View mode"
+        aria-pressed={storyMode === 'view'}
+        onClick={() => {
+          setStoryMode('view')
+          setDirectSlideEditor(false)
+          setEditSection(null)
+          setStoryMenuOpen(false)
+          setSlideMenuOpen(false)
+          setLayoutMenuOpen(false)
+          setInfo(null)
+          leaveAnnotationEditing()
+        }}
+      >
+        <Eye size={20} weight="regular" aria-hidden />
+      </button>
+      <button
+        type="button"
+        className={`${styles.modeBtn}${storyMode === 'edit' ? ` ${styles.modeBtnActive}` : ''}`}
+        aria-label="Edit mode"
+        aria-pressed={storyMode === 'edit'}
+        onClick={() => {
+          setStoryMode('edit')
+          setInfo(null)
+        }}
+      >
+        <PencilSimple size={20} weight="regular" aria-hidden />
+      </button>
+      <div className={styles.modeActions} aria-hidden={storyMode !== 'edit'} inert={storyMode !== 'edit'}>
+        <div className={styles.modeActionsClip}>
+          <div className={styles.modeActionsInner}>
+            <span className={styles.modeDivider} aria-hidden />
+            <button
+              type="button"
+              className={`${styles.modeAction}${toolActive('assets', target) ? ` ${styles.modeActionActive}` : ''}`}
+              onClick={() => toggleTool('assets', target)}
+            >
+              <Plus size={18} weight="bold" aria-hidden />
+              Assets
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeAction}${toolActive('tools', target) ? ` ${styles.modeActionActive}` : ''}`}
+              onClick={() => toggleTool('tools', target)}
+            >
+              <Toolbox size={18} weight="regular" aria-hidden />
+              Tools
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div
       ref={rootRef}
@@ -1941,7 +2166,7 @@ export function StoryView({
           frameDuration={timelinePlaying ? frameStepMs : 500}
           frameLinear={timelinePlaying}
           styleUrl={mapStyle.url}
-          flat={mapStyle.dimension === '2d' || annotationDrawing !== null || annotationEditing !== null}
+          flat={mapStyle.dimension === '2d' || (annotationPane === 'upper' && annotating)}
           cameraLink={viewLayout === 'comparison' && mapsLinked ? cameraLink : undefined}
           region={aiRegion}
           cameraRequest={cameraRequest}
@@ -1951,22 +2176,23 @@ export function StoryView({
           annotations={{
             items: mapAnnotationItems,
             validity: annotationStates,
-            selectedId: editingAnnotations ? selectedAnnotationId : null,
+            selectedId: editingAnnotations && annotationPane === 'upper' ? selectedAnnotationId : null,
             onSelect: editingAnnotations
               ? (id) => {
+                  setAnnotationPane('upper')
                   setSelectedAnnotationId(id)
                   if (!id) return
                   setMapDataTab('annotations')
                   setLegendOpen(true)
+                  setComparisonLegendOpen((current) => ({ ...current, upper: true }))
                 }
               : undefined,
-            drawing: annotationDrawing?.tool ?? null,
-            onDrawn: onAnnotationDrawn,
-            onDrawProgress: (points) =>
-              setAnnotationDrawing((current) => (current && current.points !== points ? { ...current, points } : current)),
+            drawing: annotationPane === 'upper' ? (annotationDrawing?.tool ?? null) : null,
+            onDrawn: (shape) => onAnnotationDrawn(shape, 'upper'),
+            onDrawProgress,
             onDrawCancel: () => setAnnotationDrawing(null),
-            editing: editingAnnotation,
-            onEdited: onAnnotationEdited,
+            editing: annotationPane === 'upper' ? editingAnnotation : null,
+            onEdited: (shape) => onAnnotationEdited(shape, 'upper'),
           }}
           onHandle={onMapHandle}
           onReady={onMapReady}
@@ -1982,11 +2208,32 @@ export function StoryView({
             framePhase={comparisonFramePhase}
             frameDuration={lowerAnimating ? lowerStepMs : 500}
             frameLinear={lowerAnimating}
-            styleUrl={mapStyle.url}
-            flat={mapStyle.dimension === '2d'}
+            styleUrl={lowerMapStyle.url}
+            flat={lowerMapStyle.dimension === '2d' || (annotationPane === 'lower' && annotating)}
             controlsClassName={styles.comparisonControls}
             cameraLink={mapsLinked ? cameraLink : undefined}
             flyToScene={false}
+            annotations={{
+              items: lowerAnnotationItems,
+              validity: lowerAnnotationStates,
+              selectedId: editingAnnotations && annotationPane === 'lower' ? selectedAnnotationId : null,
+              onSelect: editingAnnotations
+                ? (id) => {
+                    setAnnotationPane('lower')
+                    setSelectedAnnotationId(id)
+                    if (!id) return
+                    setLowerMapDataTab('annotations')
+                    setComparisonLegendOpen((current) => ({ ...current, lower: true }))
+                  }
+                : undefined,
+              drawing: annotationPane === 'lower' ? (annotationDrawing?.tool ?? null) : null,
+              onDrawn: (shape) => onAnnotationDrawn(shape, 'lower'),
+              onDrawProgress,
+              onDrawCancel: () => setAnnotationDrawing(null),
+              editing: annotationPane === 'lower' ? editingAnnotation : null,
+              onEdited: (shape) => onAnnotationEdited(shape, 'lower'),
+            }}
+            onHandle={onLowerMapHandle}
           />
         </section>
       ) : null}
@@ -2086,6 +2333,15 @@ export function StoryView({
                 </div>
               ) : null}
             </div>
+            <button
+              type="button"
+              className={styles.shareBtn}
+              aria-haspopup="dialog"
+              onClick={() => setShareOpen(true)}
+            >
+              <Export size={16} weight="regular" aria-hidden />
+              Share
+            </button>
             {headerEnd ? <div className={styles.headerEnd}>{headerEnd}</div> : null}
           </div>
           {filterRow('upper', filters, (filterId) =>
@@ -2117,7 +2373,7 @@ export function StoryView({
           }
           dir={presentationSettings.textDirection}
         >
-          {storyMode === 'edit' ? (
+          {withLinkMaps(storyMode === 'edit' ? (
             <div className={styles.layoutBar}>
               <button
                 ref={layoutMenuRef}
@@ -2152,7 +2408,7 @@ export function StoryView({
                 />
               ) : null}
             </div>
-          ) : null}
+          ) : null)}
           {viewLayout === 'grid' ? (
             <aside
               className={`${styles.insight} ${styles.insightLayoutGrid}${storyMode === 'edit' ? ` ${styles.insightLayoutGridEditing}` : ''}`}
@@ -2175,46 +2431,29 @@ export function StoryView({
                 : null}
             </aside>
           ) : (
-            <>
-              {viewLayout === 'comparison' ? (
-                <button
-                  type="button"
-                  className={`${styles.filterAddBtn} ${styles.insightToggle}${comparisonInsightOpen ? ` ${styles.filterAddBtnActive}` : ''}`}
-                  aria-expanded={comparisonInsightOpen}
-                  aria-controls="story-insight"
-                  onClick={() => setComparisonInsightOpen((open) => !open)}
-                >
-                  <Sidebar size={16} weight="regular" aria-hidden />
-                  {comparisonInsightOpen ? 'Hide insights' : 'Show insights'}
-                </button>
-              ) : null}
-              {viewLayout !== 'comparison' || comparisonInsightOpen ? (
-                <aside
-                  id="story-insight"
-                  className={[
-                    styles.insight,
-                    viewLayout === 'comparison' ? styles.insightBelowToggle : '',
-                    slide.layout === 'full-width' ? styles.insightFullWidth : '',
-                    slide.layout === 'sidebar' && slide.sidebarWidth === 'small'
-                      ? styles.insightSmall
-                      : '',
-                    slide.focusLayout ? styles.insightFocus : '',
-                    storyMode === 'edit' ? styles.insightGrid : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  style={{ '--sidebar-columns': sidebarColumns } as CSSProperties}
-                  aria-label="Story insight"
-                >
-                  {insightCards}
-                  {storyMode === 'edit'
-                    ? Array.from({ length: emptyGridCells }, (_, index) => (
-                        <div key={`cell-${index}`} className={styles.gridCell} aria-hidden />
-                      ))
-                    : null}
-                </aside>
-              ) : null}
-            </>
+            <aside
+              id="story-insight"
+              className={[
+                styles.insight,
+                slide.layout === 'full-width' ? styles.insightFullWidth : '',
+                slide.layout === 'sidebar' && slide.sidebarWidth === 'small'
+                  ? styles.insightSmall
+                  : '',
+                slide.focusLayout ? styles.insightFocus : '',
+                storyMode === 'edit' ? styles.insightGrid : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              style={{ '--sidebar-columns': sidebarColumns } as CSSProperties}
+              aria-label="Story insight"
+            >
+              {insightCards}
+              {storyMode === 'edit'
+                ? Array.from({ length: emptyGridCells }, (_, index) => (
+                    <div key={`cell-${index}`} className={styles.gridCell} aria-hidden />
+                  ))
+                : null}
+            </aside>
           )}
         </div>
 
@@ -2230,6 +2469,7 @@ export function StoryView({
                 setLowerFilters((current) => current.filter((item) => item.id !== filterId)),
               )}
             </div>
+            <div className={`${styles.headerRule} ${styles.comparisonRule}`} aria-hidden />
           </header>
         ) : null}
 
@@ -2347,10 +2587,15 @@ export function StoryView({
               setDirectSlideEditor(false)
               setEditSection(null)
             }}
-            mapStyleId={mapStyle.id}
-            mapDimension={mapStyle.dimension}
-            background={background}
+            mapStyleId={editingLowerMap ? lowerMapStyle.id : mapStyle.id}
+            mapDimension={editingLowerMap ? lowerMapStyle.dimension : mapStyle.dimension}
+            background={editingLowerMap ? lowerMapStyle : background}
+            basemapOnly={viewLayout === 'comparison'}
             onBackgroundChange={(next) => {
+              if (editingLowerMap) {
+                if (next.kind === 'basemap') updateComparison((current) => ({ ...current, mapStyle: next }))
+                return
+              }
               setBackground(next)
               if (next.kind === 'basemap') setMapStyle(next)
             }}
@@ -2391,13 +2636,12 @@ export function StoryView({
         {viewLayout === 'comparison' ? (
           <>
             <div className={`${styles.mapStack} ${styles.mapStackComparisonUpper}`}>
-              {linkMapsToggle}
               {timeSeries}
-              {comparisonMapData('upper', scene.legend, layers, toggleLayer)}
+              {comparisonMapData('upper', mainLegend, layers, toggleLayer, legendPlace)}
             </div>
             <div className={styles.mapStack}>
               {mapsLinked ? null : lowerTimeSeries}
-              {comparisonMapData('lower', comparisonScene.legend, comparison.layers, toggleComparisonLayer)}
+              {comparisonMapData('lower', comparisonScene.legend, comparison.layers, toggleComparisonLayer, 'Abu Dhabi')}
             </div>
           </>
         ) : (
@@ -2466,21 +2710,20 @@ export function StoryView({
                     editable={editingAnnotations}
                     drawing={annotationDrawing}
                     editingId={editingAnnotationId}
-                    onStartDrawing={startAnnotationDrawing}
+                    onStartDrawing={(tool) => startAnnotationDrawing(tool)}
                     onFinishDrawing={() => mapHandleRef.current?.finishDrawing()}
                     onUndoDrawing={() => mapHandleRef.current?.undoDrawing()}
                     onCancelDrawing={() => setAnnotationDrawing(null)}
-                    onSelect={setSelectedAnnotationId}
-                    onChange={updateAnnotation}
-                    onDelete={(id) => {
-                      setMapAnnotations((items) => items.filter((item) => item.id !== id))
-                      setSelectedAnnotationId(null)
-                      if (editingAnnotationId === id) setAnnotationEditing(null)
+                    onSelect={(id) => {
+                      setAnnotationPane('upper')
+                      setSelectedAnnotationId(id)
                     }}
-                    onEdit={editAnnotationShape}
+                    onChange={(id, patch) => updateAnnotation(id, patch)}
+                    onDelete={(id) => deleteAnnotation(id)}
+                    onEdit={(id) => editAnnotationShape(id)}
                     onFinishEditing={() => setAnnotationEditing(null)}
                     onCancelEditing={cancelAnnotationEditing}
-                    onReorder={reorderAnnotations}
+                    onReorder={(from, to) => reorderAnnotations(from, to)}
                   />
                 ) : (
                   mapLegend(mainLegend, layers, toggleLayer, storyMode === 'edit', legendPlace)
@@ -2492,30 +2735,11 @@ export function StoryView({
         </div>
         )}
 
-        <div className={styles.lowerNav} aria-label="Story navigation">
-          {onAsk ? (
-            <button
-              type="button"
-              className={styles.askBtn}
-              aria-label={agentOpen ? 'Close the assistant' : 'Ask about this story'}
-              aria-expanded={agentOpen}
-              onClick={(event) => {
-                if (agentOpen) {
-                  onCloseAsk?.()
-                  return
-                }
-                const sourceRect = event.currentTarget.getBoundingClientRect()
-                if (findingUnread && onRestoreFindings) {
-                  onRestoreFindings(sourceRect)
-                  return
-                }
-                onAsk({ story: previewStory, slideIndex: activeSlideIndex, sourceRect })
-              }}
-            >
-              <img className={styles.askIcon} src={llumenAssets.launcherOrb} alt="" width={24} height={24} />
-              {findingUnread ? <span className={styles.unreadDot} /> : null}
-            </button>
-          ) : null}
+        <div
+          className={`${styles.lowerNav}${viewLayout === 'comparison' ? ` ${styles.lowerNavUpper}` : ''}`}
+          aria-label="Story navigation"
+        >
+          {askButton}
 
           {presentationSettings.multiSlide && !presentationSettings.pagesMode ? (
             <div className={styles.navCluster}>
@@ -2580,66 +2804,14 @@ export function StoryView({
             </div>
           ) : null}
 
-          <div
-            className={`${styles.modeSwitch}${storyMode === 'edit' ? ` ${styles.modeSwitchEdit}` : ''}`}
-            role="group"
-            aria-label="Story mode"
-          >
-            <button
-              type="button"
-              className={`${styles.modeBtn}${storyMode === 'view' ? ` ${styles.modeBtnActive}` : ''}`}
-              aria-label="View mode"
-              aria-pressed={storyMode === 'view'}
-              onClick={() => {
-                setStoryMode('view')
-                setDirectSlideEditor(false)
-                setEditSection(null)
-                setStoryMenuOpen(false)
-                setSlideMenuOpen(false)
-                setLayoutMenuOpen(false)
-                setInfo(null)
-                leaveAnnotationEditing()
-              }}
-            >
-              <Eye size={20} weight="regular" aria-hidden />
-            </button>
-            <button
-              type="button"
-              className={`${styles.modeBtn}${storyMode === 'edit' ? ` ${styles.modeBtnActive}` : ''}`}
-              aria-label="Edit mode"
-              aria-pressed={storyMode === 'edit'}
-              onClick={() => {
-                setStoryMode('edit')
-                setInfo(null)
-              }}
-            >
-              <PencilSimple size={20} weight="regular" aria-hidden />
-            </button>
-            <div className={styles.modeActions} aria-hidden={storyMode !== 'edit'} inert={storyMode !== 'edit'}>
-              <div className={styles.modeActionsClip}>
-                <div className={styles.modeActionsInner}>
-                  <span className={styles.modeDivider} aria-hidden />
-                  <button
-                    type="button"
-                    className={`${styles.modeAction}${editSection === 'assets' ? ` ${styles.modeActionActive}` : ''}`}
-                    onClick={() => toggleSection('assets')}
-                  >
-                    <Plus size={18} weight="bold" aria-hidden />
-                    Assets
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.modeAction}${editSection === 'tools' ? ` ${styles.modeActionActive}` : ''}`}
-                    onClick={() => toggleSection('tools')}
-                  >
-                    <Toolbox size={18} weight="regular" aria-hidden />
-                    Tools
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          {modeSwitch('upper')}
         </div>
+        {viewLayout === 'comparison' ? (
+          <div className={styles.lowerNav} aria-label="Comparison map toolbar">
+            {askButton}
+            {modeSwitch('lower')}
+          </div>
+        ) : null}
       </div>
     {slideMenuOpen
       ? createPortal(
@@ -2713,8 +2885,10 @@ export function StoryView({
                   aria-checked={selected}
                   className={selected ? styles.storyMenuSelected : undefined}
                   onClick={() => {
-                    if (option.id === 'comparison') setComparisonPickerOpen(true)
-                    else setLayoutBySlide((current) => ({ ...current, [slide.id]: option.id }))
+                    if (option.id === 'comparison' && viewLayout !== 'comparison') {
+                      setComparisonLegendOpen({ upper: false, lower: !comparisonBySlide[slide.id] })
+                    }
+                    setLayoutBySlide((current) => ({ ...current, [slide.id]: option.id }))
                     setLayoutMenuOpen(false)
                   }}
                 >
@@ -2728,31 +2902,6 @@ export function StoryView({
           document.body,
         )
       : null}
-    {comparisonPickerOpen ? (
-      <StoryComparisonModal
-        options={comparisonMapOptions}
-        initialOptionId={comparison.option.id}
-        framePhase={framePhase}
-        styleUrl={mapStyle.url}
-        flat={mapStyle.dimension === '2d'}
-        onClose={() => setComparisonPickerOpen(false)}
-        onApply={(option) => {
-          setComparisonBySlide((current) => ({
-            ...current,
-            [slide.id]: {
-              option,
-              layers: option.layers,
-              filters: lowerFiltersFor(option),
-              timeline: mapsLinked ? undefined : (current[slide.id]?.timeline ?? { ...timeline }),
-              charts: current[slide.id]?.charts,
-            },
-          }))
-          setLayoutBySlide((current) => ({ ...current, [slide.id]: 'comparison' }))
-          setComparisonLegendOpen({ upper: false, lower: false })
-          setComparisonPickerOpen(false)
-        }}
-      />
-    ) : null}
     {storyMenuOpen
       ? createPortal(
           <div
@@ -2920,6 +3069,7 @@ export function StoryView({
       <ShareModal
         open={shareOpen}
         title={`Share “${storyTitle}”`}
+        note="Recipients get a link to this story, with its pages, filters and map views. Your edits reach them as you make them."
         onClose={() => setShareOpen(false)}
       />
     </div>

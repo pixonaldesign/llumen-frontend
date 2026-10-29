@@ -230,24 +230,24 @@
   pointer-events: none;
 }
 
-/* Comparison layout: insights stay hidden behind a toggle so both maps read full width. */
 .comparisonFilters {
   margin-top: 14px;
 }
 
-.filterAddBtn.insightToggle {
-  flex-shrink: 0;
-  margin-top: 20px;
+/* Runs past the room kept for the map controls, to the same 20px inset as the upper map's rule. */
+.headerRule.comparisonRule {
+  width: calc(100% + 68px);
+  margin-top: 14px;
 }
 
-.insight.insightBelowToggle {
-  padding-top: 12px;
-}
-
-/* Above the lower map title (3), below the split handle (8). */
+/*
+ * Above the lower map title (3), below the split handle (8). Ends at the split, so the insight cards
+ * scroll within the upper map and never run over the lower one.
+ */
 .bodyComparison {
   position: relative;
   z-index: 4;
+  margin-bottom: calc((1 - var(--comparison-split)) * 100cqh);
 }
 
 .splitHandle {
@@ -358,6 +358,39 @@
   background: rgba(34, 42, 42, 0.72);
 }
 
+.shareBtn {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin: 0;
+  padding: 0 14px 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(34, 42, 42, 0.5);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.shareBtn:hover {
+  background: rgba(34, 42, 42, 0.72);
+}
+
+.shareBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
 /*
  * Edit mode: one control above the insight cards, the slide's Layout menu and, for the sidebar and grid
  * layouts, their width in columns.
@@ -386,7 +419,8 @@
   margin: calc(16px - var(--grid-inset-top, 0px)) 0 16px;
 }
 
-.layoutBar + .insight {
+.layoutBar + .insight,
+.layoutRow + .insight {
   padding-top: 16px;
 }
 
@@ -1868,42 +1902,51 @@ button.summaryStatus:disabled {
   bottom: calc((1 - var(--comparison-split)) * 100% + 18px);
 }
 
-.linkMaps {
+/* Comparison's Layout and Link maps pills, side by side where the Layout pill sits alone. */
+.layoutRow {
   display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.layoutRow > .layoutBar {
+  margin: 0;
+}
+
+/* The Layout pill's frame (`.layoutBar`) around a label and its switch. */
+.linkMaps {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 10px;
-  width: 100%;
+  height: 44px;
   margin: 0;
-  padding: 12px 16px;
+  padding: 0 14px 0 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
+  border-radius: 999px;
   background: rgba(26, 26, 26, 0.5);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   color: #fff;
   font: inherit;
-  text-align: start;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.linkMapsText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.linkMapsLabel {
   font-size: 14px;
   font-weight: 500;
-  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 160ms ease;
 }
 
-.linkMapsHint {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  line-height: 16px;
+.linkMaps:hover {
+  background: rgba(46, 46, 46, 0.6);
+}
+
+.linkMaps:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
 }
 
 .linkMapsSwitch {
@@ -2174,6 +2217,11 @@ button.summaryStatus:disabled {
   justify-content: center;
   gap: 8px;
   transform: translateX(-50%);
+}
+
+/* Comparison: the story's toolbar belongs to the upper map, just above the split; the lower map has its own. */
+.lowerNavUpper {
+  bottom: calc((1 - var(--comparison-split)) * 100% + 18px);
 }
 
 .askBtn {

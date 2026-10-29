@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Link, Plus, X } from '@phosphor-icons/react'
+import { Check, Link, Plus, X } from '@phosphor-icons/react'
 import { createPortal } from 'react-dom'
+import edit from './story/StoryEditPanel.module.css'
 import styles from './ShareModal.module.css'
 
 export type ShareContact = {
@@ -123,15 +124,19 @@ function contactFromToken(token: string): ShareContact | null {
 export type ShareModalProps = {
   open: boolean
   title?: string
+  /** What recipients get, under the invite field. */
+  note?: string
   onClose: () => void
 }
 
 export function ShareModal({
   open,
   title = 'Share conversation',
+  note = 'Recipients get a link to a copy of this chat — including the full history and outputs. They can continue the conversation on their own copy without changing yours.',
   onClose,
 }: ShareModalProps) {
   const titleId = useId()
+  const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const [draft, setDraft] = useState('')
   const [invitees, setInvitees] = useState<ShareContact[]>([])
@@ -218,144 +223,145 @@ export function ShareModal({
   if (!open) return null
 
   return createPortal(
-    <div className={styles.root} role="presentation" data-lc-share-modal>
-      <button type="button" className={styles.backdrop} aria-label="Close share dialog" onClick={onClose} />
+    <div className={`${edit.modalRoot} ${edit.shareModalRoot}`} role="presentation" data-lc-share-modal>
+      <button type="button" className={edit.modalBackdrop} aria-label="Close share dialog" onClick={onClose} />
       <div
-        className={styles.modal}
+        className={`${edit.panel} ${edit.modal} ${edit.shareModal}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
       >
-        <div className={styles.header}>
-          <h2 id={titleId} className={styles.title}>
+        <header className={`${edit.header} ${styles.header}`}>
+          <h2 id={titleId} className={edit.title}>
             {title}
           </h2>
-          <div className={styles.headerActions}>
-            <button type="button" className={styles.copyLink} onClick={onCopyLink}>
-              <Link size={16} weight="bold" aria-hidden />
-              <span>{copied ? 'Copied' : 'Copy link'}</span>
-            </button>
-            <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">
-              <X size={20} weight="regular" aria-hidden />
-            </button>
-          </div>
-        </div>
+          <button type="button" className={edit.closeBtn} onClick={onClose} aria-label="Close share dialog">
+            <X size={18} weight="bold" aria-hidden />
+          </button>
+        </header>
 
-        <div className={styles.inviteRow}>
-          <div className={styles.field}>
-            {invitees.map((person) => (
-              <span key={person.id} className={styles.chip}>
-                <span className={styles.chipAvatar} style={{ background: person.accent }} aria-hidden>
-                  {person.initial}
+        <div className={styles.body}>
+          <div className={edit.field}>
+            <label className={edit.label} htmlFor={inputId}>
+              Invite people
+            </label>
+            <div className={styles.field}>
+              {invitees.map((person) => (
+                <span key={person.id} className={styles.chip}>
+                  <span className={styles.chipAvatar} style={{ background: person.accent }} aria-hidden>
+                    {person.initial}
+                  </span>
+                  <span className={styles.chipLabel}>{person.name}</span>
+                  <button
+                    type="button"
+                    className={styles.chipRemove}
+                    aria-label={`Remove ${person.name}`}
+                    onClick={() => removeInvitee(person.id)}
+                  >
+                    <X size={12} weight="bold" aria-hidden />
+                  </button>
                 </span>
-                <span className={styles.chipLabel}>{person.name}</span>
-                <button
-                  type="button"
-                  className={styles.chipRemove}
-                  aria-label={`Remove ${person.name}`}
-                  onClick={() => removeInvitee(person.id)}
-                >
-                  <X size={12} weight="bold" aria-hidden />
-                </button>
-              </span>
-            ))}
-            <input
-              ref={inputRef}
-              className={styles.input}
-              value={draft}
-              placeholder={
-                invitees.length === 0 ? 'Add comma separated emails to invite' : 'Add another…'
-              }
-              aria-label="Invite by name or email"
-              aria-autocomplete="list"
-              aria-expanded={suggestions.length > 0}
-              onChange={(e) => {
-                const value = e.target.value
-                if (value.includes(',')) commitDraftTokens(value)
-                else setDraft(value)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowDown' && suggestions.length > 0) {
-                  e.preventDefault()
-                  setActiveIndex((i) => (i + 1) % suggestions.length)
-                  return
-                }
-                if (e.key === 'ArrowUp' && suggestions.length > 0) {
-                  e.preventDefault()
-                  setActiveIndex((i) => (i - 1 + suggestions.length) % suggestions.length)
-                  return
-                }
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  if (suggestions[activeIndex]) {
-                    addInvitee(suggestions[activeIndex])
+              ))}
+              <input
+                ref={inputRef}
+                id={inputId}
+                className={styles.input}
+                value={draft}
+                placeholder={invitees.length === 0 ? 'Add comma separated emails to invite' : 'Add another…'}
+                aria-autocomplete="list"
+                aria-expanded={suggestions.length > 0}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value.includes(',')) commitDraftTokens(value)
+                  else setDraft(value)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown' && suggestions.length > 0) {
+                    e.preventDefault()
+                    setActiveIndex((i) => (i + 1) % suggestions.length)
                     return
                   }
-                  const contact = contactFromToken(draft)
-                  if (contact) addInvitee(contact)
-                  return
-                }
-                if (e.key === 'Backspace' && draft === '' && invitees.length > 0) {
-                  e.preventDefault()
-                  removeInvitee(invitees[invitees.length - 1].id)
-                }
-              }}
-            />
-            {suggestions.length > 0 ? (
-              <div className={styles.suggestions} role="listbox" aria-label="People suggestions">
-                {suggestions.map((person, index) => (
+                  if (e.key === 'ArrowUp' && suggestions.length > 0) {
+                    e.preventDefault()
+                    setActiveIndex((i) => (i - 1 + suggestions.length) % suggestions.length)
+                    return
+                  }
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    if (suggestions[activeIndex]) {
+                      addInvitee(suggestions[activeIndex])
+                      return
+                    }
+                    const contact = contactFromToken(draft)
+                    if (contact) addInvitee(contact)
+                    return
+                  }
+                  if (e.key === 'Backspace' && draft === '' && invitees.length > 0) {
+                    e.preventDefault()
+                    removeInvitee(invitees[invitees.length - 1].id)
+                  }
+                }}
+              />
+              {suggestions.length > 0 ? (
+                <div className={styles.suggestions} role="listbox" aria-label="People suggestions">
+                  {suggestions.map((person, index) => (
+                    <button
+                      key={person.id}
+                      type="button"
+                      role="option"
+                      aria-selected={index === activeIndex}
+                      className={`${styles.suggestion}${index === activeIndex ? ` ${styles.suggestionActive}` : ''}`}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onClick={() => addInvitee(person)}
+                    >
+                      <span className={styles.suggestionAvatar} style={{ background: person.accent }} aria-hidden>
+                        {person.initial}
+                      </span>
+                      <span className={styles.suggestionText}>
+                        <span className={styles.suggestionName}>{person.name}</span>
+                        <span className={styles.suggestionEmail}>{person.email}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {frequent.length > 0 ? (
+            <div className={styles.frequent}>
+              <p className={styles.frequentLabel}>Frequently contacted</p>
+              <div className={styles.frequentRow}>
+                {frequent.map((person) => (
                   <button
                     key={person.id}
                     type="button"
-                    role="option"
-                    aria-selected={index === activeIndex}
-                    className={`${styles.suggestion}${
-                      index === activeIndex ? ` ${styles.suggestionActive}` : ''
-                    }`}
-                    onMouseEnter={() => setActiveIndex(index)}
+                    className={styles.frequentChip}
                     onClick={() => addInvitee(person)}
                   >
-                    <span className={styles.suggestionAvatar} style={{ background: person.accent }} aria-hidden>
-                      {person.initial}
-                    </span>
-                    <span className={styles.suggestionText}>
-                      <span className={styles.suggestionName}>{person.name}</span>
-                      <span className={styles.suggestionEmail}>{person.email}</span>
-                    </span>
+                    <Plus size={14} weight="bold" aria-hidden />
+                    <span>{person.name}</span>
                   </button>
                 ))}
               </div>
-            ) : null}
-          </div>
-          <button type="button" className={styles.inviteBtn} disabled={!canInvite}>
-            Share
-          </button>
+            </div>
+          ) : null}
+
+          <p className={styles.footnote}>{note}</p>
         </div>
 
-        {frequent.length > 0 ? (
-          <div className={styles.frequent}>
-            <p className={styles.frequentLabel}>Frequently contacted</p>
-            <div className={styles.frequentRow}>
-              {frequent.map((person) => (
-                <button
-                  key={person.id}
-                  type="button"
-                  className={styles.frequentChip}
-                  onClick={() => addInvitee(person)}
-                >
-                  <Plus size={14} weight="bold" aria-hidden />
-                  <span>{person.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        <p className={styles.footnote}>
-          Recipients get a link to a copy of this chat — including the full history and
-          outputs. They can continue the conversation on their own copy without changing
-          yours.
-        </p>
+        <footer className={edit.mapStyleFooter}>
+          <button type="button" className={`${edit.secondaryBtn} ${styles.copyLink}`} onClick={onCopyLink}>
+            {copied ? <Check size={16} weight="bold" aria-hidden /> : <Link size={16} weight="regular" aria-hidden />}
+            {copied ? 'Copied' : 'Copy link'}
+          </button>
+          <button type="button" className={edit.secondaryBtn} onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className={edit.assetsNext} disabled={!canInvite} onClick={onClose}>
+            Share
+          </button>
+        </footer>
       </div>
     </div>,
     document.body,

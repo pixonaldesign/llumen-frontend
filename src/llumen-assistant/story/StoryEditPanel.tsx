@@ -86,6 +86,8 @@ export type StoryEditPanelProps = {
   mapDimension: BasemapDimension
   background: StoryBackground
   onBackgroundChange: (background: StoryBackground) => void
+  /** Offers map styles only, for a map that can't show media or color behind it. */
+  basemapOnly?: boolean
   /** Places the picked charts (STORY_CHARTS ids) into the slide's grid. */
   onAddCharts?: (chartIds: string[]) => void
   section: StoryEditSection
@@ -122,6 +124,7 @@ export function StoryEditPanel({
   mapDimension,
   background,
   onBackgroundChange,
+  basemapOnly = false,
   onAddCharts,
   section,
 }: StoryEditPanelProps) {
@@ -284,9 +287,11 @@ export function StoryEditPanel({
 
       {section === 'map' ? (
         <BackgroundPicker
+          key={basemapOnly ? `basemap-${mapStyleId}` : 'background'}
           background={background}
           basemapId={mapStyleId}
           basemapDimension={mapDimension}
+          basemapOnly={basemapOnly}
           onApply={(next) => {
             onBackgroundChange(next)
             onClose()
@@ -1427,16 +1432,18 @@ function BackgroundPicker({
   background,
   basemapId,
   basemapDimension,
+  basemapOnly,
   onApply,
   onCancel,
 }: {
   background: StoryBackground
   basemapId: string
   basemapDimension: BasemapDimension
+  basemapOnly: boolean
   onApply: (background: StoryBackground) => void
   onCancel: () => void
 }) {
-  const [tab, setTab] = useState<BackgroundTab>(background.kind)
+  const [tab, setTab] = useState<BackgroundTab>(basemapOnly ? 'basemap' : background.kind)
   const [stylesList, setStylesList] = useState<
     { id: string; name: string; description: string; url?: string; image?: string }[]
   >([...MAP_STYLE_OPTIONS])
@@ -1524,7 +1531,7 @@ function BackgroundPicker({
   return (
     <div className={styles.mapStyleBody}>
       <div className={`${styles.toolsTabs} ${styles.backgroundTabs}`} role="tablist" aria-label="Background types">
-        {BACKGROUND_TABS.map((item) => (
+        {BACKGROUND_TABS.filter((item) => !basemapOnly || item.id === 'basemap').map((item) => (
           <button
             key={item.id}
             type="button"
