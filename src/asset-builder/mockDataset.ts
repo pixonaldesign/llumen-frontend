@@ -202,6 +202,7 @@ const CATEGORY_FIELDS = new Set([
   "Series",
   "Y category",
   "Category",
+  "Stage",
   "Unit",
   "Status",
   "Metric label",

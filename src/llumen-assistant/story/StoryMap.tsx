@@ -52,7 +52,8 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
 const MAPBOX_STYLE = 'mapbox://styles/pixonal/cmgnqbyjf005g01sh9s510hi2'
 export const STORY_MAP_STYLE = MAPBOX_STYLE
 /** Keeps the demo overlay clear of the 380px insight column. */
-const CAMERA_PADDING = { top: 0, right: 0, bottom: 0, left: 400 }
+export const STORY_CAMERA_PADDING = { top: 0, right: 0, bottom: 0, left: 400 }
+const CAMERA_PADDING = STORY_CAMERA_PADDING
 const CAMERA_DURATION_MS = 2600
 const SCENE_TWEEN_MS = 1800
 const REGION_FLY_MS = 3200
@@ -105,9 +106,14 @@ export type StoryMapLayerVisibility = {
   distribution: boolean
 }
 
+/** A camera and the padding it was framed with, enough for another map to match the view. */
+export type StoryMapView = { camera: StorySceneCamera; padding: mapboxgl.PaddingOptions }
+
 export type StoryMapHandle = {
   /** Map coordinate under a viewport point, as `[lng, lat]`. */
   unproject: (clientX: number, clientY: number) => [number, number]
+  /** The camera the map is showing right now. */
+  view: () => StoryMapView
   /** Thumbnail of the visible (unpadded) map area plus the camera that produced it. */
   capture: () => Promise<StoryMapCapture>
   /** Completes the line, arrow or polygon being drawn, if it has enough points. */
@@ -199,9 +205,13 @@ export type StoryMapProps = {
   cameraRequest?: { camera: StorySceneCamera } | null
   /** Highlighted columns, outlined areas and per-column tooltips, anchored to the map. */
   annotation?: StoryMapAnnotation | null
+  /** Pin and hover behaviour for the annotation's recommended-action card; left out, the card always shows. */
+  actionTooltip?: StoryMapActionTooltip | null
   /** Markup the author draws on the map; it never changes the data layers underneath. */
   annotations?: StoryMapAnnotationLayer | null
   onHandle?: (handle: StoryMapHandle | null) => void
+  /** `loaded` once the style and layers are up, then `painted` once the first view's tiles have all drawn. */
+  onReady?: (stage: 'loaded' | 'painted') => void
 }
 
 const DEFAULT_LAYERS: StoryMapLayerVisibility = {
@@ -271,11 +281,27 @@ type FrameAnnotation = {
 
 /** The recommended-action card, floated above the annotated columns on a stem sized each frame. */
 type ActionPin = {
+  marker: HTMLElement
   card: HTMLElement
   stem: HTMLElement
+  /** Ground dot under the stem: the hover target while the card is hidden. */
+  dot: HTMLElement
+  button: HTMLButtonElement
   at: [number, number]
   /** Column index → its current drawn height, metres. */
   heights: Map<number, number>
+  mode: StoryMapActionTooltip['mode'] | null
+  hover: (on: boolean) => void
+}
+
+/** How the recommended-action card behaves in the story's edit and view modes. */
+export type StoryMapActionTooltip = {
+  /** Edit always shows the card with a pin toggle; view shows it on hover unless it was pinned, and Close hides it. */
+  mode: 'edit' | 'view'
+  pinned: boolean
+  onPinnedChange: (pinned: boolean) => void
+  /** View mode's Close; the card stays pinned in edit mode. */
+  onClose: () => void
 }
 
 /** Everything one overlay draw needs; tweens update fields and redraw. */
@@ -780,19 +806,80 @@ function areaLabel(text: string, color: string) {
   return marker
 }
 
-const SPARKLE_SVG =
-  '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M8 0.5 9.7 6.3 15.5 8 9.7 9.7 8 15.5 6.3 9.7 0.5 8 6.3 6.3Z"/></svg>'
+const icon = (path: string) =>
+  `<svg viewBox="0 0 256 256" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="${path}"/></svg>`
+const PIN_SVG = icon(
+  'M235.32,81.37,174.63,20.69a16,16,0,0,0-22.63,0L98.37,74.49c-10.66-3.34-35-7.37-60.4,13.14a16,16,0,0,0-1.29,23.78L85,159.71,42.34,202.34a8,8,0,0,0,11.32,11.32L96.29,171l48.29,48.29A16,16,0,0,0,155.9,224c.38,0,.75,0,1.13,0a15.93,15.93,0,0,0,11.64-6.33c19.64-26.1,17.75-47.32,13.19-60L235.33,104A16,16,0,0,0,235.32,81.37ZM224,92.69h0l-57.27,57.46a8,8,0,0,0-1.49,9.22c9.46,18.93-1.8,38.59-9.34,48.62L48,100.08c12.08-9.74,23.64-12.31,32.48-12.31A40.13,40.13,0,0,1,96.81,91a8,8,0,0,0,9.25-1.51L163.32,32,224,92.68Z',
+)
+const PIN_FILL_SVG = icon(
+  'M235.33,104l-53.47,53.65c4.56,12.67,6.45,33.89-13.19,60A15.93,15.93,0,0,1,157,224c-.38,0-.75,0-1.13,0a16,16,0,0,1-11.32-4.69L96.29,171,53.66,213.66a8,8,0,0,1-11.32-11.32L85,159.71l-48.3-48.3A16,16,0,0,1,38,87.63c25.42-20.51,49.75-16.48,60.4-13.14L152,20.7a16,16,0,0,1,22.63,0l60.69,60.68A16,16,0,0,1,235.33,104Z',
+)
+const CLOSE_SVG = icon(
+  'M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z',
+)
+/** Lets the pointer cross from the dot up the stem to the card without the card flickering away. */
+const ACTION_HOVER_LEAVE_MS = 160
 
 function actionCard(action: AnnotationAction) {
   const marker = element('div', styles.annotationActionMarker)
+  const body = element('div', styles.annotationActionBody)
   const card = element('div', styles.annotationAction)
-  const badge = element('span', styles.annotationActionBadge)
-  badge.innerHTML = SPARKLE_SVG
-  badge.append('Recommended Action')
-  card.append(badge, element('p', styles.annotationActionText, action.text))
+  const button = element('button', styles.annotationActionButton) as HTMLButtonElement
+  button.type = 'button'
+  button.hidden = true
+  card.append(element('p', styles.annotationActionText, action.text), button)
   const stem = element('span', styles.annotationActionStem)
-  marker.append(card, stem)
-  return { marker, card, stem }
+  body.append(card, stem)
+  const dot = element('span', styles.annotationActionDot)
+  marker.append(body, dot)
+  return { marker, card, stem, dot, button }
+}
+
+/** Hover from the dot, the card or the outlined area (via `hover`) shows the card while it is hidden. */
+function wireActionPin(pin: ActionPin, tooltip: () => StoryMapActionTooltip | null) {
+  let timer = 0
+  pin.hover = (on) => {
+    window.clearTimeout(timer)
+    if (on) pin.marker.dataset.hover = 'true'
+    else timer = window.setTimeout(() => delete pin.marker.dataset.hover, ACTION_HOVER_LEAVE_MS)
+  }
+  for (const node of [pin.dot, pin.card]) {
+    node.addEventListener('mouseenter', () => pin.hover(true))
+    node.addEventListener('mouseleave', () => pin.hover(false))
+  }
+  pin.button.addEventListener('click', (event) => {
+    event.stopPropagation()
+    const current = tooltip()
+    if (!current) return
+    if (current.mode === 'edit') {
+      current.onPinnedChange(!current.pinned)
+      return
+    }
+    current.onClose()
+    pin.hover(false)
+  })
+}
+
+function syncActionPin(pin: ActionPin, tooltip: StoryMapActionTooltip | null) {
+  const { marker, button } = pin
+  if (!tooltip) {
+    delete marker.dataset.mode
+    button.hidden = true
+    return
+  }
+  if (pin.mode !== tooltip.mode) {
+    pin.mode = tooltip.mode
+    delete marker.dataset.hover
+  }
+  marker.dataset.mode = tooltip.mode
+  marker.dataset.pinned = String(tooltip.pinned)
+  const view = tooltip.mode === 'view'
+  button.hidden = view && !tooltip.pinned
+  button.innerHTML = view ? CLOSE_SVG : tooltip.pinned ? PIN_FILL_SVG : PIN_SVG
+  button.setAttribute('aria-label', view ? 'Close' : tooltip.pinned ? 'Unpin from view mode' : 'Pin for view mode')
+  button.title = view ? 'Close' : tooltip.pinned ? 'Pinned in view mode' : 'Pin to keep it showing in view mode'
+  if (view) button.removeAttribute('aria-pressed')
+  else button.setAttribute('aria-pressed', String(tooltip.pinned))
 }
 
 /** Sizes the stem so the card clears the tallest annotated column, while keeping the card on screen. */
@@ -825,13 +912,13 @@ function addAnnotationMarkers(map: mapboxgl.Map, value: StoryMapAnnotation) {
   )
   let action: ActionPin | null = null
   if (value.action) {
-    const { marker, card, stem } = actionCard(value.action)
+    const parts = actionCard(value.action)
     labels.push(
-      new mapboxgl.Marker({ element: marker, anchor: 'bottom' })
+      new mapboxgl.Marker({ element: parts.marker, anchor: 'bottom' })
         .setLngLat(value.action.at)
         .addTo(map),
     )
-    action = { card, stem, at: value.action.at, heights: new Map() }
+    action = { ...parts, at: value.action.at, heights: new Map(), mode: null, hover: () => {} }
   }
   return { pins, labels, action }
 }
@@ -938,8 +1025,10 @@ export function StoryMap({
   areaEffect = null,
   cameraRequest = null,
   annotation = null,
+  actionTooltip = null,
   annotations = null,
   onHandle,
+  onReady,
 }: StoryMapProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -973,12 +1062,18 @@ export function StoryMap({
   const pitchBeforeFlatRef = useRef<number | null>(null)
   const flyToSceneRef = useRef(flyToScene)
   const annotationsRef = useRef(annotations)
+  const actionTooltipRef = useRef(actionTooltip)
   const labelsRef = useRef<AnnotationLabels | null>(null)
   const drawingRef = useRef<AnnotationDrawing | null>(null)
+  const onReadyRef = useRef(onReady)
 
   useEffect(() => {
     annotationsRef.current = annotations
   }, [annotations])
+
+  useEffect(() => {
+    onReadyRef.current = onReady
+  }, [onReady])
 
   useEffect(() => {
     flyToSceneRef.current = flyToScene
@@ -1044,6 +1139,14 @@ export function StoryMap({
       mountAnnotationLayers(map, frameRef.current.lift)
       syncDemoLayers(map, layersRef.current)
       setReady(true)
+      onReadyRef.current?.('loaded')
+      // The scene timeline repaints every frame, so the map never goes `idle`.
+      const announce = () => {
+        if (!map.areTilesLoaded()) return
+        map.off('render', announce)
+        onReadyRef.current?.('painted')
+      }
+      map.on('render', announce)
     })
     labelsRef.current = new AnnotationLabels(map, () => annotationsRef.current?.onSelect)
 
@@ -1268,6 +1371,7 @@ export function StoryMap({
         mix: 0,
         ...addAnnotationMarkers(map, annotation),
       }
+      if (frame.annotation.action) wireActionPin(frame.annotation.action, () => actionTooltipRef.current)
       setSourceData(map, 'story-annotation', annotationAreaData(frame.annotation))
       const bounds = new mapboxgl.LngLatBounds()
       for (const polygon of polygons) for (const point of polygon) bounds.extend(point)
@@ -1328,6 +1432,25 @@ export function StoryMap({
   }, [annotation, ready, region])
 
   useEffect(() => {
+    actionTooltipRef.current = actionTooltip
+    const pin = frameRef.current.annotation?.action
+    if (pin) syncActionPin(pin, actionTooltip)
+  }, [actionTooltip, annotation, ready])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready || !annotation?.action) return
+    const enter = () => frameRef.current.annotation?.action?.hover(true)
+    const leave = () => frameRef.current.annotation?.action?.hover(false)
+    map.on('mouseenter', 'story-annotation-fill', enter)
+    map.on('mouseleave', 'story-annotation-fill', leave)
+    return () => {
+      map.off('mouseenter', 'story-annotation-fill', enter)
+      map.off('mouseleave', 'story-annotation-fill', leave)
+    }
+  }, [annotation, ready])
+
+  useEffect(() => {
     const map = mapRef.current
     if (!map || !ready || !annotation) return
     let hovered: HTMLElement | null = null
@@ -1345,7 +1468,9 @@ export function StoryMap({
       setHovered(pin)
     }
     const onLeave = () => {
-      map.getCanvas().style.cursor = ''
+      // Also runs on unmount, after the map (and its canvas) is already removed.
+      const canvas = map.getCanvas() as HTMLCanvasElement | undefined
+      if (canvas) canvas.style.cursor = ''
       setHovered(null)
     }
     const layer = annotation.layer === 'region' ? 'story-region-columns' : 'story-columns'
@@ -1370,12 +1495,24 @@ export function StoryMap({
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !ready || !onHandle) return
+    if (!map || !onHandle) return
     onHandle({
       unproject: (clientX, clientY) => {
         const rect = map.getCanvas().getBoundingClientRect()
         const point = map.unproject([clientX - rect.left, clientY - rect.top])
         return [point.lng, point.lat]
+      },
+      view: () => {
+        const center = map.getCenter()
+        return {
+          camera: {
+            center: [center.lng, center.lat],
+            zoom: map.getZoom(),
+            pitch: map.getPitch(),
+            bearing: map.getBearing(),
+          },
+          padding: map.getPadding(),
+        }
       },
       capture: () =>
         new Promise((resolve) => {
@@ -1389,7 +1526,7 @@ export function StoryMap({
       undoDrawing: () => drawingRef.current?.undo(),
     })
     return () => onHandle(null)
-  }, [onHandle, ready])
+  }, [onHandle])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1403,6 +1540,13 @@ export function StoryMap({
       setReady(true)
     })
     map.setStyle(styleUrl)
+  }, [ready, styleUrl])
+
+  /** Recovers when a style swap resolved without the `style.load` listener (the handle stays unset otherwise). */
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || ready || appliedStyleRef.current !== styleUrl || !map.isStyleLoaded()) return
+    setReady(true)
   }, [ready, styleUrl])
 
   useEffect(() => {

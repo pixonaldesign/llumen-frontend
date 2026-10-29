@@ -9,6 +9,158 @@
   container-type: size;
 }
 
+/*
+ * Arriving from the Briefing map (StoryView `entrance`): the chrome waits off the bare map, then the
+ * header drops in, the insight cards slide in from the left one after another, and the map data and
+ * navigation follow. Animating `translate` leaves the cards' own transforms alone.
+ */
+.root[data-entrance='wait'] .header,
+.root[data-entrance='wait'] .insight > *,
+.root[data-entrance='wait'] .mapStack,
+.root[data-entrance='wait'] .lowerNav {
+  opacity: 0;
+}
+
+/* Slow enough to watch each piece land on the map: about 1.9s from the header to the navigation. */
+.root[data-entrance='play'] .header {
+  animation: entranceDown 720ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.root[data-entrance='play'] .insight > * {
+  --enter-d: 160ms;
+  animation: entranceLeft 960ms cubic-bezier(0.16, 1, 0.3, 1) var(--enter-d) backwards;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(2) {
+  --enter-d: 300ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(3) {
+  --enter-d: 440ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(4) {
+  --enter-d: 580ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(5) {
+  --enter-d: 720ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(n + 6) {
+  --enter-d: 860ms;
+}
+
+.root[data-entrance='play'] .mapStack {
+  animation: entranceRight 960ms cubic-bezier(0.16, 1, 0.3, 1) 520ms backwards;
+}
+
+.root[data-entrance='play'] .lowerNav {
+  animation: entranceUp 720ms cubic-bezier(0.16, 1, 0.3, 1) 1180ms backwards;
+}
+
+/* The way out sends the chrome back off the map while the Briefing map underneath flies home. */
+.root[data-entrance='leave'] .header,
+.root[data-entrance='gone'] .header {
+  animation: exitUp 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.root[data-entrance='leave'] .insight > *,
+.root[data-entrance='gone'] .insight > * {
+  animation: exitLeft 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.root[data-entrance='leave'] .mapStack,
+.root[data-entrance='gone'] .mapStack {
+  animation: exitRight 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.root[data-entrance='leave'] .lowerNav,
+.root[data-entrance='gone'] .lowerNav {
+  animation: exitDown 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.root[data-entrance='gone'] {
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+
+/* The Briefing map underneath holds the same view until this map has loaded. Leaving hides it at once. */
+.root[data-entrance='wait'] .mapPane,
+.root[data-entrance='play'] .mapPane {
+  transition: opacity 320ms ease;
+}
+
+.root[data-map-hidden] .mapPane {
+  opacity: 0;
+}
+
+@keyframes entranceDown {
+  from {
+    opacity: 0;
+    translate: 0 -16px;
+  }
+}
+
+@keyframes entranceLeft {
+  from {
+    opacity: 0;
+    translate: -72px 0;
+  }
+}
+
+@keyframes entranceRight {
+  from {
+    opacity: 0;
+    translate: 72px 0;
+  }
+}
+
+@keyframes entranceUp {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+}
+
+@keyframes exitUp {
+  to {
+    opacity: 0;
+    translate: 0 -24px;
+  }
+}
+
+@keyframes exitLeft {
+  to {
+    opacity: 0;
+    translate: -72px 0;
+  }
+}
+
+@keyframes exitRight {
+  to {
+    opacity: 0;
+    translate: 72px 0;
+  }
+}
+
+@keyframes exitDown {
+  to {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-entrance='play'] .header,
+  .root[data-entrance='play'] .insight > *,
+  .root[data-entrance='play'] .mapStack,
+  .root[data-entrance='play'] .lowerNav {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}
+
 .map {
   z-index: 0;
 }
@@ -55,8 +207,13 @@
   pointer-events: none;
 }
 
+/* 5px under each map's header rule, as the story map's controls sit outside comparison. */
+.mapPaneUpper .comparisonControlsUpper {
+  top: calc(var(--story-header-end, 155px) + 5px);
+}
+
 .mapPaneLower .comparisonControls {
-  top: 20px;
+  top: calc(var(--comparison-title-end, 129px) + 5px);
 }
 
 .rootSplitDragging {
@@ -78,24 +235,24 @@
   pointer-events: none;
 }
 
-/* Comparison layout: insights stay hidden behind a toggle so both maps read full width. */
 .comparisonFilters {
   margin-top: 14px;
 }
 
-.filterAddBtn.insightToggle {
-  flex-shrink: 0;
-  margin-top: 20px;
+/* Runs past the room kept for the map controls, to the same 20px inset as the upper map's rule. */
+.headerRule.comparisonRule {
+  width: calc(100% + 68px);
+  margin-top: 14px;
 }
 
-.insight.insightBelowToggle {
-  padding-top: 12px;
-}
-
-/* Above the lower map title (3), below the split handle (8). */
+/*
+ * Above the lower map title (3), below the split handle (8). Ends at the split, so the insight cards
+ * scroll within the upper map and never run over the lower one.
+ */
 .bodyComparison {
   position: relative;
   z-index: 4;
+  margin-bottom: calc((1 - var(--comparison-split)) * 100cqh);
 }
 
 .splitHandle {
@@ -161,6 +318,72 @@
   outline-offset: 2px;
 }
 
+/*
+ * Vertical comparison: the story's map on the left, the compared one on the right. Each map is as wide as
+ * its pane (it resizes with the split) and the story's header, cards and controls keep to the left pane.
+ */
+.root[data-comparison='vertical'] .mapPaneUpper {
+  right: calc((1 - var(--comparison-split)) * 100%);
+  bottom: 0;
+}
+
+.root[data-comparison='vertical'] .mapPaneLower {
+  top: 0;
+  left: calc(var(--comparison-split) * 100%);
+}
+
+.root[data-comparison='vertical'] .mapPaneLower::after {
+  right: auto;
+  bottom: 0;
+  width: 1px;
+  height: auto;
+}
+
+.root[data-comparison='vertical'] .header,
+.root[data-comparison='vertical'] .body {
+  padding-right: calc((1 - var(--comparison-split)) * 100% + 20px);
+}
+
+/* A half-width map has no room beside its toolbar, so the cards end 12px above it (the cards pad 20px). */
+.root[data-comparison='vertical'] .bodyComparison {
+  margin-bottom: 0;
+  padding-bottom: 54px;
+}
+
+.root[data-comparison='vertical'] .comparisonTitle {
+  top: 0;
+  left: calc(var(--comparison-split) * 100% + 20px);
+}
+
+.root[data-comparison='vertical'] .splitHandle {
+  top: 0;
+  right: auto;
+  bottom: 0;
+  left: calc(var(--comparison-split) * 100%);
+  width: 16px;
+  height: auto;
+  transform: translateX(-50%);
+  cursor: col-resize;
+}
+
+.root[data-comparison='vertical'] .splitHandle::before {
+  top: 0;
+  right: auto;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  height: auto;
+}
+
+.root[data-comparison='vertical'] .splitHandleGrip {
+  width: 20px;
+  height: 48px;
+}
+
+.root[data-comparison='vertical'].rootSplitDragging {
+  cursor: col-resize;
+}
+
 .overlay {
   position: absolute;
   inset: 0;
@@ -184,10 +407,6 @@
   gap: 16px;
 }
 
-.titleRowPages {
-  align-items: flex-end;
-}
-
 .backBtn {
   display: inline-flex;
   align-items: center;
@@ -208,6 +427,117 @@
 
 .backBtn:hover {
   background: rgba(34, 42, 42, 0.72);
+}
+
+.shareBtn {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin: 0;
+  padding: 0 14px 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(34, 42, 42, 0.5);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.shareBtn:hover {
+  background: rgba(34, 42, 42, 0.72);
+}
+
+.shareBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/*
+ * Edit mode: one control above the insight cards, the slide's Layout menu and, for the sidebar and grid
+ * layouts, their width in columns.
+ */
+/* Same pill as the bottom toolbar (`.modeSwitch`). */
+.layoutBar {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  margin: 16px 0 0;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  pointer-events: auto;
+}
+
+/* 16px from the header and from the first card; the grid layout's body already insets its top. */
+.bodyGrid > .layoutBar {
+  align-self: flex-start;
+  margin: calc(16px - var(--grid-inset-top, 0px)) 0 16px;
+}
+
+.layoutBar + .insight,
+.layoutRow + .insight {
+  padding-top: 16px;
+}
+
+.layoutBar + .insightLayoutGrid {
+  flex: 1 1 0;
+  height: auto;
+  padding-top: 0;
+}
+
+.layoutBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.layoutBtn:hover,
+.layoutBtnOpen {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.layoutBtnCaret {
+  margin-inline-start: -2px;
+  opacity: 0.7;
+  transition: transform 200ms ease;
+}
+
+.layoutBtnOpen .layoutBtnCaret {
+  transform: rotate(180deg);
+}
+
+.layoutBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
 }
 
 .headerEnd {
@@ -369,6 +699,12 @@
   pointer-events: auto;
 }
 
+.infoBtnSmall {
+  width: 22px;
+  height: 22px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
 .infoBtn:hover,
 .infoBtn[aria-expanded='true'] {
   background: rgba(255, 255, 255, 0.1);
@@ -404,10 +740,9 @@
   cursor: default;
 }
 
+/* Placed under its info icon from StoryView (`INFO_POPOVER_W` matches the width). */
 .infoPopover {
   position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
   z-index: 20;
   width: min(340px, calc(100vw - 40px));
   padding: 12px 14px;
@@ -466,23 +801,42 @@
   }
 }
 
+/* Edit mode: a caret after the value, then the filter's options (Configure, Remove) behind its dots. */
 .filterPillEditing {
+  gap: 6px;
+  padding-inline-end: 6px;
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.filterRemove {
+.filterCaret {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.filterMenuBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin: 0 0 0 2px;
+  width: 24px;
+  height: 24px;
+  margin: -4px 0;
   padding: 0;
   border: none;
+  border-radius: 50%;
   background: transparent;
   color: #fff;
   cursor: pointer;
   pointer-events: auto;
+}
+
+.filterMenuBtn:hover,
+.filterMenuBtnOpen {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.filterMenuBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 1px;
 }
 
 .filterAddBtn {
@@ -655,9 +1009,10 @@
   -webkit-backdrop-filter: blur(4px);
 }
 
+/* Sidebar width follows its column count: 184px cells with 12px gaps (2 columns = 380px). */
 .insight {
   box-sizing: border-box;
-  width: min(100%, 380px);
+  width: min(100%, calc(var(--sidebar-columns, 2) * 184px + (var(--sidebar-columns, 2) - 1) * 12px));
   flex: 0 1 auto;
   min-height: 0;
   max-height: 100%;
@@ -683,15 +1038,20 @@
   width: min(100%, 270px);
 }
 
-/* Edit mode: 2-column cell grid; each visual card spans both cells of a row. */
+/* Edit mode: 2–4 column cell grid; full-width cards span every cell of their row. */
 .insightGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--sidebar-columns, 2), minmax(0, 1fr));
   grid-auto-rows: 184px;
 }
 
 .insightGrid > section {
   grid-column: 1 / -1;
+}
+
+.insightGrid > .kpiCellCard {
+  grid-column: span 1;
+  width: auto;
 }
 
 .gridCell {
@@ -797,45 +1157,42 @@
   pointer-events: auto;
 }
 
-/* Floats over the grid, centered 12px above the bottom toolbar (18px offset + 44px tall). */
+.insightLayoutGrid > .kpiCellCard {
+  grid-column: span 1;
+  width: auto;
+}
+
+/* The layout bar's columns, after a divider from its Layout button. */
 .gridColumnsControl {
-  position: absolute;
-  left: 50%;
-  bottom: 74px;
-  z-index: 7;
-  transform: translateX(-50%);
-  box-shadow:
-    0 12px 16px -4px rgba(10, 13, 18, 0.24),
-    0 4px 6px -2px rgba(10, 13, 18, 0.16);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background: rgba(26, 26, 26, 0.5);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  pointer-events: auto;
+  gap: 2px;
+}
+
+/* The toolbar's `.modeDivider`. */
+.gridColumnsControl::before {
+  content: '';
+  flex-shrink: 0;
+  width: 1px;
+  height: 22px;
+  margin: 0 4px 0 6px;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .gridColumnsIcon {
-  box-sizing: content-box;
-  margin: 0 4px 0 8px;
-  padding-right: 12px;
-  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  margin: 0 6px;
   color: rgba(255, 255, 255, 0.56);
 }
 
 .gridColumnsOption {
-  min-width: 40px;
-  height: 32px;
+  min-width: 36px;
+  height: 36px;
   margin: 0;
   padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.88);
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
@@ -843,18 +1200,17 @@
 }
 
 .gridColumnsOption:hover {
-  background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
 .gridColumnsOptionActive,
 .gridColumnsOptionActive:hover {
-  background: #70aeff;
-  color: #0c0e10;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .gridColumnsOption:focus-visible {
-  outline: 2px solid #70aeff;
+  outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 1px;
 }
 
@@ -872,6 +1228,51 @@
   background: rgba(26, 26, 26, 0.5);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
+}
+
+/* One 184px cell at every column count; it never stretches with the sidebar. */
+.kpiCellCard {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-self: flex-start;
+  gap: 8px;
+  width: 184px;
+  height: 184px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(34, 42, 42, 0.5);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+  color: #fff;
+  overflow-wrap: break-word;
+}
+
+.kpiCellLabel,
+.kpiCellValue,
+.kpiCellNote {
+  margin: 0;
+  line-height: 1.3;
+}
+
+.kpiCellLabel {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.kpiCellValue {
+  font-family: var(--lc-font-mono);
+  font-size: 32px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.kpiCellNote {
+  font-size: 12px;
+  opacity: 0.7;
 }
 
 .insightCard {
@@ -939,9 +1340,9 @@
   padding: 2px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 40px;
-  background: rgba(14, 18, 26, 0.82);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
   opacity: 0;
   pointer-events: none;
@@ -951,7 +1352,6 @@
     transform 160ms ease-out;
 }
 
-/* Edit mode keeps the card's ⋮ menu in the corner, so the toolbar sits beside it. */
 .insightCard:hover > .cardActions,
 .cardActions.cardActionsOpen,
 .cardActions:focus-within {
@@ -993,22 +1393,6 @@
   width: 26px;
   padding: 0;
   justify-content: center;
-}
-
-.insightCardMenuBtn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-}
-
-.insightCardMenuBtn:hover,
-.insightCardMenuBtn.storyMenuBtnOpen {
-  border-color: transparent;
-  background: transparent;
 }
 
 .insightCardHidden {
@@ -1054,8 +1438,140 @@
   transition: color 300ms ease;
 }
 
+.summaryStatus {
+  --status-shift: calc(-1 * var(--actions-w, 0px) - 4px);
+
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  height: 32px;
+  margin: 0;
+  padding: 0 10px 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(var(--status-shift), -4px);
+  transition:
+    opacity 160ms ease-out,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 140ms ease,
+    color 140ms ease;
+}
+
+button.summaryStatus {
+  cursor: pointer;
+}
+
+button.summaryStatus:hover:not(:disabled) {
+  background: rgba(56, 56, 56, 0.72);
+}
+
+button.summaryStatus:disabled {
+  cursor: progress;
+}
+
+.summaryStatus:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+.insightCard:hover > .summaryStatus,
+.insightCard:has(> .cardActions:is(.cardActionsOpen, :focus-within)) > .summaryStatus,
+.summaryStatus:focus-visible,
+.summaryStatus[data-busy] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(var(--status-shift));
+}
+
+.summaryUpdated {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: flex-start;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 20px;
+  margin-top: -2px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 40px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.summaryStatusIcon {
+  flex-shrink: 0;
+}
+
+.summaryStatus[data-busy] .summaryStatusIcon,
+.summaryUpdated[data-busy] .summaryStatusIcon {
+  animation: summaryStatusSpin 0.9s linear infinite;
+}
+
+@keyframes summaryStatusSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .summaryRegenerating .summaryBody {
   animation: summaryRegenerate 1.4s ease both;
+}
+
+.summaryRegenerating::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  background: linear-gradient(
+      105deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.06) 44%,
+      color-mix(in srgb, var(--summary-accent, #70aeff) 26%, transparent) 50%,
+      rgba(255, 255, 255, 0.06) 56%,
+      transparent 65%
+    )
+    no-repeat;
+  background-size: 260% 100%;
+  pointer-events: none;
+  animation: summaryShimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes summaryShimmer {
+  from {
+    background-position: 130% 0;
+  }
+
+  to {
+    background-position: -30% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .summaryStatus[data-busy] .summaryStatusIcon,
+  .summaryUpdated[data-busy] .summaryStatusIcon,
+  .summaryRegenerating::after {
+    animation: none;
+  }
 }
 
 @keyframes summaryRegenerate {
@@ -1457,42 +1973,134 @@
   bottom: calc((1 - var(--comparison-split)) * 100% + 18px);
 }
 
-.linkMaps {
+/*
+ * Each comparison map's data scrolls rather than run up over that map's controls: it stops 12px under
+ * them (the controls sit 5px under the header rule and are 104px tall).
+ */
+.mapStackComparisonUpper,
+.mapStackCompared {
+  --map-controls-room: 121px;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Chromium treats overlay as auto, so the thumb takes width. The scroller runs one thumb past the panels'
+ * edge, and the thumb takes that strip instead of narrowing the panels.
+ */
+.mapStack.mapStackComparisonUpper,
+.mapStack.mapStackCompared {
+  width: calc(300px + var(--lc-scrollbar-size));
+  margin-right: calc(-1 * var(--lc-scrollbar-size));
+}
+
+.mapStackComparisonUpper > *,
+.mapStackCompared > * {
+  flex-shrink: 0;
+  width: 300px;
+}
+
+/* The landing layer's inherited scrollbar-color makes Chromium drop ::-webkit-scrollbar sizing, bringing back the thick system bar. */
+@supports selector(::-webkit-scrollbar) {
+  .mapStackComparisonUpper,
+  .mapStackCompared {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.mapStackComparisonUpper::-webkit-scrollbar,
+.mapStackCompared::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.mapStackComparisonUpper::-webkit-scrollbar-track,
+.mapStackCompared::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mapStackComparisonUpper::-webkit-scrollbar-thumb,
+.mapStackCompared::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--lc-scrollbar-thumb);
+}
+
+.mapStack.mapStackComparisonUpper {
+  max-height: calc(
+    var(--comparison-split) * 100cqh - 18px - var(--story-header-end, 155px) - var(--map-controls-room)
+  );
+}
+
+.mapStack.mapStackCompared {
+  max-height: calc(
+    (1 - var(--comparison-split)) * 100cqh - 18px - var(--comparison-title-end, 129px) - var(--map-controls-room)
+  );
+}
+
+.root[data-comparison='vertical'] .mapStack.mapStackComparisonUpper {
+  max-height: calc(100cqh - 74px - var(--story-header-end, 155px) - var(--map-controls-room));
+}
+
+.root[data-comparison='vertical'] .mapStack.mapStackCompared {
+  max-height: calc(100cqh - 74px - var(--comparison-title-end, 129px) - var(--map-controls-room));
+}
+
+/* Side by side, each map's data sits 12px above its toolbar (18px from the bottom, 44px tall). */
+.root[data-comparison='vertical'] .mapStack {
+  bottom: 74px;
+}
+
+.root[data-comparison='vertical'] .mapStack.mapStackComparisonUpper {
+  right: calc((1 - var(--comparison-split)) * 100% + 20px);
+  bottom: 74px;
+}
+
+/* Comparison's Layout and Link maps pills, side by side where the Layout pill sits alone. */
+.layoutRow {
   display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.layoutRow > .layoutBar {
+  margin: 0;
+}
+
+/* The Layout pill's frame (`.layoutBar`) around a label and its switch. */
+.linkMaps {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 10px;
-  width: 100%;
+  height: 44px;
   margin: 0;
-  padding: 12px 16px;
+  padding: 0 14px 0 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
+  border-radius: 999px;
   background: rgba(26, 26, 26, 0.5);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   color: #fff;
   font: inherit;
-  text-align: start;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.linkMapsText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.linkMapsLabel {
   font-size: 14px;
   font-weight: 500;
-  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 160ms ease;
 }
 
-.linkMapsHint {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  line-height: 16px;
+.linkMaps:hover {
+  background: rgba(46, 46, 46, 0.6);
+}
+
+.linkMaps:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
 }
 
 .linkMapsSwitch {
@@ -1763,6 +2371,21 @@
   justify-content: center;
   gap: 8px;
   transform: translateX(-50%);
+}
+
+/* Comparison: the story's toolbar belongs to the upper map, just above the split; the lower map has its own. */
+.lowerNavUpper {
+  bottom: calc((1 - var(--comparison-split)) * 100% + 18px);
+}
+
+/* Side by side, each toolbar is centred along the bottom of its own map. */
+.root[data-comparison='vertical'] .lowerNavUpper {
+  bottom: 18px;
+  left: calc(var(--comparison-split) * 50%);
+}
+
+.root[data-comparison='vertical'] .lowerNavCompared {
+  left: calc((1 + var(--comparison-split)) * 50%);
 }
 
 .askBtn {

@@ -354,7 +354,33 @@
   pointer-events: none;
 }
 
+/* Thumbnails show what was annotated, not the action it suggests. */
+.noActions .annotationActionMarker {
+  display: none;
+}
+
+.annotationActionBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition:
+    opacity 180ms ease,
+    visibility 0s linear 0s;
+}
+
+/* View mode: hidden unless pinned in edit mode, or while the dot, card or area is hovered. */
+.annotationActionMarker[data-mode='view']:not([data-hover='true']):not([data-pinned='true']) .annotationActionBody {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 180ms ease,
+    visibility 0s linear 180ms;
+}
+
 .annotationAction {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   box-sizing: border-box;
   width: 300px;
   padding: 14px;
@@ -369,23 +395,77 @@
   -webkit-backdrop-filter: blur(24px) saturate(140%);
 }
 
-.annotationActionBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border: 1px solid rgba(109, 233, 225, 0.22);
-  border-radius: 999px;
-  background: rgba(109, 233, 225, 0.1);
-  color: #6de9e1;
-  font-size: 12px;
-  line-height: 16px;
-}
-
 .annotationActionText {
-  margin: 10px 0 0;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
   font-size: 14px;
   line-height: 20px;
+}
+
+.annotationActionButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -2px -4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.annotationActionButton[hidden] {
+  display: none;
+}
+
+.annotationActionButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.annotationActionButton[aria-pressed='true'] {
+  color: #70aeff;
+}
+
+.annotationActionButton:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 1px;
+}
+
+/* Ground anchor under the stem; only shown when the card follows the story's edit and view modes. */
+.annotationActionDot {
+  position: relative;
+  display: none;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  cursor: default;
+  animation: annotationPinIn 320ms ease-out 900ms both;
+}
+
+.annotationActionDot::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+}
+
+.annotationActionMarker[data-mode] .annotationActionDot {
+  display: block;
 }
 
 .annotationActionStem {

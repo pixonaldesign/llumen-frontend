@@ -17,15 +17,16 @@ import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   ArrowRight,
-  BoundingBox,
+  ArrowsClockwise,
   Buildings,
   CalendarBlank,
   CaretDown,
   ChatCircleText,
   Check,
+  Compass,
   Copy,
   DotsSix,
-  DotsThree,
+  DotsSixVertical,
   DotsThreeVertical,
   Export,
   Eye,
@@ -33,7 +34,6 @@ import {
   GearSix,
   GenderIntersex,
   GridFour,
-  IdentificationCard,
   Info,
   Layout,
   List,
@@ -44,18 +44,17 @@ import {
   PencilSimple,
   Play,
   Plus,
-  Selection,
   Sidebar,
-  Sparkle,
   Student,
   SquaresFour,
+  Target,
   Toolbox,
   Trash,
-  X,
   type IconProps,
 } from '@phosphor-icons/react'
 import { llumenAssets } from '../assets'
 import { ShareModal } from '../ShareModal'
+import { useAnchoredTooltip } from '../landing/useAnchoredTooltip'
 import {
   AnimatedNumber,
   BiodiversityChart,
@@ -69,6 +68,9 @@ import {
   warpPath,
 } from './StoryCharts'
 import { StoryCardConfigModal } from './StoryCardConfigModal'
+import { StoryMonitorModal } from './StoryMonitorModal'
+import { defaultMonitorConfig, monitorPrompt, monitorWorkflowProposal, type MonitorConfig } from './storyMonitor'
+import type { WorkflowProposal } from '../assistantReplyTypes'
 import { SplitIcon } from './StorySplitIcon'
 import { DEFAULT_CHART_KPI, resolveKpi, type ChartCardId, type ChartKpiConfig } from './storyKpi'
 import { StorySummaryConfigModal } from './StorySummaryConfigModal'
@@ -90,31 +92,25 @@ import {
   type StoryFilter,
   type StorySlide,
 } from './storyDemoData'
-import { StoryMap, STORY_MAP_STYLE, type StoryMapHandle, type StoryMapLayerVisibility } from './StoryMap'
-import type { AssistantReplyPayload } from '../assistantReplyTypes'
-import { StorySelectLayer, type StorySelectArea, type StorySelection } from './StorySelectLayer'
 import {
-  AREA_FILTER_LABELS,
-  AREA_PROMPT,
-  MUSSAFAH_LABEL,
+  StoryMap,
+  STORY_MAP_STYLE,
+  type StoryMapActionTooltip,
+  type StoryMapHandle,
+  type StoryMapLayerVisibility,
+  type StoryMapView,
+} from './StoryMap'
+import {
   MUSSAFAH_LOAD_X,
-  MUSSAFAH_MAX_HEIGHT_M,
   MUSSAFAH_PERIOD,
-  MUSSAFAH_REGION,
   MUSSAFAH_VOLUME_X,
-  areaFilterEffect,
-  countInPolygon,
   mussafahInsight,
-  mussafahPrompt,
   regionBusyJunctions,
-  regionColumnHeights,
-  regionJunctionRadii,
   type StoryAiSnapshot,
   type StoryAreaEffect,
   type StoryMapCapture,
   type StoryMapRegion,
 } from './storyAiScenarios'
-import { areaFilterReply, mussafahReply, withMapState } from './storySelectionReplies'
 import {
   PERIOD_LOAD_X,
   PERIOD_VOLUME_LEGEND,
@@ -122,12 +118,11 @@ import {
   periodScene,
   type ChatComponent,
 } from './storyChartPeriod'
-import { DEMO_COLUMNS, DEMO_JUNCTIONS } from './storyDemoMapData'
 import { locationAnnotation, schoolMarkersAnnotation, snapshotRegion, topSchoolsAnnotation } from './storyAnnotations'
-import { StoryComparisonModal } from './StoryComparisonModal'
-import { comparisonOptions, comparisonPhase, type ComparisonMapOption } from './storyComparison'
+import { basemapComparison, comparisonPhase, type ComparisonMapOption } from './storyComparison'
 import { createCameraLink } from './storyCameraLink'
 import type { BackgroundBasemap, StoryBackground } from './storyBackground'
+import { DEFAULT_COMPARISON_SPLIT, type ComparisonSplit } from '../prototypeChrome'
 import { StoryBackgroundLayer } from './StoryBackgroundLayer'
 import { BackgroundSettings } from './StoryBackgroundSettings'
 import { StoryAnnotationsPanel, type AnnotationDrawingState, type AnnotationPatch } from './StoryAnnotationsPanel'
@@ -141,7 +136,6 @@ import {
 } from './storyMapAnnotations'
 import annotationStyles from './StoryAnnotations.module.css'
 import {
-  COLUMN_MAX_HEIGHT_M,
   sceneAtPhase,
   sceneState,
   storySceneAt,
@@ -164,20 +158,17 @@ import styles from './StoryView.module.css'
 
 export type StoryViewProps = {
   storyId: string
-  onBack: () => void
+  /** `from`: the map's camera when the Back button was pressed (absent when the story is deleted). */
+  onBack: (from?: StoryMapView) => void
   /** Opens left agent rail with current story/slide context. */
   onAsk?: (context: { story: LandingStory; slideIndex: number; sourceRect: DOMRect }) => void
-  /** When the agent rail is open, hide the Ask icon. */
+  /** The agent is open; the Ask orb stays on screen and closes it through `onCloseAsk`. */
   agentOpen?: boolean
+  onCloseAsk?: () => void
   /** Red dot when findings were dismissed before every entry was seen. */
   findingUnread?: boolean
   /** Reopens findings that were dismissed before every entry was seen. */
   onRestoreFindings?: (sourceRect: DOMRect) => void
-  /** Select mode: pick insight components or drag an area on the map to prompt about. */
-  selectMode?: boolean
-  onSelectModeChange?: (on: boolean) => void
-  /** A select-mode prompt was sent; the story already applied its changes. */
-  onSelectionPrompt?: (request: { prompt: string; reply: AssistantReplyPayload; snapshot: StoryAiSnapshot }) => void
   /**
    * A new `token` animates the story to `snapshot` (a saved conversation's changes),
    * or back to its original slides when `snapshot` is null.
@@ -190,19 +181,29 @@ export type StoryViewProps = {
   }
   /** Map screenshot for a reply's map-state card, taken after the prompt's animation settles; without it replies get no card. */
   onMapCapture?: (stateId: string, capture: StoryMapCapture) => void
-  /** Status bar for the AI-changed story; hidden while select mode shows its own banner. */
+  /** Status bar for the AI-changed story. */
   aiModeBar?: ReactNode
-  /** Top-right of the story header (e.g. the AI approach switcher). */
+  /** Top-right of the story header. */
   headerEnd?: ReactNode
   /** Shows "Add to chat" beside a hovered chart card; `sourceRect` is the clicked button. */
   onAddToChat?: (component: ChatComponent, sourceRect: DOMRect) => void
+  /** A card's "Monitor this" form was confirmed; `prompt` is the request the workflow answers. */
+  onMonitorConfirm?: (proposal: WorkflowProposal, prompt: string) => void
   /** Reports the slide on screen, so prompts sent from outside the story can use its data. */
   onSlideIndexChange?: (index: number) => void
+  /** How the Comparison layout splits the maps: the story's map on top or on the left. */
+  comparisonDirection?: ComparisonSplit
+  /**
+   * Arriving on the map from the Briefing: `wait` holds the header, insight cards, map data and
+   * navigation back over the bare map; `play` brings them in. Leaving for the Briefing: `leave` sends
+   * them back out, then `gone` dissolves the story onto the Briefing map underneath.
+   */
+  entrance?: 'wait' | 'play' | 'leave' | 'gone'
+  /** Hides the map (the Briefing map underneath shows the same view) until it has loaded; it fades in after. */
+  mapHidden?: boolean
+  /** The story map's first load: `loaded` (style and layers up), then `painted` (all of its first tiles drawn). */
+  onMapReady?: (stage: 'loaded' | 'painted') => void
 }
-
-/** How long a prompt's camera flight and column animation take before the map is captured. */
-const REGION_CAPTURE_DELAY_MS = 4900
-const AREA_CAPTURE_DELAY_MS = 2300
 
 export type { StoryAiSnapshot }
 
@@ -242,9 +243,9 @@ const INSIGHT_CARD_LABELS: Record<InsightCardId, string> = {
   groundwater: 'Average Junction Load',
   biodiversity: 'Junction Traffic Status',
   sites: 'Live Junction Data',
+  deviation: 'Permit Limit Deviation Rate',
 }
 
-const DEFAULT_FOCUS_CARDS: ChartCardId[] = ['emissions', 'groundwater']
 const CHART_CARD_ORDER: ChartCardId[] = ['emissions', 'groundwater', 'biodiversity', 'sites']
 
 function isChartCardId(id: string): id is ChartCardId {
@@ -279,7 +280,12 @@ type ComparisonChoice = {
   filters?: StoryFilter[]
   timeline?: SlideTimeline
   charts?: TimelineChartSeries[]
+  /** The lower map's own basemap; unset, it follows the story's. */
+  mapStyle?: BackgroundBasemap
 }
+
+/** Which comparison map a control acts on; outside comparison, always the story's map. */
+type MapPane = 'upper' | 'lower'
 
 const NO_TIMELINE_CHARTS: TimelineChartSeries[] = []
 type MapDataLayerKey = keyof StoryMapLayerVisibility
@@ -303,10 +309,13 @@ const VIEW_LAYOUTS: { id: StoryViewLayout; label: string; icon: ComponentType<Ic
 const LAYOUT_MENU_WIDTH = 200
 const LAYOUT_MENU_HEIGHT = 132
 
-const INSIGHT_CARD_IDS = ['summary', 'emissions', 'groundwater', 'biodiversity', 'sites'] as const
+const INSIGHT_CARD_IDS = ['summary', 'emissions', 'groundwater', 'biodiversity', 'sites', 'deviation'] as const
 
-/** Edit-mode grid: one row per visual plus 3 empty rows; each row holds 2 cells. */
-const GRID_ROWS = INSIGHT_CARD_IDS.length + 3
+/** Cards one cell wide; they keep that cell when the grid gains columns instead of stretching. */
+const ONE_CELL_CARDS: ReadonlySet<InsightCardId> = new Set<InsightCardId>(['deviation'])
+
+/** Edit-mode grid: a row per full-width card, rows of one-cell cards, then 3 empty rows. */
+const EMPTY_GRID_ROWS = 3
 
 /**
  * Grid layout spans the full page width with square cells. At 12 columns a cell is about the
@@ -318,7 +327,98 @@ const DEFAULT_GRID_COLUMNS: GridColumns = 8
 const GRID_CELL_SIZE = 184
 const GRID_CELL_GAP = 12
 const GRID_CARD_SPAN = 2
-/** Space kept clear around the grid: sides, top, and the floating width control above the toolbar. */
+
+/** Sidebar layout keeps the 184px cell; more columns widen the sidebar instead of shrinking cells. */
+const SIDEBAR_COLUMN_OPTIONS = [2, 3, 4] as const
+type SidebarColumns = (typeof SIDEBAR_COLUMN_OPTIONS)[number]
+const DEFAULT_SIDEBAR_COLUMNS: SidebarColumns = 2
+
+/** Demo summaries read as generated a little before the story was opened. */
+const SUMMARY_SEEDED_AGO_MS = 12 * 60_000
+const SUMMARY_TIME = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+
+/** Width of a card's hover toolbar with `buttons` icons; the summary pill slides left by it. */
+const cardActionsWidth = (buttons: number) => buttons * 26 + (buttons - 1) * 2 + 6
+
+/** An icon in a card's hover toolbar, named by a tooltip on hover and focus. */
+function CardActionButton({
+  label,
+  ariaLabel,
+  active = false,
+  menu,
+  onClick,
+  children,
+}: {
+  label: string
+  ariaLabel: string
+  active?: boolean
+  /** Edit mode: the button opens the card's menu. */
+  menu?: { open: boolean }
+  onClick?: (button: HTMLButtonElement) => void
+  children: ReactNode
+}) {
+  const tooltip = useAnchoredTooltip()
+  return (
+    <>
+      <button
+        type="button"
+        className={`${styles.cardAction} ${styles.cardActionIcon}${active ? ` ${styles.cardActionActive}` : ''}`}
+        aria-label={ariaLabel}
+        data-card-menu-trigger={menu ? '' : undefined}
+        aria-haspopup={menu ? 'menu' : undefined}
+        aria-expanded={menu?.open}
+        aria-controls={menu?.open ? 'insight-card-menu' : undefined}
+        aria-describedby={tooltip.describedBy}
+        onClick={(event) => {
+          tooltip.hide()
+          onClick?.(event.currentTarget)
+        }}
+        onMouseEnter={tooltip.show}
+        onMouseLeave={tooltip.hide}
+        onFocus={tooltip.show}
+        onBlur={tooltip.hide}
+      >
+        {children}
+      </button>
+      {tooltip.node(label)}
+    </>
+  )
+}
+
+function ColumnsControl<T extends number>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: readonly T[]
+  value: T
+  onChange: (columns: T) => void
+}) {
+  return (
+    <div className={styles.gridColumnsControl} role="radiogroup" aria-label={label}>
+      <GridFour className={styles.gridColumnsIcon} size={18} weight="regular" aria-hidden />
+      {options.map((columns) => (
+        <button
+          key={columns}
+          type="button"
+          role="radio"
+          aria-checked={value === columns}
+          aria-label={`${columns} columns`}
+          className={`${styles.gridColumnsOption}${value === columns ? ` ${styles.gridColumnsOptionActive}` : ''}`}
+          onClick={() => onChange(columns)}
+        >
+          {columns}
+        </button>
+      ))}
+    </div>
+  )
+}
+/** Matches `.infoPopover`'s width. */
+const INFO_POPOVER_W = 340
+
+/** Space kept clear around the grid: sides, top, and the bottom toolbar. */
 const GRID_INSET_X = 20
 const GRID_INSET_TOP = 20
 const GRID_INSET_BOTTOM = 128
@@ -330,7 +430,7 @@ const CHART_CARD_BY_ASSET: Record<string, ChartCardId> = {
   'chart-sites': 'sites',
 }
 
-type InsightCardId = 'summary' | ChartCardId
+type InsightCardId = 'summary' | 'deviation' | ChartCardId
 
 type InsightCardPrefs = {
   hidden?: boolean
@@ -343,6 +443,8 @@ type InsightCardPrefs = {
 
 const CARD_MENU_WIDTH = 200
 const CARD_MENU_HEIGHT = 192
+const FILTER_MENU_WIDTH = 200
+const FILTER_MENU_HEIGHT = 88
 
 function copySlide(slide: StorySlide): StorySlide {
   return {
@@ -364,7 +466,7 @@ function makePresentationSettings(): StoryPresentationSettings {
     textDirection: 'ltr',
     autoplay: false,
     multiSlide: true,
-    pagesMode: false,
+    pagesMode: true,
   }
 }
 
@@ -373,17 +475,20 @@ export function StoryView({
   onBack,
   onAsk,
   agentOpen = false,
+  onCloseAsk,
   findingUnread = false,
   onRestoreFindings,
-  selectMode = false,
-  onSelectModeChange,
-  onSelectionPrompt,
   aiState,
   onMapCapture,
   aiModeBar,
   headerEnd,
   onAddToChat,
+  onMonitorConfirm,
   onSlideIndexChange,
+  comparisonDirection = DEFAULT_COMPARISON_SPLIT,
+  entrance,
+  mapHidden = false,
+  onMapReady,
 }: StoryViewProps) {
   const story = useMemo(() => getLandingStory(storyId), [storyId])
   const [storyTitle, setStoryTitle] = useState(story.storyTitle)
@@ -408,7 +513,21 @@ export function StoryView({
   const [slideMenuPos, setSlideMenuPos] = useState({ top: 0, left: 0 })
   const slideMenuRef = useRef<HTMLButtonElement>(null)
   const [directSlideEditor, setDirectSlideEditor] = useState(false)
-  const [infoOpen, setInfoOpen] = useState(false)
+  /** The open description tooltip, placed under its info icon in the title group's coordinates. */
+  const [info, setInfo] = useState<{ kind: 'story' | 'slide'; left: number; top: number } | null>(null)
+  const titleGroupRef = useRef<HTMLDivElement>(null)
+  const toggleInfo = (kind: 'story' | 'slide', button: HTMLElement) => {
+    const group = titleGroupRef.current
+    if (info?.kind === kind || !group) {
+      setInfo(null)
+      return
+    }
+    const bounds = group.getBoundingClientRect()
+    const icon = button.getBoundingClientRect()
+    const width = Math.min(INFO_POPOVER_W, window.innerWidth - 40)
+    const x = Math.max(20, Math.min(icon.left - 8, window.innerWidth - 20 - width))
+    setInfo({ kind, left: x - bounds.left, top: icon.bottom - bounds.top + 6 })
+  }
   const [layers, setLayers] = useState<StoryMapLayerVisibility>({
     junctions: true,
     distribution: true,
@@ -423,6 +542,11 @@ export function StoryView({
   const [mapDataTab, setMapDataTab] = useState<'layers' | 'annotations'>('layers')
   /** Annotations belong to the story's main map, so every slide shows them against its own data. */
   const [mapAnnotations, setMapAnnotations] = useState<MapAnnotationItem[]>([])
+  /** The comparison map's own annotations, against the data it shows. */
+  const [lowerAnnotations, setLowerAnnotations] = useState<MapAnnotationItem[]>([])
+  const [lowerMapDataTab, setLowerMapDataTab] = useState<'layers' | 'annotations'>('layers')
+  /** The map that the selection, drawing and reshaping below belong to. */
+  const [annotationPane, setAnnotationPane] = useState<MapPane>('upper')
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [annotationDrawing, setAnnotationDrawing] = useState<AnnotationDrawingState | null>(null)
   /** The annotation being reshaped on the flat map, and how it looked before, for Cancel. */
@@ -449,13 +573,26 @@ export function StoryView({
     left: number
   } | null>(null)
   const [cardConfig, setCardConfig] = useState<{ slideId: string; cardId: InsightCardId } | null>(null)
+  const [monitorTarget, setMonitorTarget] = useState<{ slideId: string; cardId: InsightCardId } | null>(null)
+  /** Saved monitoring workflows, keyed `${slideId}:${cardId}`. */
+  const [monitors, setMonitors] = useState<Record<string, MonitorConfig>>({})
+  const [filterMenu, setFilterMenu] = useState<{
+    slideId: string
+    target: 'upper' | 'lower'
+    filterId: string
+    label: string
+    remove: () => void
+    top: number
+    left: number
+  } | null>(null)
   const [regeneratingSlideId, setRegeneratingSlideId] = useState<string | null>(null)
+  const [summaryUpdatedAt, setSummaryUpdatedAt] = useState<Record<string, number>>({})
+  const [storyOpenedAt] = useState(() => Date.now() - SUMMARY_SEEDED_AGO_MS)
   const [layoutBySlide, setLayoutBySlide] = useState<Record<string, StoryViewLayout>>({})
   const [gridColumnsBySlide, setGridColumnsBySlide] = useState<Record<string, GridColumns>>({})
+  const [sidebarColumnsBySlide, setSidebarColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
   const [comparisonBySlide, setComparisonBySlide] = useState<Record<string, ComparisonChoice>>({})
-  const [comparisonPickerOpen, setComparisonPickerOpen] = useState(false)
   const [comparisonLegendOpen, setComparisonLegendOpen] = useState({ upper: false, lower: false })
-  const [comparisonInsightOpen, setComparisonInsightOpen] = useState(false)
   const [mapsLinked, setMapsLinked] = useState(true)
   const [lowerPlaying, setLowerPlaying] = useState(false)
   const [lowerSpeed, setLowerSpeed] = useState(1)
@@ -467,13 +604,19 @@ export function StoryView({
   const [aiRegion, setAiRegion] = useState<StoryMapRegion | null>(null)
   const [areaEffect, setAreaEffect] = useState<StoryAreaEffect | null>(null)
   const [flashedFilters, setFlashedFilters] = useState<{ ids: string[]; key: number } | null>(null)
-  /** Filters as they were before the first select-mode prompt, restored when `aiState` resets. */
+  /** Filters as they were before the first AI prompt, restored when `aiState` resets. */
   const [filtersBeforeAi, setFiltersBeforeAi] = useState<Record<string, StoryFilter[]> | null>(null)
-  const [aiFilterLabels, setAiFilterLabels] = useState<Record<string, string>>({})
   const [restoredCards, setRestoredCards] = useState<{ ids: InsightCardId[]; key: number } | null>(null)
   const [cameraRequest, setCameraRequest] = useState<{ camera: NonNullable<StoryAiSnapshot['camera']> } | null>(null)
   const [periodCards, setPeriodCards] = useState<ChartCardId[]>([])
   const [annotationRequest, setAnnotationRequest] = useState<StoryAiSnapshot['annotation'] | null>(null)
+  /** The annotation whose recommended action was pinned in edit mode; a new annotation starts unpinned. */
+  const [pinnedActionFor, setPinnedActionFor] = useState<StoryAiSnapshot['annotation'] | null>(null)
+  /** Closed in view mode on `slide`: it stays pinned in edit mode, and shows pinned again once the slide changes. */
+  const [closedAction, setClosedAction] = useState<{
+    annotation: StoryAiSnapshot['annotation'] | null
+    slide: number
+  } | null>(null)
   // Starts below any token so a story opened with a saved snapshot replays its changes on mount.
   const [appliedAiToken, setAppliedAiToken] = useState(-1)
   if (aiState && aiState.token !== appliedAiToken) {
@@ -501,7 +644,6 @@ export function StoryView({
       setAreaEffect(snapshot?.areaEffect ?? null)
       setFiltersBySlide(nextFilters)
       setFiltersBeforeAi(snapshot ? base : null)
-      setAiFilterLabels(snapshot?.filterLabels ?? {})
       setCameraRequest(snapshot?.camera ? { camera: snapshot.camera } : null)
       setPeriodCards(snapshot?.periodCards ?? [])
       setAnnotationRequest(snapshot?.annotation ?? null)
@@ -515,6 +657,10 @@ export function StoryView({
   const mapHandleRef = useRef<StoryMapHandle | null>(null)
   const onMapHandle = useCallback((handle: StoryMapHandle | null) => {
     mapHandleRef.current = handle
+  }, [])
+  const lowerMapHandleRef = useRef<StoryMapHandle | null>(null)
+  const onLowerMapHandle = useCallback((handle: StoryMapHandle | null) => {
+    lowerMapHandleRef.current = handle
   }, [])
   const aiCapture = aiState?.capture ?? null
   useEffect(() => {
@@ -541,6 +687,7 @@ export function StoryView({
   const layoutMenuRef = useRef<HTMLButtonElement>(null)
 
   const activeSlideIndex = Math.min(slideIndex, slides.length - 1)
+  if (closedAction && closedAction.slide !== activeSlideIndex) setClosedAction(null)
   const slide = slides[activeSlideIndex]
   const [timelineSlideId, setTimelineSlideId] = useState(slide.id)
   if (timelineSlideId !== slide.id) {
@@ -590,6 +737,21 @@ export function StoryView({
     if (annotation.layer === 'region') return aiRegion ? annotation : null
     return from === activeSlideIndex && !aiRegion ? annotation : null
   }, [activeSlideIndex, aiRegion, annotationRequest])
+  const actionTooltip = useMemo<StoryMapActionTooltip>(
+    () => ({
+      mode: storyMode,
+      pinned:
+        annotationRequest !== null &&
+        pinnedActionFor === annotationRequest &&
+        (storyMode === 'edit' || closedAction?.annotation !== annotationRequest),
+      onPinnedChange: (pinned) => {
+        setPinnedActionFor(pinned ? annotationRequest : null)
+        setClosedAction(null)
+      },
+      onClose: () => setClosedAction({ annotation: annotationRequest, slide: activeSlideIndex }),
+    }),
+    [activeSlideIndex, annotationRequest, closedAction, pinnedActionFor, storyMode],
+  )
   useEffect(() => {
     onSlideIndexChange?.(activeSlideIndex)
   }, [activeSlideIndex, onSlideIndexChange])
@@ -607,56 +769,80 @@ export function StoryView({
   )
   const editingAnnotations = storyMode === 'edit'
   const showAnnotationsTab = editingAnnotations || mapAnnotations.length > 0
+  const annotationsOf = (pane: MapPane) => (pane === 'lower' ? lowerAnnotations : mapAnnotations)
+  const setAnnotationsOf = (pane: MapPane) => (pane === 'lower' ? setLowerAnnotations : setMapAnnotations)
   const editingAnnotationId = annotationEditing?.id ?? null
-  const editingAnnotation = useMemo(
-    () => (editingAnnotationId ? (mapAnnotations.find((item) => item.id === editingAnnotationId) ?? null) : null),
-    [editingAnnotationId, mapAnnotations],
-  )
+  const editingAnnotation = useMemo(() => {
+    if (!editingAnnotationId) return null
+    const items = annotationPane === 'lower' ? lowerAnnotations : mapAnnotations
+    return items.find((item) => item.id === editingAnnotationId) ?? null
+  }, [annotationPane, editingAnnotationId, lowerAnnotations, mapAnnotations])
   // The edited annotation is drawn by the editing session (with its handles) instead of the regular layers.
   const mapAnnotationItems = useMemo(
-    () => (editingAnnotationId ? mapAnnotations.filter((item) => item.id !== editingAnnotationId) : mapAnnotations),
-    [editingAnnotationId, mapAnnotations],
+    () =>
+      editingAnnotationId && annotationPane === 'upper'
+        ? mapAnnotations.filter((item) => item.id !== editingAnnotationId)
+        : mapAnnotations,
+    [annotationPane, editingAnnotationId, mapAnnotations],
   )
-  const startAnnotationDrawing = (tool: AnnotationDrawingState['tool']) => {
+  const lowerAnnotationItems = useMemo(
+    () =>
+      editingAnnotationId && annotationPane === 'lower'
+        ? lowerAnnotations.filter((item) => item.id !== editingAnnotationId)
+        : lowerAnnotations,
+    [annotationPane, editingAnnotationId, lowerAnnotations],
+  )
+  const startAnnotationDrawing = (tool: AnnotationDrawingState['tool'], pane: MapPane = 'upper') => {
+    setAnnotationPane(pane)
     setAnnotationEditing(null)
     setEditSection(null)
-    setMapDataTab('annotations')
-    setLegendOpen(true)
+    if (pane === 'lower') {
+      setLowerMapDataTab('annotations')
+      setComparisonLegendOpen((current) => ({ ...current, lower: true }))
+    } else {
+      setMapDataTab('annotations')
+      setLegendOpen(true)
+      setComparisonLegendOpen((current) => ({ ...current, upper: true }))
+    }
     setSelectedAnnotationId(null)
     setAnnotationDrawing({ tool, points: 0 })
   }
-  const onAnnotationDrawn = (shape: DrawnShape) => {
+  const onAnnotationDrawn = (shape: DrawnShape, pane: MapPane = 'upper') => {
     setAnnotationDrawing(null)
-    const item = createAnnotation(shape, mapAnnotations, annotationData, annotationDataLabel)
-    setMapAnnotations((items) => [item, ...items])
+    const item =
+      pane === 'lower'
+        ? createAnnotation(shape, lowerAnnotations, lowerAnnotationData, lowerAnnotationDataLabel)
+        : createAnnotation(shape, mapAnnotations, annotationData, annotationDataLabel)
+    setAnnotationsOf(pane)((items) => [item, ...items])
     setSelectedAnnotationId(item.id)
   }
-  const updateAnnotation = (id: string, patch: AnnotationPatch) =>
-    setMapAnnotations((items) =>
+  const updateAnnotation = (id: string, patch: AnnotationPatch, pane: MapPane = 'upper') =>
+    setAnnotationsOf(pane)((items) =>
       items.map((item) =>
         item.id === id ? { ...item, ...patch, style: patch.style ? { ...item.style, ...patch.style } : item.style } : item,
       ),
     )
-  const editAnnotationShape = (id: string) => {
-    const original = mapAnnotations.find((item) => item.id === id)
+  const editAnnotationShape = (id: string, pane: MapPane = 'upper') => {
+    const original = annotationsOf(pane).find((item) => item.id === id)
     if (!original) return
+    setAnnotationPane(pane)
     setAnnotationDrawing(null)
     setSelectedAnnotationId(id)
     setAnnotationEditing({ id, original })
   }
-  const onAnnotationEdited = (shape: DrawnShape) => {
+  const onAnnotationEdited = (shape: DrawnShape, pane: MapPane = 'upper') => {
     if (!editingAnnotationId) return
-    setMapAnnotations((items) =>
-      items.map((item) =>
-        item.id === editingAnnotationId ? reshapeAnnotation(item, shape, annotationData, annotationDataLabel) : item,
-      ),
+    const [data, label] =
+      pane === 'lower' ? [lowerAnnotationData, lowerAnnotationDataLabel] : [annotationData, annotationDataLabel]
+    setAnnotationsOf(pane)((items) =>
+      items.map((item) => (item.id === editingAnnotationId ? reshapeAnnotation(item, shape, data, label) : item)),
     )
   }
   const cancelAnnotationEditing = () => {
     if (annotationEditing) {
       const { id, original } = annotationEditing
       // Only the shape reverts; color, text and layer settings changed meanwhile stay.
-      setMapAnnotations((items) =>
+      setAnnotationsOf(annotationPane)((items) =>
         items.map((item) =>
           item.id === id ? { ...original, style: item.style, visible: item.visible, opacity: item.opacity } : item,
         ),
@@ -664,13 +850,21 @@ export function StoryView({
     }
     setAnnotationEditing(null)
   }
-  const reorderAnnotations = (from: number, to: number) =>
-    setMapAnnotations((items) => {
+  const reorderAnnotations = (from: number, to: number, pane: MapPane = 'upper') =>
+    setAnnotationsOf(pane)((items) => {
       const next = [...items]
       const [moved] = next.splice(from, 1)
       next.splice(to, 0, moved)
       return next
     })
+  const annotating = annotationDrawing !== null || annotationEditing !== null
+  const onDrawProgress = (points: number) =>
+    setAnnotationDrawing((current) => (current && current.points !== points ? { ...current, points } : current))
+  const deleteAnnotation = (id: string, pane: MapPane = 'upper') => {
+    setAnnotationsOf(pane)((items) => items.filter((item) => item.id !== id))
+    setSelectedAnnotationId(null)
+    if (editingAnnotationId === id) setAnnotationEditing(null)
+  }
   const leaveAnnotationEditing = () => {
     setAnnotationDrawing(null)
     setAnnotationEditing(null)
@@ -708,9 +902,10 @@ export function StoryView({
   }, [timelinePlaying, timeline.frame, frameStepMs, slide.id, frameCount])
 
   const cardPrefs = cardPrefsBySlide[slide.id] ?? {}
-  const openCardMenu = cardMenu?.slideId === slide.id && storyMode === 'edit' ? cardMenu : null
-  const openCardPrefs = openCardMenu ? (cardPrefs[openCardMenu.cardId] ?? {}) : {}
-  const openCardConfig = cardConfig?.slideId === slide.id && storyMode === 'edit' ? cardConfig : null
+  const openCardMenu = cardMenu?.slideId === slide.id ? cardMenu : null
+  const openFilterMenu = filterMenu?.slideId === slide.id && storyMode === 'edit' ? filterMenu : null
+  const openCardConfig = cardConfig?.slideId === slide.id ? cardConfig : null
+  const openMonitor = monitorTarget?.slideId === slide.id ? monitorTarget : null
 
   const chartKpi = (cardId: ChartCardId) => {
     const config = cardPrefs[cardId]?.kpi
@@ -722,16 +917,27 @@ export function StoryView({
   const summaryConfig =
     cardPrefs.summary?.summary ?? defaultSummaryConfig(slide.id)
   const viewLayout = layoutBySlide[slide.id] ?? 'sidebar'
-  const comparisonMapOptions = comparisonOptions({
-    slides,
-    activeSlideIndex,
-    filters,
-    range: timelineRange,
-  })
-  const comparison: ComparisonChoice = comparisonBySlide[slide.id] ?? {
-    option: comparisonMapOptions[0],
-    layers: comparisonMapOptions[0].layers,
-  }
+  const sideBySide = viewLayout === 'comparison' && comparisonDirection === 'vertical'
+  const headerRef = useRef<HTMLElement>(null)
+  const comparisonTitleRef = useRef<HTMLElement>(null)
+  // Each comparison map's controls sit under its header's rule, which moves as the filters wrap.
+  useEffect(() => {
+    const root = rootRef.current
+    const header = headerRef.current
+    const title = comparisonTitleRef.current
+    if (viewLayout !== 'comparison' || !root || !header || !title) return
+    const measure = () => {
+      root.style.setProperty('--story-header-end', `${header.offsetTop + header.offsetHeight}px`)
+      root.style.setProperty('--comparison-title-end', `${title.offsetHeight}px`)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(header)
+    observer.observe(title)
+    return () => observer.disconnect()
+  }, [viewLayout, comparisonDirection])
+  const basemap = basemapComparison(activeSlideIndex)
+  const comparison: ComparisonChoice = comparisonBySlide[slide.id] ?? { option: basemap, layers: basemap.layers }
   const lowerFiltersFor = (option: ComparisonMapOption) =>
     filters
       .filter((filter) => option.source !== 'filters' || option.id !== `filter-${filter.id}`)
@@ -786,13 +992,37 @@ export function StoryView({
     () => sceneAtPhase(comparisonBaseScene, comparisonFramePhase),
     [comparisonBaseScene, comparisonFramePhase],
   )
+  const lowerAnnotationData = useMemo<AnnotationData>(() => {
+    const state = sceneState(comparisonBaseScene)
+    return {
+      slideIndex: comparison.option.sceneIndex,
+      heights: state.heights,
+      radii: state.radii,
+      layers: comparison.layers,
+    }
+  }, [comparison.layers, comparison.option.sceneIndex, comparisonBaseScene])
+  const lowerAnnotationDataLabel = `${comparison.option.eyebrow} · ${comparison.option.title}`
+  const lowerAnnotationStates = useMemo(
+    () =>
+      Object.fromEntries(lowerAnnotations.map((item) => [item.id, annotationValidity(item, lowerAnnotationData)])),
+    [lowerAnnotationData, lowerAnnotations],
+  )
+  const lowerMapStyle = comparison.mapStyle ?? mapStyle
   const toggleComparisonLayer = (key: MapDataLayerKey) =>
     updateComparison((current) => ({
       ...current,
       layers: { ...current.layers, [key]: !current.layers[key] },
     }))
-  const placedCards = INSIGHT_CARD_IDS.filter((id) => !cardPrefs[id]?.deleted).length
-  const emptyGridCells = (GRID_ROWS - placedCards) * 2
+  const placedIds = INSIGHT_CARD_IDS.filter((id) => !cardPrefs[id]?.deleted)
+  const placedOneCell = placedIds.filter((id) => ONE_CELL_CARDS.has(id)).length
+  const placedFull = placedIds.length - placedOneCell
+  const sidebarColumns =
+    viewLayout === 'sidebar'
+      ? (sidebarColumnsBySlide[slide.id] ?? DEFAULT_SIDEBAR_COLUMNS)
+      : DEFAULT_SIDEBAR_COLUMNS
+  const sidebarRows =
+    INSIGHT_CARD_IDS.length - ONE_CELL_CARDS.size + Math.ceil(ONE_CELL_CARDS.size / sidebarColumns) + EMPTY_GRID_ROWS
+  const emptyGridCells = sidebarRows * sidebarColumns - placedFull * sidebarColumns - placedOneCell
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const [bodySize, setBodySize] = useState({ width: 0, height: 0 })
@@ -800,12 +1030,13 @@ export function StoryView({
   const gridWidth = bodySize.width - 2 * GRID_INSET_X
   const gridCell =
     gridWidth > 0 ? (gridWidth - (gridColumns - 1) * GRID_CELL_GAP) / gridColumns : GRID_CELL_SIZE
+  const gridCellsUsed = placedFull * GRID_CARD_SPAN + placedOneCell
   const gridRows = Math.max(
     1,
-    Math.ceil((placedCards * GRID_CARD_SPAN) / gridColumns),
+    Math.ceil(gridCellsUsed / gridColumns),
     Math.ceil((bodySize.height - GRID_INSET_TOP + GRID_CELL_GAP) / (gridCell + GRID_CELL_GAP)),
   )
-  const gridLayoutEmptyCells = Math.max(0, gridColumns * gridRows - placedCards * GRID_CARD_SPAN)
+  const gridLayoutEmptyCells = Math.max(0, gridColumns * gridRows - gridCellsUsed)
 
   useEffect(() => {
     const body = bodyRef.current
@@ -819,7 +1050,10 @@ export function StoryView({
 
   useEffect(() => {
     if (!regeneratingSlideId) return
-    const timer = window.setTimeout(() => setRegeneratingSlideId(null), SUMMARY_REGENERATE_MS)
+    const timer = window.setTimeout(() => {
+      setSummaryUpdatedAt((current) => ({ ...current, [regeneratingSlideId]: Date.now() }))
+      setRegeneratingSlideId(null)
+    }, SUMMARY_REGENERATE_MS)
     return () => window.clearTimeout(timer)
   }, [regeneratingSlideId])
 
@@ -851,6 +1085,48 @@ export function StoryView({
     setLayoutMenuOpen(false)
   }
 
+  const toggleFilterMenu = (target: 'upper' | 'lower', filter: StoryFilter, remove: () => void, button: HTMLElement) => {
+    if (openFilterMenu?.target === target && openFilterMenu.filterId === filter.id) {
+      setFilterMenu(null)
+      return
+    }
+    const rect = button.getBoundingClientRect()
+    const below = rect.bottom + 6
+    setFilterMenu({
+      slideId: slide.id,
+      target,
+      filterId: filter.id,
+      label: filter.label,
+      remove,
+      top:
+        below + FILTER_MENU_HEIGHT > window.innerHeight - 8
+          ? Math.max(8, rect.top - 6 - FILTER_MENU_HEIGHT)
+          : below,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - FILTER_MENU_WIDTH - 8)),
+    })
+    setStoryMenuOpen(false)
+    setSlideMenuOpen(false)
+    setLayoutMenuOpen(false)
+    setCardMenu(null)
+  }
+
+  useEffect(() => {
+    if (!openFilterMenu) return
+    const onPointerDown = (event: PointerEvent) => {
+      if ((event.target as Element).closest('#story-filter-menu, [data-filter-menu-trigger]')) return
+      setFilterMenu(null)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFilterMenu(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [openFilterMenu])
+
   const toggleLayoutMenu = () => {
     const rect = layoutMenuRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -858,9 +1134,9 @@ export function StoryView({
       setLayoutMenuOpen(false)
       return
     }
-    const above = rect.top - 6 - LAYOUT_MENU_HEIGHT
+    const below = rect.bottom + 6
     setLayoutMenuPos({
-      top: above < 8 ? rect.bottom + 6 : above,
+      top: below + LAYOUT_MENU_HEIGHT > window.innerHeight - 8 ? rect.top - 6 - LAYOUT_MENU_HEIGHT : below,
       left: Math.max(8, Math.min(rect.left, window.innerWidth - LAYOUT_MENU_WIDTH - 8)),
     })
     setStoryMenuOpen(false)
@@ -905,11 +1181,39 @@ export function StoryView({
     }
   }, [openCardMenu])
 
-  const canAddToChat = Boolean(onAddToChat) && !selectMode
-  const addCardToChat = (id: ChartCardId, button: HTMLElement) => {
+  const canAddToChat = Boolean(onAddToChat)
+  const addCardToChat = (id: InsightCardId, button: HTMLElement) => {
     onAddToChat?.({ id, label: INSIGHT_CARD_LABELS[id] }, button.getBoundingClientRect())
     button.blur()
   }
+
+  const summaryRegenerating = regeneratingSlideId === slide.id
+  const summaryStatusStyle = {
+    '--actions-w': `${cardActionsWidth(canAddToChat ? 2 : 1)}px`,
+  } as CSSProperties
+  const summaryRegenerate = (
+    <button
+      type="button"
+      className={styles.summaryStatus}
+      style={summaryStatusStyle}
+      data-busy={summaryRegenerating || undefined}
+      disabled={summaryRegenerating}
+      onClick={() => setRegeneratingSlideId(slide.id)}
+    >
+      <ArrowsClockwise size={14} className={styles.summaryStatusIcon} aria-hidden />
+      {summaryRegenerating ? 'Regenerating…' : 'Regenerate'}
+    </button>
+  )
+  const summaryUpdated = (
+    <span className={styles.summaryUpdated} data-busy={summaryRegenerating || undefined} role="status">
+      {summaryRegenerating ? (
+        <ArrowsClockwise size={12} className={styles.summaryStatusIcon} aria-hidden />
+      ) : null}
+      {summaryRegenerating
+        ? 'Updating…'
+        : `Last updated ${SUMMARY_TIME.format(summaryUpdatedAt[slide.id] ?? storyOpenedAt)}`}
+    </span>
+  )
 
   const insightCard = (
     id: InsightCardId,
@@ -919,7 +1223,7 @@ export function StoryView({
     style?: CSSProperties,
   ) => {
     const prefs = cardPrefs[id] ?? {}
-    const focused = aiFocus !== null && id !== 'summary' && aiFocus.cards.includes(id)
+    const focused = aiFocus !== null && isChartCardId(id) && aiFocus.cards.includes(id)
     if (aiFocus && id !== 'summary' && !focused) return null
     if (!focused && (prefs.deleted || (prefs.hidden && storyMode !== 'edit'))) return null
     const restored = !focused && restoredCards !== null && restoredCards.ids.includes(id)
@@ -930,12 +1234,9 @@ export function StoryView({
         ? restoredCards.ids.indexOf(id) * 110 + 260
         : null
     const period = isChartCardId(id) && inPeriod(id)
-    const chattable = canAddToChat && isChartCardId(id)
     return (
       <section
         key={focused ? `${id}-${aiFocus.key}` : restored ? `${id}-restored-${restoredCards.key}` : id}
-        data-select-id={id}
-        data-select-label={INSIGHT_CARD_LABELS[id]}
         className={[
           className,
           styles.insightCard,
@@ -950,69 +1251,43 @@ export function StoryView({
         style={focusDelay === null ? style : ({ ...style, '--focus-delay': `${focusDelay}ms` } as CSSProperties)}
       >
         {children}
-        {chattable ? (
-          <div
-            className={`${styles.cardActions}${menuOpen ? ` ${styles.cardActionsOpen}` : ''}`}
-            role="toolbar"
-            aria-label={`${title} actions`}
-          >
-            <button
-              type="button"
-              className={`${styles.cardAction} ${styles.cardActionIcon}`}
-              aria-label={`Add ${title} to chat`}
-              title="Add to chat"
-              onClick={(event) => addCardToChat(id, event.currentTarget)}
+        {id === 'summary' && storyMode === 'edit' ? summaryRegenerate : null}
+        <div
+          className={`${styles.cardActions}${menuOpen ? ` ${styles.cardActionsOpen}` : ''}`}
+          role="toolbar"
+          aria-label={`${title} actions`}
+        >
+          {canAddToChat ? (
+            <CardActionButton
+              label="Add to chat"
+              ariaLabel={`Add ${title} to chat`}
+              onClick={(button) => addCardToChat(id, button)}
             >
               <ChatCircleText size={16} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className={`${styles.cardAction} ${styles.cardActionIcon}`}
-              aria-label={`Generate from ${title}`}
-              title="Generate"
+            </CardActionButton>
+          ) : null}
+          {id === 'summary' ? null : (
+            <CardActionButton
+              label="Monitor this"
+              ariaLabel={`Monitor ${title}`}
+              onClick={() => {
+                setCardMenu(null)
+                setMonitorTarget({ slideId: slide.id, cardId: id })
+              }}
             >
-              <Sparkle size={16} aria-hidden />
-            </button>
-            {storyMode === 'edit' ? (
-              <button
-                type="button"
-                data-card-menu-trigger
-                className={`${styles.cardAction} ${styles.cardActionIcon}${menuOpen ? ` ${styles.cardActionActive}` : ''}`}
-                aria-label={`More options for ${title}`}
-                title="More options"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                aria-controls={menuOpen ? 'insight-card-menu' : undefined}
-                onClick={(event) => toggleCardMenu(id, event.currentTarget)}
-              >
-                <DotsThree size={16} weight="bold" aria-hidden />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={`${styles.cardAction} ${styles.cardActionIcon}`}
-                aria-label={`More options for ${title}`}
-                title="More options"
-              >
-                <DotsThree size={16} weight="bold" aria-hidden />
-              </button>
-            )}
-          </div>
-        ) : null}
-        {storyMode === 'edit' && !chattable ? (
-          <button
-            type="button"
-            data-card-menu-trigger
-            className={`${styles.storyMenuBtn} ${styles.insightCardMenuBtn}${menuOpen ? ` ${styles.storyMenuBtnOpen}` : ''}`}
-            aria-label={`${title} actions`}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            aria-controls={menuOpen ? 'insight-card-menu' : undefined}
-            onClick={(event) => toggleCardMenu(id, event.currentTarget)}
+              <Target size={16} weight="regular" aria-hidden />
+            </CardActionButton>
+          )}
+          <CardActionButton
+            label="More options"
+            ariaLabel={`More options for ${title}`}
+            active={menuOpen}
+            menu={{ open: menuOpen }}
+            onClick={(button) => toggleCardMenu(id, button)}
           >
-            <DotsThreeVertical size={20} weight="bold" aria-hidden />
-          </button>
-        ) : null}
+            <DotsThreeVertical size={16} weight="bold" aria-hidden />
+          </CardActionButton>
+        </div>
       </section>
     )
   }
@@ -1020,6 +1295,15 @@ export function StoryView({
   const toggleSection = (section: StoryEditSection) => {
     setDirectSlideEditor(false)
     setEditSection((current) => (current === section ? null : section))
+  }
+  /** In comparison, each map's controls open their panels for that map (filters, layers, basemap). */
+  const toolActive = (section: StoryEditSection, target: MapPane) =>
+    editSection === section && (viewLayout !== 'comparison' || filterTarget === target)
+  const toggleTool = (section: StoryEditSection, target: MapPane) => {
+    const open = toolActive(section, target)
+    setFilterTarget(target)
+    setDirectSlideEditor(false)
+    setEditSection(open ? null : section)
   }
 
   useEffect(() => {
@@ -1262,9 +1546,9 @@ export function StoryView({
             type="button"
             className={styles.infoBtn}
             aria-label="Show slide description"
-            aria-expanded={infoOpen}
-            aria-describedby={infoOpen ? 'slide-description' : undefined}
-            onClick={() => setInfoOpen((open) => !open)}
+            aria-expanded={info?.kind === 'slide'}
+            aria-describedby={info?.kind === 'slide' ? 'slide-description' : undefined}
+            onClick={(event) => toggleInfo('slide', event.currentTarget)}
           >
             <Info size={18} weight="regular" aria-hidden />
           </button>
@@ -1293,17 +1577,18 @@ export function StoryView({
     slides.length,
   ])
 
-  const backgroundButton = (
+  const backgroundButtonFor = (pane: MapPane) => (
     <button
       type="button"
-      className={`${styles.mapDataBackgroundBtn}${editSection === 'map' ? ` ${styles.mapDataBackgroundBtnActive}` : ''}`}
-      aria-pressed={editSection === 'map'}
-      onClick={() => toggleSection('map')}
+      className={`${styles.mapDataBackgroundBtn}${toolActive('map', pane) ? ` ${styles.mapDataBackgroundBtnActive}` : ''}`}
+      aria-pressed={toolActive('map', pane)}
+      onClick={() => toggleTool('map', pane)}
     >
       <MapTrifold size={16} weight="regular" aria-hidden />
       Background
     </button>
   )
+  const backgroundButton = backgroundButtonFor('upper')
 
   const timeSeries = (
     <StoryTimeSeries
@@ -1358,27 +1643,35 @@ export function StoryView({
     />
   )
 
+  const linkMapsHint = mapsLinked
+    ? 'Shared camera and time series; separate filters'
+    : 'Each map has its own camera, time series and filters'
   const linkMapsToggle = (
     <button
       type="button"
       role="switch"
       aria-checked={mapsLinked}
+      aria-description={linkMapsHint}
+      title={linkMapsHint}
       className={styles.linkMaps}
       onClick={() => setMapsLinking(!mapsLinked)}
     >
-      <span className={styles.linkMapsText}>
-        <span className={styles.linkMapsLabel}>Link maps</span>
-        <span className={styles.linkMapsHint}>
-          {mapsLinked
-            ? 'Shared camera and time series; separate filters'
-            : 'Each map has its own camera, time series and filters'}
-        </span>
-      </span>
+      Link maps
       <span className={`${styles.linkMapsSwitch}${mapsLinked ? ` ${styles.linkMapsSwitchOn}` : ''}`} aria-hidden>
         <span className={styles.linkMapsThumb} />
       </span>
     </button>
   )
+  /** Comparison sets the Link maps pill beside the Layout pill (or alone, outside edit mode). */
+  const withLinkMaps = (layoutBar: ReactNode) =>
+    viewLayout === 'comparison' ? (
+      <div className={styles.layoutRow}>
+        {layoutBar}
+        {linkMapsToggle}
+      </div>
+    ) : (
+      layoutBar
+    )
 
   const filterRow = (
     target: 'upper' | 'lower',
@@ -1421,14 +1714,25 @@ export function StoryView({
               {filterIcon(f.id)}
               <span>{f.label}</span>
               {storyMode === 'edit' ? (
-                <button
-                  type="button"
-                  className={styles.filterRemove}
-                  aria-label={`Remove ${f.label}`}
-                  onClick={() => onRemove(f.id)}
-                >
-                  <X size={12} weight="bold" aria-hidden />
-                </button>
+                <>
+                  <CaretDown className={styles.filterCaret} size={14} weight="bold" aria-hidden />
+                  <button
+                    type="button"
+                    className={`${styles.filterMenuBtn}${
+                      openFilterMenu?.target === target && openFilterMenu.filterId === f.id
+                        ? ` ${styles.filterMenuBtnOpen}`
+                        : ''
+                    }`}
+                    data-filter-menu-trigger
+                    aria-label={`${f.label} filter options`}
+                    aria-haspopup="menu"
+                    aria-expanded={openFilterMenu?.target === target && openFilterMenu.filterId === f.id}
+                    aria-controls="story-filter-menu"
+                    onClick={(event) => toggleFilterMenu(target, f, () => onRemove(f.id), event.currentTarget)}
+                  >
+                    <DotsThreeVertical size={16} weight="bold" aria-hidden />
+                  </button>
+                </>
               ) : null}
             </span>
             {f.id === 'year' && index < list.length - 1 ? <span className={styles.filterDivider} aria-hidden /> : null}
@@ -1439,7 +1743,8 @@ export function StoryView({
   }
 
   const editingLowerFilters =
-    editSection === 'filters' && filterTarget === 'lower' && viewLayout === 'comparison'
+    (editSection === 'filters' || editSection === 'assets') && filterTarget === 'lower' && viewLayout === 'comparison'
+  const editingLowerMap = editSection === 'map' && filterTarget === 'lower' && viewLayout === 'comparison'
   const setLowerFilters = (update: (current: StoryFilter[]) => StoryFilter[]) =>
     updateComparison((current) => ({ ...current, filters: update(current.filters ?? lowerFilters) }))
 
@@ -1452,6 +1757,7 @@ export function StoryView({
     onToggle: (key: MapDataLayerKey) => void,
     addLayer: boolean,
     place = 'Abu Dhabi',
+    pane: MapPane = 'upper',
   ) => (
     <div className={styles.mapDataBody}>
       <div className={styles.legendGroup}>
@@ -1540,9 +1846,9 @@ export function StoryView({
       {addLayer ? (
         <button
           type="button"
-          className={`${styles.addMapLayerBtn}${editSection === 'layers' ? ` ${styles.addMapLayerBtnActive}` : ''}`}
-          aria-pressed={editSection === 'layers'}
-          onClick={() => toggleSection('layers')}
+          className={`${styles.addMapLayerBtn}${toolActive('layers', pane) ? ` ${styles.addMapLayerBtnActive}` : ''}`}
+          aria-pressed={toolActive('layers', pane)}
+          onClick={() => toggleTool('layers', pane)}
         >
           <Plus size={16} weight="bold" aria-hidden />
           Map layer
@@ -1551,26 +1857,94 @@ export function StoryView({
     </div>
   )
 
-  /** Comparison maps: collapsible legend only; the background stays out of the comparison. */
+  /**
+   * Each comparison map's Map Data, as the sidebar layout's: its basemap, layers and annotations, for that
+   * map. Only a basemap shows behind a comparison map, so there are no background settings here.
+   */
   const comparisonMapData = (
-    pane: 'upper' | 'lower',
+    pane: MapPane,
     legend: StoryScene['legend'],
     layerState: StoryMapLayerVisibility,
     onToggle: (key: MapDataLayerKey) => void,
+    place: string,
   ) => {
-    const open = comparisonLegendOpen[pane]
+    const upper = pane === 'upper'
+    const open = comparisonLegendOpen[pane] || storyMode === 'edit'
+    const items = annotationsOf(pane)
+    const tab = upper ? mapDataTab : lowerMapDataTab
+    const setTab = upper ? setMapDataTab : setLowerMapDataTab
+    const showTabs = editingAnnotations || items.length > 0
+    const here = annotationPane === pane
+    const handle = upper ? mapHandleRef : lowerMapHandleRef
     return (
       <div className={styles.mapData}>
-        <button
-          type="button"
-          className={`${styles.mapDataHeader}${open ? '' : ` ${styles.mapDataHeaderSolo}`}`}
-          onClick={() => setComparisonLegendOpen((current) => ({ ...current, [pane]: !current[pane] }))}
-          aria-expanded={open}
-        >
-          <span>Map Data</span>
-          <CaretDown size={18} weight="regular" className={open ? undefined : styles.caretClosed} aria-hidden />
-        </button>
-        {open ? mapLegend(legend, layerState, onToggle, false) : null}
+        {storyMode === 'edit' ? (
+          <div className={`${styles.mapDataHeader} ${styles.mapDataHeaderEdit}`}>
+            <span>Map Data</span>
+            {backgroundButtonFor(pane)}
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={`${styles.mapDataHeader}${open ? '' : ` ${styles.mapDataHeaderSolo}`}`}
+            onClick={() => setComparisonLegendOpen((current) => ({ ...current, [pane]: !current[pane] }))}
+            aria-expanded={open}
+          >
+            <span>Map Data</span>
+            <CaretDown size={18} weight="regular" className={open ? undefined : styles.caretClosed} aria-hidden />
+          </button>
+        )}
+        {open ? (
+          <>
+            {showTabs ? (
+              <div className={annotationStyles.tabs} role="tablist" aria-label="Map data">
+                {(['layers', 'annotations'] as const).map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === name}
+                    className={`${annotationStyles.tab}${tab === name ? ` ${annotationStyles.tabActive}` : ''}`}
+                    onClick={() => {
+                      setTab(name)
+                      if (name === 'layers' && here) setSelectedAnnotationId(null)
+                    }}
+                  >
+                    {name === 'layers' ? 'Map layers' : 'Annotations'}
+                    {name === 'annotations' && items.length > 0 ? (
+                      <span className={annotationStyles.tabCount}>{items.length}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {showTabs && tab === 'annotations' ? (
+              <StoryAnnotationsPanel
+                items={items}
+                selectedId={here ? selectedAnnotationId : null}
+                editable={editingAnnotations}
+                drawing={here ? annotationDrawing : null}
+                editingId={here ? editingAnnotationId : null}
+                onStartDrawing={(tool) => startAnnotationDrawing(tool, pane)}
+                onFinishDrawing={() => handle.current?.finishDrawing()}
+                onUndoDrawing={() => handle.current?.undoDrawing()}
+                onCancelDrawing={() => setAnnotationDrawing(null)}
+                onSelect={(id) => {
+                  setAnnotationPane(pane)
+                  setSelectedAnnotationId(id)
+                }}
+                onChange={(id, patch) => updateAnnotation(id, patch, pane)}
+                onDelete={(id) => deleteAnnotation(id, pane)}
+                onEdit={(id) => editAnnotationShape(id, pane)}
+                onFinishEditing={() => setAnnotationEditing(null)}
+                onCancelEditing={cancelAnnotationEditing}
+                onReorder={(from, to) => reorderAnnotations(from, to, pane)}
+              />
+            ) : (
+              mapLegend(legend, layerState, onToggle, storyMode === 'edit', place, pane)
+            )}
+          </>
+        ) : null}
       </div>
     )
   }
@@ -1589,6 +1963,7 @@ export function StoryView({
         'Executive Summary',
         <>
           <h2 className={styles.summaryTitle}>Executive Summary</h2>
+          {summaryUpdated}
           {aiRegion && regionInsight ? (
             <p className={styles.summaryBody}>
               {aiRegion.label}&apos;s traffic volume rose{' '}
@@ -1696,148 +2071,115 @@ export function StoryView({
           kpi={chartKpi('sites')}
         />,
       )}
+      {insightCard(
+        'deviation',
+        styles.kpiCellCard,
+        'Permit limit deviation rate',
+        <>
+          <p className={styles.kpiCellLabel}>Permit limit deviation rate</p>
+          <p className={styles.kpiCellValue}>+14%</p>
+          <p className={styles.kpiCellNote}>average non-compliant facility is going 14% over their legal limit</p>
+        </>,
+      )}
     </>
   )
 
-  const exitSelectMode = useCallback(() => onSelectModeChange?.(false), [onSelectModeChange])
+  const askButton = onAsk ? (
+    <button
+      type="button"
+      className={styles.askBtn}
+      aria-label={agentOpen ? 'Close the assistant' : 'Ask about this story'}
+      aria-expanded={agentOpen}
+      onClick={(event) => {
+        if (agentOpen) {
+          onCloseAsk?.()
+          return
+        }
+        const sourceRect = event.currentTarget.getBoundingClientRect()
+        if (findingUnread && onRestoreFindings) {
+          onRestoreFindings(sourceRect)
+          return
+        }
+        onAsk({ story: previewStory, slideIndex: activeSlideIndex, sourceRect })
+      }}
+    >
+      <img className={styles.askIcon} src={llumenAssets.launcherOrb} alt="" width={24} height={24} />
+      {findingUnread ? <span className={styles.unreadDot} /> : null}
+    </button>
+  ) : null
 
-  const relabelFilters = (labels: Record<string, string>) => {
-    setFiltersBeforeAi((before) => before ?? filtersBySlide)
-    setAiFilterLabels((current) => ({ ...current, ...labels }))
-    setRestoredCards(null)
-    setFiltersBySlide((current) => relabelFilterMap(current, slides, story.filters, labels))
-    setFlashedFilters({ ids: Object.keys(labels), key: Date.now() })
-  }
-
-  /** Viewport corners of a select-layer rectangle, projected onto the main map. */
-  const areaPolygon = (area: StorySelectArea): [number, number][] | null => {
-    const handle = mapHandleRef.current
-    const base = rootRef.current?.getBoundingClientRect()
-    if (!handle || !base) return null
-    const left = base.left + area.left
-    const top = base.top + area.top
-    const right = left + area.width
-    const bottom = top + area.height
-    return [
-      handle.unproject(left, top),
-      handle.unproject(right, top),
-      handle.unproject(right, bottom),
-      handle.unproject(left, bottom),
-    ]
-  }
-
-  const describeArea = (area: StorySelectArea) => {
-    const polygon = areaPolygon(area)
-    if (!polygon) return ''
-    const columns =
-      (aiRegion ? 0 : countInPolygon(DEMO_COLUMNS, polygon)) +
-      (aiRegion ? countInPolygon(aiRegion.columns, polygon) : 0)
-    const disks =
-      (aiRegion ? 0 : countInPolygon(DEMO_JUNCTIONS, polygon)) +
-      (aiRegion ? countInPolygon(aiRegion.junctions, polygon) : 0)
-    return `${columns} columns · ${disks} disks`
-  }
-
-  const suggestSelectionPrompt = (selection: StorySelection) =>
-    selection.area
-      ? AREA_PROMPT
-      : mussafahPrompt(
-          (selection.targets.some((target) => isChartCardId(target.id))
-            ? selection.targets.filter((target) => isChartCardId(target.id))
-            : selection.targets
-          ).map((target) => target.label),
-        )
-
-  const submitSelection = (selection: StorySelection, prompt: string) => {
-    if (selection.area) {
-      const polygon = areaPolygon(selection.area)
-      if (!polygon) return
-      const state = sceneState(scene)
-      const { effect, stats } = areaFilterEffect({
-        polygon,
-        columns: aiRegion ? [] : DEMO_COLUMNS,
-        junctions: aiRegion ? [] : DEMO_JUNCTIONS,
-        heights: aiRegion ? [] : state.heights,
-        radii: aiRegion ? [] : state.radii,
-        regionColumns: aiRegion?.columns ?? [],
-        regionJunctions: aiRegion?.junctions ?? [],
-        regionHeights: aiRegion ? regionColumnHeights(aiRegion, framePhase) : [],
-        regionRadii: aiRegion ? regionJunctionRadii(aiRegion, framePhase) : [],
-        load: regionInsight?.load ?? insight.groundwaterValue,
-        maxHeight: aiRegion ? MUSSAFAH_MAX_HEIGHT_M : COLUMN_MAX_HEIGHT_M,
-      })
-      setAreaEffect(effect)
-      relabelFilters(AREA_FILTER_LABELS)
-      const snapshot: StoryAiSnapshot = {
-        cards: aiFocus?.cards ?? null,
-        region: aiRegion !== null,
-        areaEffect: effect,
-        filterLabels: { ...aiFilterLabels, ...AREA_FILTER_LABELS },
-      }
-      const reply = areaFilterReply(stats)
-      const stateId = `map-state-${Date.now()}`
-      const mapChanged = Boolean(onMapCapture) && (stats.columns > 0 || stats.junctions > 0)
-      onSelectionPrompt?.({
-        prompt,
-        reply: mapChanged
-          ? withMapState(reply, {
-              stateId,
-              snapshot,
-              title: `${Object.values(AREA_FILTER_LABELS).join(' · ')} in the selected area`,
-              tag: aiRegion ? aiRegion.label : 'Abu Dhabi',
-              meta: `${stats.columns} columns / ${stats.junctions} disks`,
-            })
-          : reply,
-        snapshot,
-      })
-      if (mapChanged) captureMapState(stateId, AREA_CAPTURE_DELAY_MS)
-    } else {
-      const picked = selection.targets.map((target) => target.id).filter(isChartCardId)
-      const cards = picked.length > 0 ? picked : DEFAULT_FOCUS_CARDS
-      const labels = { loc: MUSSAFAH_LABEL, year: MUSSAFAH_PERIOD }
-      setAiFocus({ cards, key: Date.now() })
-      setAiRegion(MUSSAFAH_REGION)
-      setAreaEffect(null)
-      setRegeneratingSlideId(slide.id)
-      relabelFilters(labels)
-      const snapshot: StoryAiSnapshot = {
-        cards,
-        region: true,
-        areaEffect: null,
-        filterLabels: { ...aiFilterLabels, ...labels },
-      }
-      const stateId = `map-state-${Date.now()}`
-      const reply = mussafahReply(cards.map((id) => INSIGHT_CARD_LABELS[id]))
-      onSelectionPrompt?.({
-        prompt,
-        reply: onMapCapture
-          ? withMapState(reply, {
-              stateId,
-              snapshot,
-              title: `${MUSSAFAH_LABEL} · ${MUSSAFAH_PERIOD}`,
-              tag: MUSSAFAH_LABEL,
-              meta: `${MUSSAFAH_REGION.columns.length} columns / ${MUSSAFAH_REGION.junctions.length} junctions`,
-            })
-          : reply,
-        snapshot,
-      })
-      if (onMapCapture) captureMapState(stateId, REGION_CAPTURE_DELAY_MS)
-    }
-    onSelectModeChange?.(false)
-  }
-
-  const captureMapState = (stateId: string, delay: number) => {
-    window.setTimeout(() => {
-      void mapHandleRef.current?.capture().then((capture) => onMapCapture?.(stateId, capture))
-    }, delay)
-  }
+  const modeSwitch = (target: 'upper' | 'lower') => (
+    <div
+      className={`${styles.modeSwitch}${storyMode === 'edit' ? ` ${styles.modeSwitchEdit}` : ''}`}
+      role="group"
+      aria-label={target === 'lower' ? 'Comparison map mode' : 'Story mode'}
+    >
+      <button
+        type="button"
+        className={`${styles.modeBtn}${storyMode === 'view' ? ` ${styles.modeBtnActive}` : ''}`}
+        aria-label="View mode"
+        aria-pressed={storyMode === 'view'}
+        onClick={() => {
+          setStoryMode('view')
+          setDirectSlideEditor(false)
+          setEditSection(null)
+          setStoryMenuOpen(false)
+          setSlideMenuOpen(false)
+          setLayoutMenuOpen(false)
+          setInfo(null)
+          leaveAnnotationEditing()
+        }}
+      >
+        <Eye size={20} weight="regular" aria-hidden />
+      </button>
+      <button
+        type="button"
+        className={`${styles.modeBtn}${storyMode === 'edit' ? ` ${styles.modeBtnActive}` : ''}`}
+        aria-label="Edit mode"
+        aria-pressed={storyMode === 'edit'}
+        onClick={() => {
+          setStoryMode('edit')
+          setInfo(null)
+        }}
+      >
+        <PencilSimple size={20} weight="regular" aria-hidden />
+      </button>
+      <div className={styles.modeActions} aria-hidden={storyMode !== 'edit'} inert={storyMode !== 'edit'}>
+        <div className={styles.modeActionsClip}>
+          <div className={styles.modeActionsInner}>
+            <span className={styles.modeDivider} aria-hidden />
+            <button
+              type="button"
+              className={`${styles.modeAction}${toolActive('assets', target) ? ` ${styles.modeActionActive}` : ''}`}
+              onClick={() => toggleTool('assets', target)}
+            >
+              <Plus size={18} weight="bold" aria-hidden />
+              Assets
+            </button>
+            <button
+              type="button"
+              className={`${styles.modeAction}${toolActive('tools', target) ? ` ${styles.modeActionActive}` : ''}`}
+              onClick={() => toggleTool('tools', target)}
+            >
+              <Toolbox size={18} weight="regular" aria-hidden />
+              Tools
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div
       ref={rootRef}
       className={`${styles.root}${splitDragging ? ` ${styles.rootSplitDragging}` : ''}`}
       style={{ '--comparison-split': comparisonSplit } as CSSProperties}
+      data-comparison={viewLayout === 'comparison' ? comparisonDirection : undefined}
       aria-label={`${story.storyTitle} story`}
+      data-entrance={entrance}
+      data-map-hidden={mapHidden || undefined}
+      inert={entrance === 'leave' || entrance === 'gone'}
     >
       <div className={`${styles.mapPane}${viewLayout === 'comparison' ? ` ${styles.mapPaneUpper}` : ''}`}>
         <StoryMap
@@ -1849,33 +2191,37 @@ export function StoryView({
           frameDuration={timelinePlaying ? frameStepMs : 500}
           frameLinear={timelinePlaying}
           styleUrl={mapStyle.url}
-          flat={mapStyle.dimension === '2d' || annotationDrawing !== null || annotationEditing !== null}
+          flat={mapStyle.dimension === '2d' || (annotationPane === 'upper' && annotating)}
           cameraLink={viewLayout === 'comparison' && mapsLinked ? cameraLink : undefined}
           region={aiRegion}
           cameraRequest={cameraRequest}
           areaEffect={areaEffect}
           annotation={mapAnnotation}
+          actionTooltip={actionTooltip}
           annotations={{
             items: mapAnnotationItems,
             validity: annotationStates,
-            selectedId: editingAnnotations ? selectedAnnotationId : null,
+            selectedId: editingAnnotations && annotationPane === 'upper' ? selectedAnnotationId : null,
             onSelect: editingAnnotations
               ? (id) => {
+                  setAnnotationPane('upper')
                   setSelectedAnnotationId(id)
                   if (!id) return
                   setMapDataTab('annotations')
                   setLegendOpen(true)
+                  setComparisonLegendOpen((current) => ({ ...current, upper: true }))
                 }
               : undefined,
-            drawing: annotationDrawing?.tool ?? null,
-            onDrawn: onAnnotationDrawn,
-            onDrawProgress: (points) =>
-              setAnnotationDrawing((current) => (current && current.points !== points ? { ...current, points } : current)),
+            drawing: annotationPane === 'upper' ? (annotationDrawing?.tool ?? null) : null,
+            onDrawn: (shape) => onAnnotationDrawn(shape, 'upper'),
+            onDrawProgress,
             onDrawCancel: () => setAnnotationDrawing(null),
-            editing: editingAnnotation,
-            onEdited: onAnnotationEdited,
+            editing: annotationPane === 'upper' ? editingAnnotation : null,
+            onEdited: (shape) => onAnnotationEdited(shape, 'upper'),
           }}
+          controlsClassName={viewLayout === 'comparison' ? styles.comparisonControlsUpper : undefined}
           onHandle={onMapHandle}
+          onReady={onMapReady}
         />
       </div>
       {viewLayout === 'comparison' ? (
@@ -1888,11 +2234,32 @@ export function StoryView({
             framePhase={comparisonFramePhase}
             frameDuration={lowerAnimating ? lowerStepMs : 500}
             frameLinear={lowerAnimating}
-            styleUrl={mapStyle.url}
-            flat={mapStyle.dimension === '2d'}
+            styleUrl={lowerMapStyle.url}
+            flat={lowerMapStyle.dimension === '2d' || (annotationPane === 'lower' && annotating)}
             controlsClassName={styles.comparisonControls}
             cameraLink={mapsLinked ? cameraLink : undefined}
             flyToScene={false}
+            annotations={{
+              items: lowerAnnotationItems,
+              validity: lowerAnnotationStates,
+              selectedId: editingAnnotations && annotationPane === 'lower' ? selectedAnnotationId : null,
+              onSelect: editingAnnotations
+                ? (id) => {
+                    setAnnotationPane('lower')
+                    setSelectedAnnotationId(id)
+                    if (!id) return
+                    setLowerMapDataTab('annotations')
+                    setComparisonLegendOpen((current) => ({ ...current, lower: true }))
+                  }
+                : undefined,
+              drawing: annotationPane === 'lower' ? (annotationDrawing?.tool ?? null) : null,
+              onDrawn: (shape) => onAnnotationDrawn(shape, 'lower'),
+              onDrawProgress,
+              onDrawCancel: () => setAnnotationDrawing(null),
+              editing: annotationPane === 'lower' ? editingAnnotation : null,
+              onEdited: (shape) => onAnnotationEdited(shape, 'lower'),
+            }}
+            onHandle={onLowerMapHandle}
           />
         </section>
       ) : null}
@@ -1911,14 +2278,31 @@ export function StoryView({
       ) : null}
 
       <div className={styles.overlay}>
-        <header className={styles.header} dir={presentationSettings.textDirection}>
-          <div className={`${styles.titleRow}${pagesNav ? ` ${styles.titleRowPages}` : ''}`}>
-            <button type="button" className={styles.backBtn} onClick={onBack} aria-label="Back to home">
+        <header ref={headerRef} className={styles.header} dir={presentationSettings.textDirection}>
+          <div className={styles.titleRow}>
+            <button
+              type="button"
+              className={styles.backBtn}
+              onClick={() => onBack(mapHandleRef.current?.view())}
+              aria-label="Back to home"
+            >
               <ArrowLeft size={20} weight="regular" aria-hidden />
             </button>
-            <div className={styles.titleGroup}>
+            <div ref={titleGroupRef} className={styles.titleGroup}>
               <div className={styles.storyTitleRow}>
                 <h1 className={styles.storyTitle}>{storyTitle}</h1>
+                {storyMode === 'view' ? (
+                  <button
+                    type="button"
+                    className={`${styles.infoBtn} ${styles.infoBtnSmall}`}
+                    aria-label="Show story description"
+                    aria-expanded={info?.kind === 'story'}
+                    aria-describedby={info?.kind === 'story' ? 'story-description' : undefined}
+                    onClick={(event) => toggleInfo('story', event.currentTarget)}
+                  >
+                    <Info size={14} weight="regular" aria-hidden />
+                  </button>
+                ) : null}
                 {storyMode === 'edit' ? (
                   <button
                     ref={storyMenuRef}
@@ -1955,21 +2339,35 @@ export function StoryView({
                       type="button"
                       className={styles.infoBtn}
                       aria-label="Show slide description"
-                      aria-expanded={infoOpen}
-                      aria-describedby={infoOpen ? 'slide-description' : undefined}
-                      onClick={() => setInfoOpen((open) => !open)}
+                      aria-expanded={info?.kind === 'slide'}
+                      aria-describedby={info?.kind === 'slide' ? 'slide-description' : undefined}
+                      onClick={(event) => toggleInfo('slide', event.currentTarget)}
                     >
                       <Info size={18} weight="regular" aria-hidden />
                     </button>
                   )}
                 </div>
               )}
-              {storyMode === 'view' && infoOpen ? (
-                <div id="slide-description" className={styles.infoPopover} role="tooltip">
-                  {slide.finding || 'No description added.'}
+              {storyMode === 'view' && info ? (
+                <div
+                  id={`${info.kind}-description`}
+                  className={styles.infoPopover}
+                  style={{ left: info.left, top: info.top }}
+                  role="tooltip"
+                >
+                  {(info.kind === 'story' ? storyDescription : slide.finding) || 'No description added.'}
                 </div>
               ) : null}
             </div>
+            <button
+              type="button"
+              className={styles.shareBtn}
+              aria-haspopup="dialog"
+              onClick={() => setShareOpen(true)}
+            >
+              <Export size={16} weight="regular" aria-hidden />
+              Share
+            </button>
             {headerEnd ? <div className={styles.headerEnd}>{headerEnd}</div> : null}
           </div>
           {filterRow('upper', filters, (filterId) =>
@@ -2001,6 +2399,42 @@ export function StoryView({
           }
           dir={presentationSettings.textDirection}
         >
+          {withLinkMaps(storyMode === 'edit' ? (
+            <div className={styles.layoutBar}>
+              <button
+                ref={layoutMenuRef}
+                type="button"
+                className={`${styles.layoutBtn}${layoutMenuOpen ? ` ${styles.layoutBtnOpen}` : ''}`}
+                aria-label="Layout"
+                aria-haspopup="menu"
+                aria-expanded={layoutMenuOpen}
+                aria-controls="story-layout-menu"
+                onClick={toggleLayoutMenu}
+              >
+                <Layout size={18} weight="regular" aria-hidden />
+                Layout
+                <CaretDown className={styles.layoutBtnCaret} size={14} weight="bold" aria-hidden />
+              </button>
+              {viewLayout === 'grid' ? (
+                <ColumnsControl
+                  label="Grid width"
+                  options={GRID_COLUMN_OPTIONS}
+                  value={gridColumns}
+                  onChange={(columns) => setGridColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
+                />
+              ) : null}
+              {viewLayout === 'sidebar' ? (
+                <ColumnsControl
+                  label="Sidebar width"
+                  options={SIDEBAR_COLUMN_OPTIONS}
+                  value={sidebarColumns}
+                  onChange={(columns) =>
+                    setSidebarColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))
+                  }
+                />
+              ) : null}
+            </div>
+          ) : null)}
           {viewLayout === 'grid' ? (
             <aside
               className={`${styles.insight} ${styles.insightLayoutGrid}${storyMode === 'edit' ? ` ${styles.insightLayoutGridEditing}` : ''}`}
@@ -2023,50 +2457,35 @@ export function StoryView({
                 : null}
             </aside>
           ) : (
-            <>
-              {viewLayout === 'comparison' ? (
-                <button
-                  type="button"
-                  className={`${styles.filterAddBtn} ${styles.insightToggle}${comparisonInsightOpen ? ` ${styles.filterAddBtnActive}` : ''}`}
-                  aria-expanded={comparisonInsightOpen}
-                  aria-controls="story-insight"
-                  onClick={() => setComparisonInsightOpen((open) => !open)}
-                >
-                  <Sidebar size={16} weight="regular" aria-hidden />
-                  {comparisonInsightOpen ? 'Hide insights' : 'Show insights'}
-                </button>
-              ) : null}
-              {viewLayout !== 'comparison' || comparisonInsightOpen ? (
-                <aside
-                  id="story-insight"
-                  className={[
-                    styles.insight,
-                    viewLayout === 'comparison' ? styles.insightBelowToggle : '',
-                    slide.layout === 'full-width' ? styles.insightFullWidth : '',
-                    slide.layout === 'sidebar' && slide.sidebarWidth === 'small'
-                      ? styles.insightSmall
-                      : '',
-                    slide.focusLayout ? styles.insightFocus : '',
-                    storyMode === 'edit' ? styles.insightGrid : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  aria-label="Story insight"
-                >
-                  {insightCards}
-                  {storyMode === 'edit'
-                    ? Array.from({ length: emptyGridCells }, (_, index) => (
-                        <div key={`cell-${index}`} className={styles.gridCell} aria-hidden />
-                      ))
-                    : null}
-                </aside>
-              ) : null}
-            </>
+            <aside
+              id="story-insight"
+              className={[
+                styles.insight,
+                slide.layout === 'full-width' ? styles.insightFullWidth : '',
+                slide.layout === 'sidebar' && slide.sidebarWidth === 'small'
+                  ? styles.insightSmall
+                  : '',
+                slide.focusLayout ? styles.insightFocus : '',
+                storyMode === 'edit' ? styles.insightGrid : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              style={{ '--sidebar-columns': sidebarColumns } as CSSProperties}
+              aria-label="Story insight"
+            >
+              {insightCards}
+              {storyMode === 'edit'
+                ? Array.from({ length: emptyGridCells }, (_, index) => (
+                    <div key={`cell-${index}`} className={styles.gridCell} aria-hidden />
+                  ))
+                : null}
+            </aside>
           )}
         </div>
 
         {viewLayout === 'comparison' ? (
           <header
+            ref={comparisonTitleRef}
             className={styles.comparisonTitle}
             dir={presentationSettings.textDirection}
           >
@@ -2077,6 +2496,7 @@ export function StoryView({
                 setLowerFilters((current) => current.filter((item) => item.id !== filterId)),
               )}
             </div>
+            <div className={`${styles.headerRule} ${styles.comparisonRule}`} aria-hidden />
           </header>
         ) : null}
 
@@ -2084,7 +2504,7 @@ export function StoryView({
           <div
             className={`${styles.splitHandle}${splitDragging ? ` ${styles.splitHandleActive}` : ''}`}
             role="separator"
-            aria-orientation="horizontal"
+            aria-orientation={sideBySide ? 'vertical' : 'horizontal'}
             aria-label="Resize comparison maps"
             aria-valuemin={COMPARISON_SPLIT_MIN * 100}
             aria-valuemax={COMPARISON_SPLIT_MAX * 100}
@@ -2100,7 +2520,9 @@ export function StoryView({
               const root = rootRef.current
               if (!drag || !root) return
               const rect = root.getBoundingClientRect()
-              drag.value = clampSplit((event.clientY - rect.top) / rect.height)
+              drag.value = clampSplit(
+                sideBySide ? (event.clientX - rect.left) / rect.width : (event.clientY - rect.top) / rect.height,
+              )
               drag.frame ??= requestAnimationFrame(() => {
                 drag.frame = null
                 root.style.setProperty('--comparison-split', String(drag.value))
@@ -2110,14 +2532,15 @@ export function StoryView({
             onPointerCancel={endSplitDrag}
             onDoubleClick={() => setComparisonSplit(COMPARISON_SPLIT_DEFAULT)}
             onKeyDown={(event) => {
-              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+              const [back, forward] = sideBySide ? ['ArrowLeft', 'ArrowRight'] : ['ArrowUp', 'ArrowDown']
+              if (event.key !== back && event.key !== forward) return
               event.preventDefault()
-              const step = event.key === 'ArrowUp' ? -COMPARISON_SPLIT_STEP : COMPARISON_SPLIT_STEP
+              const step = event.key === back ? -COMPARISON_SPLIT_STEP : COMPARISON_SPLIT_STEP
               setComparisonSplit((current) => clampSplit(current + step))
             }}
           >
             <span className={styles.splitHandleGrip} aria-hidden>
-              <DotsSix size={16} weight="bold" />
+              {sideBySide ? <DotsSixVertical size={16} weight="bold" /> : <DotsSix size={16} weight="bold" />}
             </span>
           </div>
         ) : null}
@@ -2194,10 +2617,15 @@ export function StoryView({
               setDirectSlideEditor(false)
               setEditSection(null)
             }}
-            mapStyleId={mapStyle.id}
-            mapDimension={mapStyle.dimension}
-            background={background}
+            mapStyleId={editingLowerMap ? lowerMapStyle.id : mapStyle.id}
+            mapDimension={editingLowerMap ? lowerMapStyle.dimension : mapStyle.dimension}
+            background={editingLowerMap ? lowerMapStyle : background}
+            basemapOnly={viewLayout === 'comparison'}
             onBackgroundChange={(next) => {
+              if (editingLowerMap) {
+                if (next.kind === 'basemap') updateComparison((current) => ({ ...current, mapStyle: next }))
+                return
+              }
               setBackground(next)
               if (next.kind === 'basemap') setMapStyle(next)
             }}
@@ -2235,35 +2663,15 @@ export function StoryView({
           </div>
         ) : null}
 
-        {storyMode === 'edit' && viewLayout === 'grid' ? (
-          <div className={styles.gridColumnsControl} role="radiogroup" aria-label="Grid width">
-            <GridFour className={styles.gridColumnsIcon} size={18} weight="regular" aria-hidden />
-            {GRID_COLUMN_OPTIONS.map((columns) => (
-              <button
-                key={columns}
-                type="button"
-                role="radio"
-                aria-checked={gridColumns === columns}
-                aria-label={`${columns} columns`}
-                className={`${styles.gridColumnsOption}${gridColumns === columns ? ` ${styles.gridColumnsOptionActive}` : ''}`}
-                onClick={() => setGridColumnsBySlide((current) => ({ ...current, [slide.id]: columns }))}
-              >
-                {columns}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
         {viewLayout === 'comparison' ? (
           <>
             <div className={`${styles.mapStack} ${styles.mapStackComparisonUpper}`}>
-              {linkMapsToggle}
               {timeSeries}
-              {comparisonMapData('upper', scene.legend, layers, toggleLayer)}
+              {comparisonMapData('upper', mainLegend, layers, toggleLayer, legendPlace)}
             </div>
-            <div className={styles.mapStack}>
+            <div className={`${styles.mapStack} ${styles.mapStackCompared}`}>
               {mapsLinked ? null : lowerTimeSeries}
-              {comparisonMapData('lower', comparisonScene.legend, comparison.layers, toggleComparisonLayer)}
+              {comparisonMapData('lower', comparisonScene.legend, comparison.layers, toggleComparisonLayer, 'Abu Dhabi')}
             </div>
           </>
         ) : (
@@ -2332,21 +2740,20 @@ export function StoryView({
                     editable={editingAnnotations}
                     drawing={annotationDrawing}
                     editingId={editingAnnotationId}
-                    onStartDrawing={startAnnotationDrawing}
+                    onStartDrawing={(tool) => startAnnotationDrawing(tool)}
                     onFinishDrawing={() => mapHandleRef.current?.finishDrawing()}
                     onUndoDrawing={() => mapHandleRef.current?.undoDrawing()}
                     onCancelDrawing={() => setAnnotationDrawing(null)}
-                    onSelect={setSelectedAnnotationId}
-                    onChange={updateAnnotation}
-                    onDelete={(id) => {
-                      setMapAnnotations((items) => items.filter((item) => item.id !== id))
-                      setSelectedAnnotationId(null)
-                      if (editingAnnotationId === id) setAnnotationEditing(null)
+                    onSelect={(id) => {
+                      setAnnotationPane('upper')
+                      setSelectedAnnotationId(id)
                     }}
-                    onEdit={editAnnotationShape}
+                    onChange={(id, patch) => updateAnnotation(id, patch)}
+                    onDelete={(id) => deleteAnnotation(id)}
+                    onEdit={(id) => editAnnotationShape(id)}
                     onFinishEditing={() => setAnnotationEditing(null)}
                     onCancelEditing={cancelAnnotationEditing}
-                    onReorder={reorderAnnotations}
+                    onReorder={(from, to) => reorderAnnotations(from, to)}
                   />
                 ) : (
                   mapLegend(mainLegend, layers, toggleLayer, storyMode === 'edit', legendPlace)
@@ -2358,25 +2765,11 @@ export function StoryView({
         </div>
         )}
 
-        <div className={styles.lowerNav} aria-label="Story navigation">
-          {!agentOpen && onAsk ? (
-            <button
-              type="button"
-              className={styles.askBtn}
-              aria-label="Ask about this story"
-              onClick={(event) => {
-                const sourceRect = event.currentTarget.getBoundingClientRect()
-                if (findingUnread && onRestoreFindings) {
-                  onRestoreFindings(sourceRect)
-                  return
-                }
-                onAsk({ story: previewStory, slideIndex: activeSlideIndex, sourceRect })
-              }}
-            >
-              <img className={styles.askIcon} src={llumenAssets.launcherOrb} alt="" width={24} height={24} />
-              {findingUnread ? <span className={styles.unreadDot} /> : null}
-            </button>
-          ) : null}
+        <div
+          className={`${styles.lowerNav}${viewLayout === 'comparison' ? ` ${styles.lowerNavUpper}` : ''}`}
+          aria-label="Story navigation"
+        >
+          {askButton}
 
           {presentationSettings.multiSlide && !presentationSettings.pagesMode ? (
             <div className={styles.navCluster}>
@@ -2441,79 +2834,14 @@ export function StoryView({
             </div>
           ) : null}
 
-          <div
-            className={`${styles.modeSwitch}${storyMode === 'edit' ? ` ${styles.modeSwitchEdit}` : ''}`}
-            role="group"
-            aria-label="Story mode"
-          >
-            <button
-              type="button"
-              className={`${styles.modeBtn}${storyMode === 'view' ? ` ${styles.modeBtnActive}` : ''}`}
-              aria-label="View mode"
-              aria-pressed={storyMode === 'view'}
-              onClick={() => {
-                setStoryMode('view')
-                setDirectSlideEditor(false)
-                setEditSection(null)
-                setStoryMenuOpen(false)
-                setSlideMenuOpen(false)
-                setLayoutMenuOpen(false)
-                setInfoOpen(false)
-                leaveAnnotationEditing()
-              }}
-            >
-              <Eye size={20} weight="regular" aria-hidden />
-            </button>
-            <button
-              type="button"
-              className={`${styles.modeBtn}${storyMode === 'edit' ? ` ${styles.modeBtnActive}` : ''}`}
-              aria-label="Edit mode"
-              aria-pressed={storyMode === 'edit'}
-              onClick={() => {
-                setStoryMode('edit')
-                setInfoOpen(false)
-              }}
-            >
-              <PencilSimple size={20} weight="regular" aria-hidden />
-            </button>
-            <div className={styles.modeActions} aria-hidden={storyMode !== 'edit'} inert={storyMode !== 'edit'}>
-              <div className={styles.modeActionsClip}>
-                <div className={styles.modeActionsInner}>
-                  <span className={styles.modeDivider} aria-hidden />
-                  <button
-                    type="button"
-                    className={`${styles.modeAction}${editSection === 'assets' ? ` ${styles.modeActionActive}` : ''}`}
-                    onClick={() => toggleSection('assets')}
-                  >
-                    <Plus size={18} weight="bold" aria-hidden />
-                    Assets
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.modeAction}${editSection === 'tools' ? ` ${styles.modeActionActive}` : ''}`}
-                    onClick={() => toggleSection('tools')}
-                  >
-                    <Toolbox size={18} weight="regular" aria-hidden />
-                    Tools
-                  </button>
-                  <button
-                    ref={layoutMenuRef}
-                    type="button"
-                    className={`${styles.modeAction}${layoutMenuOpen ? ` ${styles.modeActionActive}` : ''}`}
-                    aria-label="Layout"
-                    aria-haspopup="menu"
-                    aria-expanded={layoutMenuOpen}
-                    aria-controls="story-layout-menu"
-                    onClick={toggleLayoutMenu}
-                  >
-                    <Layout size={18} weight="regular" aria-hidden />
-                    Layout
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          {modeSwitch('upper')}
         </div>
+        {viewLayout === 'comparison' ? (
+          <div className={`${styles.lowerNav} ${styles.lowerNavCompared}`} aria-label="Comparison map toolbar">
+            {askButton}
+            {modeSwitch('lower')}
+          </div>
+        ) : null}
       </div>
     {slideMenuOpen
       ? createPortal(
@@ -2587,8 +2915,10 @@ export function StoryView({
                   aria-checked={selected}
                   className={selected ? styles.storyMenuSelected : undefined}
                   onClick={() => {
-                    if (option.id === 'comparison') setComparisonPickerOpen(true)
-                    else setLayoutBySlide((current) => ({ ...current, [slide.id]: option.id }))
+                    if (option.id === 'comparison' && viewLayout !== 'comparison') {
+                      setComparisonLegendOpen({ upper: false, lower: !comparisonBySlide[slide.id] })
+                    }
+                    setLayoutBySlide((current) => ({ ...current, [slide.id]: option.id }))
                     setLayoutMenuOpen(false)
                   }}
                 >
@@ -2602,31 +2932,6 @@ export function StoryView({
           document.body,
         )
       : null}
-    {comparisonPickerOpen ? (
-      <StoryComparisonModal
-        options={comparisonMapOptions}
-        initialOptionId={comparison.option.id}
-        framePhase={framePhase}
-        styleUrl={mapStyle.url}
-        flat={mapStyle.dimension === '2d'}
-        onClose={() => setComparisonPickerOpen(false)}
-        onApply={(option) => {
-          setComparisonBySlide((current) => ({
-            ...current,
-            [slide.id]: {
-              option,
-              layers: option.layers,
-              filters: lowerFiltersFor(option),
-              timeline: mapsLinked ? undefined : (current[slide.id]?.timeline ?? { ...timeline }),
-              charts: current[slide.id]?.charts,
-            },
-          }))
-          setLayoutBySlide((current) => ({ ...current, [slide.id]: 'comparison' }))
-          setComparisonLegendOpen({ upper: false, lower: false })
-          setComparisonPickerOpen(false)
-        }}
-      />
-    ) : null}
     {storyMenuOpen
       ? createPortal(
           <div
@@ -2667,6 +2972,44 @@ export function StoryView({
           document.body,
         )
       : null}
+    {openFilterMenu
+      ? createPortal(
+          <div
+            id="story-filter-menu"
+            className={styles.storyMenu}
+            role="menu"
+            aria-label={`${openFilterMenu.label} filter`}
+            style={{ top: openFilterMenu.top, left: openFilterMenu.left }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setFilterMenu(null)
+                setDirectSlideEditor(false)
+                setFilterTarget(openFilterMenu.target)
+                setEditSection('filters')
+              }}
+            >
+              <GearSix size={16} weight="regular" aria-hidden />
+              Configure
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.storyMenuDanger}
+              onClick={() => {
+                openFilterMenu.remove()
+                setFilterMenu(null)
+              }}
+            >
+              <Trash size={16} weight="regular" aria-hidden />
+              Remove
+            </button>
+          </div>,
+          document.body,
+        )
+      : null}
     {openCardMenu
       ? createPortal(
           <div
@@ -2679,6 +3022,7 @@ export function StoryView({
             <button
               type="button"
               role="menuitem"
+              disabled={openCardMenu.cardId !== 'summary' && !isChartCardId(openCardMenu.cardId)}
               onClick={() => {
                 setCardMenu(null)
                 setDirectSlideEditor(false)
@@ -2689,38 +3033,9 @@ export function StoryView({
               <GearSix size={16} weight="regular" aria-hidden />
               Configure
             </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                updateCard(openCardMenu.cardId, { hidden: !openCardPrefs.hidden })
-                setCardMenu(null)
-              }}
-            >
-              <IdentificationCard size={16} weight="regular" aria-hidden />
-              {openCardPrefs.hidden ? 'Show Card' : 'Hide Card'}
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                updateCard(openCardMenu.cardId, { border: !openCardPrefs.border })
-                setCardMenu(null)
-              }}
-            >
-              <BoundingBox size={16} weight="regular" aria-hidden />
-              {openCardPrefs.border ? 'Hide Border' : 'Show Border'}
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                updateCard(openCardMenu.cardId, { outline: !openCardPrefs.outline })
-                setCardMenu(null)
-              }}
-            >
-              <Selection size={16} weight="regular" aria-hidden />
-              {openCardPrefs.outline ? 'Hide Outline' : 'Show Outline'}
+            <button type="button" role="menuitem" onClick={() => setCardMenu(null)}>
+              <Compass size={16} weight="regular" aria-hidden />
+              Explore
             </button>
             <button
               type="button"
@@ -2732,7 +3047,7 @@ export function StoryView({
               }}
             >
               <Trash size={16} weight="regular" aria-hidden />
-              Delete
+              Remove
             </button>
           </div>,
           document.body,
@@ -2751,7 +3066,7 @@ export function StoryView({
           }}
           onClose={() => setCardConfig(null)}
         />
-      ) : openCardConfig ? (
+      ) : openCardConfig && isChartCardId(openCardConfig.cardId) ? (
         <StoryCardConfigModal
           key={`${openCardConfig.slideId}-${openCardConfig.cardId}`}
           initial={cardPrefs[openCardConfig.cardId]?.kpi ?? DEFAULT_CHART_KPI[openCardConfig.cardId]}
@@ -2762,20 +3077,29 @@ export function StoryView({
           onClose={() => setCardConfig(null)}
         />
       ) : null}
-      {selectMode ? (
-        <StorySelectLayer
-          rootRef={rootRef}
-          onExit={exitSelectMode}
-          suggestPrompt={suggestSelectionPrompt}
-          describeArea={describeArea}
-          onSubmit={submitSelection}
+      {openMonitor ? (
+        <StoryMonitorModal
+          key={`${openMonitor.slideId}-${openMonitor.cardId}`}
+          cardTitle={INSIGHT_CARD_LABELS[openMonitor.cardId]}
+          initial={monitors[`${openMonitor.slideId}:${openMonitor.cardId}`] ?? defaultMonitorConfig()}
+          onConfirm={(config) => {
+            const key = `${openMonitor.slideId}:${openMonitor.cardId}`
+            setMonitors((current) => ({ ...current, [key]: config }))
+            setMonitorTarget(null)
+            const cardTitle = INSIGHT_CARD_LABELS[openMonitor.cardId]
+            onMonitorConfirm?.(
+              monitorWorkflowProposal(`monitor-${key}-${Date.now()}`, cardTitle, config),
+              monitorPrompt(cardTitle, config),
+            )
+          }}
+          onClose={() => setMonitorTarget(null)}
         />
-      ) : (
-        aiModeBar
-      )}
+      ) : null}
+      {aiModeBar}
       <ShareModal
         open={shareOpen}
         title={`Share “${storyTitle}”`}
+        note="Recipients get a link to this story, with its pages, filters and map views. Your edits reach them as you make them."
         onClose={() => setShareOpen(false)}
       />
     </div>

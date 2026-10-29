@@ -1,6 +1,6 @@
 /**
- * Demo-only data for the Story select-mode prompts: the Al Mussafah focus region and the
- * school filter applied to a dragged map area.
+ * Demo-only data for the Story AI prompts: the Al Mussafah focus region and the
+ * story snapshot a saved conversation replays.
  */
 import { EMISSIONS_LINE, GROUNDWATER_LINE, warpPath } from './StoryCharts'
 import { COLUMN_MAX_HEIGHT_M, type StorySceneCamera } from './storyDemoScenes'
@@ -28,7 +28,7 @@ export type StoryAreaEffect = {
   regionJunctions: number[]
 }
 
-/** Everything select-mode prompts changed in the story, so a saved conversation can replay it. */
+/** Everything AI prompts changed in the story, so a saved conversation can replay it. */
 export type StoryAiSnapshot = {
   cards: ChartCardId[] | null
   region: boolean
@@ -38,6 +38,8 @@ export type StoryAiSnapshot = {
   periodCards?: ChartCardId[]
   /** Top-10 schools annotated on the map, from the data of this slide (inside `location` when set). */
   annotation?: { slide: number; location?: StoryLocation; kind?: 'markers' }
+  /** A landing finding's own map (a Briefing place id): its columns replace the story's, with its areas outlined. */
+  findingPlace?: string
   /** Raw map camera to fly back to (zoom includes the map's zoom offset). */
   camera?: StorySceneCamera
 }
@@ -48,42 +50,8 @@ export type StoryMapCapture = {
   camera: StorySceneCamera
 }
 
-export type AreaFilterStats = {
-  columns: number
-  junctions: number
-  valueBefore: number
-  valueAfter: number
-  loadBefore: number
-  loadAfter: number
-  busyBefore: number
-  busyAfter: number
-  resilient: number
-  bins: string[]
-  binsBefore: number[]
-  binsAfter: number[]
-}
-
 export const MUSSAFAH_LABEL = 'Al Mussafah'
 export const MUSSAFAH_PERIOD = '2023–2024'
-
-export const AREA_FILTER_LABELS = {
-  type: 'Public',
-  gender: 'Girls',
-  level: 'Cycle 2',
-} as const
-
-export const AREA_PROMPT =
-  'What would happen to the columns and disks in this area if we filter to one school type (Public), one gender (Girls) and one school level (Cycle 2)?'
-
-export function mussafahPrompt(labels: string[]) {
-  const list =
-    labels.length === 0
-      ? 'these components'
-      : labels.length === 1
-        ? labels[0]
-        : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
-  return `Show ${list} data from 2023 to 2024, and focus the map data on the ${MUSSAFAH_LABEL} area.`
-}
 
 const KM_PER_DEG_LNG = 101.3
 const KM_PER_DEG_LAT = 110.8
@@ -188,11 +156,11 @@ export function regionJunctionRadii(region: StoryMapRegion, phase: number) {
   )
 }
 
-export function busyJunctionCount(radii: number[]) {
+function busyJunctionCount(radii: number[]) {
   return radii.filter((radius) => radius >= BUSY_RADIUS_M).length
 }
 
-export const MUSSAFAH_BUSY = busyJunctionCount(MUSSAFAH_REGION.junctions.map(([, , radius]) => radius))
+const MUSSAFAH_BUSY = busyJunctionCount(MUSSAFAH_REGION.junctions.map(([, , radius]) => radius))
 
 /** Over-capacity junctions in a region; generated regions keep Mussafah's share. */
 export function regionBusyJunctions(region: StoryMapRegion) {
@@ -227,91 +195,4 @@ export function pointInPolygon([x, y]: [number, number], polygon: [number, numbe
     if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
   }
   return inside
-}
-
-export function countInPolygon(points: [number, number, number][], polygon: [number, number][]) {
-  return points.filter(([lng, lat]) => pointInPolygon([lng, lat], polygon)).length
-}
-
-function columnFactor(index: number, seed: number) {
-  return hash(index, seed) < 0.16 ? 0.72 + 0.2 * hash(index, seed + 1) : 0.14 + 0.3 * hash(index, seed + 2)
-}
-
-function junctionFactor(index: number, seed: number) {
-  return 0.42 + 0.34 * hash(index, seed)
-}
-
-const BIN_EDGES = [500, 1000, 1500, 2000, 3000]
-const BIN_LABELS = ['<0.5k', '0.5–1k', '1–1.5k', '1.5–2k', '2–3k', '3k+']
-
-function binIndex(height: number) {
-  const index = BIN_EDGES.findIndex((edge) => height < edge)
-  return index === -1 ? BIN_EDGES.length : index
-}
-
-type AreaFilterInput = {
-  polygon: [number, number][]
-  columns: [number, number, number][]
-  junctions: [number, number, number][]
-  heights: number[]
-  radii: number[]
-  regionColumns: [number, number, number][]
-  regionJunctions: [number, number, number][]
-  regionHeights: number[]
-  regionRadii: number[]
-  load: number
-  /** Height that maps to a value index of 100. */
-  maxHeight: number
-}
-
-/** Shrinks the columns and disks inside `polygon` as the school filter narrows the population. */
-export function areaFilterEffect(input: AreaFilterInput): { effect: StoryAreaEffect; stats: AreaFilterStats } {
-  const inside = (point: [number, number, number]) => pointInPolygon([point[0], point[1]], input.polygon)
-  const factorsFor = (points: [number, number, number][], factor: (index: number) => number) =>
-    points.map((point, index) => (inside(point) ? factor(index) : 1))
-
-  const columns = factorsFor(input.columns, (index) => columnFactor(index, 31))
-  const regionColumns = factorsFor(input.regionColumns, (index) => columnFactor(index, 41))
-  const junctions = factorsFor(input.junctions, (index) => junctionFactor(index, 33))
-  const regionJunctions = factorsFor(input.regionJunctions, (index) => junctionFactor(index, 43))
-
-  const pairsInside = (points: [number, number, number][], values: number[], factors: number[]) =>
-    points.flatMap((point, index) => (inside(point) ? [[values[index] ?? point[2], factors[index]] as const] : []))
-  const columnPairs = [
-    ...pairsInside(input.columns, input.heights, columns),
-    ...pairsInside(input.regionColumns, input.regionHeights, regionColumns),
-  ]
-  const junctionPairs = [
-    ...pairsInside(input.junctions, input.radii, junctions),
-    ...pairsInside(input.regionJunctions, input.regionRadii, regionJunctions),
-  ]
-
-  const valueIndex = (heights: number[]) =>
-    heights.length === 0 ? 0 : Math.round((heights.reduce((sum, h) => sum + h, 0) / heights.length / input.maxHeight) * 100)
-  const before = columnPairs.map(([height]) => height)
-  const after = columnPairs.map(([height, factor]) => height * factor)
-  const binsBefore = BIN_LABELS.map(() => 0)
-  const binsAfter = BIN_LABELS.map(() => 0)
-  for (const height of before) binsBefore[binIndex(height)] += 1
-  for (const height of after) binsAfter[binIndex(height)] += 1
-  const meanJunctionFactor =
-    junctionPairs.length === 0 ? 1 : junctionPairs.reduce((sum, [, factor]) => sum + factor, 0) / junctionPairs.length
-
-  return {
-    effect: { polygon: input.polygon, columns, junctions, regionColumns, regionJunctions },
-    stats: {
-      columns: columnPairs.length,
-      junctions: junctionPairs.length,
-      valueBefore: valueIndex(before),
-      valueAfter: valueIndex(after),
-      loadBefore: input.load,
-      loadAfter: Math.round(input.load * meanJunctionFactor),
-      busyBefore: busyJunctionCount(junctionPairs.map(([radius]) => radius)),
-      busyAfter: busyJunctionCount(junctionPairs.map(([radius, factor]) => radius * factor)),
-      resilient: columnPairs.filter(([, factor]) => factor >= 0.7).length,
-      bins: BIN_LABELS,
-      binsBefore,
-      binsAfter,
-    },
-  }
 }

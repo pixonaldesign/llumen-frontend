@@ -1,0 +1,66 @@
+/* Read outside the asset builder scope, which redefines the spacing tokens under its own values. */
+.root {
+  --asset-pad-x: var(--space-4xl);
+  --asset-scrollbar: var(--lc-scrollbar-size, 4px);
+
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scope {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Named `preview` so the builder's narrow-width table rules still apply. */
+.scope .stage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  container: preview / inline-size;
+}
+
+.scope .stage > .query,
+.scope .stage > .source {
+  padding-bottom: var(--asset-pad-x);
+}
+
+/* The profile scrolls to the panel's edge; its sections carry the inset instead of the scroller. */
+.scope .stage > .profile {
+  margin-right: calc(-1 * var(--asset-pad-x));
+}
+
+.scope .profile > :global(.data-source-data-profile) {
+  padding-right: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+.scope .profile > :global(.data-source-data-profile) > * {
+  margin-right: var(--asset-pad-x);
+}
+
+.scope .profile > :global(.data-source-data-profile)::-webkit-scrollbar {
+  width: var(--asset-scrollbar);
+}
+
+.connectionMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+  white-space: nowrap;
+}
+
+.dataAsOf {
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-small);
+}
+
+.scope .sql {
+  flex: none;
+  min-height: 0;
+}

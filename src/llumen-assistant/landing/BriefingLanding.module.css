@@ -1,0 +1,2363 @@
+.root {
+  /* How far Assets peeks over the findings. Keep in step with --briefing-peek in compact-assistant.module.css. */
+  --assets-peek: max(72px, min(200px, 16vh, calc(50dvh - 300px)));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: #fff;
+}
+
+/* Findings stage, then Assets, Agents and Apps, each filling the page; BriefingLanding glides between them. */
+.page {
+  position: relative;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: var(--briefing-bar-h, 64px);
+  scrollbar-width: none;
+}
+
+.page::-webkit-scrollbar {
+  display: none;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.edgeArrow {
+  position: absolute;
+  /* Center within the visible Findings area: below the top bar and above the Assets preview. */
+  top: calc(50% + var(--briefing-bar-h, 64px) / 2 - var(--assets-peek) / 2);
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(4, 8, 14, 0.42);
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  opacity: 0.62;
+  transform: translateY(-50%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition:
+    opacity 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.edgeArrowPrevious {
+  left: max(20px, env(safe-area-inset-left));
+}
+
+.edgeArrowNext {
+  right: max(20px, env(safe-area-inset-right));
+}
+
+.edgeArrow:hover,
+.edgeArrow:focus-visible {
+  background: rgba(4, 8, 14, 0.62);
+  color: #fff;
+  opacity: 1;
+  transform: translateY(-50%) scale(1.04);
+}
+
+.edgeArrow:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #060a14;
+  transform: scale(1);
+  filter: blur(0);
+  transition:
+    filter 700ms ease,
+    transform 700ms ease;
+}
+
+.mapBlur {
+  filter: blur(28px) saturate(1.15);
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
+.mapCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+.bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 20;
+}
+
+.scrim {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  height: 62%;
+  background: linear-gradient(to top, rgba(5, 10, 20, 0.82), rgba(5, 10, 20, 0.28) 58%, transparent);
+  pointer-events: none;
+}
+
+/* Blurs the map more strongly towards the bottom, under the finding and composer. */
+.fadeBlur {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  height: 72%;
+  backdrop-filter: blur(34px) saturate(1.14);
+  -webkit-backdrop-filter: blur(34px) saturate(1.14);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 48%, rgba(0, 0, 0, 0.72) 68%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 48%, rgba(0, 0, 0, 0.72) 68%, transparent 100%);
+  pointer-events: none;
+}
+
+/*
+ * Greeting and finding stack above the composer (--dock-top). The finding's actions row sits as far
+ * above the composer's top as the composer's centre sits above the Assets peek; 18px is half the row.
+ * The final 56px raises the complete insight group without moving the composer.
+ */
+.chatDock {
+  position: absolute;
+  right: 0;
+  bottom: calc(
+    var(--dock-top, 268px) + max(16px, var(--dock-under, 206px) + var(--dock-h, 62px) / 2 - var(--assets-peek) - 18px) +
+      56px
+  );
+  left: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  pointer-events: none;
+  /* Wider than the 640px composer; stays clear of the 44px edge arrows (20px inset + 16px gap). */
+  --finding-w: min(800px, calc(100vw - 160px));
+}
+
+.chatDock {
+  transition:
+    opacity 320ms ease,
+    transform 420ms ease;
+}
+
+/* Carries the composer measurements (--dock-*) for the finding and, in styles 2 and 3, the ask greeting. */
+.dockLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  transition: opacity 320ms ease;
+}
+
+/* The alert aurora takes the middle of the stage (FindingReveal centre mode). */
+.root[data-alert='true'] .stage .dockLayer,
+.root[data-alert='true'] .stage .sidePanel {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 320ms ease,
+    visibility 0s linear 320ms;
+}
+
+/*
+ * A finding's View flies the map into its story (data-story): everything but the map steps aside.
+ * The story then mounts over the page with its own map hidden, so its panels come in over this map
+ * (cover), and its map fades in over this one once loaded (fade): the columns never leave the screen.
+ */
+.root[data-story] {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.root[data-story] .bar,
+.root[data-story] .stage .dockLayer,
+.root[data-story] .scrim,
+.root[data-story] .fadeBlur,
+.root[data-story] .sidePanel,
+.root[data-story] .edgeArrow,
+.root[data-story] .assetPeek,
+.root[data-story] .peekFade,
+.root[data-story] .panel,
+.root[data-story] .sideView,
+.root[data-story] .lower {
+  opacity: 0;
+  transition: opacity 420ms ease;
+}
+
+/* Under the story: arriving (cover, fade), or back from it while it leaves (return). */
+.root[data-story='cover'],
+.root[data-story='fade'],
+.root[data-story='return'],
+.root[data-story='back'] {
+  z-index: 0;
+}
+
+.root[data-story='back'] .bar,
+.root[data-story='back'] .stage .dockLayer,
+.root[data-story='back'] .scrim,
+.root[data-story='back'] .fadeBlur,
+.root[data-story='back'] .sidePanel,
+.root[data-story='back'] .edgeArrow,
+.root[data-story='back'] .assetPeek,
+.root[data-story='back'] .peekFade,
+.root[data-story='back'] .panel,
+.root[data-story='back'] .sideView,
+.root[data-story='back'] .lower {
+  opacity: 1;
+  transition: opacity 480ms ease 360ms;
+}
+
+.findingMain,
+.findingCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Styles 2 and 3: a greeting that invites a question, just above the composer. */
+.askGreeting {
+  position: absolute;
+  bottom: calc(var(--dock-top, 268px) + 24px);
+  box-sizing: border-box;
+  margin: 0;
+  padding-inline: 4px;
+  color: #fff;
+  font-size: clamp(22px, 1.5vw, 30px);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  text-shadow: 0 2px 18px rgba(5, 10, 20, 0.6);
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes askIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Style 2: a blur that fades out left to right over the left third, behind the composer. */
+.sidePanel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  width: calc(100% / 3 + 240px);
+  background: linear-gradient(90deg, rgba(5, 10, 20, 0.6) 0%, rgba(5, 10, 20, 0.34) 55%, transparent 100%);
+  backdrop-filter: blur(32px) saturate(1.12);
+  -webkit-backdrop-filter: blur(32px) saturate(1.12);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 360px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 360px), transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+}
+
+/*
+ * Findings style 2: composer and greeting in the left third (positioned in compact-assistant.module.css),
+ * findings centred in the right two thirds between the top bar and the Assets peek.
+ */
+.root[data-findings-style='2'] .sidePanel {
+  opacity: 1;
+}
+
+.root[data-findings-style='2'] .askGreeting {
+  left: 48px;
+  width: min(560px, calc(100vw / 3 - 96px));
+}
+
+.root[data-findings-style='2'] .chatDock {
+  top: var(--briefing-bar-h, 64px);
+  bottom: var(--assets-peek);
+  left: calc(100% / 3);
+  justify-content: center;
+  --finding-w: min(760px, calc(100vw * 2 / 3 - 140px));
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.root[data-findings-style='2'] .edgeArrowPrevious {
+  left: calc(100% / 3);
+}
+
+/*
+ * Findings style 5: the composer column (greeting and composer) and the finding sit side by side,
+ * --s5-gap apart, as one block centred on the page. The composer's copy of these variables is in
+ * compact-assistant.module.css; keep the two in sync.
+ */
+.root[data-findings-style='5'] {
+  --s5-side: min(560px, calc(100vw / 3 - 96px));
+  --s5-finding: min(760px, calc(100vw * 2 / 3 - 140px));
+  --s5-gap: 160px;
+  --s5-left: max(48px, calc((100vw - var(--s5-side) - var(--s5-gap) - var(--s5-finding)) / 2));
+  /* The block sits this far below centre, leaving the map's visuals clear above it. */
+  --s5-drop: 80px;
+}
+
+.root[data-findings-style='5'] .sidePanel {
+  width: calc(var(--s5-left) + var(--s5-side) + 200px);
+  opacity: 1;
+}
+
+.root[data-findings-style='5'] .askGreeting {
+  left: var(--s5-left);
+  width: var(--s5-side);
+}
+
+.root[data-findings-style='5'] .chatDock {
+  top: calc(var(--briefing-bar-h, 64px) + 2 * var(--s5-drop));
+  right: auto;
+  bottom: var(--assets-peek);
+  left: calc(var(--s5-left) + var(--s5-side) + var(--s5-gap));
+  align-items: flex-start;
+  --finding-w: var(--s5-finding);
+  justify-content: center;
+  /* Not `both`: a held opacity/transform would make the dock a backdrop root and unfrost the toast cards. */
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* The carousel leads the finding; View takes its old place at the far end of the actions row. */
+.findingNav {
+  pointer-events: auto;
+}
+
+/* A toast finding takes the carousel and finding's place until it is dismissed, then they fade back. */
+.chatDock > .findingNav,
+.chatDock > .findingRow {
+  transition:
+    opacity 320ms ease,
+    visibility 0s linear 0s;
+}
+
+.chatDock[data-toast='true'] > .findingNav,
+.chatDock[data-toast='true'] > .findingRow {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 200ms ease,
+    visibility 0s linear 200ms;
+}
+
+/* Centred without a held transform so the cards' backdrop blur still samples the stage. */
+.toastSlot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  width: var(--finding-w);
+  pointer-events: none;
+}
+
+.toastSlot > [data-finding-toasts] {
+  justify-content: flex-start;
+}
+
+/* Fade the frosted cards and arrows themselves: opacity on any ancestor cuts their backdrop blur until it ends. */
+.toastSlot [data-finding-toasts] > button,
+.toastSlot [data-finding-toasts] article {
+  animation: toastSlotIn 420ms cubic-bezier(0.16, 1, 0.3, 1) 120ms backwards;
+}
+
+@keyframes toastSlotIn {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+.root[data-findings-style='5'] .storyBtn {
+  order: 1;
+  margin-left: auto;
+}
+
+/* A quieter carousel: fainter pill surfaces with a lighter blur. */
+.root[data-findings-style='5'] .carouselPill {
+  background: rgba(4, 8, 14, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/*
+ * Findings style 3: the composer and its greeting sit above (compact-assistant.module.css), and the
+ * finding hangs 96px under the composer as a compact glass tooltip with any chart beside its text.
+ * It fades as Assets scrolls in, since the composer then drops through it to the bottom slot.
+ */
+.root[data-findings-style='3'] .askGreeting,
+.root[data-findings-style='4'] .askGreeting {
+  right: 0;
+  left: 0;
+  width: min(640px, calc(100vw - 48px));
+  margin-inline: auto;
+  text-align: center;
+}
+
+.root[data-findings-style='3'] .chatDock {
+  top: calc(100% - var(--dock-under, 206px) + 96px);
+  bottom: auto;
+  --finding-w: min(880px, calc(100vw - 160px));
+  opacity: calc(1 - var(--assets-t, 0) * 2.5);
+  transition: transform 420ms ease;
+}
+
+/*
+ * Findings style 4: style 1's findings in style 1's place. --centre repeats --briefing-centre (the
+ * composer's style 1 bottom, compact-assistant.module.css), so the stack keeps the same bottom as
+ * when it rode on the centred composer, even though the composer and greeting now sit above. --shift
+ * lowers it together with the composer (compact-assistant.module.css); keep the two in sync.
+ */
+.root[data-findings-style='4'] .chatDock {
+  --centre: max(
+    calc(var(--assets-peek) + 16px),
+    calc((max(var(--space-3xl), calc(50dvh - 260px)) + var(--assets-peek)) / 2 - 31px)
+  );
+  --shift: clamp(0px, calc((100dvh - 900px) / 3), 120px);
+  bottom: calc(
+    var(--centre) + 62px + max(16px, var(--centre) + 31px - var(--assets-peek) - 18px) + 56px - var(--shift)
+  );
+  opacity: calc(1 - var(--assets-t, 0) * 2.5);
+  transition: transform 420ms ease;
+  animation: askIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.root[data-findings-style='3'] .findingRow {
+  animation: tooltipIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+}
+
+.root[data-findings-style='3'] .bubble {
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03) 50%), rgba(10, 16, 26, 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+}
+
+.root[data-findings-style='3'] .bubbleBody {
+  gap: 14px;
+  padding: 18px 20px 16px;
+  text-shadow: none;
+  transition:
+    opacity 320ms ease,
+    transform 420ms ease;
+}
+
+.root[data-findings-style='3'] .bubbleFade {
+  transform: translateY(4px) scale(0.985);
+}
+
+.root[data-findings-style='3'] .bubbleText {
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.root[data-findings-style='3'] .findingControls {
+  right: 20px;
+  bottom: 15px;
+}
+
+.root[data-findings-style='3'] .findingMain[data-chart='true'] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 400px);
+  align-items: center;
+  gap: 32px;
+}
+
+/* No surface of its own: the chart sits straight on the tooltip, right of the text. */
+.root[data-findings-style='3'] .findingMain .chart {
+  order: 2;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.root[data-findings-style='3'] .chart::before {
+  display: none;
+}
+
+.root[data-findings-style='3'] .chartValue {
+  font-size: 28px;
+}
+
+.root[data-findings-style='3'] .linePlot {
+  height: 84px;
+}
+
+.root[data-findings-style='3'] .columnPlot {
+  height: 104px;
+  gap: 6px;
+}
+
+.root[data-findings-style='3'] .columnAxis {
+  gap: 6px;
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.root[data-findings-style='3'] .columnAxis span {
+  overflow: visible;
+  white-space: normal;
+}
+
+/*
+ * Findings style 6: style 1's finding centred between the top bar and the composer, which keeps its
+ * bottom slot (compact-assistant.module.css). Assets peek from the right edge instead of the bottom;
+ * clicking them pushes the stage out to the left while Assets and Apps come in from the right.
+ * Findings style 8 is the same page, but Assets and Apps fly in as a glass modal over the map instead.
+ */
+.root[data-findings-style='6'],
+.root[data-findings-style='8'] {
+  --assets-peek: 0px;
+  /* How much of the asset stack shows at the right edge. */
+  --side-peek: 96px;
+  --side-slide: 900ms cubic-bezier(0.65, 0, 0.35, 1);
+  /* The composer's bottom slot (24px) plus its collapsed height (62px). */
+  --side-composer: 86px;
+}
+
+/* Clip, not hidden: focusing the half-hidden asset stack or the offscreen view must not scroll them in. */
+.root[data-findings-style='6'] .page,
+.root[data-findings-style='8'] .page {
+  overflow: clip;
+}
+
+.root[data-findings-style='6'] .stage,
+.root[data-findings-style='8'] .stage {
+  overflow: clip;
+  transition: transform var(--side-slide);
+}
+
+.root[data-findings-style='6'] .stage[data-away='true'] {
+  transform: translateX(-100%);
+}
+
+/*
+ * The finding's bottom (actions and carousel) is pinned where a two-line finding without a chart centres,
+ * 80px below the middle of the space between the top bar and the composer, so a chart or an extra line
+ * grows the finding upward instead of moving it.
+ */
+.root[data-findings-style='6'] .chatDock,
+.root[data-findings-style='8'] .chatDock {
+  top: var(--briefing-bar-h, 64px);
+  bottom: var(--dock-top, var(--side-composer));
+  justify-content: flex-end;
+  padding-bottom: max(
+    0px,
+    calc((100dvh - var(--briefing-bar-h, 64px) - var(--dock-top, var(--side-composer)) - 160px) / 2 - 73px)
+  );
+  --finding-w: min(800px, calc(100vw - 2 * var(--side-peek) - 176px));
+}
+
+/*
+ * Style 8: the finding starts the lower third, its category on the 2/3 line for a two-line finding (146px
+ * from category to actions); a chart grows up above it. On short screens it keeps --finding-under above
+ * the composer and --finding-over below the top bar, and its chart and text scroll within that room.
+ */
+.root[data-findings-style='8'] .chatDock {
+  --finding-over: 24px;
+  --finding-under: max(32px, calc(100dvh / 3 - var(--dock-top, var(--side-composer)) - 146px));
+  padding-top: var(--finding-over);
+  padding-bottom: var(--finding-under);
+}
+
+.root[data-findings-style='8'] .bubbleBody {
+  max-height: calc(
+    100dvh - var(--briefing-bar-h, 64px) - var(--dock-top, var(--side-composer)) - var(--finding-over) -
+      var(--finding-under)
+  );
+}
+
+.root[data-findings-style='8'] .findingMain {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+
+.root[data-findings-style='8'] .findingMain > * {
+  flex-shrink: 0;
+}
+
+/* The bubble's height eases between findings; bottom-aligning its content keeps the text still meanwhile. */
+.root[data-findings-style='6'] .bubble,
+.root[data-findings-style='8'] .bubble {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.root[data-findings-style='6'] .bubbleBody,
+.root[data-findings-style='8'] .bubbleBody {
+  flex-shrink: 0;
+}
+
+/*
+ * The Assets grid's left edge, down to its last whole card there that fits above the composer, centred
+ * in that room: only --side-peek of it shows; hovering pulls it out a little.
+ * BriefingLanding sizes it (--peek-*) to the grid and flies it there on click, so it sits over the
+ * slide; once it docks, the grid itself replaces it. The cards don't take the pointer: it is one button.
+ */
+.assetPeek {
+  position: absolute;
+  top: calc(var(--peek-top, calc(var(--briefing-bar-h, 64px) + 28px)) + var(--peek-shift, 0px));
+  right: calc(var(--side-peek) - var(--peek-w, 772px));
+  z-index: 5;
+  width: var(--peek-w, 772px);
+  --assets-t: 0;
+  cursor: pointer;
+  outline: none;
+  transition: translate 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.assetPeek * {
+  pointer-events: none;
+}
+
+/* Shrunk, the edge would show the cards beside the first column too; they only join the flight. */
+.assetPeek [data-board-item]:not([data-edge]) {
+  opacity: 0;
+  transition: opacity 200ms ease 700ms;
+}
+
+.assetPeek[data-away='true'] [data-board-item] {
+  opacity: 1;
+  transition-delay: 0ms;
+}
+
+.assetPeek[data-away='true'] {
+  pointer-events: none;
+}
+
+.assetPeek[data-landed='true'] {
+  visibility: hidden;
+}
+
+.assetPeek article {
+  transition: border-color 200ms ease;
+}
+
+.assetPeek:not([data-away='true']):hover,
+.assetPeek:not([data-away='true']):focus-visible {
+  translate: -12px 0;
+}
+
+.assetPeek:not([data-away='true']):hover article,
+.assetPeek:not([data-away='true']):focus-visible article {
+  border-color: rgba(255, 255, 255, 0.26);
+}
+
+.assetPeek:not([data-away='true']):focus-visible article {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/* The Assets view's colours, registered so a new tint glides in rather than snapping. */
+@property --side-bg-top {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #0f2230;
+}
+
+@property --side-bg-bottom {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #16303f;
+}
+
+@property --side-bg-accent {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #2f6a62;
+}
+
+/*
+ * Assets and Apps: the summary beside the Assets grid, under the top bar. The grid runs to the bottom
+ * and the right edge so its scrollbar hugs them; the grid pads itself clear of the composer. The
+ * background takes the findings map's colours as the view opens (mapPalette): its dark ground, with its
+ * land colour as faint glows from the corners.
+ */
+.sideView {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 64px;
+  box-sizing: border-box;
+  padding: calc(var(--briefing-bar-h, 64px) + 28px) 0 0 32px;
+  background:
+    radial-gradient(75% 65% at 100% 0%, color-mix(in srgb, var(--side-bg-accent) 38%, transparent), transparent),
+    radial-gradient(65% 60% at 0% 100%, color-mix(in srgb, var(--side-bg-accent) 30%, transparent), transparent),
+    linear-gradient(180deg, var(--side-bg-top), var(--side-bg-bottom));
+  transform: translateX(100%);
+  transition:
+    transform var(--side-slide),
+    --side-bg-top 600ms ease,
+    --side-bg-bottom 600ms ease,
+    --side-bg-accent 600ms ease;
+}
+
+.sideView[data-shown='true'] {
+  transform: none;
+}
+
+.sideIntro {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sideIntro > .sideHead,
+.sideIntro > .assetsFilters {
+  flex-shrink: 0;
+}
+
+/* Under the filters, the greeting, statement, and insights scroll on short screens. */
+.sideScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: var(--feed-pad, 106px);
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+.sideScroll > * {
+  padding-inline-end: 12px;
+}
+
+.sideIntro .assetsDetail {
+  max-width: 520px;
+}
+
+/* My Board: its title over the filters, a greeting, the statement, then More insights as bullets. */
+.sideHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  margin: 0 0 16px;
+}
+
+/* Style 8's Add menu and close: level with the title, over the grid's right edge; the board starts level with the filters. */
+.sideTools {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding-right: 28px;
+}
+
+.sideTitle {
+  margin: 0;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 28px;
+}
+
+.sideGreeting {
+  margin: 0 0 12px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.sideIntro .sideMoreTitle {
+  margin: 32px 0 14px;
+}
+
+.sideInsights {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 520px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(15px, 0.95vw, 18px);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.sideInsights li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.sideInsights li::before {
+  position: absolute;
+  top: 0.62em;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  content: '';
+}
+
+.sideHead,
+.sideTools,
+.sideGreeting,
+.sideMoreTitle,
+.sideInsights {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.sideBack {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.sideBack:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sideBack:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.sideGrid {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+.sideGrid > * {
+  padding: 0 32px var(--feed-pad, 106px) 0;
+}
+
+/* The edge peek stands in for the grid until it docks. */
+.sideView:not([data-landed='true']) .sideGrid [data-asset-board] {
+  visibility: hidden;
+}
+
+.sideView[data-shown='true'] .assetsIntroTitle,
+.sideView[data-shown='true'] .sideHead,
+.sideView[data-shown='true'] .sideTools,
+.sideView[data-shown='true'] .assetsFilters,
+.sideView[data-shown='true'] .sideGreeting,
+.sideView[data-shown='true'] .assetsSummary,
+.sideView[data-shown='true'] .assetsDetail,
+.sideView[data-shown='true'] .sideMoreTitle,
+.sideView[data-shown='true'] .sideInsights {
+  --reveal-d: 570ms;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 600ms ease var(--reveal-d),
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-d);
+}
+
+.sideView[data-shown='true'] .assetsIntroTitle,
+.sideView[data-shown='true'] .sideHead,
+.sideView[data-shown='true'] .sideTools {
+  --reveal-d: 420ms;
+}
+
+.sideView[data-shown='true'] .assetsFilters {
+  --reveal-d: 470ms;
+}
+
+.sideView[data-shown='true'] .sideGreeting {
+  --reveal-d: 520ms;
+}
+
+.sideView[data-shown='true'] .assetsDetail,
+.sideView[data-shown='true'] .sideMoreTitle {
+  --reveal-d: 660ms;
+}
+
+.sideView[data-shown='true'] .sideInsights {
+  --reveal-d: 720ms;
+}
+
+/* The grid's column. */
+.sideBoard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+ * Findings style 8: Assets and Apps are a liquid-glass modal between the top bar and the composer. It
+ * flies in from the right over the map, which stays in place and shows through, while the finding under
+ * it fades. The glass is barely tinted with the map's ground (mapPalette) and catches light on its rim:
+ * brightest at the top-left and bottom-right corners, with a soft sheen across the top.
+ */
+.root[data-findings-style='8'] .stage[data-away='true'] .dockLayer {
+  opacity: 0;
+}
+
+/* Dims the findings under the modal; a press on it closes the modal. The edge peek flies in over both. */
+.sideScrim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 420ms ease;
+}
+
+.sideScrim[data-shown='true'] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/*
+ * Cut off at the modal's bottom edge above the composer (--peek-room), so a tall last card never reaches it.
+ * Overflow clips it, not clip-path: that would make the peek a backdrop root and unfrost the cards.
+ */
+.root[data-findings-style='8'] .assetPeek {
+  z-index: 7;
+  height: var(--peek-room, auto);
+  overflow-x: visible;
+  overflow-y: clip;
+}
+
+/*
+ * Hides that cut with a progressive blur from 60px above it to 24px below, strongest on the cut. It can't
+ * be the peek's own mask (that would unfrost the cards too), so it follows the peek: hover, flight, story.
+ */
+.peekFade {
+  display: none;
+}
+
+.root[data-findings-style='8'] .peekFade {
+  display: block;
+  position: absolute;
+  top: calc(var(--peek-edge, 0px) - 60px);
+  right: calc(var(--side-peek) - var(--peek-w, 772px));
+  z-index: 8;
+  width: var(--peek-w, 772px);
+  height: 84px;
+  pointer-events: none;
+  transition:
+    translate 420ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 240ms ease 900ms;
+}
+
+/* Gone as the stack flies out; back only once it has flown home (SIDE_SLIDE_MS). */
+.root[data-findings-style='8'] .peekFade[data-away='true'] {
+  opacity: 0;
+  transition-duration: 420ms, 120ms;
+  transition-delay: 0ms;
+}
+
+.root[data-findings-style='8'] .assetPeek:not([data-away='true']):hover + .peekFade,
+.root[data-findings-style='8'] .assetPeek:not([data-away='true']):focus-visible + .peekFade {
+  translate: -12px 0;
+}
+
+.peekFade > span {
+  position: absolute;
+  inset: 0;
+}
+
+.peekFade > span:nth-child(1) {
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 82%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 82%, transparent);
+}
+
+.peekFade > span:nth-child(2) {
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 30%, #000 58%, #000 80%, transparent 96%);
+  mask-image: linear-gradient(to bottom, transparent 30%, #000 58%, #000 80%, transparent 96%);
+}
+
+.peekFade > span:nth-child(3) {
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 50%, #000 66%, #000 76%, transparent 92%);
+  mask-image: linear-gradient(to bottom, transparent 50%, #000 66%, #000 76%, transparent 92%);
+}
+
+/*
+ * A sheet from the right edge, square there: as wide as the summary at its minimum (SIDE_INTRO_MIN), the
+ * 64px gap and a two-column grid (2 x 260 + 12) in its 4px / 28px paddings, past the modal's own 28px
+ * start padding, plus the 24px it once stood off the edge.
+ */
+.root[data-findings-style='8'] .sideView {
+  inset: calc(var(--briefing-bar-h, 64px) + 24px) 0 calc(var(--side-composer) + 28px) auto;
+  z-index: 6;
+  width: min(calc(28px + 480px + 64px + 4px + 532px + 28px + 24px), calc(100% - 64px));
+  padding: 28px 0 0 28px;
+  overflow: hidden;
+  border-radius: var(--radius-2xl) 0 0 var(--radius-2xl);
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.13),
+      rgba(255, 255, 255, 0.04) 36%,
+      rgba(255, 255, 255, 0.02) 64%,
+      rgba(255, 255, 255, 0.07)
+    ),
+    color-mix(in srgb, var(--side-bg-top) 36%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(185%) brightness(1.06);
+  backdrop-filter: blur(24px) saturate(185%) brightness(1.06);
+  box-shadow:
+    0 30px 70px rgba(0, 0, 0, 0.38),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 48px rgba(255, 255, 255, 0.05);
+  opacity: 0;
+  transform: translateX(100%);
+  transition:
+    transform var(--side-slide),
+    opacity 520ms ease,
+    --side-bg-top 600ms ease,
+    --side-bg-bottom 600ms ease,
+    --side-bg-accent 600ms ease;
+}
+
+.root[data-findings-style='8'] .sideView[data-shown='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* The rim: a 1px ring open at the screen edge, masked out of a diagonal light, over the content. */
+.root[data-findings-style='8'] .sideView::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px 0 1px 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.6),
+    rgba(255, 255, 255, 0.1) 28%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.1) 72%,
+    rgba(255, 255, 255, 0.38)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* The sheen sits behind the content, inside the modal's own stacking context. */
+.root[data-findings-style='8'] .sideView::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(110% 55% at 18% -8%, rgba(255, 255, 255, 0.12), transparent 62%);
+  pointer-events: none;
+}
+
+/* The edge peek brings in the rows above the fold; the cards below them follow once it docks. */
+.root[data-findings-style='6'] .sideGrid [data-below],
+.root[data-findings-style='8'] .sideGrid [data-below] {
+  opacity: 0;
+  transition: opacity 360ms ease;
+}
+
+.root[data-findings-style='6'] .sideView[data-landed='true'] .sideGrid [data-below],
+.root[data-findings-style='8'] .sideView[data-landed='true'] .sideGrid [data-below] {
+  opacity: 1;
+  transition-delay: 60ms;
+}
+
+.root[data-findings-style='8'] .sideScroll {
+  padding-bottom: 28px;
+}
+
+/* 4px clear of the scrollport's top and start, so a lifted (dragged) card isn't clipped. */
+.root[data-findings-style='8'] .sideGrid > * {
+  padding: 4px calc(28px - var(--side-gutter, 0px)) 28px 4px;
+}
+/*
+ * Findings style 7: style 6's centred finding beside an Assets panel down the right of the page, which
+ * narrows the stage and its map. The composer centres on the narrowed stage (compact-assistant.module.css
+ * repeats --s7-panel). Expanding the panel covers the page: the grid keeps its width and two columns
+ * while the summary opens on its left and the app insights on its right.
+ */
+.root[data-findings-style='7'] {
+  --assets-peek: 0px;
+  --s7-panel: clamp(500px, 34vw, 640px);
+  --s7-inset: 24px;
+  --s7-grid: calc(var(--s7-panel) - var(--s7-inset));
+  --s7-ease: 760ms cubic-bezier(0.65, 0, 0.35, 1);
+  --side-composer: 86px;
+}
+
+/* The page is the container, so the side columns can lay out at their final width while they open. */
+.root[data-findings-style='7'] .page {
+  overflow: clip;
+  container-type: inline-size;
+}
+
+.root[data-findings-style='7'] .stage {
+  width: calc(100% - var(--s7-panel));
+  overflow: clip;
+}
+
+.root[data-findings-style='7'] .chatDock {
+  top: var(--briefing-bar-h, 64px);
+  bottom: var(--dock-top, var(--side-composer));
+  justify-content: center;
+  padding-top: 160px;
+  --finding-w: min(760px, calc(100cqw - var(--s7-panel) - 176px));
+}
+
+.panel {
+  --assets-t: 1;
+  /* Room the side columns share once open: 0.9 to the summary, 1.1 to the app insights. */
+  --s7-free: calc(100cqw - var(--s7-inset) - var(--s7-grid));
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  width: var(--s7-panel);
+  box-sizing: border-box;
+  padding-top: calc(var(--briefing-bar-h, 64px) + 12px);
+  background: #121316;
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.07);
+  transition:
+    width var(--s7-ease),
+    box-shadow 300ms ease;
+}
+
+.panel[data-open='true'] {
+  width: 100%;
+  box-shadow: inset 1px 0 0 transparent;
+}
+
+.panelHead {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 36px;
+  margin-bottom: 16px;
+  padding: 0 var(--s7-inset);
+}
+
+.panelToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.panelToggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.panelToggle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/* Closed, the free room is nil and the side columns are 0 wide; the grid's track never changes width. */
+.panelBody {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 0.9fr) var(--s7-grid) minmax(0, 1.1fr);
+  min-height: 0;
+  padding-left: var(--s7-inset);
+}
+
+.panelInsight,
+.panelApps {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panelInsight {
+  padding-bottom: var(--feed-pad, 106px);
+}
+
+.panelInsight > * {
+  width: calc(var(--s7-free) * 0.45 - 40px);
+}
+
+.panelGrid {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+/*
+ * Two columns, as on mobile: heat by district across the top, then the KPI and land use, population and
+ * pressure in pairs, then air quality, bus routes and station availability across.
+ */
+.panel .panelGrid > * {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: none;
+  grid-auto-rows: clamp(200px, 22vh, 250px);
+  padding: 0 var(--s7-inset) var(--feed-pad, 106px) 0;
+}
+
+.panelGrid article {
+  grid-row: auto;
+  padding: 14px 14px 12px;
+  border-color: rgba(255, 255, 255, 0.06);
+  background: #24262b;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.panelGrid article h3 {
+  font-size: 14px;
+}
+
+.panelGrid article:nth-child(7) {
+  order: -1;
+}
+
+.panelGrid article:nth-child(n + 5) {
+  grid-column: 1 / -1;
+}
+
+.panelApps {
+  --apps-bottom: var(--feed-pad, 106px);
+  --apps-inset: var(--s7-inset);
+  display: flex;
+  flex-direction: column;
+}
+
+.panelApps > ul {
+  width: calc(var(--s7-free) * 0.55);
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  padding-left: 8px;
+}
+
+.panelApps li {
+  opacity: 0;
+  translate: 32px 0;
+  transition:
+    opacity 200ms ease,
+    translate 0s linear 200ms;
+}
+
+.panel[data-open='true'] .panelApps li {
+  opacity: 1;
+  translate: none;
+  transition:
+    opacity 500ms ease calc(460ms + var(--i) * 70ms),
+    translate 700ms cubic-bezier(0.16, 1, 0.3, 1) calc(460ms + var(--i) * 70ms);
+}
+
+.panel:not([data-open='true']) .panelInsight > * {
+  transition: opacity 200ms ease;
+}
+
+.panel[data-open='true'] .assetsFilters,
+.panel[data-open='true'] .assetsSummary,
+.panel[data-open='true'] .assetsDetail {
+  --reveal-d: 460ms;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 600ms ease var(--reveal-d),
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-d);
+}
+
+.panel[data-open='true'] .assetsSummary {
+  --reveal-d: 540ms;
+}
+
+.panel[data-open='true'] .assetsDetail {
+  --reveal-d: 640ms;
+}
+
+/*
+ * Assets and Agents share one background that stays pinned to the page while they
+ * scroll over it, blending from the Assets palette to the Agents one (--agents-t).
+ * The block overlaps the bottom of the findings stage by the peek; the peek never
+ * reaches the composer, which sits 260px under mid-height.
+ */
+.lower {
+  --page-h: var(--briefing-page-h, 100dvh);
+  position: relative;
+  z-index: 1;
+  margin-top: calc(-1 * var(--assets-peek));
+  /* Clear over the map it overlaps, then the map's base colour so nothing behind the page shows. */
+  background: linear-gradient(transparent var(--assets-peek), #060a14 var(--assets-peek));
+}
+
+/*
+ * While Assets only peeks, its cards sit straight on the stage's blurred map. The Assets colour
+ * fades in with --assets-t (0 at rest, 1 once Assets reaches the top bar), from a top edge that
+ * stays soft until it is solid at 1.
+ */
+.lowerBg {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  height: var(--page-h);
+  margin-bottom: calc(-1 * var(--page-h));
+  background: linear-gradient(180deg, #3d4350 0%, #4b5261 55%, #59606f 100%);
+  --edge: calc(var(--assets-t, 0) * var(--assets-t, 0) * var(--assets-t, 0));
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--edge)) 0, #000 var(--assets-peek));
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--edge)) 0, #000 var(--assets-peek));
+  opacity: var(--assets-t, 0);
+  pointer-events: none;
+}
+
+.lowerBg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #30353f 0%, #3c424e 55%, #484f5c 100%);
+  opacity: var(--agents-t, 0);
+}
+
+/*
+ * Continues the Assets colour behind the blurred top bar, only in the last stretch before Assets
+ * fills the page, so it never shows as a strip over the map.
+ */
+.lower::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: var(--briefing-bar-h, 64px);
+  background: #3d4350;
+  opacity: calc((var(--assets-t, 0) - 0.85) / 0.15);
+  pointer-events: none;
+}
+
+/*
+ * Peeking and while its charts load, the grid is centred at full width with no summary. Once
+ * [data-split='true'], the columns grow the summary into the left third and the grid moves into
+ * the right two thirds. The grid scrolls on its own and reaches the section's right edge so its
+ * scrollbar hugs it; the grid pads itself instead.
+ */
+.assets {
+  --assets-centred-w: 1480px;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
+  column-gap: 0;
+  box-sizing: border-box;
+  height: calc(var(--page-h) - var(--briefing-bar-h, 64px));
+  padding: 28px 0 0;
+  cursor: pointer;
+  transition:
+    grid-template-columns 900ms cubic-bezier(0.65, 0, 0.35, 1),
+    column-gap 900ms cubic-bezier(0.65, 0, 0.35, 1),
+    padding 900ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.assets[data-split='true'] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  column-gap: 48px;
+  padding-left: 32px;
+}
+
+.assets.assetsOpen {
+  cursor: default;
+}
+
+.assetsIntro {
+  min-width: 0;
+  min-height: 0;
+  padding-bottom: var(--feed-pad, 106px);
+  overflow: hidden;
+}
+
+.assetsSummary {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(20px, 1.45vw, 30px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+.assetsDetail {
+  max-width: 60ch;
+  margin: 20px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(15px, 0.95vw, 18px);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* Section titles: Assets and Agents. */
+.eyebrow {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.assetsIntroTitle {
+  margin-bottom: 16px;
+}
+
+.assetsFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.filterWrap {
+  position: relative;
+}
+
+.filterPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  line-height: normal;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.filterPill:hover,
+.filterPill[aria-expanded='true'] {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.filterPill:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.filterPill > svg:last-child {
+  opacity: 0.7;
+}
+
+.filterMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  min-width: 200px;
+  padding: 6px 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(10, 16, 28, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+.filterMenuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: calc(100% - 12px);
+  margin: 0 6px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filterMenuItem:hover,
+.filterMenuItemActive {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* My Board's Add menu, fixed under its button (BoardAddMenu sets top and right), in the More options glass. */
+.addMenu {
+  position: fixed;
+  left: auto;
+  z-index: 50;
+  min-width: 160px;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+}
+
+.assetsIntroTitle,
+.assetsFilters,
+.assetsSummary,
+.assetsDetail {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.assets[data-split='true'] .assetsIntroTitle,
+.assets[data-split='true'] .assetsFilters,
+.assets[data-split='true'] .assetsSummary,
+.assets[data-split='true'] .assetsDetail {
+  --reveal-d: 520ms;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 600ms ease var(--reveal-d),
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-d);
+}
+
+.assets[data-split='true'] .assetsIntroTitle {
+  --reveal-d: 420ms;
+}
+
+.assets[data-split='true'] .assetsFilters {
+  --reveal-d: 470ms;
+}
+
+.assets[data-split='true'] .assetsDetail {
+  --reveal-d: 660ms;
+}
+
+/* Rests 40px lower while peeking and rises into place as Assets scrolls in. */
+.assetsScroll {
+  min-height: 0;
+  overflow: hidden;
+  transform: translateY(calc((1 - var(--assets-t, 1)) * 40px));
+}
+
+.assetsOpen .assetsScroll {
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+/* Fills the section so every asset fits without scrolling; scrolls only when rows hit their minimum. */
+.assetsScroll > * {
+  min-height: 100%;
+  padding: 0 max(32px, calc((100% - var(--assets-centred-w)) / 2)) var(--feed-pad, 106px);
+  transition: padding 900ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.assets[data-split='true'] .assetsScroll > * {
+  padding-inline: 0 32px;
+}
+
+/* The glide stops at its bottom edge, so its top sits under the blurred top bar. */
+.agents {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+  min-height: var(--page-h);
+  padding: calc(var(--briefing-bar-h, 64px) + 28px) 32px var(--feed-pad, 106px);
+}
+
+/* Apps follow Agents on the same background and snap the same way; the carousel takes the spare height. */
+.apps {
+  height: var(--page-h);
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLead {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* The carousel rides on the actions row's right edge, outside the bubble so it doesn't fade between findings. */
+.findingRow {
+  position: relative;
+}
+
+.findingControls {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+}
+
+.bubble {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--finding-w);
+  overflow: hidden;
+  pointer-events: none;
+  transition: height 480ms ease;
+}
+
+/* The fade matches FINDING_FADE_MS: out, swap, back in. */
+.bubbleBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 4px 2px;
+  text-shadow: 0 2px 16px rgba(5, 10, 20, 0.6);
+  transition: opacity 320ms ease;
+}
+
+/* Findings carousel: Apple TV-style progress dots plus a circular play/pause control. */
+.carousel {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.62;
+  pointer-events: auto;
+  transition: opacity 180ms ease;
+}
+
+.carousel:hover,
+.carousel:focus-within {
+  opacity: 1;
+}
+
+.carouselPill {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: rgba(4, 8, 14, 0.42);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.playPill {
+  width: 34px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* Bare dots, no pill: the window's last dots on a side with more beyond shrink and fade (dotTiers). */
+.dots {
+  display: flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 4px;
+  filter: drop-shadow(0 1px 6px rgba(5, 10, 20, 0.5));
+}
+
+.dot {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    width 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 320ms ease;
+}
+
+.dot[data-tier='near'] .dotTrack {
+  opacity: 0.7;
+  scale: 0.75;
+}
+
+.dot[data-tier='far'] .dotTrack {
+  opacity: 0.4;
+  scale: 0.5;
+}
+
+.dot[data-tier='hidden'] {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dotActive {
+  width: 38px;
+}
+
+.dotTrack {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.34);
+  transition:
+    width 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    scale 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 320ms ease,
+    background-color 240ms ease;
+}
+
+.dot:hover .dotTrack {
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.dotActive .dotTrack,
+.dotActive:hover .dotTrack {
+  width: 26px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.dotFill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.86);
+  transform-origin: left center;
+  animation: dotFill linear forwards;
+  animation-play-state: paused;
+}
+
+.dotFill[data-running='true'] {
+  animation-play-state: running;
+}
+
+@keyframes dotFill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Still keeps time for autoplay, without the moving fill. */
+@keyframes dotHold {
+  from,
+  to {
+    transform: none;
+  }
+}
+
+.carouselBtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.carouselBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.dot:focus-visible,
+.carouselBtn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -2px;
+  border-radius: 999px;
+}
+
+.bubbleFade {
+  opacity: 0;
+}
+
+.bubble button {
+  pointer-events: auto;
+}
+
+/* No taller than a 2 x 2 visual on the My Board modal's grid (2 x ROOMY_BOARD_CELL + BOARD_GAP); the plot gives way. */
+.bubble .chart {
+  width: 100%;
+  max-height: calc(2 * 260px + 12px);
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+.bubble .chart .linePlot,
+.bubble .chart .columnPlot {
+  min-height: 0;
+}
+
+.bubbleMeta {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.bubbleText {
+  margin: 0;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+/*
+ * Liquid glass: a faint tint over a saturated blur, a specular rim brightest along the top-left and
+ * an inner sheen. Shadows stay inset because the bubble clips its overflow.
+ */
+.chart {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(640px, 100%);
+  padding: 22px 22px 18px;
+  border: 0;
+  border-radius: 24px;
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.03) 42%,
+      rgba(255, 255, 255, 0.06) 100%
+    ),
+    rgba(10, 16, 26, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 24px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(28px) saturate(1.8) brightness(1.08);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8) brightness(1.08);
+  opacity: 0;
+  transform: translateY(-12px) scale(0.97);
+  transform-origin: 50% 0;
+}
+
+.chart::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.12) 30%,
+    rgba(255, 255, 255, 0.04) 60%,
+    rgba(255, 255, 255, 0.22) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Surface lands first (420ms, CHART_SURFACE_MS in the TSX); the chart inside plays after it. */
+.chart[data-play='true'] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 320ms ease,
+    transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* A board asset (2 x ROOMY_BOARD_CELL + BOARD_GAP tall, or one cell for a KPI); the glass is its surface. */
+.assetChart {
+  height: calc(2 * 260px + 12px);
+  padding: 0;
+}
+
+.assetChart[data-kpi='true'] {
+  height: 260px;
+}
+
+.assetChart > article {
+  flex: 1 1 auto;
+  padding: 22px 22px 18px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.barChart .chartBar {
+  clip-path: inset(0 100% 0 0 round 999px);
+}
+
+.barChart[data-play='true'] .chartBar {
+  clip-path: inset(0 0 0 0 round 999px);
+  transition: clip-path 900ms cubic-bezier(0.65, 0, 0.35, 1) 380ms;
+}
+
+.barChart .chartValue,
+.barChart .legend li {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.barChart[data-play='true'] .chartValue,
+.barChart[data-play='true'] .legend li {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 360ms ease 380ms,
+    transform 360ms ease 380ms;
+}
+
+.barChart[data-play='true'] .legend li:nth-child(1) {
+  transition-delay: 760ms;
+}
+
+.barChart[data-play='true'] .legend li:nth-child(2) {
+  transition-delay: 860ms;
+}
+
+.barChart[data-play='true'] .legend li:nth-child(3) {
+  transition-delay: 960ms;
+}
+
+.chartLabel {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.chartValue {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.chartBar {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.chartSeg {
+  min-width: 0;
+}
+
+.lineValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.lineChart .chartValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.lineDelta {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(63, 210, 199, 0.18);
+  color: #9ff0e8;
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0;
+}
+
+.linePlot {
+  position: relative;
+  height: 112px;
+  margin-top: 4px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 100% 25%;
+}
+
+.lineSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  clip-path: inset(-8px 100% -8px 0);
+}
+
+.lineDot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.3);
+}
+
+.lineAxis {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+}
+
+.lineChart[data-play='true'] .lineSvg {
+  clip-path: inset(-8px -8px -8px 0);
+  transition: clip-path 1300ms cubic-bezier(0.65, 0, 0.35, 1) 420ms;
+}
+
+.lineChart[data-play='true'] .lineDot {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 240ms ease 1620ms,
+    transform 480ms cubic-bezier(0.34, 1.56, 0.64, 1) 1620ms;
+}
+
+.lineChart[data-play='true'] .lineDelta {
+  opacity: 1;
+  transition: opacity 500ms ease 1320ms;
+}
+
+.chartUnit {
+  margin-left: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.columnDelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 159, 90, 0.18);
+  color: #ffc9a0;
+  font-size: 12px;
+  line-height: 18px;
+  opacity: 0;
+}
+
+.thresholdKey {
+  width: 12px;
+  border-top: 1.5px dashed currentColor;
+}
+
+/* Columns stand on the plot's floor; each fills its slot and rises from the bottom. */
+.columnPlot {
+  position: relative;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  height: 140px;
+  margin-top: 8px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 100% 25%;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.columnBar {
+  width: 100%;
+  max-width: 44px;
+  border-radius: 8px 8px 3px 3px;
+  background: linear-gradient(180deg, rgba(159, 240, 232, 0.85), rgba(63, 210, 199, 0.22));
+  transform: scaleY(0);
+  transform-origin: 50% 100%;
+}
+
+.column[data-low='true'] .columnBar {
+  background: linear-gradient(180deg, #ffb27a, rgba(255, 159, 90, 0.3));
+  box-shadow: 0 0 18px rgba(255, 159, 90, 0.28);
+}
+
+.columnValue {
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+}
+
+.column[data-low='true'] .columnValue {
+  color: #ffc9a0;
+}
+
+.columnThreshold {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  border-top: 1.5px dashed rgba(255, 178, 122, 0.75);
+  clip-path: inset(-2px 100% -2px 0);
+  pointer-events: none;
+}
+
+.columnAxis {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.columnAxis span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.columnChart[data-play='true'] .columnBar {
+  transform: none;
+  transition: transform 720ms cubic-bezier(0.2, 0.8, 0.2, 1) calc(420ms + var(--i) * 70ms);
+}
+
+.columnChart[data-play='true'] .columnValue {
+  opacity: 1;
+  transition: opacity 320ms ease calc(820ms + var(--i) * 70ms);
+}
+
+.columnChart[data-play='true'] .columnThreshold {
+  clip-path: inset(-2px 0 -2px 0);
+  transition: clip-path 700ms cubic-bezier(0.65, 0, 0.35, 1) 1200ms;
+}
+
+.columnChart[data-play='true'] .columnDelta {
+  opacity: 1;
+  transition: opacity 500ms ease 1600ms;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.legendName {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.legendVal {
+  font-family: var(--lc-font-mono);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.storyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.storyBtn:hover,
+.voteOn {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Tell Me More: a plain white stroke, no specular rim. */
+.tellMoreBtn {
+  border: 1px solid #fff;
+}
+
+.tellMoreBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-findings-style='6'] .stage,
+  .root[data-findings-style='8'] .stage,
+  .root[data-findings-style='8'] .dockLayer,
+  .sideView,
+  .panel,
+  .panelApps li,
+  .panelInsight > *,
+  .assetPeek,
+  .assetPeek article,
+  .assets,
+  .assetsIntroTitle,
+  .assetsFilters,
+  .assetsSummary,
+  .assetsDetail,
+  .assetsScroll > * {
+    transition: none !important;
+  }
+
+  .dotFill {
+    animation-name: dotHold;
+  }
+
+  .dot,
+  .dotTrack {
+    transition: none;
+  }
+
+  .lower::before,
+  .chatDock,
+  .map,
+  .chart,
+  .chart *,
+  .bubble,
+  .bubbleBody,
+  .sidePanel {
+    transition: none !important;
+  }
+
+  .askGreeting,
+  .chatDock,
+  .findingRow,
+  .toastSlot [data-finding-toasts] > button,
+  .toastSlot [data-finding-toasts] article {
+    animation: none !important;
+  }
+}

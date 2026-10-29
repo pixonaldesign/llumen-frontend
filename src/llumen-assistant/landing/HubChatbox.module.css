@@ -56,13 +56,22 @@
   padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-3xl);
-  background: rgba(14, 16, 20, 0.78);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: rgba(14, 16, 20, 0.52);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
   pointer-events: auto;
   box-sizing: border-box;
   transform-origin: center center;
+}
+
+/* The Add context menu takes the chat box's glass. The attribute outranks the shared menu's own surface. */
+.contextMenu[data-lc-inline-context-menu] {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(14, 16, 20, 0.52);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 }
 
 .box[data-finding-cue='true'] {
@@ -142,8 +151,21 @@
   align-self: flex-start;
 }
 
+/* Engaged: pinned to the box's top-right corner, above chips and the editor. */
 .collapseBtnOpposite {
-  margin-left: auto;
+  position: absolute;
+  top: 11px;
+  right: 10px;
+  z-index: 1;
+}
+
+.box:has(.collapseBtnOpposite) .componentRow,
+.box:has(.collapseBtnOpposite) .chipRow {
+  padding-right: 30px;
+}
+
+.composeRow:has(.collapseBtnOpposite) .composerEditor {
+  margin-right: 30px;
 }
 
 .collapseBtn:hover:not(:disabled) {
@@ -168,6 +190,62 @@
 
 .chipRow {
   margin-bottom: 8px;
+}
+
+.componentRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.componentChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  height: 26px;
+  padding: 0 4px 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  line-height: 16px;
+  animation: componentChipIn 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.componentChipLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.componentChipRemove {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.componentChipRemove:hover {
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 1;
+}
+
+@keyframes componentChipIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
 }
 
 .composeRow {
@@ -287,6 +365,8 @@
   line-height: 22px;
   outline: none;
   overflow-y: auto;
+  /* Scrolls by wheel and caret; no visible bar inside the field. */
+  scrollbar-width: none;
   white-space: pre-wrap;
   word-break: break-word;
   opacity: 1;
@@ -295,7 +375,14 @@
     opacity 280ms var(--lc-ease);
 }
 
+.input::-webkit-scrollbar {
+  display: none;
+}
+
+/* Room at the start, given back by the margin, so the placeholder's nudge and glyph overhang aren't clipped. */
 .composerEditor {
+  margin-inline-start: -4px;
+  padding-inline-start: 4px;
   outline: none;
   caret-color: #fff;
 }

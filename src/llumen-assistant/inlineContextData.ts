@@ -3,10 +3,11 @@ import {
   ClipboardText,
   Database,
   Images,
+  MapPin,
   Presentation,
 } from '@phosphor-icons/react'
 
-export type InlineContextCategoryId = 'database' | 'slides' | 'briefings' | 'assets'
+export type InlineContextCategoryId = 'database' | 'slides' | 'briefings' | 'assets' | 'location'
 
 export type InlineContextCategory = {
   id: InlineContextCategoryId
@@ -27,6 +28,9 @@ export const INLINE_CONTEXT_CATEGORIES: InlineContextCategory[] = [
   { id: 'briefings', label: 'Briefings', Icon: ClipboardText },
   { id: 'assets', label: 'Assets', Icon: Images },
 ]
+
+/** Opens a picker instead of a list of items; only offered where a picker is wired up. */
+export const LOCATION_CONTEXT_CATEGORY: InlineContextCategory = { id: 'location', label: 'Location', Icon: MapPin }
 
 export const INLINE_CONTEXT_ITEMS: InlineContextItem[] = [
   // Database
@@ -155,10 +159,11 @@ export const INLINE_CONTEXT_ITEMS: InlineContextItem[] = [
   },
 ]
 
-export function filterCategories(query: string): InlineContextCategory[] {
+export function filterCategories(query: string, { location = false } = {}): InlineContextCategory[] {
   const q = query.trim().toLowerCase()
-  if (!q) return INLINE_CONTEXT_CATEGORIES
-  return INLINE_CONTEXT_CATEGORIES.filter((c) => c.label.toLowerCase().includes(q))
+  const categories = location ? [...INLINE_CONTEXT_CATEGORIES, LOCATION_CONTEXT_CATEGORY] : INLINE_CONTEXT_CATEGORIES
+  if (!q) return categories
+  return categories.filter((c) => c.label.toLowerCase().includes(q))
 }
 
 export function filterItems(categoryId: InlineContextCategoryId, query: string): InlineContextItem[] {
@@ -173,7 +178,7 @@ export function filterItems(categoryId: InlineContextCategoryId, query: string):
 }
 
 export function getCategory(id: InlineContextCategoryId): InlineContextCategory | undefined {
-  return INLINE_CONTEXT_CATEGORIES.find((c) => c.id === id)
+  return [...INLINE_CONTEXT_CATEGORIES, LOCATION_CONTEXT_CATEGORY].find((c) => c.id === id)
 }
 
 export function findItemByName(name: string): InlineContextItem | undefined {

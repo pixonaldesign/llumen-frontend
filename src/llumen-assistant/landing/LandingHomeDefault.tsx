@@ -14,114 +14,16 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from '@phosphor-icons/react'
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { landingAssets as a, storyThumbLayers, type StoryThumbVariant } from './landingAssets'
 import { ConversationGrid } from './ConversationGrid'
+import { AUTOPLAY_MS, CAROUSEL_MS, tickerSlots, useCarousel, type CardLayout } from './carouselMotion'
 import { LandingTopBar, STUDIO_CATEGORIES, STUDIO_WORKSPACES, WorkspaceGlyph } from './LandingTopBar'
 import { SpecularActionButton } from './SpecularActionButton'
+import { useAnchoredTooltip } from './useAnchoredTooltip'
+import { VoteButton } from './VoteButton'
 import type { TopBarVariant } from '../prototypeChrome'
 import styles from './LandingHome.module.css'
-
-const AUTOPLAY_MS = 7000
-const CAROUSEL_GAP = 16
-const PEEK_COUNT = 2
-const PEEK_ONE_BELOW_VW = 1600
-const PEEK_NONE_BELOW_VW = 1150
-const HERO_SHARE = 1023 / 1857
-const HERO_SHARE_ONE_PEEK = 0.65
-const CAROUSEL_MS = 560
-const TICKER_MAX = 5
-
-function peekCountForViewport(width: number) {
-  if (width < PEEK_NONE_BELOW_VW) return 0
-  if (width < PEEK_ONE_BELOW_VW) return 1
-  return PEEK_COUNT
-}
-
-function wrap(index: number, length: number) {
-  return ((index % length) + length) % length
-}
-
-function tickerSlots(active: number, count: number, max = TICKER_MAX) {
-  if (count <= 0) return []
-  if (count <= max) {
-    return Array.from({ length: count }, (_, index) => ({ index, edge: false }))
-  }
-  const start = Math.max(0, Math.min(active - Math.floor(max / 2), count - max))
-  const moreLeft = start > 0
-  const moreRight = start + max < count
-  return Array.from({ length: max }, (_, offset) => {
-    const index = start + offset
-    const edge =
-      (offset === 0 && moreLeft && index !== active) ||
-      (offset === max - 1 && moreRight && index !== active)
-    return { index, edge }
-  })
-}
-
-type CardLayout = { left: number; width: number }
-
-type CardMetrics = {
-  heroWidth: number
-  peekWidth: number
-  trackWidth: number
-}
-
-function cardMetrics(trackWidth: number, peekCount: number): CardMetrics {
-  if (trackWidth <= 0) return { heroWidth: 0, peekWidth: 0, trackWidth: 0 }
-  if (peekCount === 0) {
-    return { heroWidth: trackWidth, peekWidth: trackWidth, trackWidth }
-  }
-  if (peekCount === 1) {
-    const heroWidth = trackWidth * HERO_SHARE_ONE_PEEK
-    const peekWidth = Math.max(0, trackWidth * (1 - HERO_SHARE_ONE_PEEK) - CAROUSEL_GAP)
-    return { heroWidth, peekWidth, trackWidth }
-  }
-  const designAvailable = Math.max(0, trackWidth - CAROUSEL_GAP * PEEK_COUNT)
-  const peekWidth = (designAvailable * (1 - HERO_SHARE)) / PEEK_COUNT
-  const gaps = CAROUSEL_GAP * peekCount
-  const heroWidth = Math.max(0, trackWidth - gaps - peekWidth * peekCount)
-  return { heroWidth, peekWidth, trackWidth }
-}
-
-function carouselLayout(
-  rel: number,
-  metrics: CardMetrics,
-  exiting: boolean,
-  peekCount: number,
-): CardLayout {
-  const { heroWidth, peekWidth, trackWidth } = metrics
-  if (trackWidth <= 0) return { left: 0, width: 0 }
-  if (exiting) return { left: -(heroWidth + CAROUSEL_GAP), width: heroWidth }
-  if (rel === 0) return { left: 0, width: heroWidth }
-  if (peekCount > 0 && rel <= peekCount) {
-    return {
-      left: heroWidth + CAROUSEL_GAP + (rel - 1) * (peekWidth + CAROUSEL_GAP),
-      width: peekWidth,
-    }
-  }
-  return { left: trackWidth + CAROUSEL_GAP, width: peekWidth }
-}
-
-function parkedLayout(metrics: CardMetrics, slot: number): CardLayout {
-  const width = metrics.peekWidth || metrics.heroWidth
-  const step = width + CAROUSEL_GAP
-  return { left: -(step * (slot + 1)), width }
-}
-
-function isOffstage(layout: CardLayout, trackWidth: number) {
-  return layout.width <= 0 || layout.left + layout.width <= 0 || layout.left >= trackWidth
-}
-
-function crossesOffstage(prev: CardLayout | undefined, next: CardLayout, trackWidth: number) {
-  if (!prev || trackWidth <= 0) return false
-  const prevOffLeft = prev.left + prev.width <= 1
-  const prevOffRight = prev.left >= trackWidth - 1
-  const nextOffLeft = next.left + next.width <= 1
-  const nextOffRight = next.left >= trackWidth - 1
-  return (prevOffLeft && nextOffRight) || (prevOffRight && nextOffLeft)
-}
 
 const AI_GRADIENTS = [
   'linear-gradient(180deg, #4a4969 0%, #7072ab 50%, #cd82a0 100%)',
@@ -294,7 +196,7 @@ const RECOMMENDED: {
     title: 'Building a Scalable Microservices Architecture From the Ground Up',
     kind: 'Story',
     sections: '19 Sections',
-    thumb: 'map',
+    thumb: 'bars',
   },
   {
     id: 'r2',
@@ -430,93 +332,6 @@ function PopulationChart({ chart }: { chart: NonNullable<AttentionItem['chart']>
         ))}
       </ul>
     </div>
-  )
-}
-
-function usePeekCount() {
-  const [peekCount, setPeekCount] = useState(() =>
-    typeof window === 'undefined' ? PEEK_COUNT : peekCountForViewport(window.innerWidth),
-  )
-
-  useLayoutEffect(() => {
-    const one = window.matchMedia(`(max-width: ${PEEK_ONE_BELOW_VW - 1}px)`)
-    const none = window.matchMedia(`(max-width: ${PEEK_NONE_BELOW_VW - 1}px)`)
-    const apply = () => setPeekCount(none.matches ? 0 : one.matches ? 1 : PEEK_COUNT)
-    apply()
-    one.addEventListener('change', apply)
-    none.addEventListener('change', apply)
-    return () => {
-      one.removeEventListener('change', apply)
-      none.removeEventListener('change', apply)
-    }
-  }, [])
-
-  return peekCount
-}
-
-function useAnchoredTooltip(enabled = true) {
-  const tooltipId = useId()
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
-
-  useEffect(() => {
-    if (!enabled) setPos(null)
-  }, [enabled])
-
-  const show = (event: { currentTarget: HTMLElement }) => {
-    if (!enabled) return
-    const rect = event.currentTarget.getBoundingClientRect()
-    setPos({ x: rect.left + rect.width / 2, y: rect.top - 8 })
-  }
-  const hide = () => setPos(null)
-
-  return {
-    describedBy: enabled && pos ? tooltipId : undefined,
-    show,
-    hide,
-    node: (label: string) =>
-      enabled && pos
-        ? createPortal(
-            <div id={tooltipId} className={styles.tooltip} role="tooltip" style={{ left: pos.x, top: pos.y }}>
-              {label}
-            </div>,
-            document.body,
-          )
-        : null,
-  }
-}
-
-function VoteButton({
-  label,
-  pressed,
-  onClick,
-  children,
-}: {
-  label: string
-  pressed: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
-  const tooltip = useAnchoredTooltip()
-
-  return (
-    <>
-      <button
-        type="button"
-        className={`${styles.voteBtn}${pressed ? ` ${styles.voteBtnActive}` : ''}`}
-        aria-pressed={pressed}
-        aria-label={label}
-        aria-describedby={tooltip.describedBy}
-        onClick={onClick}
-        onMouseEnter={tooltip.show}
-        onMouseMove={tooltip.show}
-        onMouseLeave={tooltip.hide}
-        onFocus={tooltip.show}
-        onBlur={tooltip.hide}
-      >
-        {children}
-      </button>
-      {tooltip.node(label)}
-    </>
   )
 }
 
@@ -689,101 +504,10 @@ export default function LandingHomeDefault({
   onOpenConversation,
 }: LandingHomeDefaultProps = {}) {
   const [filter, setFilter] = useState<string>(STUDIO_CATEGORIES[0])
-  const [active, setActive] = useState(0)
   const [playing, setPlaying] = useState(true)
   const [votes, setVotes] = useState<Record<string, 'up' | 'down' | null>>({})
-  const [trackWidth, setTrackWidth] = useState(0)
-  const [trackReady, setTrackReady] = useState(false)
-  const [exiting, setExiting] = useState<number[]>([])
-  const [incoming, setIncoming] = useState<number[]>([])
-  const peekCount = usePeekCount()
-  const trackRef = useRef<HTMLDivElement>(null)
-  const prevLayoutsRef = useRef<Record<string, CardLayout>>({})
-  const exitTimersRef = useRef<Record<number, number>>({})
-  const activeRef = useRef(0)
-  const peekCountRef = useRef(0)
-
   const count = ATTENTION.length
-  activeRef.current = active
-
-  const goTo = useCallback((index: number) => {
-    const current = activeRef.current
-    const next = wrap(index, count)
-    if (next === current) return
-    const forward = wrap(next - current, count)
-    const backward = wrap(current - next, count)
-    const peekCount = peekCountRef.current
-    if (forward > 0 && forward <= backward) {
-      setIncoming([])
-      const leaving = Array.from({ length: forward }, (_, step) => wrap(current + step, count))
-      setExiting((prev) => [...new Set([...prev, ...leaving])])
-      for (const itemIndex of leaving) {
-        window.clearTimeout(exitTimersRef.current[itemIndex])
-        exitTimersRef.current[itemIndex] = window.setTimeout(() => {
-          setExiting((prev) => prev.filter((value) => value !== itemIndex))
-          delete exitTimersRef.current[itemIndex]
-        }, CAROUSEL_MS)
-      }
-    } else {
-      for (const timer of Object.values(exitTimersRef.current)) window.clearTimeout(timer)
-      exitTimersRef.current = {}
-      setExiting([])
-      const visible = new Set(
-        [current, ...Array.from({ length: peekCount }, (_, step) => wrap(current + 1 + step, count))],
-      )
-      const entering = Array.from({ length: peekCount + 1 }, (_, step) => wrap(next + step, count)).filter(
-        (itemIndex) => !visible.has(itemIndex),
-      )
-      setIncoming(entering)
-    }
-    setActive(next)
-  }, [count])
-
-  useEffect(() => {
-    const timers = exitTimersRef.current
-    return () => {
-      Object.values(timers).forEach((timer) => window.clearTimeout(timer))
-    }
-  }, [])
-
-  const metrics = cardMetrics(trackWidth, peekCount)
-  peekCountRef.current = peekCount
-
-  useEffect(() => {
-    if (incoming.length === 0) return
-    let inner = 0
-    const outer = requestAnimationFrame(() => {
-      inner = requestAnimationFrame(() => setIncoming([]))
-    })
-    return () => {
-      cancelAnimationFrame(outer)
-      cancelAnimationFrame(inner)
-    }
-  }, [incoming])
-
-  useLayoutEffect(() => {
-    ATTENTION.forEach((item, index) => {
-      const rel = wrap(index - active, count)
-      const park = incoming.includes(index)
-      const layout = park
-        ? parkedLayout(metrics, rel)
-        : carouselLayout(rel, metrics, exiting.includes(index), peekCount)
-      prevLayoutsRef.current[item.id] = layout
-    })
-  }, [active, count, exiting, incoming, peekCount, trackWidth])
-
-  useLayoutEffect(() => {
-    const node = trackRef.current
-    if (!node) return
-    const apply = () => {
-      setTrackWidth(node.clientWidth)
-      setTrackReady(true)
-    }
-    apply()
-    const observer = new ResizeObserver(apply)
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
+  const { active, goTo, peekCount, trackRef, trackReady, slot } = useCarousel(count)
 
   useEffect(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -844,21 +568,13 @@ export default function LandingHomeDefault({
           <div className={styles.carousel}>
             <div className={`${styles.track}${trackReady ? ` ${styles.trackReady}` : ''}`} ref={trackRef}>
               {ATTENTION.map((item, index) => {
-                const rel = wrap(index - active, count)
-                const leaving = exiting.includes(index)
-                const park = incoming.includes(index)
-                const layout = park
-                  ? parkedLayout(metrics, rel)
-                  : carouselLayout(rel, metrics, leaving, peekCount)
-                const expanded = !park && (rel === 0 || leaving)
-                const offstage = isOffstage(layout, trackWidth)
-                const snap = !park && crossesOffstage(prevLayoutsRef.current[item.id], layout, trackWidth)
+                const { layout, expanded, park, offstage, snap } = slot(index)
                 return (
                   <AttentionCard
                     key={item.id}
                     item={item}
                     expanded={expanded}
-                    slotClass={park || !(leaving || rel === 0) ? styles.cardPeek : styles.cardHero}
+                    slotClass={expanded ? styles.cardHero : styles.cardPeek}
                     layout={layout}
                     offstage={offstage}
                     snap={snap}

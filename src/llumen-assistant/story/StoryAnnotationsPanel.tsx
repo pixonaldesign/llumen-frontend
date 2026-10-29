@@ -133,6 +133,14 @@ type PanelProps = {
 }
 
 function ToolBar({ onStart }: { onStart: (tool: AnnotationTool) => void }) {
+  const [tip, setTip] = useState<{ label: string; x: number; y: number } | null>(null)
+
+  const showTip = (label: string, target: HTMLElement) => {
+    const rect = target.getBoundingClientRect()
+    setTip({ label, x: rect.left + rect.width / 2, y: rect.top - 8 })
+  }
+  const hideTip = () => setTip(null)
+
   return (
     <div className={styles.toolbar} role="toolbar" aria-label="Add annotation">
       {ANNOTATION_TOOLS.map((tool) => (
@@ -141,12 +149,26 @@ function ToolBar({ onStart }: { onStart: (tool: AnnotationTool) => void }) {
           type="button"
           className={styles.toolBtn}
           aria-label={`Draw ${tool.label.toLowerCase()}`}
-          title={tool.label}
-          onClick={() => onStart(tool.id)}
+          onClick={() => {
+            hideTip()
+            onStart(tool.id)
+          }}
+          onMouseEnter={(event) => showTip(tool.label, event.currentTarget)}
+          onMouseLeave={hideTip}
+          onFocus={(event) => showTip(tool.label, event.currentTarget)}
+          onBlur={hideTip}
         >
           {TOOL_ICONS[tool.id](18)}
         </button>
       ))}
+      {tip
+        ? createPortal(
+            <div className={styles.toolTip} role="tooltip" style={{ left: tip.x, top: tip.y }}>
+              {tip.label}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }
