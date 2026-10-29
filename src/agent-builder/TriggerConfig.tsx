@@ -4,15 +4,20 @@ import { Card, Field, NumberInput, Select, type SelectOption } from './ConfigCon
 import { inputClass } from './configStyles'
 import { TIMEZONES } from './flowData'
 import type { EditorProps } from './kindEditor'
-import { Notice, TextAreaField, TextField } from './KindControls'
+import { Notice, Segmented, TextAreaField, TextField } from './KindControls'
 import {
   clockTime,
   scheduleCadence,
+  scheduleEnd,
+  SCHEDULE_MAX_SPAN,
+  todayIn,
   WEBHOOK_AUTH_LABEL,
   WEEKDAYS,
   type ChatInputParams,
   type HttpMethod,
+  type ScheduleEnds,
   type ScheduleParams,
+  type ScheduleSpan,
   type ScheduleUnit,
   type WebhookAuth,
   type WebhookParams,
@@ -46,13 +51,39 @@ const UNIT_OPTIONS: readonly SelectOption<ScheduleUnit>[] = [
 const WEEKDAY_OPTIONS: readonly SelectOption<string>[] = WEEKDAYS.map((day, index) => ({ id: String(index), label: day }))
 const TIMEZONE_OPTIONS: readonly SelectOption<string>[] = TIMEZONES.map((zone) => ({ id: zone, label: zone.replace(/_/g, ' ') }))
 
+const ENDS_OPTIONS: readonly { id: ScheduleEnds; label: string }[] = [
+  { id: 'never', label: 'Never' },
+  { id: 'after', label: 'After' },
+  { id: 'on', label: 'On a day' },
+]
+
+const SPAN_OPTIONS: readonly SelectOption<ScheduleSpan>[] = [
+  { id: 'days', label: 'Days' },
+  { id: 'weeks', label: 'Weeks' },
+  { id: 'months', label: 'Months' },
+  { id: 'years', label: 'Years' },
+]
+
+function monthAfter(day: string) {
+  const [year, month, date] = day.split('-').map(Number)
+  return new Date(Date.UTC(year, month, date)).toISOString().slice(0, 10)
+}
+
 export function ScheduleConfig({ params, set }: EditorProps<ScheduleParams>) {
   const timeId = useId()
   const everyId = useId()
   const dayId = useId()
+  const endAfterId = useId()
+  const endDateId = useId()
   const showsTime = params.unit === 'days' || params.unit === 'weeks' || params.unit === 'months'
+  const today = todayIn(params.timezone)
+  const end = scheduleEnd(params)
   return (
-    <Card icon={<CalendarBlank size={16} aria-hidden />} title="Schedule" description={`${scheduleCadence(params)}, ${params.timezone.replace(/_/g, ' ')} time.`}>
+    <Card
+      icon={<CalendarBlank size={16} aria-hidden />}
+      title="Schedule"
+      description={`${scheduleCadence(params)}, ${params.timezone.replace(/_/g, ' ')} time${end ? `, ${end}` : ''}.`}
+    >
       <div className={windowStyles.fieldRow}>
         <Field label="Run every" htmlFor={everyId} required>
           <NumberInput id={everyId} value={params.every} min={1} max={10_000} onChange={(every) => set({ every: every ?? 1 }, 'every')} />
@@ -92,6 +123,41 @@ export function ScheduleConfig({ params, set }: EditorProps<ScheduleParams>) {
       <Field label="Timezone">
         <Select label="Timezone" value={params.timezone} options={TIMEZONE_OPTIONS} onChange={(timezone) => set({ timezone }, 'timezone')} />
       </Field>
+      <Field label="Ends">
+        <Segmented
+          label="Ends"
+          value={params.ends}
+          options={ENDS_OPTIONS}
+          onChange={(ends) => set(ends === 'on' && !params.endDate ? { ends, endDate: monthAfter(today) } : { ends }, 'ends')}
+        />
+      </Field>
+      {params.ends === 'after' ? (
+        <div className={windowStyles.fieldRow}>
+          <Field label="Runs for" htmlFor={endAfterId} hint="Counted from the day you publish.">
+            <NumberInput id={endAfterId} value={params.endAfter} min={1} max={SCHEDULE_MAX_SPAN} onChange={(endAfter) => set({ endAfter: endAfter ?? 1 }, 'endAfter')} />
+          </Field>
+          <Field label="Unit">
+            <Select label="Unit" value={params.endAfterUnit} options={SPAN_OPTIONS} onChange={(endAfterUnit) => set({ endAfterUnit }, 'endAfterUnit')} />
+          </Field>
+        </div>
+      ) : null}
+      {params.ends === 'on' ? (
+        <Field
+          label="Last day"
+          htmlFor={endDateId}
+          hint="It fires for the last time on this day."
+          error={params.endDate && params.endDate < today ? 'This day has passed.' : undefined}
+        >
+          <input
+            id={endDateId}
+            type="date"
+            className={`${inputClass} ${styles.timeInput}`}
+            min={today}
+            value={params.endDate}
+            onChange={(event) => set({ endDate: event.target.value }, 'endDate')}
+          />
+        </Field>
+      ) : null}
       <Notice>Schedules fire only on the published Flow. Run Schedule Now runs it once here, as if it had fired.</Notice>
     </Card>
   )

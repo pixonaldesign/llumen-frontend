@@ -1,13 +1,14 @@
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Bell, Browsers, Lightbulb, MapTrifold, Robot, Stack, Tag } from '@phosphor-icons/react'
 import { evaluateRule, MEASURE_LABEL, ROW_MEASURES, type RuleVerdict } from './alerts'
 import { Card, Field, NumberInput, Select, SwitchRow, type SelectOption } from './ConfigControls'
 import { inputClass } from './configStyles'
-import { OPERATORS, operatorSpec, type Operator } from './conditions'
+import { OPERATORS, operatorSpec, type Combinator, type Operator } from './conditions'
 import { columnsOf } from './createAsset'
 import { plural, stepColumns, useFocusItem, type EditorContext, type EditorProps } from './kindEditor'
 import { AddButton, ColumnSelect, Notice, RemoveButton, Segmented, TemplateField, TextAreaField } from './KindControls'
 import {
+  ALERT_LIMITS,
   APP_NAVIGATION_LABEL,
   BOTTOM_LABEL,
   gisUpperIssue,
@@ -17,6 +18,7 @@ import {
   UPPER_LABEL,
   type AiFindingsParams,
   type AlertCondition,
+  type AlertGroup,
   type AlertMeasure,
   type AlertRule,
   type AppNavigation,
@@ -322,9 +324,16 @@ export function AiFindingsConfig({ params, set, ctx }: EditorProps<AiFindingsPar
                 />
               ))}
               <AddButton
+                disabled={alerts.rules.length >= ALERT_LIMITS.rules}
+                title={alerts.rules.length >= ALERT_LIMITS.rules ? `A Flow can have up to ${ALERT_LIMITS.rules} alert rules.` : undefined}
                 onClick={() =>
                   setAlerts(
-                    { rules: [...alerts.rules, { id: uid('rule'), label: `Rule ${alerts.rules.length + 1}`, level: 'alert', combinator: 'and', conditions: [] }] },
+                    {
+                      rules: [
+                        ...alerts.rules,
+                        { id: uid('rule'), label: `Rule ${alerts.rules.length + 1}`, level: 'alert', combinator: 'or', groups: [{ id: uid('grp'), combinator: 'and', conditions: [] }] },
+                      ],
+                    },
                     'addRule',
                   )
                 }
@@ -348,11 +357,20 @@ type AlertRuleEditorProps = {
 }
 
 function AlertRuleEditor({ rule, ctx, verdict, onChange, onRemove }: AlertRuleEditorProps) {
-  const hoursId = useId()
-  const update = (id: string, patch: Partial<AlertCondition>, key: string) =>
-    onChange({ conditions: rule.conditions.map((condition) => (condition.id === id ? ({ ...condition, ...patch } as AlertCondition) : condition)) }, `${id}:${key}`)
   const sources = ctx.upstream.filter((step) => step.category !== 'triggers')
-  const sourceOptions: SelectOption<string>[] = sources.map((step) => ({ id: step.id, label: step.name, meta: step.records ? plural(step.records.length, 'row') : 'Not run' }))
+  const framed = rule.groups.length > 1
+  const groupsFull = rule.groups.length >= ALERT_LIMITS.groups
+  const setGroup = (id: string, patch: Partial<AlertGroup>, key: string) =>
+    onChange({ groups: rule.groups.map((group) => (group.id === id ? { ...group, ...patch } : group)) }, `${id}:${key}`)
+  const addGroup = (
+    <AddButton
+      disabled={groupsFull}
+      title={groupsFull ? `A rule can have up to ${ALERT_LIMITS.groups} groups.` : undefined}
+      onClick={() => onChange({ groups: [...rule.groups, { id: uid('grp'), combinator: 'and', conditions: [] }] }, 'addGroup')}
+    >
+      Condition group
+    </AddButton>
+  )
 
   return (
     <div className={styles.item}>
@@ -362,79 +380,157 @@ function AlertRuleEditor({ rule, ctx, verdict, onChange, onRemove }: AlertRuleEd
         <RemoveButton label={`Remove ${rule.label || 'rule'}`} onClick={onRemove} />
       </div>
       <Segmented label="Level" value={rule.level} options={LEVELS} onChange={(level) => onChange({ level }, 'level')} />
-      {rule.conditions.map((condition, index) => (
+      {rule.groups.map((group, index) => (
+        <div key={group.id} className={styles.list}>
+          {index > 0 ? <Joiner value={rule.combinator} onChange={(combinator) => onChange({ combinator }, 'combinator')} /> : null}
+          <AlertGroupEditor
+            group={group}
+            label={framed ? `Group ${index + 1}` : undefined}
+            ctx={ctx}
+            sources={sources}
+            onChange={(patch, key) => setGroup(group.id, patch, key)}
+            onRemove={framed ? () => onChange({ groups: rule.groups.filter((other) => other.id !== group.id) }, `${group.id}:remove`) : undefined}
+          >
+            {framed ? null : addGroup}
+          </AlertGroupEditor>
+        </div>
+      ))}
+      {framed ? <div className={styles.addRow}>{addGroup}</div> : null}
+    </div>
+  )
+}
+
+function Joiner({ value, onChange }: { value: Combinator; onChange: (value: Combinator) => void }) {
+  return (
+    <div className={styles.joiner}>
+      <button type="button" className={styles.joinerToggle} onClick={() => onChange(value === 'and' ? 'or' : 'and')}>
+        {value.toUpperCase()}
+      </button>
+    </div>
+  )
+}
+
+type AlertGroupEditorProps = {
+  group: AlertGroup
+  label?: string
+  ctx: EditorContext
+  sources: EditorContext['upstream']
+  onChange: (patch: Partial<AlertGroup>, key: string) => void
+  onRemove?: () => void
+  children?: ReactNode
+}
+
+function AlertGroupEditor({ group, label, ctx, sources, onChange, onRemove, children }: AlertGroupEditorProps) {
+  const full = group.conditions.length >= ALERT_LIMITS.conditions
+  const fullTitle = full ? `A group can have up to ${ALERT_LIMITS.conditions} conditions.` : undefined
+  const update = (id: string, patch: Partial<AlertCondition>, key: string) =>
+    onChange({ conditions: group.conditions.map((condition) => (condition.id === id ? ({ ...condition, ...patch } as AlertCondition) : condition)) }, `${id}:${key}`)
+  const remove = (id: string) => onChange({ conditions: group.conditions.filter((other) => other.id !== id) }, `${id}:remove`)
+  const add = (condition: AlertCondition, key: string) => onChange({ conditions: [...group.conditions, condition] }, key)
+
+  const body = (
+    <>
+      {group.conditions.map((condition, index) => (
         <div key={condition.id} className={styles.list}>
-          {index > 0 ? (
-            <div className={styles.joiner}>
-              <button type="button" className={styles.joinerToggle} onClick={() => onChange({ combinator: rule.combinator === 'and' ? 'or' : 'and' }, 'combinator')}>
-                {rule.combinator.toUpperCase()}
-              </button>
-            </div>
-          ) : null}
-          {condition.type === 'forecast_event' ? (
-            <div className={styles.pairRow}>
-              <Field label="Within" htmlFor={hoursId}>
-                <NumberInput id={hoursId} value={condition.withinHours} min={1} max={72} unit="hours" onChange={(withinHours) => update(condition.id, { withinHours: withinHours ?? 24 }, 'hours')} />
-              </Field>
-              <Field label="A coming event">
-                <input className={inputClass} value={condition.event} placeholder="e.g. a sandstorm" onChange={(event) => update(condition.id, { event: event.target.value }, 'event')} />
-              </Field>
-              <RemoveButton label="Remove condition" onClick={() => onChange({ conditions: rule.conditions.filter((other) => other.id !== condition.id) }, `${condition.id}:remove`)} />
-            </div>
-          ) : (
-            <>
-              <div className={styles.pairRow}>
-                <Select label="Step" value={condition.sourceNodeId} options={sourceOptions} placeholder="Step" invalid={!condition.sourceNodeId} onChange={(sourceNodeId) => update(condition.id, { sourceNodeId, field: '' }, 'source')} />
-                <Select
-                  label="Measure"
-                  value={condition.measure}
-                  options={MEASURE_OPTIONS}
-                  onChange={(measure) =>
-                    update(
-                      condition.id,
-                      { measure, operator: ROW_MEASURES.includes(measure) || operatorSpec(condition.operator).group === 'Number' ? condition.operator : 'number__greater_than' },
-                      'measure',
-                    )
-                  }
-                />
-                <RemoveButton label="Remove condition" onClick={() => onChange({ conditions: rule.conditions.filter((other) => other.id !== condition.id) }, `${condition.id}:remove`)} />
-              </div>
-              <div className={condition.measure === 'row_count' ? styles.pairRow : styles.tripleRow}>
-                {condition.measure === 'row_count' ? null : (
-                  <ColumnSelect label="Field" value={condition.field} columns={stepColumns(ctx.upstream, condition.sourceNodeId)} placeholder="Field" invalid={!condition.field} onChange={(field) => update(condition.id, { field }, 'field')} />
-                )}
-                <Select
-                  label="Operator"
-                  value={condition.operator}
-                  options={ROW_MEASURES.includes(condition.measure) ? OPERATOR_OPTIONS : NUMBER_OPERATORS}
-                  onChange={(operator) => update(condition.id, { operator }, 'operator')}
-                />
-                {operatorSpec(condition.operator).unary ? (
-                  <span />
-                ) : (
-                  <input className={inputClass} value={condition.value} placeholder="Value" aria-label="Value" onChange={(event) => update(condition.id, { value: event.target.value }, 'value')} />
-                )}
-                <span />
-              </div>
-            </>
-          )}
+          {index > 0 ? <Joiner value={group.combinator} onChange={(combinator) => onChange({ combinator }, 'combinator')} /> : null}
+          <AlertConditionEditor condition={condition} ctx={ctx} sources={sources} onChange={(patch, key) => update(condition.id, patch, key)} onRemove={() => remove(condition.id)} />
         </div>
       ))}
       <div className={styles.addRow}>
         <AddButton
-          onClick={() =>
-            onChange(
-              { conditions: [...rule.conditions, { id: uid('ac'), type: 'data', sourceNodeId: sources[0]?.id, field: '', measure: 'any_row', operator: 'number__greater_than', value: '' }] },
-              'addData',
-            )
-          }
+          disabled={full}
+          title={fullTitle}
+          onClick={() => add({ id: uid('ac'), type: 'data', sourceNodeId: sources[0]?.id, field: '', measure: 'any_row', operator: 'number__greater_than', value: '' }, 'addData')}
         >
           Data condition
         </AddButton>
-        <AddButton onClick={() => onChange({ conditions: [...rule.conditions, { id: uid('ac'), type: 'forecast_event', withinHours: 24, event: '' }] }, 'addEvent')}>
+        <AddButton disabled={full} title={fullTitle} onClick={() => add({ id: uid('ac'), type: 'forecast_event', withinHours: 24, event: '' }, 'addEvent')}>
           Coming event
         </AddButton>
+        {children}
       </div>
+    </>
+  )
+  if (!label) return body
+  return (
+    <div className={styles.alertGroup}>
+      <div className={styles.alertGroupHead}>
+        <span>{label}</span>
+        {onRemove ? <RemoveButton label={`Remove ${label.toLowerCase()}`} onClick={onRemove} /> : null}
+      </div>
+      {body}
     </div>
+  )
+}
+
+type AlertConditionEditorProps = {
+  condition: AlertCondition
+  ctx: EditorContext
+  sources: EditorContext['upstream']
+  onChange: (patch: Partial<AlertCondition>, key: string) => void
+  onRemove: () => void
+}
+
+function AlertConditionEditor({ condition, ctx, sources, onChange, onRemove }: AlertConditionEditorProps) {
+  const hoursId = useId()
+  if (condition.type === 'forecast_event') {
+    return (
+      <div className={styles.pairRow}>
+        <Field label="Within" htmlFor={hoursId}>
+          <NumberInput id={hoursId} value={condition.withinHours} min={1} max={72} unit="hours" onChange={(withinHours) => onChange({ withinHours: withinHours ?? 24 }, 'hours')} />
+        </Field>
+        <Field label="A coming event">
+          <input className={inputClass} value={condition.event} placeholder="e.g. a sandstorm" onChange={(event) => onChange({ event: event.target.value }, 'event')} />
+        </Field>
+        <RemoveButton label="Remove condition" onClick={onRemove} />
+      </div>
+    )
+  }
+  const detached = Boolean(condition.sourceNodeId) && !sources.some((step) => step.id === condition.sourceNodeId)
+  const sourceOptions: SelectOption<string>[] = sources.map((step) => ({ id: step.id, label: step.name, meta: step.records ? plural(step.records.length, 'row') : 'Not run' }))
+  return (
+    <>
+      <div className={styles.pairRow}>
+        <Select
+          label="Step"
+          value={detached ? undefined : condition.sourceNodeId}
+          options={sourceOptions}
+          placeholder="Step"
+          invalid={!condition.sourceNodeId || detached}
+          onChange={(sourceNodeId) => onChange({ sourceNodeId, field: '' }, 'source')}
+        />
+        <Select
+          label="Measure"
+          value={condition.measure}
+          options={MEASURE_OPTIONS}
+          onChange={(measure) =>
+            onChange({ measure, operator: ROW_MEASURES.includes(measure) || operatorSpec(condition.operator).group === 'Number' ? condition.operator : 'number__greater_than' }, 'measure')
+          }
+        />
+        <RemoveButton label="Remove condition" onClick={onRemove} />
+      </div>
+      {detached ? (
+        <p className={styles.alertError} role="alert">
+          The step this reads isn’t upstream anymore. Pick a step that runs before this node.
+        </p>
+      ) : null}
+      <div className={condition.measure === 'row_count' ? styles.pairRow : styles.tripleRow}>
+        {condition.measure === 'row_count' ? null : (
+          <ColumnSelect label="Field" value={condition.field} columns={stepColumns(ctx.upstream, condition.sourceNodeId)} placeholder="Field" invalid={!condition.field} onChange={(field) => onChange({ field }, 'field')} />
+        )}
+        <Select
+          label="Operator"
+          value={condition.operator}
+          options={ROW_MEASURES.includes(condition.measure) ? OPERATOR_OPTIONS : NUMBER_OPERATORS}
+          onChange={(operator) => onChange({ operator }, 'operator')}
+        />
+        {operatorSpec(condition.operator).unary ? (
+          <span />
+        ) : (
+          <input className={inputClass} value={condition.value} placeholder="Value" aria-label="Value" onChange={(event) => onChange({ value: event.target.value }, 'value')} />
+        )}
+        <span />
+      </div>
+    </>
   )
 }

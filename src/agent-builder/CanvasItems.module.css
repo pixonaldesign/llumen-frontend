@@ -305,34 +305,118 @@
 /* ---------- Comments ---------- */
 
 .commentLayer {
+  --comment-surface: #121212;
+  --comment-field: #1c1c1c;
+  --comment-border: rgba(255, 255, 255, 0.1);
+  --comment-read: var(--color-neutral-500);
+  --comment-blue: var(--canvas-accent);
+  --comment-blue-hover: color-mix(in srgb, var(--canvas-accent) 88%, white);
+
   position: absolute;
   inset: 0;
   overflow: clip;
   pointer-events: none;
 }
 
-/* The pin's tail (bottom-left corner) marks the commented spot. */
+/*
+ * The pin's tail (bottom-left corner) marks the commented spot. A thread with something you haven't
+ * read (or the open one) is a blue pin; the rest are dark. Hovering a closed pin grows it into a
+ * dark preview, anchored on the tail.
+ */
 .commentPin {
   position: absolute;
   display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
+  grid-template-columns: auto auto;
+  align-items: center;
   margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 17px 17px 17px 3px;
-  background: #fff;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  padding: 2px;
+  border: 1px solid var(--comment-read);
+  border-radius: 18px 18px 18px 4px;
+  background: var(--comment-surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  text-align: left;
   transform: translateY(-100%);
   cursor: pointer;
   pointer-events: auto;
+  transition:
+    padding 180ms var(--lc-ease),
+    border-color 120ms,
+    background-color 120ms;
 }
 
+.commentPin[data-unread],
 .commentPin[data-open] {
-  box-shadow:
-    0 0 0 2px var(--canvas-accent),
-    0 6px 16px rgba(0, 0, 0, 0.4);
+  border-color: var(--comment-blue);
+  background: var(--comment-blue);
+}
+
+.commentPinDraft {
+  width: 34px;
+  height: 34px;
+  border-color: var(--comment-blue);
+  background: var(--comment-blue);
+  cursor: default;
+}
+
+.pinPreview {
+  display: grid;
+  grid-template-columns: 0fr;
+  grid-template-rows: 0fr;
+  transition:
+    grid-template-columns 180ms var(--lc-ease),
+    grid-template-rows 180ms var(--lc-ease);
+}
+
+.pinPreviewBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pinPreviewBody > * {
+  width: 216px;
+  margin-left: 10px;
+}
+
+.commentPin:not([data-open]):hover {
+  padding: 8px 12px 8px 8px;
+  background: var(--comment-surface);
+  transition-delay: 120ms;
+}
+
+.commentPin:not([data-open]):hover .pinPreview {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  transition-delay: 120ms;
+}
+
+.pinPreviewHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  white-space: nowrap;
+}
+
+.pinPreviewText {
+  display: -webkit-box;
+  margin: 0 0 0 10px;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 18px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.pinPreviewReplies {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .commentAvatar {
@@ -342,9 +426,8 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #73adf5, #a855f7);
   color: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1;
 }
@@ -352,25 +435,34 @@
 .commentAvatarSmall {
   width: 24px;
   height: 24px;
-  font-size: 11px;
+  font-size: 10px;
 }
 
-.commentCard {
+.commentCard,
+.commentComposer {
   position: absolute;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  width: 280px;
-  padding: var(--space-lg);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  background: rgba(30, 31, 36, 0.92);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
   color: rgba(255, 255, 255, 0.92);
   pointer-events: auto;
   animation: cardIn 160ms var(--lc-ease);
+}
+
+.commentCard {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  border: 1px solid var(--comment-border);
+  border-radius: 14px;
+  background: var(--comment-surface);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.commentComposer {
+  width: 300px;
+}
+
+.commentComposer > .commentBox {
+  background: var(--comment-surface);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes cardIn {
@@ -385,28 +477,92 @@
   align-items: center;
   gap: var(--space-sm);
   min-width: 0;
+  padding: 8px 8px 4px 16px;
+}
+
+.commentTitle {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.commentActions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.commentLayer .cardButton {
+  width: 28px;
+  height: 28px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.commentToolAnchor {
+  position: relative;
+  display: flex;
+}
+
+.commentMenuAnchor {
+  position: fixed;
+  z-index: 10;
+}
+
+/* The list scrolls edge to edge; each message carries its own inset. */
+.commentMessages {
+  max-height: 360px;
+  overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+}
+
+.commentMessages::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.commentMessages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.commentMessages::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+.commentMessage {
+  display: grid;
+  grid-template-columns: 24px auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-sm);
+  row-gap: 4px;
+  padding: 8px 8px 8px 16px;
+}
+
+.commentMessage .commentTime {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commentMessageBody {
+  grid-column: 2 / -1;
+  min-width: 0;
+  padding-right: 8px;
 }
 
 .commentAuthor {
   font-size: 13px;
   font-weight: 600;
   line-height: 18px;
+  white-space: nowrap;
 }
 
 .commentTime {
   color: rgba(255, 255, 255, 0.5);
   font-size: 12px;
   line-height: 16px;
-}
-
-.commentActions {
-  display: flex;
-  margin-left: auto;
-}
-
-.commentActions .cardButton {
-  width: 28px;
-  height: 28px;
 }
 
 .commentText {
@@ -417,15 +573,61 @@
   overflow-wrap: anywhere;
 }
 
+.commentMention {
+  color: var(--comment-blue);
+  font-weight: 500;
+}
+
+.commentReply {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 8px 16px 16px;
+}
+
+.commentReply > .commentAvatar {
+  margin-top: 6px;
+}
+
+.commentReply > .commentBox {
+  flex: 1;
+}
+
+/* ---------- Comment field ---------- */
+
+.commentBox {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'input send';
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--comment-border);
+  border-radius: 18px;
+  background: var(--comment-field);
+  transition: border-color 120ms;
+}
+
+.commentBox[data-focused] {
+  border-color: var(--comment-blue);
+}
+
+.commentBox[data-expanded] {
+  grid-template-areas:
+    'input input'
+    'tools send';
+  border-radius: 12px;
+}
+
 .commentInput {
-  min-height: 56px;
-  max-height: 200px;
+  grid-area: input;
+  min-width: 0;
   margin: 0;
-  padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  padding: 7px 8px 7px 14px;
+  overflow: hidden;
+  border: none;
   outline: none;
-  background: rgba(0, 0, 0, 0.22);
+  background: transparent;
   color: inherit;
   font: inherit;
   font-size: 13px;
@@ -434,19 +636,86 @@
   field-sizing: content;
 }
 
-.commentInput:focus {
-  border-color: rgba(255, 255, 255, 0.28);
+.commentInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 
-.commentFoot {
+.commentBox[data-expanded] .commentInput {
+  min-height: 48px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--comment-border);
+}
+
+.commentTools {
+  grid-area: tools;
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 2px;
+  padding: 4px;
 }
 
-.commentHint {
-  margin-right: auto;
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 12px;
-  line-height: 16px;
+.commentBox[data-editing] .commentTools {
+  grid-column: 1 / -1;
+}
+
+.commentLayer .commentTool {
+  width: 28px;
+  height: 28px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 16px;
+}
+
+.commentEditActions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-left: auto;
+  padding-right: 2px;
+}
+
+/* Scoped to the box so the blue fill wins over the shared bar button's. */
+.commentBox .commentSend {
+  grid-area: send;
+  width: 24px;
+  height: 24px;
+  margin-right: 5px;
+  background: var(--comment-blue);
+  color: #fff;
+}
+
+.commentBox .commentSend:hover:not(:disabled) {
+  background: var(--comment-blue-hover);
+}
+
+.commentBox .commentSend:disabled {
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.55);
+  opacity: 1;
+}
+
+.commentBox[data-expanded] .commentSend {
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+}
+
+.commentPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 2;
+}
+
+.emojiGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 28px);
+  gap: 2px;
+  padding: 6px;
+}
+
+.mentionMenu {
+  min-width: 200px;
+}
+
+.mentionMenu .commentAvatar {
+  margin-right: 2px;
 }

@@ -1,10 +1,11 @@
 import { ChatCircleDots, Envelope, Globe, ListBullets } from '@phosphor-icons/react'
 import { Card, Field, Select, type SelectOption } from './ConfigControls'
 import { inputClass } from './configStyles'
-import { SOURCES } from './flowData'
+import { isSecretHeader } from './apiExchange'
+import { SOURCES, SOURCES_BY_ID } from './flowData'
 import type { EditorProps } from './kindEditor'
-import { AddButton, Notice, RemoveButton, Segmented, TemplateField, TextField } from './KindControls'
-import { bodyAllowed, emailList, uid, urlIssue, type ApiRequestParams, type ChatMessageParams, type EmailParams, type HttpMethod } from './nodeKinds'
+import { AddButton, Notice, ReferenceInput, RemoveButton, Segmented, TemplateField, TextField } from './KindControls'
+import { apiConnection, bodyAllowed, emailList, uid, urlIssue, type ApiRequestParams, type ChatMessageParams, type EmailParams, type HttpMethod } from './nodeKinds'
 import styles from './KindConfig.module.css'
 import windowStyles from './NodeConfigWindow.module.css'
 
@@ -17,14 +18,27 @@ const RESPONSE_TYPES = [
   { id: 'approval', label: 'Approve or reject' },
 ] as const
 
+/** How references fill in an action that runs once, not once per row. */
+function TemplateHint() {
+  return (
+    <>
+      <code className={styles.hintCode}>{'{{field}}'}</code> reads the first incoming row; <code className={styles.hintCode}>{'{{step.field}}'}</code> lists that field from every row of an earlier step. A reference
+      with no value fails the step.
+    </>
+  )
+}
+
 export function ChatMessageConfig({ params, set, ctx }: EditorProps<ChatMessageParams>) {
   const waits = params.mode === 'send_and_wait'
   return (
-    <Card icon={<ChatCircleDots size={16} aria-hidden />} title="Chat message" description="Posts a message in the Flow’s chat session.">
+    <Card icon={<ChatCircleDots size={16} aria-hidden />} title="Chat message" description="Posts one message per run in the Flow’s chat session, not one per row.">
       <Field label="Mode">
         <Segmented label="Mode" value={params.mode} options={CHAT_MODES} onChange={(mode) => set({ mode }, 'mode')} />
       </Field>
       {waits && !ctx.hasChatTrigger ? <Notice tone="error">Send and wait needs a Chat trigger in this flow; it won’t compile without one.</Notice> : null}
+      {waits && ctx.hasChatTrigger ? (
+        <Notice>In a run from the Chat trigger, the run pauses here until someone replies. Its output opens with the reply buttons; answer there to resume it.</Notice>
+      ) : null}
       {waits ? (
         <Field label="Reply">
           <Segmented label="Reply" value={params.responseType} options={RESPONSE_TYPES} onChange={(responseType) => set({ responseType }, 'responseType')} />
@@ -44,6 +58,7 @@ export function ChatMessageConfig({ params, set, ctx }: EditorProps<ChatMessageP
         value={params.message}
         references={ctx.references}
         placeholder="e.g. {{rows.count}} sites need an inspection."
+        hint={<TemplateHint />}
         error={params.message.trim() ? undefined : 'Write the message to send.'}
         onChange={(message) => set({ message }, 'message')}
       />
@@ -60,7 +75,7 @@ const addressError = (text: string) => {
 
 export function EmailConfig({ params, set, ctx }: EditorProps<EmailParams>) {
   return (
-    <Card icon={<Envelope size={16} aria-hidden />} title="Email" description="Sends one email per run. Separate addresses with commas.">
+    <Card icon={<Envelope size={16} aria-hidden />} title="Email" description="Sends one email per run, not one per row. Separate addresses with commas.">
       <TemplateField
         label="To"
         required
@@ -82,6 +97,8 @@ export function EmailConfig({ params, set, ctx }: EditorProps<EmailParams>) {
         rows={6}
         value={params.body}
         references={ctx.references}
+        placeholder="e.g. Today’s run flagged {{rows.count}} sites."
+        hint={<TemplateHint />}
         error={params.body.trim() ? undefined : 'Write the email body.'}
         onChange={(body) => set({ body }, 'body')}
       />
@@ -102,49 +119,90 @@ export function ApiRequestConfig({ params, set, ctx }: EditorProps<ApiRequestPar
   const updateHeader = (id: string, patch: Partial<ApiRequestParams['headers'][number]>, key: string) =>
     set({ headers: params.headers.map((header) => (header.id === id ? { ...header, ...patch } : header)) }, `header:${id}:${key}`)
   const canSend = bodyAllowed(params.method)
+  const { source, endpoint } = apiConnection(params)
   return (
     <>
-      <Card icon={<Globe size={16} aria-hidden />} title="Request" description="Calls the URL once per run. Responses over 1 MiB fail the step.">
+      <Card icon={<Globe size={16} aria-hidden />} title="Request" description="Sends one request per run, not one per row. A body over 1 MiB fails the step; a longer reply is cut short.">
         <Segmented label="Request mode" value={params.mode} options={API_MODES} onChange={(mode) => set({ mode }, 'mode')} />
         {params.mode === 'source' ? (
-          <Field label="Connection" required>
-            <Select label="Connection" value={params.sourceId} options={API_SOURCES} placeholder="Select the API connection" invalid={!params.sourceId} onChange={(sourceId) => set({ sourceId }, 'sourceId')} />
-          </Field>
-        ) : (
-          <div className={styles.methodRow}>
-            <Field label="Method">
-              <Select label="Method" value={params.method} options={METHOD_OPTIONS} onChange={(method) => set({ method, body: bodyAllowed(method) ? params.body : '' }, 'method')} />
-            </Field>
-            <TemplateField label="URL" required mono value={params.url} references={ctx.references} placeholder="https://api.example.com/alerts" error={urlIssue(params.url)} onChange={(url) => set({ url }, 'url')} />
-          </div>
-        )}
-        <Notice>Requests to private, loopback, and link-local addresses are blocked.</Notice>
-      </Card>
-      <Card icon={<ListBullets size={16} aria-hidden />} title="Headers">
-        <div className={styles.list}>
-          {params.headers.map((header, index) => (
-            <div key={header.id} className={styles.pairRow}>
-              <input
-                className={`${inputClass} ${styles.mono}`}
-                value={header.key}
-                placeholder="Header"
-                aria-label="Header name"
-                aria-invalid={(header.key.trim() && keys.indexOf(header.key.trim().toLowerCase()) !== index) || undefined}
-                onChange={(event) => updateHeader(header.id, { key: event.target.value }, 'key')}
+          <>
+            <Field label="Connection" required>
+              <Select
+                label="Connection"
+                value={source ? params.sourceId : undefined}
+                options={API_SOURCES}
+                placeholder="Select the API connection"
+                invalid={!source}
+                onChange={(sourceId) => set({ sourceId, endpointId: SOURCES_BY_ID[sourceId]?.endpoints?.[0]?.id }, 'sourceId')}
               />
-              <input className={`${inputClass} ${styles.mono}`} value={header.value} placeholder="Value" aria-label="Header value" onChange={(event) => updateHeader(header.id, { value: event.target.value }, 'value')} />
-              <RemoveButton label="Remove header" onClick={() => set({ headers: params.headers.filter((other) => other.id !== header.id) }, `header:${header.id}:remove`)} />
+            </Field>
+            {source ? (
+              <Field label="Request" required>
+                <Select
+                  label="Request"
+                  value={endpoint ? params.endpointId : undefined}
+                  options={(source.endpoints ?? []).map((item) => ({ id: item.id, label: item.name, meta: `${item.method} ${item.path}` }))}
+                  placeholder="Choose the request to make"
+                  invalid={!endpoint}
+                  onChange={(endpointId) => set({ endpointId }, 'endpointId')}
+                />
+              </Field>
+            ) : null}
+            <Notice>The connection signs the request in with its saved credentials, so there are no keys to add here.</Notice>
+          </>
+        ) : (
+          <>
+            <div className={styles.methodRow}>
+              <Field label="Method">
+                <Select label="Method" value={params.method} options={METHOD_OPTIONS} onChange={(method) => set({ method, body: bodyAllowed(method) ? params.body : '' }, 'method')} />
+              </Field>
+              <TemplateField label="URL" required mono value={params.url} references={ctx.references} placeholder="https://api.example.com/alerts" error={urlIssue(params.url)} onChange={(url) => set({ url }, 'url')} />
             </div>
-          ))}
-          <AddButton onClick={() => set({ headers: [...params.headers, { id: uid('h'), key: '', value: '' }] }, 'addHeader')}>Add header</AddButton>
-        </div>
+            <Notice>Requests to private, loopback, and link-local addresses are blocked.</Notice>
+          </>
+        )}
       </Card>
-      {canSend ? (
-        <Card title="Body">
-          <TemplateField label="Body" multiline mono rows={5} value={params.body} references={ctx.references} placeholder='{"site": "{{site}}"}' onChange={(body) => set({ body }, 'body')} />
-        </Card>
-      ) : (
-        <Notice>A {params.method} request carries no body.</Notice>
+      {params.mode === 'source' ? null : (
+        <>
+          <Card
+            icon={<ListBullets size={16} aria-hidden />}
+            title="Headers"
+            description="Values can use references. Keys and tokens, such as Authorization, are hidden here and in the run’s output."
+          >
+            <div className={styles.list}>
+              {params.headers.map((header, index) => (
+                <div key={header.id} className={styles.headerRow}>
+                  <input
+                    className={`${inputClass} ${styles.mono}`}
+                    value={header.key}
+                    placeholder="Header"
+                    aria-label="Header name"
+                    aria-invalid={(header.key.trim() && keys.indexOf(header.key.trim().toLowerCase()) !== index) || undefined}
+                    onChange={(event) => updateHeader(header.id, { key: event.target.value }, 'key')}
+                  />
+                  <ReferenceInput
+                    label="Header value"
+                    mono
+                    secret={isSecretHeader(header.key)}
+                    value={header.value}
+                    placeholder="Value"
+                    references={ctx.references}
+                    onChange={(value) => updateHeader(header.id, { value }, 'value')}
+                  />
+                  <RemoveButton label="Remove header" onClick={() => set({ headers: params.headers.filter((other) => other.id !== header.id) }, `header:${header.id}:remove`)} />
+                </div>
+              ))}
+              <AddButton onClick={() => set({ headers: [...params.headers, { id: uid('h'), key: '', value: '' }] }, 'addHeader')}>Add header</AddButton>
+            </div>
+          </Card>
+          {canSend ? (
+            <Card title="Body">
+              <TemplateField label="Body" multiline mono rows={5} value={params.body} references={ctx.references} placeholder='{"site": "{{site}}"}' onChange={(body) => set({ body }, 'body')} />
+            </Card>
+          ) : (
+            <Notice>A {params.method} request carries no body.</Notice>
+          )}
+        </>
       )}
     </>
   )

@@ -440,6 +440,33 @@ button.viewAll:hover {
   object-position: top center;
 }
 
+/* The asset as drawn: a map or chart at a fixed height, a table at its rows' height. */
+.assetVisual {
+  display: flex;
+  height: 200px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.assetVisual[data-preview='chart'] {
+  padding: var(--space-lg) var(--space-lg) var(--space-sm);
+}
+
+/* The chart sizes itself for the config window; here it fills the box, in the window's font. */
+.assetVisual[data-preview='chart'] > div {
+  flex: 1;
+  height: 100%;
+  padding: 0;
+}
+
+.assetVisual text {
+  font-family: inherit;
+}
+
+.assetVisual[data-preview='table'] {
+  display: block;
+  height: auto;
+}
+
 .appCaption {
   display: flex;
   align-items: center;

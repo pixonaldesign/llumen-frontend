@@ -132,23 +132,10 @@ export function cardBlur(cards: CanvasCards, ambient: CanvasAmbient) {
   return noisy ? Math.max(cards.blur, GRAIN_SHIELD_BLUR) : cards.blur
 }
 
-const luminance = (hex: string) => {
-  const value = Number.parseInt(hex.slice(1), 16)
-  return (0.2126 * ((value >> 16) & 255) + 0.7152 * ((value >> 8) & 255) + 0.0722 * (value & 255)) / 255
-}
-
-/** Whether card text should turn dark: the fill, laid over a dark canvas, ends up light. */
-export function cardsAreLight(cards: CardSurface) {
-  if (cards.fill === 'default') return false
-  const stops = cards.fill === 'solid' ? [cards.top] : [cards.top, cards.bottom]
-  const lightness = stops.reduce((sum, stop) => sum + stop.opacity * luminance(stop.color) + (1 - stop.opacity) * 0.1, 0) / stops.length
-  return lightness > 0.6
-}
-
 export const tintCss = ({ color, opacity }: Tint) => `rgba(${hexToRgb(color)}, ${opacity})`
 
 export const DEFAULT_CANVAS_LOOK: CanvasLook = {
-  paint: { ...paintOf(DEFAULT_APPEARANCE), fill: 'solid', colors: ['#000000', '#2563eb', '#22d3ee', '#a855f7'] },
+  paint: { ...paintOf(DEFAULT_APPEARANCE), fill: 'solid', colors: ['#050f1a', '#2563eb', '#22d3ee', '#a855f7'], grain: 0.58 },
   dots: DEFAULT_CANVAS_DOTS,
   ambient: DEFAULT_AMBIENT,
   cards: DEFAULT_CANVAS_CARDS,
@@ -165,7 +152,7 @@ export const DOT_SWATCHES: readonly { name: string; color: string }[] = [
 ]
 
 /** Versioned so saves made before the defaults last changed don't override them. */
-const STORAGE_KEY = 'llumen.canvasLook.v2'
+const STORAGE_KEY = 'llumen.canvasLook.v3'
 const HEX = /^#[0-9a-f]{6}$/i
 
 const isHex = (value: unknown): value is string => typeof value === 'string' && HEX.test(value)

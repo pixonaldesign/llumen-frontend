@@ -1,9 +1,11 @@
-import { nodeFields, nodeText, type CanvasNode, type NodeField } from './nodeCatalog'
-import { paramsFor, scheduleCadence, WEBHOOK_AUTH_LABEL, type ScheduleParams } from './nodeKinds'
+import { nodeFields, nodeText, type CanvasNode, type FieldPart, type NodeField } from './nodeCatalog'
+import { dayOf, paramsFor, scheduleCadenceParts, scheduleEnd, spanEnd, WEBHOOK_AUTH_LABEL, type ScheduleParams } from './nodeKinds'
 
 /** What trigger cards read from the Flow around them. */
 export type FlowState = {
   published: boolean
+  /** When the Flow was published, in ms; a schedule that ends after a span counts from it. */
+  publishedAt?: number
   /** The trigger a run that names none starts from; set only when there's more than one to choose from. */
   defaultTriggerId?: string
 }
@@ -80,8 +82,16 @@ function nextFire(params: ScheduleParams, now: Date) {
   }
 }
 
-function nextRunText(params: ScheduleParams, now = new Date()) {
+/** The last day the schedule fires, at UTC midnight; undefined when it never ends. */
+function lastDay(params: ScheduleParams, publishedAt?: number) {
+  if (params.ends === 'on') return dayOf(params.endDate)
+  return params.ends === 'after' && publishedAt !== undefined ? spanEnd(params, publishedAt) : undefined
+}
+
+function nextRunText(params: ScheduleParams, publishedAt?: number, now = new Date()) {
   const next = nextFire(params, now)
+  const last = lastDay(params, publishedAt)
+  if (last && next.getTime() >= last.getTime() + DAY_MS) return 'Ended'
   const wall = wallClock(now, params.timezone)
   const time = `${String(next.getUTCHours()).padStart(2, '0')}:${String(next.getUTCMinutes()).padStart(2, '0')}`
   const days = Math.round((Date.UTC(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate()) - Date.UTC(wall.getUTCFullYear(), wall.getUTCMonth(), wall.getUTCDate())) / DAY_MS)
@@ -112,7 +122,22 @@ const hostOf = (url: string) => {
   }
 }
 
-/** The value rows and text a card shows, ignoring `hideDetails`; trigger rows also depend on the Flow. */
+/** A badge that names what it shows, e.g. "Next run tomorrow, 07:00". */
+const labelled = (label: string, value: string): NodeField => ({
+  label,
+  value: `${label} ${value}`,
+  parts: [
+    { text: label, role: 'label' },
+    { text: value, role: 'value' },
+  ],
+})
+
+function runsField(params: ScheduleParams): NodeField {
+  const parts: FieldPart[] = [...scheduleCadenceParts(params), { text: '·', role: 'label' }, { text: params.timezone.replace(/_/g, ' '), role: 'value' }]
+  return { label: 'Runs', value: parts.map((part) => part.text).join(' '), parts }
+}
+
+/** The value rows and text a card shows; trigger rows also depend on the Flow. */
 export function cardDetails(node: CanvasNode, isTrigger: boolean, flow: FlowState) {
   return { fields: isTrigger ? triggerFields(node, flow) : nodeFields(node), text: nodeText(node) }
 }
@@ -123,9 +148,13 @@ export function triggerFields(node: CanvasNode, flow: FlowState): NodeField[] {
   switch (node.type) {
     case 'scheduleTrigger': {
       const params = paramsFor('scheduleTrigger', node.config.params)
+      const publishedAt = flow.published ? flow.publishedAt : undefined
+      const end = scheduleEnd(params, publishedAt)?.replace(/^ends /, '')
+      const next = flow.published ? nextRunText(params, publishedAt) : undefined
       return [
-        { label: 'Runs', value: `${scheduleCadence(params)} · ${params.timezone.replace(/_/g, ' ')}` },
-        flow.published ? { label: 'Next run', value: nextRunText(params) } : pending('Next run'),
+        runsField(params),
+        ...(end ? [labelled('Ends', end)] : []),
+        next === undefined ? pending('Next run') : next === 'Ended' ? { label: 'Next run', value: next } : labelled('Next run', next.replace(/^(Today|Tomorrow)/, (day) => day.toLowerCase())),
       ]
     }
     case 'webhook': {

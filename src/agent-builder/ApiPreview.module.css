@@ -1,0 +1,90 @@
+.api {
+  composes: email from './EmailPreview.module.css';
+}
+
+.status {
+  composes: status from './EmailPreview.module.css';
+}
+
+.sheet {
+  composes: sheet from './EmailPreview.module.css';
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+}
+
+.sheet[data-tone='error'] {
+  border-color: rgb(252 165 165 / 0.3);
+}
+
+.label {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.line {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.code {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.code[data-tone='ok'] {
+  color: #86efac;
+}
+
+.code[data-tone='error'] {
+  color: #fca5a5;
+}
+
+.caption {
+  margin: var(--space-xs) 0 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: var(--space-sm);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.field dt {
+  color: rgba(255, 255, 255, 0.45);
+  overflow-wrap: anywhere;
+}
+
+.field dd {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  overflow-wrap: anywhere;
+}
+
+.body {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

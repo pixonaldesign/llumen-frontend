@@ -5,7 +5,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ComponentType,
   type CSSProperties,
   type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
@@ -41,8 +40,6 @@ import { HubChatbox } from '../llumen-assistant/landing/HubChatbox'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import { useCoverPage } from '../llumen-assistant/pageCover'
 import { autoLayout, type MeasuredNode } from './autoLayout'
-import { NodeCard } from './NodeCard'
-import { NodeCardMinimal } from './NodeCardMinimal'
 import { NodeCardSections } from './NodeCardSections'
 import { AppearancePanel } from './AppearancePanel'
 import { AmbientLayer } from './AmbientLayer'
@@ -63,6 +60,7 @@ import {
   SECTION_MIN_SIZE,
   TEXT_DEFAULT_SIZE,
   type CanvasComment,
+  type CommentMessage,
   type CanvasSection,
   type CanvasText,
   type CanvasTool,
@@ -87,7 +85,7 @@ import { NodeActionsBar } from './NodeActionsBar'
 import { StickyNoteCard } from './StickyNoteCard'
 import { StickyToolbar } from './StickyToolbar'
 import { STICKY_MIN_SIZE, stickyStyle, type StickyStyle } from './stickyNote'
-import { cardDetails, defaultTriggerId, executableTriggers, type FlowState } from './triggerCard'
+import { defaultTriggerId, executableTriggers, type FlowState } from './triggerCard'
 import { nodeDataSides, nodeDataViews } from './cardSections'
 import { NodeConfigWindow, type NeighbourNode, type UpstreamNode } from './NodeConfigWindow'
 import { NodeDataDialog, type DataGroup } from './NodeDataDialog'
@@ -95,7 +93,6 @@ import { SHORTCUTS } from './shortcuts'
 import {
   DEFAULT_CANVAS_LOOK,
   cardBlur,
-  cardsAreLight,
   hexToRgb,
   readCanvasLook,
   saveCanvasLook,
@@ -113,11 +110,12 @@ import {
   type ApplyScope,
   type NodeAppearance,
 } from './nodeAppearance'
-import type { InputSource, NodeCardProps, PortHandlers, ResizeEdge, RunScope } from './nodeParts'
+import type { ChatReply } from './chatMessage'
+import type { InputSource, PortHandlers, ResizeEdge, RunScope } from './nodeParts'
 import { useDismiss } from './useDismiss'
 import { NodeLibrarySheet } from './NodeLibrarySheet'
 import { buildShowcase, layoutShowcase, type CanvasGroupLabel } from './showcase'
-import { nodeAliases, planRun, runRows } from './nodeRuntime'
+import { nodeAliases, planRun, runRows, type PlannedStep } from './nodeRuntime'
 import { addBranch, kindInputLayers, kindWiringIssue, removeBranch, type AnyParams, type WiredStep } from './nodeKinds'
 import {
   createNode,
@@ -143,7 +141,7 @@ import {
   type Size,
   type WorkflowEdge,
 } from './nodeCatalog'
-import { CARD_GLOWS, cardLayout, categoryVars, readCardGlow, saveCardGlow, type CardGlow, type CardGlowConfig } from './cardGlow'
+import { cardLayout, categoryVars, readCardGlow, saveCardGlow, type CardGlowConfig } from './cardGlow'
 import { CardStylePanel } from './CardStylePanel'
 import { RayShader, SmokeShader } from './CanvasShader'
 import styles from './AgentCanvas.module.css'
@@ -153,29 +151,10 @@ const GRID_SIZE = 20
 const CARD_INTERACTIVE =
   'button, input, textarea, select, a, [contenteditable="true"], [role="tab"], [role="tablist"], [role="tabpanel"], [data-node-interactive]'
 
-/** Each card style is its own layout; the canvas background is set separately. */
-const MINIMAL_CARDS: Record<CardGlow, ComponentType<NodeCardProps>> = { classic: NodeCardMinimal, sections: NodeCardSections, panel: NodeCardSections, gradient: NodeCardSections, iconHeader: NodeCardSections }
+/** The card's built-in padding and corner radius (px), shown by the appearance sliders. */
+const FRAME_DEFAULTS = { padding: 16, radius: 20 }
 
-type NodeStyle = 'detailed' | 'minimal'
-const NODE_STYLES: readonly { id: NodeStyle; label: string; description: string }[] = [
-  { id: 'detailed', label: 'Detailed', description: 'Header, content, and run footer' },
-  { id: 'minimal', label: 'Minimal', description: 'Content first, details on hover' },
-]
-/** Versioned so saves made before the defaults last changed don't override them. */
-const NODE_STYLE_KEY = 'llumen.nodeStyle.v2'
-/** Each style's built-in padding and corner radius (px), shown by the appearance sliders. */
-const DETAILED_FRAME_DEFAULTS = { padding: 16, radius: 20 }
-const MINIMAL_FRAME_DEFAULTS = { padding: 16, radius: 20 }
-
-function readNodeStyle(): NodeStyle {
-  try {
-    return localStorage.getItem(NODE_STYLE_KEY) === 'detailed' ? 'detailed' : 'minimal'
-  } catch {
-    return 'minimal'
-  }
-}
-
-/** Shows the card style menu, canvas background settings, and per-node appearance button. */
+/** Shows the card style and canvas background settings, and the per-node appearance button. */
 const DEV_TOOLS_KEY = 'llumen.devTools'
 
 function readDevTools() {
@@ -316,6 +295,10 @@ function shortcutTool(event: KeyboardEvent): CanvasTool | null {
   return ({ KeyT: 'text', KeyC: 'comment' } as Record<string, CanvasTool>)[event.code] ?? null
 }
 
+function newMessage(text: string): CommentMessage {
+  return { id: createId('message'), text, author: COMMENT_AUTHOR, createdAt: Date.now() }
+}
+
 function withoutItem(doc: CanvasDoc, kind: ItemKind, id: string): CanvasDoc {
   const keep = (item: { id: string }) => item.id !== id
   if (kind === 'section') return { ...doc, sections: doc.sections.filter(keep) }
@@ -363,14 +346,10 @@ function zoomedView(current: Viewport, screenX: number, screenY: number, factor:
 /** Share of each zoom level (just before the grid doubles) over which the in-between dots fade in. */
 const GRID_FADE_BAND = 0.1
 
-/** Read by node cards: the card surface under `[data-card-surface]`, and the ports everywhere. */
+/** Read by node cards: the blur behind them, the ports, and the failure colour. */
 function cardStyle({ cards, ports, ambient, result }: CanvasLook): CSSProperties {
   const blur = cardBlur(cards, ambient)
-  const top = tintCss(cards.top)
   return {
-    '--card-top': top,
-    '--card-bottom': cards.fill === 'gradient' ? tintCss(cards.bottom) : top,
-    '--card-line': tintCss(cards.border),
     '--card-backdrop': blur > 0 ? `blur(${blur}px)` : 'none',
     '--canvas-port-size': `${ports.size}px`,
     '--port-fill': tintCss(ports.fill),
@@ -380,7 +359,7 @@ function cardStyle({ cards, ports, ambient, result }: CanvasLook): CSSProperties
   } as CSSProperties
 }
 
-/** Read by minimal cards: the style's padding and corner radius, and under `[data-section-surface]` the surface of the styles that tint the card themselves. */
+/** Read by node cards: their padding and corner radius, and under `[data-section-surface]` the fill picked in the card style panel. */
 function cardLookStyle(config: CardGlowConfig): CSSProperties {
   const { padding, radius } = cardLayout(config)
   const { surface } = config
@@ -580,6 +559,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const [layouts, setLayouts] = useState<Record<string, MeasuredNode>>({})
   const [runs, setRuns] = useState<Record<string, NodeRun>>(SHOWCASE.runs)
   const runTimersRef = useRef<number[]>([])
+  /** A flow run parked on Send and wait: the steps it still owes and how it was started, for the reply to resume. */
+  const parkedRunRef = useRef<{ pending: readonly string[]; triggerId?: string; simulate?: RunOutcome; forcedFailure?: string; failed: boolean } | null>(null)
   const [activeRuns, setActiveRuns] = useState(0)
   /**
    * The last flow run's outcome while its glow shows; `id` restarts the glow for back-to-back results.
@@ -592,10 +573,10 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const [draggingNode, setDraggingNode] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('builder')
   const [libraryOpen, setLibraryOpen] = useState(false)
-  const [nodeStyle, setNodeStyle] = useState<NodeStyle>(readNodeStyle)
   const [devTools, setDevTools] = useState(readDevTools)
   /** Schedules, webhooks, and chat only start the published Flow; their cards show what publishing assigns. */
-  const [published, setPublished] = useState(false)
+  const [publishedAt, setPublishedAt] = useState<number | null>(null)
+  const published = publishedAt !== null
   const [cardLook, setCardLook] = useState<CardGlowConfig>(readCardGlow)
   const [cardStyleOpen, setCardStyleOpen] = useState(false)
   const updateCardLook = (next: CardGlowConfig) => {
@@ -955,12 +936,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const setNodeNote = (id: string, note: string) =>
     commit({ ...doc, nodes: doc.nodes.map((node) => (node.id === id ? { ...node, config: { ...node.config, note } } : node)) })
 
-  const toggleNodeDetails = (id: string) =>
-    commit({
-      ...doc,
-      nodes: doc.nodes.map((node) => (node.id === id ? { ...node, config: { ...node.config, hideDetails: node.config.hideDetails ? undefined : true } } : node)),
-    })
-
   const setNodeSticky = (id: string, patch: Partial<StickyStyle>) =>
     commit({
       ...doc,
@@ -1122,22 +1097,63 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           order[Math.max(1, Math.round((order.length - 1) * 0.66))] ??
           order[0])
         : undefined
-    if (scope === 'downstream') {
-      setRunResult(null)
-      setRuns((runs) => ({ ...runs, ...Object.fromEntries(order.map((id) => [id, IDLE])) }))
-    }
+    /** A new run abandons a parked one, as its chat session would no longer be waiting on it. */
+    const unpark = (all: Record<string, NodeRun>) => Object.fromEntries(Object.entries(all).map(([id, run]) => [id, run.status === 'waiting' ? IDLE : run]))
+    const previous = unpark(runs)
+    setRuns((current) => ({ ...unpark(current), ...(scope === 'downstream' ? Object.fromEntries(order.map((id) => [id, IDLE])) : {}) }))
+    if (scope === 'downstream') setRunResult(null)
     const startsFlow = scope === 'downstream' && NODE_TYPES_BY_ID[current.nodes.find((node) => node.id === startId)?.type ?? '']?.category === 'triggers'
+    const triggerId = startsFlow ? startId : undefined
+    const steps = planRun({
+      nodes: current.nodes,
+      edges: current.edges,
+      order,
+      previous,
+      fixtures,
+      triggerId,
+      stepTest: scope !== 'downstream',
+      simulate,
+      forcedFailure,
+    })
+    const parked = steps.some((step) => step.run.status === 'waiting')
+    parkedRunRef.current = parked
+      ? { pending: order.filter((id) => !steps.some((step) => step.id === id)), triggerId, simulate, forcedFailure, failed: steps.some((step) => step.run.status === 'error') }
+      : null
+    playSteps(steps, (outcome) => {
+      if (scope === 'downstream' && !parked) setRunResult({ outcome, id: Date.now(), fromRun: true })
+    })
+  }
+
+  /** Resumes a parked flow run with the chat's reply: the step finishes, then the steps that waited on it run. */
+  const replyTo = (nodeId: string, reply: ChatReply) => {
+    const parked = parkedRunRef.current
+    if (!parked || runs[nodeId]?.status !== 'waiting') return
+    const current = docRef.current
+    const order = [nodeId, ...parked.pending]
     const steps = planRun({
       nodes: current.nodes,
       edges: current.edges,
       order,
       previous: runs,
       fixtures,
-      triggerId: startsFlow ? startId : undefined,
-      stepTest: scope !== 'downstream',
-      simulate,
-      forcedFailure,
+      triggerId: parked.triggerId,
+      stepTest: false,
+      simulate: parked.simulate,
+      forcedFailure: parked.forcedFailure,
+      replies: { [nodeId]: reply },
     })
+    const failed = parked.failed || steps.some((step) => step.run.status === 'error')
+    const stillWaiting =
+      steps.some((step) => step.run.status === 'waiting') || Object.entries(runs).some(([id, run]) => id !== nodeId && run.status === 'waiting')
+    parkedRunRef.current = stillWaiting ? { ...parked, pending: order.filter((id) => !steps.some((step) => step.id === id)), failed } : null
+    playSteps(steps, (outcome) => {
+      if (!stillWaiting) setRunResult({ outcome: failed || outcome === 'fail' ? 'fail' : 'pass', id: Date.now(), fromRun: true })
+    })
+  }
+
+  /** Plays planned steps back one node at a time, then reports whether any failed. */
+  const playSteps = (steps: readonly PlannedStep[], finish: (outcome: RunOutcome) => void) => {
+    const current = docRef.current
     let elapsed = 0
     let outcome: RunOutcome = 'pass'
     for (const [index, step] of steps.entries()) {
@@ -1158,13 +1174,16 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         })),
       )
       elapsed += duration
-      scheduleRun(elapsed, () => setRuns((current) => ({ ...current, [step.id]: step.run })))
+      scheduleRun(elapsed, () => {
+        setRuns((current) => ({ ...current, [step.id]: step.run }))
+        if (step.run.status === 'waiting') setDataDialogId(step.id)
+      })
       if (step.run.status === 'error') outcome = 'fail'
     }
     setActiveRuns((count) => count + 1)
     scheduleRun(elapsed, () => {
       setActiveRuns((count) => Math.max(0, count - 1))
-      if (scope === 'downstream') setRunResult({ outcome, id: Date.now(), fromRun: true })
+      finish(outcome)
     })
   }
 
@@ -1172,8 +1191,9 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const stopRun = () => {
     for (const timer of runTimersRef.current.splice(0)) window.clearTimeout(timer)
     setActiveRuns(0)
+    parkedRunRef.current = null
     setRuns((current) =>
-      Object.fromEntries(Object.entries(current).map(([id, run]) => [id, run.status === 'running' ? IDLE : run])),
+      Object.fromEntries(Object.entries(current).map(([id, run]) => [id, run.status === 'running' || run.status === 'waiting' ? IDLE : run])),
     )
   }
 
@@ -1186,7 +1206,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       doc,
       past,
       future,
-      runs: Object.fromEntries(Object.entries(runs).map(([id, run]) => [id, run.status === 'running' ? IDLE : run])),
+      runs: Object.fromEntries(Object.entries(runs).map(([id, run]) => [id, run.status === 'running' || run.status === 'waiting' ? IDLE : run])),
     }
     const next: ModeSnapshot = parked ?? { doc: testFlowDoc(), past: [], future: [], runs: {} }
     pendingLayoutRef.current = parked ? 'fit' : 'arrange'
@@ -1254,8 +1274,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       if (element) observer.observe(element)
     }
     return () => observer.disconnect()
-    // Switching node or card style remounts every card, so the new elements need observing.
-  }, [doc.nodes, nodeStyle, cardLook.style, animateTo])
+  }, [doc.nodes, animateTo])
 
   useEffect(() => {
     const root = rootRef.current
@@ -1621,6 +1640,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     setCommentDraft(null)
     const comment = doc.comments.find((candidate) => candidate.id === id)
     if (!comment) return
+    // Opening a thread reads it; that isn't an edit, so it stays out of undo.
+    if (comment.unread) setCommentUnread(id, false)
     startGesture(
       event,
       (dx, dy) =>
@@ -1644,10 +1665,21 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     if (!commentDraft) return
     const id = createId('comment')
     const { nodeId, ...point } = commentDraft
-    const comment = placeComment({ id, ...point, text, author: COMMENT_AUTHOR, createdAt: Date.now() }, point, nodeId, doc.positions)
+    const comment = placeComment({ id, ...point, messages: [newMessage(text)] }, point, nodeId, doc.positions)
     commit({ ...doc, comments: [...doc.comments, comment] })
     setCommentDraft(null)
     setSelection({ kind: 'comment', id })
+  }
+
+  const updateMessages = (id: string, update: (messages: CommentMessage[]) => CommentMessage[]) =>
+    commit({ ...doc, comments: doc.comments.map((comment) => (comment.id === id ? { ...comment, messages: update(comment.messages) } : comment)) })
+
+  const setCommentUnread = (id: string, unread: boolean) =>
+    setDoc((current) => ({ ...current, comments: current.comments.map((comment) => (comment.id === id ? { ...comment, unread } : comment)) }))
+
+  const deleteMessage = (comment: CanvasComment, messageId: string) => {
+    if (comment.messages[0]?.id === messageId) removeItem('comment', comment.id)
+    else updateMessages(comment.id, (messages) => messages.filter((message) => message.id !== messageId))
   }
 
   const removeItem = (kind: ItemKind, id: string) => {
@@ -1896,13 +1928,14 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const node = nodesById[id]
     return node ? [{ id, typeId: node.type, name: nodeName(node, nodeType(node)) }] : []
   }
+  const notTrigger = (step: WiredStep) => NODE_TYPES_BY_ID[step.typeId]?.category !== 'triggers'
   const wiringIssue = (node: CanvasNode) =>
     kindWiringIssue(node.type, node.config.params, () => ({
       wired: doc.edges
         .filter((edge) => edge.to === node.id)
         .flatMap((edge) => wiredStep(edge.from))
-        .filter((step) => NODE_TYPES_BY_ID[step.typeId]?.category !== 'triggers'),
-      upstream: ancestorsNearestFirst(node.id, doc.edges).flatMap(wiredStep),
+        .filter(notTrigger),
+      upstream: ancestorsNearestFirst(node.id, doc.edges).flatMap(wiredStep).filter(notTrigger),
     }))
   /** The step an edge comes from, named with its branch when it has several. */
   const sourceName = (edge: WorkflowEdge) => {
@@ -2010,14 +2043,13 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         onFixture={(records) => setFixture(id, records)}
         onExecute={() => runNodes(id, nodeType(configuring).category === 'triggers' ? 'downstream' : 'node')}
         onExecutePrevious={() => runNodes(id, 'upstream')}
+        onReply={(reply) => replyTo(id, reply)}
         focus={configFocus}
         onNavigate={(nodeId) => openConfig(nodeId)}
         onClose={closeConfig}
       />
     )
   })()
-  /** Style 5: no card header or footer; input and output open over the canvas instead. */
-  const headlessCards = nodeStyle === 'minimal' && cardLook.style === 'iconHeader'
   const toggleDataDialog = (id: string) => setDataDialogId((open) => (open === id ? null : id))
   const usedTypes = new Set(doc.nodes.map((node) => node.type))
   /** Chat runs need a chat session, so Run agent offers the other triggers, default first. */
@@ -2025,15 +2057,11 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const type = nodeType(node)
     return { id: node.id, title: nodeName(node, type), icon: type.icon }
   })
-  const flowState: FlowState = { published, defaultTriggerId: defaultTriggerId(doc.nodes) }
+  const flowState: FlowState = { published, publishedAt: publishedAt ?? undefined, defaultTriggerId: defaultTriggerId(doc.nodes) }
 
   const running = activeRuns > 0
   /** The run look also plays while previewing it from the canvas background panel. */
   const runLook = running || Boolean(runResult?.fromRun) || (runPreview && canvasLookOpen)
-
-  /** The surface that can turn card text dark; the panel styles keep light text for their black panels. */
-  const inkSurface =
-    nodeStyle !== 'minimal' || cardLook.style === 'classic' ? canvasLook.cards : cardLook.style === 'sections' ? cardLook.surface : null
   const rootClass = [
     styles.root,
     panning ? styles.panning : null,
@@ -2100,6 +2128,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           closeDataDialog()
           openConfig(dataDialogNode.id)
         }}
+        onReply={(reply) => replyTo(dataDialogNode.id, reply)}
       />
     ) : null
   const selectedFrame = nodeFrame(selectedNode)
@@ -2117,9 +2146,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     (hoveredFrame.top - NODE_TOOLBAR_GAP - NODE_TOOLBAR_HEIGHT >= CHROME_TOP
       ? { left: hoveredFrame.left, top: hoveredFrame.top - NODE_TOOLBAR_GAP, below: false }
       : { left: hoveredFrame.left, top: hoveredFrame.bottom + NODE_TOOLBAR_GAP, below: true })
-  const hoveredDetails = hoveredNode && cardDetails(hoveredNode, nodeType(hoveredNode).category === 'triggers', flowState)
-  const hoveredHasDetails = Boolean(hoveredDetails && (hoveredDetails.fields.length || hoveredDetails.text))
-
   return (
     <div
       className={rootClass}
@@ -2128,11 +2154,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       aria-label={`${name} workflow canvas`}
       data-connecting={connection?.from.side}
       data-ports-hidden={!connection && Math.round(view.zoom * 100) <= PORTS_MIN_ZOOM * 100 ? '' : undefined}
-      data-card-surface={canvasLook.cards.fill === 'default' ? undefined : canvasLook.cards.fill}
       data-section-surface={cardLook.surface.fill === 'default' ? undefined : cardLook.surface.fill}
-      data-card-ink={inkSurface && cardsAreLight(inkSurface) ? 'dark' : undefined}
-      data-card-glow={cardLook.style}
-      data-card-icon={cardLook.iconContainer === 'tile' ? undefined : cardLook.iconContainer}
+      data-card-glow="iconHeader"
       style={{ ...cardStyle(canvasLook), ...cardLookStyle(cardLook) }}
       onPointerOver={onNodeHover}
       onPointerLeave={leaveNodeHover}
@@ -2268,7 +2291,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                 />
               )
             }
-            const Card = nodeStyle === 'minimal' ? MINIMAL_CARDS[cardLook.style] : NodeCard
             const nodeRun = runs[node.id] ?? IDLE
             const nodeInput = inputFor(node.id)
             const nodeOutput = runRows(runs[node.id])
@@ -2276,7 +2298,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
             const hasData =
               nodeDataSides(nodeDataViews(nodeRun, nodeInput, nodeOutput, type.category === 'triggers', hasInputs), hasInputs).length > 0
             return (
-              <Card
+              <NodeCardSections
                 key={node.id}
                 node={node}
                 type={type}
@@ -2313,11 +2335,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                 onDataOpen={(open) => setNodeData(node.id, open)}
                 onNoteChange={(note) => setNodeNote(node.id, note)}
                 onParamsChange={(patch) => setNodeParams(node.id, patch, 'card')}
-                onToggleDetails={() => toggleNodeDetails(node.id)}
                 onOpenConfig={(focus) => openConfig(node.id, focus)}
-                iconContainer={cardLook.iconContainer}
-                valuesPanel={cardLook.valuesPanel}
-                headless={headlessCards}
                 onOpenData={hasData ? () => toggleDataDialog(node.id) : undefined}
                 flow={type.category === 'triggers' ? flowState : undefined}
               />
@@ -2368,7 +2386,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         {doc.comments.map((comment) => (
           <CommentPin
             key={comment.id}
-            author={comment.author}
+            comment={comment}
             {...toScreen(commentPoint(comment, doc.positions))}
             open={openComment?.id === comment.id}
             gesture={gestureHandlers}
@@ -2377,19 +2395,28 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         ))}
         {openComment ? (
           <CommentThread
+            key={openComment.id}
             comment={openComment}
-            left={toScreen(commentPoint(openComment, doc.positions)).left + 44}
-            top={toScreen(commentPoint(openComment, doc.positions)).top - 34}
+            {...toScreen(commentPoint(openComment, doc.positions))}
+            onReply={(text) => updateMessages(openComment.id, (messages) => [...messages, newMessage(text)])}
+            onEdit={(messageId, text) =>
+              updateMessages(openComment.id, (messages) => messages.map((message) => (message.id === messageId ? { ...message, text } : message)))
+            }
+            onDeleteMessage={(messageId) => deleteMessage(openComment, messageId)}
+            onMarkUnread={() => {
+              setCommentUnread(openComment.id, true)
+              setSelection(null)
+            }}
             onResolve={() => removeItem('comment', openComment.id)}
             onDelete={() => removeItem('comment', openComment.id)}
+            onClose={() => setSelection(null)}
           />
         ) : null}
         {commentDraft ? (
           <>
-            <CommentPin author={COMMENT_AUTHOR} {...toScreen(commentDraft)} open />
+            <CommentPin {...toScreen(commentDraft)} open />
             <CommentComposer
-              left={toScreen(commentDraft).left + 44}
-              top={toScreen(commentDraft).top - 34}
+              {...toScreen(commentDraft)}
               onPost={postComment}
               onCancel={() => setCommentDraft(null)}
             />
@@ -2432,8 +2459,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           annotation={false}
           canDuplicate={!nodeType(hoveredNode).singleton}
           running={runs[hoveredNode.id]?.status === 'running'}
-          detailsHidden={Boolean(hoveredNode.config.hideDetails)}
-          onDetails={hoveredHasDetails && !headlessCards ? () => toggleNodeDetails(hoveredNode.id) : undefined}
           appearanceOpen={appearanceNode?.id === hoveredNode.id}
           onRun={(scope) => runNodes(hoveredNode.id, scope)}
           onConfigure={() => openConfig(hoveredNode.id)}
@@ -2503,35 +2528,20 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 
       <div className={styles.topRight}>
         {devTools ? (
-          <>
-            <CardGlowMenu
-              value={cardLook.style}
-              onChange={(style) => updateCardLook({ ...cardLook, style })}
-              customizing={cardStyleOpen}
-              onCustomize={() => {
-                setCardStyleOpen((open) => !open)
-                setCanvasLookOpen(false)
-                setAppearanceFor(null)
-              }}
-            />
-            <NodeStyleMenu
-              canvasLookOpen={canvasLookOpen}
-              onCanvasLook={() => {
-                setCanvasLookOpen((open) => !open)
-                setCardStyleOpen(false)
-                setAppearanceFor(null)
-              }}
-              value={nodeStyle}
-              onChange={(value) => {
-                setNodeStyle(value)
-                try {
-                  localStorage.setItem(NODE_STYLE_KEY, value)
-                } catch {
-                  // Storage can be unavailable (private mode); the choice still applies for this session.
-                }
-              }}
-            />
-          </>
+          <CanvasSettingsMenu
+            cardStyleOpen={cardStyleOpen}
+            onCardStyle={() => {
+              setCardStyleOpen((open) => !open)
+              setCanvasLookOpen(false)
+              setAppearanceFor(null)
+            }}
+            canvasLookOpen={canvasLookOpen}
+            onCanvasLook={() => {
+              setCanvasLookOpen((open) => !open)
+              setCardStyleOpen(false)
+              setAppearanceFor(null)
+            }}
+          />
         ) : null}
         <button
           type="button"
@@ -2567,7 +2577,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           Test flow
         </button>
         <RunAgentButton triggers={triggers} onRun={(triggerId, simulate) => runNodes(triggerId, 'downstream', simulate)} />
-        <button type="button" className={styles.publishButton} onClick={() => setPublished((current) => !current)}>
+        <button type="button" className={styles.publishButton} onClick={() => setPublishedAt((current) => (current === null ? Date.now() : null))}>
           {published ? 'Unpublish' : 'Publish'}
         </button>
       </div>
@@ -2685,7 +2695,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           key={`appearance-${appearanceNode.id}`}
           nodeName={nodeName(appearanceNode, nodeType(appearanceNode))}
           appearance={appearanceNode.appearance}
-          defaults={nodeStyle === 'minimal' ? MINIMAL_FRAME_DEFAULTS : DETAILED_FRAME_DEFAULTS}
+          defaults={FRAME_DEFAULTS}
           onChange={(next) => setNodeAppearance(appearanceNode.id, next)}
           onReset={() => setNodeAppearance(appearanceNode.id, undefined)}
           scope={{
@@ -2730,89 +2740,14 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   )
 }
 
-type CardGlowMenuProps = {
-  value: CardGlow
-  onChange: (value: CardGlow) => void
-  customizing: boolean
-  onCustomize: () => void
-}
-
-function CardGlowMenu({ value, onChange, customizing, onCustomize }: CardGlowMenuProps) {
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const close = useCallback(() => setOpen(false), [])
-  useDismiss(open, wrapRef, close)
-  const current = CARD_GLOWS.find((option) => option.id === value) ?? CARD_GLOWS[0]
-
-  return (
-    <div className={styles.styleMenu} ref={wrapRef}>
-      {open ? (
-        <div className={`${controls.menu} ${styles.styleMenuList}`} role="menu" aria-label="Card style">
-          <p className={styles.styleMenuTitle}>Card style</p>
-          {CARD_GLOWS.map((option) => {
-            const selected = option.id === value
-            return (
-              <button
-                key={option.id}
-                type="button"
-                role="menuitemradio"
-                aria-checked={selected}
-                className={`${controls.menuItem}${selected ? ` ${controls.menuItemActive}` : ''} ${styles.styleOption}`}
-                onClick={() => {
-                  onChange(option.id)
-                  setOpen(false)
-                }}
-              >
-                <span className={styles.styleOptionText}>
-                  {option.label}
-                  <span className={styles.styleOptionHint}>{option.description}</span>
-                </span>
-                {selected ? <Check size={16} weight="bold" className={styles.triggerCheck} aria-hidden /> : null}
-              </button>
-            )
-          })}
-          <span className={styles.styleMenuDivider} role="separator" />
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={customizing}
-            className={`${controls.menuItem} ${styles.styleOption}`}
-            onClick={() => {
-              onCustomize()
-              setOpen(false)
-            }}
-          >
-            <SlidersHorizontal size={18} weight="regular" aria-hidden />
-            <span className={styles.styleOptionText}>
-              Customise styles
-              <span className={styles.styleOptionHint}>Icon, values panel, card background and category colours</span>
-            </span>
-          </button>
-        </div>
-      ) : null}
-      <button
-        type="button"
-        className={`${styles.publishButton} ${styles.glowMenuButton}`}
-        aria-label={`Card style: ${current.label}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((isOpen) => !isOpen)}
-      >
-        {current.label}
-        <CaretDown size={14} weight="bold" aria-hidden />
-      </button>
-    </div>
-  )
-}
-
-type NodeStyleMenuProps = {
-  value: NodeStyle
-  onChange: (value: NodeStyle) => void
+type CanvasSettingsMenuProps = {
+  cardStyleOpen: boolean
+  onCardStyle: () => void
   canvasLookOpen: boolean
   onCanvasLook: () => void
 }
 
-function NodeStyleMenu({ value, onChange, canvasLookOpen, onCanvasLook }: NodeStyleMenuProps) {
+function CanvasSettingsMenu({ cardStyleOpen, onCardStyle, canvasLookOpen, onCanvasLook }: CanvasSettingsMenuProps) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setOpen(false), [])
@@ -2822,30 +2757,22 @@ function NodeStyleMenu({ value, onChange, canvasLookOpen, onCanvasLook }: NodeSt
     <div className={styles.styleMenu} ref={wrapRef}>
       {open ? (
         <div className={`${controls.menu} ${styles.styleMenuList}`} role="menu" aria-label="Canvas settings">
-          <p className={styles.styleMenuTitle}>Node style</p>
-          {NODE_STYLES.map((option) => {
-            const selected = option.id === value
-            return (
-              <button
-                key={option.id}
-                type="button"
-                role="menuitemradio"
-                aria-checked={selected}
-                className={`${controls.menuItem}${selected ? ` ${controls.menuItemActive}` : ''} ${styles.styleOption}`}
-                onClick={() => {
-                  onChange(option.id)
-                  setOpen(false)
-                }}
-              >
-                <span className={styles.styleOptionText}>
-                  {option.label}
-                  <span className={styles.styleOptionHint}>{option.description}</span>
-                </span>
-                {selected ? <Check size={16} weight="bold" className={styles.triggerCheck} aria-hidden /> : null}
-              </button>
-            )
-          })}
-          <span className={styles.styleMenuDivider} role="separator" />
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={cardStyleOpen}
+            className={`${controls.menuItem} ${styles.styleOption}`}
+            onClick={() => {
+              onCardStyle()
+              setOpen(false)
+            }}
+          >
+            <SlidersHorizontal size={18} weight="regular" aria-hidden />
+            <span className={styles.styleOptionText}>
+              Card style
+              <span className={styles.styleOptionHint}>Card background, layout and category colours</span>
+            </span>
+          </button>
           <button
             type="button"
             role="menuitemcheckbox"

@@ -1,32 +1,20 @@
 import { useEffect, useState } from 'react'
-import { ArrowsInSimple, ArrowsOutSimple, BracketsAngle, Minus, PencilSimple, Plus, Warning } from '@phosphor-icons/react'
-import { ContentBlockView, DataPreviewView } from './CardSectionViews'
-import {
-  cardContent,
-  cardEdgeOutputs,
-  cardHasFooter,
-  cardHeader,
-  cardTitle,
-  cardValues,
-  dataPreview,
-  outputPreview,
-  previewCount,
-  type DataPreview,
-  type HeaderAction,
-} from './cardSections'
+import { BracketsAngle, CircleNotch, Minus, PencilSimple, Plus, Warning } from '@phosphor-icons/react'
+import { ContentBlockView } from './CardSectionViews'
+import { cardContent, cardEdgeOutputs, cardValues, type HeaderAction } from './cardSections'
 import { NodeDataCard } from './NodeDataCard'
-import { RunInfo, RunStatus } from './NodeCardMinimal'
 import { appearanceVars, inkRgb } from './nodeAppearance'
 import { DetailBadges, NodeFill, Port, ResizeHandles, type NodeCardProps } from './nodeParts'
 import type { FlowState } from './triggerCard'
 import {
+  formatCost,
+  formatDuration,
   nodeIssue,
+  nodeName,
   nodeNotice,
   nodeOutputs,
   NODE_DEFAULT_WIDTH,
   portKey,
-  type CanvasNode,
-  type DataRecord,
   type NodePort,
   type NodeRun,
   type PortSide,
@@ -39,21 +27,45 @@ import styles from './NodeCardSections.module.css'
 
 const UNPUBLISHED: FlowState = { published: false }
 
-type Status = { text: string; tone?: 'error' }
 type Countdown = NonNullable<NodeRun['countdown']>
-type Footer = { view: 'input' | 'output'; preview: DataPreview | null; status: Status | null }
 
-/** Output once the node has run, input while it waits on upstream data; null while there's nothing to show. */
-function cardFooter(node: CanvasNode, run: NodeRun, input: readonly DataRecord[] | null, output: readonly DataRecord[] | null, isTrigger: boolean): Footer | null {
-  if (run.status === 'idle' && !isTrigger && input?.length) return { view: 'input', preview: dataPreview(input), status: null }
-  const preview = run.status === 'success' ? outputPreview(node, run, output) : null
-  let status: Status | null = null
-  if (run.status === 'running') status = { text: 'Running…' }
-  else if (run.status === 'error') status = { text: run.message ?? 'This node failed.', tone: 'error' }
-  else if (run.status === 'skipped') status = { text: run.message ?? 'Skipped.' }
-  else if (run.note) status = { text: run.note }
-  else if (!preview && run.status === 'success') status = { text: 'No output.' }
-  return preview || status ? { view: 'output', preview, status } : null
+/** Triggers are entry points, not steps: they fire, so they have no duration or cost. */
+function runMeta(run: NodeRun, isTrigger: boolean) {
+  if (run.status === 'running') return 'Running'
+  if (run.status === 'waiting') return 'Waiting for a reply'
+  if (run.status === 'skipped') return 'Skipped'
+  if (run.status !== 'success' || isTrigger) return null
+  return [run.durationMs !== undefined ? formatDuration(run.durationMs) : null, run.cost ? formatCost(run.cost) : null]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/** A spinner while the node runs, a grey dot once it's skipped; sits after the name. */
+function RunStatus({ run }: { run: NodeRun }) {
+  if (run.status === 'running') return <CircleNotch size={12} weight="bold" className={minimal.spinner} aria-label="Running" />
+  if (run.status === 'skipped') return <span className={`${minimal.status} ${minimal.status_skipped}`} role="img" aria-label="Skipped" />
+  if (run.status === 'waiting') return <span className={`${minimal.status} ${minimal.status_waiting}`} role="img" aria-label="Waiting for a reply" />
+  return null
+}
+
+/** Run details (on hover or selection) and the result badge, pushed to the end of their row. */
+function RunInfo({ run, isTrigger, isDefault }: { run: NodeRun; isTrigger: boolean; isDefault: boolean }) {
+  const meta = runMeta(run, isTrigger)
+  const badge =
+    run.status === 'success' || run.status === 'error' ? (
+      <span className={`${minimal.badge} ${minimal[`badge_${run.status}`]}`}>{run.status === 'error' ? 'Failed' : isTrigger ? 'Fired' : 'Passed'}</span>
+    ) : run.status === 'idle' && isDefault ? (
+      <span className={`${minimal.badge} ${minimal.badge_default}`} data-tooltip="Run agent starts here unless you pick another trigger">
+        Default
+      </span>
+    ) : null
+  if (!meta && !badge) return null
+  return (
+    <span className={minimal.runInfo}>
+      {meta ? <span className={minimal.meta}>{meta}</span> : null}
+      {badge}
+    </span>
+  )
 }
 
 /** `h:mm:ss`, or days and hours past a day; rounds up so the last second reads 0:01, not 0:00. */
@@ -91,30 +103,10 @@ function WaitCountdown({ startedAt, playMs, seconds }: Countdown) {
   )
 }
 
-function CardFooter({ view, preview, status }: Footer) {
-  const count = preview ? previewCount(preview) : undefined
-  const hint = preview?.kind === 'results' ? preview.hint : undefined
-  return (
-    <div className={styles.footer}>
-      <div className={styles.footerHead}>
-        <span className={styles.footerLabel}>{view === 'input' ? 'Input' : 'Output'}</span>
-        {count ? <span>{count}</span> : null}
-        {hint ? <span className={styles.footerHint}>{hint}</span> : null}
-      </div>
-      {preview ? <DataPreviewView preview={preview} /> : null}
-      {status ? (
-        <p className={styles.footerStatus} data-tone={status.tone} role={status.tone === 'error' ? 'alert' : undefined}>
-          {status.text}
-        </p>
-      ) : null}
-    </div>
-  )
-}
-
 /**
- * Sectioned node: a header with the category and the node's actions, content with the title and
- * whatever the node holds (values as badges, a prompt to edit, a map or chart), and a footer with its run data;
- * the run result sits above the card. What fills each section comes from `cardSections.ts`.
+ * A node in a category-colour frame: the icon and the node's actions, then the title and whatever the node
+ * holds (values as badges, a prompt to edit, a map or chart) in a black panel. The run result sits above the
+ * card; input and output open over the canvas. What fills the panel comes from `cardSections.ts`.
  */
 export function NodeCardSections({
   node,
@@ -138,42 +130,32 @@ export function NodeCardSections({
   appearanceOpen,
   dataOpen,
   onParamsChange,
-  onToggleDetails,
   onOpenConfig,
   onRemoveOutput,
   inputSources,
   wiringIssue,
-  headless = false,
   onOpenData,
   flow = UNPUBLISHED,
 }: NodeCardProps) {
   const TypeIcon = type.icon
   const isTrigger = type.category === 'triggers'
-  const { category } = cardHeader(type)
-  const { title, subtitle } = cardTitle(node, type)
+  const title = nodeName(node, type)
   const blocks = cardContent(node)
+  // Only a chart, table or map has no natural size; every other card hugs its content.
+  const resizable = blocks.some((block) => block.kind === 'asset')
+  const frame = resizable ? node.frame : undefined
   const values = cardValues(node, type, flow)
-  const hidden = Boolean(node.config.hideDetails)
   const issue = nodeIssue(node) ?? wiringIssue ?? nodeNotice(node)
   const outputs = nodeOutputs(node, type)
   const addLabel = branchAddLabel(type.id)
   const edgeOutputs = outputs.length > 1 && cardEdgeOutputs(type)
   const branchOutputs = outputs.length > 1 && !edgeOutputs
   const branchInputs = type.inputs.length > 1
-  const empty = !blocks.length && !values.length && !branchOutputs && !branchInputs && !issue
 
-  /* The header button only shows or hides the run data, on every kind; without a footer there's no button. */
-  const footer = cardHasFooter(type) ? cardFooter(node, run, input, output, isTrigger) : null
+  const savedAsset = node.type === 'createAsset' && run.status === 'success' && Boolean(run.assetRows)
   const actions: HeaderAction[] = []
-  if (onOpenConfig && footer?.preview?.kind === 'asset') {
-    actions.push({ id: 'editAsset', label: 'Edit asset', icon: PencilSimple, onSelect: () => onOpenConfig() })
-  }
-  if (headless) {
-    if (onOpenData) actions.push({ id: 'data', label: 'Input and output', icon: BracketsAngle, onSelect: onOpenData })
-  } else if (onToggleDetails && footer) {
-    const label = `${hidden ? 'Show' : 'Hide'} ${footer.view}`
-    actions.push({ id: 'footer', label, icon: hidden ? ArrowsOutSimple : ArrowsInSimple, onSelect: onToggleDetails })
-  }
+  if (onOpenConfig && savedAsset) actions.push({ id: 'editAsset', label: 'Edit asset', icon: PencilSimple, onSelect: () => onOpenConfig() })
+  if (onOpenData) actions.push({ id: 'data', label: 'Input and output', icon: BracketsAngle, onSelect: onOpenData })
   const actionBar = actions.length ? (
     <div className={styles.headerActions}>
       {actions.map((action) => {
@@ -229,8 +211,8 @@ export function NodeCardSections({
       style={{
         left: position.x,
         top: position.y,
-        width: node.frame?.w ?? type.width ?? NODE_DEFAULT_WIDTH,
-        minHeight: node.frame?.h,
+        width: frame?.w ?? type.width ?? NODE_DEFAULT_WIDTH,
+        minHeight: frame?.h,
       }}
       role="group"
       aria-label={title}
@@ -261,50 +243,27 @@ export function NodeCardSections({
         className={styles.card}
         style={appearanceVars(node.appearance, { padding: ['--card-pad'], radius: ['--card-radius', '--node-radius'] })}
         data-ink={inkRgb(node.appearance) ? 'dark' : undefined}
-        data-headless={headless || undefined}
       >
         <NodeFill paint={node.appearance} />
         {type.inputs.length === 1 ? port(type.inputs[0], 'in', minimal.portIn) : null}
         {outputs.length === 1 ? port(outputs[0], 'out', minimal.portOut) : null}
 
-        {headless ? null : (
-          <div className={styles.header}>
-            <TypeIcon size={16} weight="regular" className={styles.headerIcon} aria-hidden />
-            <span className={styles.category}>{category}</span>
-            {actionBar}
-          </div>
-        )}
-
         <div className={styles.content}>
-          {headless ? (
-            <div className={styles.titleBlock}>
-              <div className={styles.contentHead}>
-                <TypeIcon size={20} weight="regular" className={styles.headerIcon} aria-hidden />
-                {actionBar}
-              </div>
-              <div className={styles.title}>
-                <span className={minimal.name} title={title}>
-                  {title}
-                </span>
-                <RunStatus run={run} />
-              </div>
-              {values.length ? <DetailBadges fields={values} className={styles.badges} /> : null}
+          <div className={styles.titleBlock}>
+            <div className={styles.contentHead}>
+              <TypeIcon size={20} weight="regular" className={styles.headerIcon} aria-hidden />
+              {actionBar}
             </div>
-          ) : (
-            <div className={styles.titleBlock}>
-              <div className={styles.title}>
-                <span className={minimal.name} title={title}>
-                  {title}
-                </span>
-                <RunStatus run={run} />
-              </div>
-              {subtitle || empty ? <span className={styles.subtitle}>{subtitle ?? type.description}</span> : null}
-              {values.length ? <DetailBadges fields={values} className={styles.badges} /> : null}
+            <div className={styles.title}>
+              <span className={minimal.name} title={title}>
+                {title}
+              </span>
+              <RunStatus run={run} />
             </div>
-          )}
+            {values.length ? <DetailBadges fields={values} className={styles.badges} /> : null}
+          </div>
 
           {run.status === 'running' && run.countdown ? <WaitCountdown {...run.countdown} /> : null}
-
           {blocks.map((block) => (
             <ContentBlockView key={block.kind} block={block} context={{ selected, onParamsChange }} />
           ))}
@@ -378,11 +337,9 @@ export function NodeCardSections({
           ) : null}
         </div>
 
-        {footer && !hidden && !headless ? <CardFooter {...footer} /> : null}
-
         {run.status === 'running' && !run.countdown ? <span className={minimal.progress} aria-hidden /> : null}
 
-        <ResizeHandles resize={resize} />
+        {resizable ? <ResizeHandles resize={resize} /> : null}
       </div>
 
       {dataOpen ? <NodeDataCard name={title} isTrigger={isTrigger} hasInputs={type.inputs.length > 0} run={run} input={input} output={output} /> : null}

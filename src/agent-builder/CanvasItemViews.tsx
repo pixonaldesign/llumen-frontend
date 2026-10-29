@@ -1,10 +1,12 @@
-import { useCallback, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
-import { Check, CornersIn, Lock, LockOpen, PencilSimple, Trash } from '@phosphor-icons/react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
+import { ArrowUp, At, CheckCircle, CornersIn, DotsThree, Lock, LockOpen, PencilSimple, Smiley, Trash, X } from '@phosphor-icons/react'
 import { SCOPE_CLASS } from '../asset-builder/host'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import {
   COMMENT_AUTHOR,
-  formatCommentTime,
+  COMMENT_PEOPLE,
+  avatarColor,
+  commentAge,
   SECTION_DEFAULTS,
   SECTION_SWATCHES,
   TEXT_SIZES,
@@ -13,6 +15,7 @@ import {
   type CanvasText,
 } from './canvasItems'
 import { hexToRgb } from './canvasLook'
+import { NodeMenu, type NodeMenuItem } from './nodeParts'
 import { ColorField, Slider } from './PaintControls'
 import { SHORTCUTS } from './shortcuts'
 import { useDismiss } from './useDismiss'
@@ -317,10 +320,81 @@ export function TextToolbar({ item, left, top, onSize, onDelete }: TextToolbarPr
 
 /* ---------- Comments (screen space, so pins keep their size at any zoom) ---------- */
 
-const initial = (author: string) => author.trim().charAt(0).toUpperCase() || '?'
+const initials = (author: string) =>
+  author
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join('') || '?'
+
+function Avatar({ author, small }: { author: string; small?: boolean }) {
+  return (
+    <span className={small ? `${styles.commentAvatar} ${styles.commentAvatarSmall}` : styles.commentAvatar} style={{ background: avatarColor(author) }} aria-hidden>
+      {initials(author)}
+    </span>
+  )
+}
+
+/** The current time, refreshed every half minute so "2 minutes ago" stays true. */
+function useNow() {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  return now
+}
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const MENTION = new RegExp(`(@(?:${COMMENT_PEOPLE.map(escapeRegExp).join('|')}))`)
+
+function MessageText({ text, className }: { text: string; className: string }) {
+  return (
+    <p className={className}>
+      {text.split(MENTION).map((part, index) =>
+        index % 2 ? (
+          <span key={index} className={styles.commentMention}>
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </p>
+  )
+}
+
+const replyCount = (comment: CanvasComment) => comment.messages.length - 1
+
+const CARD_EDGE = 8
+
+/**
+ * Seats a comment card beside the pin whose tail is at `left`/`top`: to its right, or to its left
+ * when the right would run off the canvas, and kept inside the canvas top to bottom as it grows.
+ */
+function useBesidePin(ref: RefObject<HTMLElement | null>, left: number, top: number) {
+  useLayoutEffect(() => {
+    const card = ref.current
+    const layer = card?.offsetParent
+    if (!card || !(layer instanceof HTMLElement)) return
+    const place = () => {
+      const { offsetWidth: width, offsetHeight: height } = card
+      const right = left + 42
+      const flipped = right + width > layer.clientWidth - CARD_EDGE && left - width - CARD_EDGE >= CARD_EDGE
+      card.style.left = `${flipped ? left - width - CARD_EDGE : right}px`
+      card.style.top = `${Math.max(CARD_EDGE, Math.min(top - 36, layer.clientHeight - height - CARD_EDGE))}px`
+    }
+    place()
+    const observer = new ResizeObserver(place)
+    observer.observe(card)
+    return () => observer.disconnect()
+  }, [left, ref, top])
+}
 
 type CommentPinProps = {
-  author: string
+  /** Missing while a new comment is being written: the pin is then plain blue. */
+  comment?: CanvasComment
   left: number
   top: number
   open: boolean
@@ -328,42 +402,331 @@ type CommentPinProps = {
   onPointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void
 }
 
-export function CommentPin({ author, left, top, open, gesture, onPointerDown }: CommentPinProps) {
+/** Figma-style pin: blue while it has something you haven't read, grey after; hovering it grows a preview. */
+export function CommentPin({ comment, left, top, open, gesture, onPointerDown }: CommentPinProps) {
+  const now = useNow()
+  const first = comment?.messages[0]
+  if (!comment || !first) return <span className={`${styles.commentPin} ${styles.commentPinDraft}`} style={{ left, top }} aria-hidden />
+  const replies = replyCount(comment)
   return (
     <button
       type="button"
       className={styles.commentPin}
       data-open={open || undefined}
+      data-unread={comment.unread || undefined}
       style={{ left, top }}
-      aria-label={`Comment by ${author}`}
+      aria-label={`${comment.unread ? 'Unread comment' : 'Comment'} by ${first.author}`}
       aria-expanded={open}
       onPointerDown={onPointerDown}
       {...gesture}
     >
-      <span className={styles.commentAvatar}>{initial(author)}</span>
+      <Avatar author={first.author} />
+      <span className={styles.pinPreview} aria-hidden>
+        <span className={styles.pinPreviewBody}>
+          <span className={styles.pinPreviewHead}>
+            <span className={styles.commentAuthor}>{first.author}</span>
+            <span className={styles.commentTime}>{commentAge(first.createdAt, now, true)}</span>
+          </span>
+          <MessageText text={first.text} className={styles.pinPreviewText} />
+          {replies ? (
+            <span className={styles.pinPreviewReplies}>
+              {replies} {replies === 1 ? 'reply' : 'replies'}
+            </span>
+          ) : null}
+        </span>
+      </span>
     </button>
   )
 }
 
-type CommentThreadProps = { comment: CanvasComment; left: number; top: number; onResolve: () => void; onDelete: () => void }
+const EMOJIS = ['👍', '❤️', '😂', '🎉', '👀', '🙏', '✅', '🔥', '😊', '🤔', '👏', '💯', '🚀', '⚠️', '📌', '✨']
+const MENTION_QUERY = /(?:^|\s)@([^\s@]*)$/
 
-export function CommentThread({ comment, left, top, onResolve, onDelete }: CommentThreadProps) {
+type CommentBoxProps = {
+  placeholder: string
+  /** Names the send button. */
+  sendLabel: string
+  initial?: string
+  autoFocus?: boolean
+  /** Editing a posted message: Cancel and Save instead of the send arrow. */
+  editing?: boolean
+  onSubmit: (text: string) => void
+  onCancel: () => void
+}
+
+/** Figma's comment field: a pill with a send arrow, opening into a box with emoji and @mention once there's text. */
+function CommentBox({ placeholder, sendLabel, initial = '', autoFocus, editing, onSubmit, onCancel }: CommentBoxProps) {
+  const [text, setText] = useState(initial)
+  const [caret, setCaret] = useState(initial.length)
+  const [focused, setFocused] = useState(false)
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const emojiRef = useRef<HTMLDivElement>(null)
+  useDismiss(emojiOpen, emojiRef, useCallback(() => setEmojiOpen(false), []))
+
+  const query = focused ? MENTION_QUERY.exec(text.slice(0, caret))?.[1] : undefined
+  const people =
+    query === undefined
+      ? []
+      : COMMENT_PEOPLE.filter((name) => name.toLowerCase().split(' ').some((word) => word.startsWith(query.toLowerCase())))
+  const activeIndex = Math.min(active, people.length - 1)
+  const expanded = editing || text.length > 0
+  const trimmed = text.trim()
+
+  const edit = (next: string, at: number) => {
+    setText(next)
+    setCaret(at)
+    setActive(0)
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+      inputRef.current?.setSelectionRange(at, at)
+    })
+  }
+  const insert = (value: string, replacing = 0) => {
+    const start = caret - replacing
+    edit(text.slice(0, start) + value + text.slice(caret), start + value.length)
+  }
+  const mention = (name: string) => insert(`@${name} `, (query?.length ?? 0) + 1)
+  const submit = () => {
+    if (!trimmed) return
+    onSubmit(trimmed)
+    if (!editing) edit('', 0)
+  }
+  const keepFocus = (event: { preventDefault: () => void }) => event.preventDefault()
+
   return (
-    <div className={styles.commentCard} style={{ left, top }} role="dialog" aria-label={`Comment by ${comment.author}`}>
-      <div className={styles.commentHead}>
-        <span className={`${styles.commentAvatar} ${styles.commentAvatarSmall}`}>{initial(comment.author)}</span>
-        <span className={styles.commentAuthor}>{comment.author}</span>
-        <span className={styles.commentTime}>{formatCommentTime(comment.createdAt)}</span>
-        <span className={styles.commentActions}>
-          <button type="button" className={`${controls.barButton} ${styles.cardButton}`} aria-label="Resolve" onClick={onResolve}>
-            <Check size={16} weight="bold" aria-hidden />
+    <div className={styles.commentBox} data-expanded={expanded || undefined} data-focused={focused || undefined} data-editing={editing || undefined}>
+      <textarea
+        ref={inputRef}
+        className={styles.commentInput}
+        aria-label={placeholder}
+        placeholder={placeholder}
+        rows={1}
+        value={text}
+        autoFocus={autoFocus}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onKeyUp={(event) => setCaret(event.currentTarget.selectionStart)}
+        onClick={(event) => setCaret(event.currentTarget.selectionStart)}
+        onChange={(event) => {
+          setText(event.target.value)
+          setCaret(event.target.selectionStart)
+          setActive(0)
+        }}
+        onKeyDown={(event) => {
+          if (people.length && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+            event.preventDefault()
+            setActive((activeIndex + (event.key === 'ArrowDown' ? 1 : people.length - 1)) % people.length)
+          } else if (people.length && (event.key === 'Enter' || event.key === 'Tab')) {
+            event.preventDefault()
+            mention(people[activeIndex])
+          } else if (event.key === 'Escape') {
+            onCancel()
+          } else if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault()
+            submit()
+          }
+        }}
+      />
+      {expanded ? (
+        <div className={styles.commentTools}>
+          <div ref={emojiRef} className={styles.commentToolAnchor}>
+            <button
+              type="button"
+              className={`${controls.barButton} ${styles.commentTool}`}
+              aria-label="Add emoji"
+              aria-expanded={emojiOpen}
+              onMouseDown={keepFocus}
+              onClick={() => setEmojiOpen((open) => !open)}
+            >
+              <Smiley size={18} aria-hidden />
+            </button>
+            {emojiOpen ? (
+              <div className={`${controls.menu} ${styles.commentPopover} ${styles.emojiGrid}`} role="menu" aria-label="Emoji">
+                {EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    role="menuitem"
+                    className={`${controls.barButton} ${styles.commentTool}`}
+                    onMouseDown={keepFocus}
+                    onClick={() => {
+                      insert(emoji)
+                      setEmojiOpen(false)
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className={`${controls.barButton} ${styles.commentTool}`}
+            aria-label="Mention someone"
+            onMouseDown={keepFocus}
+            onClick={() => insert(caret > 0 && !/\s/.test(text[caret - 1]) ? ' @' : '@')}
+          >
+            <At size={18} aria-hidden />
           </button>
-          <button type="button" className={`${controls.barButton} ${styles.cardButton}`} aria-label="Delete comment" onClick={onDelete}>
-            <Trash size={16} aria-hidden />
+          {editing ? (
+            <div className={`${SCOPE_CLASS} ${styles.commentEditActions}`} data-theme="dark">
+              <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn--primary btn--sm" disabled={!trimmed} onClick={submit}>
+                Save
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {editing ? null : (
+        <button
+          type="button"
+          className={`${controls.barButton} ${styles.commentSend}`}
+          aria-label={sendLabel}
+          disabled={!trimmed}
+          onMouseDown={keepFocus}
+          onClick={submit}
+        >
+          <ArrowUp size={14} weight="bold" aria-hidden />
+        </button>
+      )}
+      {people.length ? (
+        <div className={`${controls.menu} ${styles.commentPopover} ${styles.mentionMenu}`} role="listbox" aria-label="People">
+          {people.map((name, index) => (
+            <button
+              key={name}
+              type="button"
+              role="option"
+              aria-selected={index === activeIndex}
+              className={index === activeIndex ? `${controls.menuItem} ${controls.menuItemActive}` : controls.menuItem}
+              onMouseDown={keepFocus}
+              onMouseEnter={() => setActive(index)}
+              onClick={() => mention(name)}
+            >
+              <Avatar author={name} small />
+              {name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** A ··· menu; it sits in a fixed layer over the button so the thread's scrolling list can't clip it. */
+function MoreMenu({ label, items }: { label: string; items: readonly NodeMenuItem[] }) {
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setAnchor(null), [])
+  useDismiss(anchor !== null, ref, close)
+  return (
+    <div ref={ref} className={styles.commentToolAnchor}>
+      <button
+        type="button"
+        className={`${controls.barButton} ${styles.cardButton}`}
+        aria-label={label}
+        aria-expanded={anchor !== null}
+        onClick={(event) => setAnchor(anchor ? null : event.currentTarget.getBoundingClientRect())}
+      >
+        <DotsThree size={18} weight="bold" aria-hidden />
+      </button>
+      {anchor ? (
+        <div className={styles.commentMenuAnchor} style={{ left: anchor.left, top: anchor.top, width: anchor.width, height: anchor.height }}>
+          <NodeMenu items={items} label={label} onClose={close} />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+type CommentThreadProps = {
+  comment: CanvasComment
+  left: number
+  top: number
+  onReply: (text: string) => void
+  onEdit: (messageId: string, text: string) => void
+  onDeleteMessage: (messageId: string) => void
+  onMarkUnread: () => void
+  onResolve: () => void
+  onDelete: () => void
+  onClose: () => void
+}
+
+export function CommentThread({ comment, left, top, onReply, onEdit, onDeleteMessage, onMarkUnread, onResolve, onDelete, onClose }: CommentThreadProps) {
+  const now = useNow()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  useBesidePin(cardRef, left, top)
+  const count = comment.messages.length
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
+  }, [count])
+  return (
+    <div ref={cardRef} className={styles.commentCard} role="dialog" aria-label="Comment">
+      <div className={styles.commentHead}>
+        <span className={styles.commentTitle}>Comment</span>
+        <span className={styles.commentActions}>
+          <MoreMenu
+            label="Thread options"
+            items={[
+              { label: 'Mark as unread', onSelect: onMarkUnread },
+              { label: 'Delete thread', danger: true, onSelect: onDelete },
+            ]}
+          />
+          <button type="button" className={`${controls.barButton} ${styles.cardButton}`} aria-label="Resolve" data-tooltip="Resolve" onClick={onResolve}>
+            <CheckCircle size={18} aria-hidden />
+          </button>
+          <button type="button" className={`${controls.barButton} ${styles.cardButton}`} aria-label="Close" onClick={onClose}>
+            <X size={16} aria-hidden />
           </button>
         </span>
       </div>
-      <p className={styles.commentText}>{comment.text}</p>
+      <div ref={listRef} className={styles.commentMessages} data-native-scroll>
+        {comment.messages.map((message, index) => (
+          <div key={message.id} className={styles.commentMessage}>
+            <Avatar author={message.author} small />
+            <span className={styles.commentAuthor}>{message.author}</span>
+            <span className={styles.commentTime}>{commentAge(message.createdAt, now)}</span>
+            {message.author === COMMENT_AUTHOR ? (
+              <MoreMenu
+                label="Comment options"
+                items={[
+                  { label: 'Edit', onSelect: () => setEditingId(message.id) },
+                  { label: index === 0 ? 'Delete thread' : 'Delete', danger: true, onSelect: () => onDeleteMessage(message.id) },
+                ]}
+              />
+            ) : null}
+            {editingId === message.id ? (
+              <div className={styles.commentMessageBody}>
+                <CommentBox
+                  placeholder="Edit comment"
+                  sendLabel="Save"
+                  initial={message.text}
+                  autoFocus
+                  editing
+                  onSubmit={(text) => {
+                    onEdit(message.id, text)
+                    setEditingId(null)
+                  }}
+                  onCancel={() => setEditingId(null)}
+                />
+              </div>
+            ) : (
+              <MessageText text={message.text} className={`${styles.commentText} ${styles.commentMessageBody}`} />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className={styles.commentReply}>
+        <Avatar author={COMMENT_AUTHOR} small />
+        <CommentBox placeholder="Reply" sendLabel="Reply" onSubmit={onReply} onCancel={onClose} />
+      </div>
     </div>
   )
 }
@@ -371,38 +734,11 @@ export function CommentThread({ comment, left, top, onResolve, onDelete }: Comme
 type CommentComposerProps = { left: number; top: number; onPost: (text: string) => void; onCancel: () => void }
 
 export function CommentComposer({ left, top, onPost, onCancel }: CommentComposerProps) {
-  const [text, setText] = useState('')
-  const post = () => {
-    if (text.trim()) onPost(text.trim())
-  }
+  const ref = useRef<HTMLDivElement>(null)
+  useBesidePin(ref, left, top)
   return (
-    <div className={styles.commentCard} style={{ left, top }} role="dialog" aria-label="New comment">
-      <textarea
-        className={styles.commentInput}
-        aria-label="Comment"
-        placeholder="Add a comment"
-        value={text}
-        autoFocus
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') onCancel()
-          if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault()
-            post()
-          }
-        }}
-      />
-      <div className={SCOPE_CLASS} data-theme="dark" style={{ display: 'contents' }}>
-        <div className={styles.commentFoot}>
-          <span className={styles.commentHint}>Posting as {COMMENT_AUTHOR}</span>
-          <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" className="btn btn--primary btn--sm" disabled={!text.trim()} onClick={post}>
-            Post
-          </button>
-        </div>
-      </div>
+    <div ref={ref} className={styles.commentComposer} role="dialog" aria-label="New comment">
+      <CommentBox placeholder="Add a comment" sendLabel="Post comment" autoFocus onSubmit={onPost} onCancel={onCancel} />
     </div>
   )
 }

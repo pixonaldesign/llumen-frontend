@@ -15,7 +15,8 @@ import {
 } from '@phosphor-icons/react'
 import { Card, Field, NumberInput, Select, type SelectOption } from './ConfigControls'
 import { columnsOf } from './createAsset'
-import { ML_MODELS, SAVED_ASSETS, SOURCES, SOURCES_BY_ID, type SourceMode } from './flowData'
+import { ML_MODELS, SAVED_ASSETS, SOURCES, SOURCES_BY_ID, previewOf, type SourceMode } from './flowData'
+import type { AssetPreview } from './nodeCatalog'
 import { plural, stepColumns, type EditorContext, type EditorProps } from './kindEditor'
 import { ColumnChips, ColumnSelect, Notice, Segmented, TemplateField, TextField } from './KindControls'
 import { forecastGate, forecastHistory } from './nodeRuntime'
@@ -34,6 +35,8 @@ import windowStyles from './NodeConfigWindow.module.css'
 
 /* ---------- Asset ---------- */
 
+const assetIcon = (preview: AssetPreview) =>
+  preview === 'map' ? <MapTrifold size={14} aria-hidden /> : preview === 'table' ? <Table size={14} aria-hidden /> : <ChartLine size={14} aria-hidden />
 export function AssetConfig({ params, set }: EditorProps<AssetParams>) {
   const asset = SAVED_ASSETS.find((item) => item.id === params.assetId)
   const options: SelectOption<string>[] = SAVED_ASSETS.map((item) => ({
@@ -41,11 +44,11 @@ export function AssetConfig({ params, set }: EditorProps<AssetParams>) {
     label: item.name,
     description: item.detail,
     meta: item.archived ? 'Archived' : plural(item.rows.length, 'row'),
-    icon: item.preview === 'map' ? <MapTrifold size={14} aria-hidden /> : <ChartLine size={14} aria-hidden />,
+    icon: assetIcon(previewOf(item.view.chartType)),
   }))
   const columns = asset ? columnsOf(asset.rows) : []
   return (
-    <Card icon={<ChartLineUp size={16} aria-hidden />} title="Asset" description="Reads a saved chart or map layer’s rows into the flow.">
+    <Card icon={<ChartLineUp size={16} aria-hidden />} title="Asset" description="Reads a saved chart, table, or map layer’s rows into the flow.">
       <Field label="Asset" required>
         <Select label="Asset" value={params.assetId} options={options} placeholder="Choose an asset" invalid={!asset} onChange={(assetId) => set({ assetId }, 'assetId')} />
       </Field>
@@ -193,7 +196,7 @@ function SourceDetail({ params, set, ctx }: EditorProps<SourceParams>) {
             <Select
               label="Request"
               value={params.endpointId}
-              options={endpoints.map((endpoint) => ({ id: endpoint.id, label: `${endpoint.method} ${endpoint.path}`, meta: plural(endpoint.rows.length, 'row') }))}
+              options={endpoints.map((endpoint) => ({ id: endpoint.id, label: endpoint.name, meta: `${endpoint.method} ${endpoint.path} · ${plural(endpoint.rows.length, 'row')}` }))}
               onChange={(endpointId) => set({ endpointId }, 'endpointId')}
             />
           </Field>

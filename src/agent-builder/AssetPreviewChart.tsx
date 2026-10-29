@@ -265,8 +265,12 @@ function Grid({ max, innerH, w, pad }: { max: number; innerH: number; w: number;
 
 const PIE_SHADES = [1, 0.78, 0.6, 0.45, 0.32, 0.22]
 
-function Pie({ records, category, value, w, h }: { records: readonly DataRecord[]; category: string; value: string; w: number; h: number }) {
-  const values = records.map((record) => Math.max(0, numberOf(record[value])))
+/** One slice per category, summing the rows that share it. */
+function Pie({ records: rows, category, value, w, h }: { records: readonly DataRecord[]; category: string; value: string; w: number; h: number }) {
+  const totals = new Map<string, number>()
+  for (const row of rows) totals.set(textOf(row[category]), (totals.get(textOf(row[category])) ?? 0) + Math.max(0, numberOf(row[value])))
+  const records: DataRecord[] = [...totals].map(([name]) => ({ [category]: name }))
+  const values = [...totals.values()]
   const total = values.reduce((sum, item) => sum + item, 0) || 1
   const radius = Math.min(h / 2 - 8, w / 4)
   const cx = radius + 16

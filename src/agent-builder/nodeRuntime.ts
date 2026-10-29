@@ -1,11 +1,18 @@
+import { conditionText, evaluateRule, observeDataCondition } from './alerts'
+import { SECRET_MASK, answered, isSecretHeader, statusLine, withoutPassword, type ApiExchange } from './apiExchange'
+import type { ChatExchange, ChatReply } from './chatMessage'
 import { matches } from './conditions'
 import { columnsOf, detectGeometry, isMapLayer } from './createAsset'
-import { ASSETS_BY_ID, DAY_MS, ML_MODELS_BY_ID, SOURCES_BY_ID, isoDay } from './flowData'
+import type { EmailMessage } from './emailMessage'
+import type { Finding, FindingAsset, FindingRule, FindingSection } from './findings'
+import { ASSETS_BY_ID, DAY_MS, ML_MODELS_BY_ID, SOURCES_BY_ID, isoDay, previewOf } from './flowData'
 import {
   NODE_TYPES_BY_ID,
   nodeName,
   nodeOutputs,
+  nodePreview,
   nodeSettings,
+  type AssetPreview,
   type CanvasNode,
   type DataRecord,
   type DataValue,
@@ -16,11 +23,14 @@ import {
 import {
   TEMPLATE_TOKEN,
   UNCLASSIFIED,
+  alertSourceIssue,
+  apiConnection,
   bodyAllowed,
   emailList,
   isAppAsset,
   kindIssue,
   paramsFor,
+  ruleConditions,
   scheduleSummary,
   slug,
   urlIssue,
@@ -36,7 +46,7 @@ import {
 /* ---------- Step input and result ---------- */
 
 /** An earlier step and what it last produced, addressable from templates as `{{alias.field}}`. */
-export type Ancestor = { id: string; name: string; alias: string; typeId: string; rows: readonly DataRecord[] | null }
+export type Ancestor = { id: string; name: string; alias: string; typeId: string; rows: readonly DataRecord[] | null; preview?: AssetPreview }
 
 export type StepInput = {
   node: CanvasNode
@@ -53,16 +63,33 @@ export type StepInput = {
   /** Execute Node on one step, as opposed to a flow run. */
   stepTest: boolean
   runId: string
+  /** The chat's answer, when this step is a Send and wait being resumed. */
+  reply?: ChatReply
 }
 
 type Ports = Record<string, DataRecord[]>
 
 export type StepResult =
-  | { ok: true; ports: Ports; note?: string; cost?: number; assetRows?: readonly DataRecord[]; seconds: number }
-  | { ok: false; code: string; message: string; seconds: number; cost?: number }
+  | {
+      ok: true
+      ports: Ports
+      note?: string
+      cost?: number
+      assetRows?: readonly DataRecord[]
+      finding?: Finding | null
+      chat?: ChatExchange
+      email?: EmailMessage
+      api?: ApiExchange
+      /** Parked on Send and wait until the chat replies; the steps after it wait too. */
+      waiting?: boolean
+      seconds: number
+    }
+  /** `api` is the request and its unsuccessful reply, when the API answered with an error. */
+  | { ok: false; code: string; message: string; seconds: number; cost?: number; api?: ApiExchange }
 
 const fail = (code: string, message: string, seconds = 0.4): StepResult => ({ ok: false, code, message, seconds })
-const done = (ports: Ports, seconds: number, extra: { note?: string; cost?: number; assetRows?: readonly DataRecord[] } = {}): StepResult => ({ ok: true, ports, seconds, ...extra })
+type Extra = { note?: string; cost?: number; assetRows?: readonly DataRecord[]; finding?: Finding | null; chat?: ChatExchange; email?: EmailMessage; api?: ApiExchange }
+const done = (ports: Ports, seconds: number, extra: Extra = {}): StepResult => ({ ok: true, ports, seconds, ...extra })
 
 /** Every input port's rows, in port order. */
 const allRows = (input: StepInput) => input.type.inputs.flatMap((port) => input.inputs[port.id] ?? [])
@@ -803,22 +830,148 @@ function runApp(input: StepInput): StepResult {
   return done({ out: [record] }, 70, { cost: agentCost(rows.length, 0.02), note: 'Saved as a new app.' })
 }
 
+/* ---------- AI Findings ---------- */
+
+const AGENT_CATEGORIES: ReadonlySet<string> = new Set(['analysisAgents', 'outputAgents'])
+const LEVEL_RANK = { alert: 1, critical_alert: 2 } as const
+
+/**
+ * The finding a published run would write, from this run's data; test runs don't write one, so this
+ * is the preview. It reads the nearest table with something to rank, the verdicts of the analysis
+ * agents upstream, and the alert rules.
+ */
+function runFindings(input: StepInput): StepResult {
+  const params = paramsFor('aiFindings', input.node.config.params)
+  const upstream = input.ancestors.filter((ancestor) => NODE_TYPES_BY_ID[ancestor.typeId]?.category !== 'triggers')
+  const detached = alertSourceIssue(params, upstream)
+  if (detached) return fail('WF_COMPILE_AI_FINDINGS_ALERT_SOURCE_NOT_UPSTREAM', `${detached}.`, 0.05)
+
+  const direct = allRows(input)
+  const tables = [
+    { name: 'the rows it received', rows: direct, preview: undefined as AssetPreview | undefined },
+    ...upstream.filter((ancestor) => !AGENT_CATEGORIES.has(NODE_TYPES_BY_ID[ancestor.typeId]?.category ?? '')).map((ancestor) => ({ name: ancestor.name, rows: ancestor.rows ?? [], preview: ancestor.preview })),
+  ]
+  const key = tables.map((table) => ({ ...table, data: profile(table.rows) })).find((table) => table.data.ranked.length >= 2)
+  if (!key?.data.measure || !key.data.label) {
+    return done({}, 6, {
+      cost: agentCost(direct.length, 0.004),
+      finding: null,
+      note: 'Nothing upstream has a numeric measure to rank, so a published run would have nothing to write a finding about.',
+    })
+  }
+
+  const { data } = key
+  const measure = words(data.measure ?? '')
+  const unit = words(data.label ?? 'row')
+  const [first, second, ...others] = data.ranked
+  const share = percent(first.value, data.total)
+  const verdicts = upstream.filter((ancestor) => typeof ancestor.rows?.[0]?.answer === 'string' && AGENT_CATEGORIES.has(NODE_TYPES_BY_ID[ancestor.typeId]?.category ?? ''))
+  const asset = (name: string, preview?: AssetPreview): FindingAsset | undefined => (preview ? { name, preview } : undefined)
+  const outliers = data.ranked.filter((item) => item.value > data.mean + data.std)
+
+  const sections: FindingSection[] = [
+    {
+      heading: `${first.label} leads`,
+      text:
+        `${first.label} has ${round(first.value, 1)} ${measure}, ${share}% of the ${round(data.total, 1)} across ${data.count} ${unit}s` +
+        (data.mean ? ` and ${round(first.value / data.mean, 1)}× the ${round(data.mean, 1)} average.` : '.'),
+      asset: asset(key.name, key.preview),
+    },
+    {
+      heading: 'Where the rest stand',
+      text:
+        `${second.label} follows with ${round(second.value, 1)}` +
+        (others.length ? `, then ${listFormat.format(others.slice(0, 3).map((item) => `${item.label} (${round(item.value, 1)})`))}.` : '.') +
+        (outliers.length
+          ? ` ${outliers.length} of ${data.count} ${outliers.length === 1 ? 'sits' : 'sit'} more than one standard deviation above the average.`
+          : ' None sits more than one standard deviation above the average.'),
+    },
+    ...verdicts.map((verdict) => ({
+      heading: `What ${verdict.name} adds`,
+      text: String(verdict.rows?.[0]?.answer),
+      asset: asset(`${verdict.name} map`, verdict.preview),
+    })),
+  ]
+
+  const stepName = (id: string) => upstream.find((ancestor) => ancestor.id === id)?.name ?? 'a step'
+  const rowsFor = (id: string) => upstream.find((ancestor) => ancestor.id === id)?.rows ?? null
+  const rules: FindingRule[] = params.alerts.enabled
+    ? params.alerts.rules.flatMap((rule) => {
+        if (evaluateRule(rule, rowsFor) !== 'fires') return []
+        const conditions = ruleConditions(rule).flatMap((condition) => {
+          if (condition.type !== 'data' || !condition.sourceNodeId) return []
+          const seen = observeDataCondition(condition, rowsFor(condition.sourceNodeId))
+          return seen?.passed ? [{ text: conditionText(condition, stepName), observed: seen.observed }] : []
+        })
+        return [{ label: rule.label || 'Untitled rule', level: rule.level, conditions }]
+      })
+    : []
+  const top = rules.reduce<FindingRule | undefined>((best, rule) => (!best || LEVEL_RANK[rule.level] > LEVEL_RANK[best.level] ? rule : best), undefined)
+
+  const finding: Finding = {
+    kind: top?.level ?? 'update',
+    headline: `${first.label} accounts for ${share}% of ${measure} across ${data.count} ${unit}s`,
+    lead: `${first.label} is ahead of ${second.label} by ${round(first.value - second.value, 1)} ${measure}, so it is where to look first.`,
+    sections,
+    actions: [
+      `Start with ${first.label}: it holds the most ${measure}.`,
+      `Then review ${listFormat.format([second, ...others].slice(0, 2).map((item) => item.label))}.`,
+    ],
+    howWeKnow:
+      `Read from ${listFormat.format([key.name, ...verdicts.map((verdict) => verdict.name)])}: ` +
+      `${data.count} ${unit}s ranked by ${measure}, against an average of ${round(data.mean, 1)} and a standard deviation of ${round(data.std, 1)}.`,
+    focus: params.instructions.trim() || undefined,
+    rules,
+  }
+  return done({}, 18, { cost: agentCost(direct.length, 0.006), finding, note: 'Test runs don’t write findings; this is what a published run would write from the same data.' })
+}
+
 /* ---------- Actions ---------- */
+
+/** Actions refuse to send with a reference left blank, the way the worker does. */
+function fillActionTemplate(text: string, scope: TemplateScope): { ok: true; text: string } | { ok: false; failure: StepResult } {
+  const { text: filled, unresolved } = expandTemplate(text, scope)
+  if (!unresolved.length) return { ok: true, text: filled }
+  const tokens = listFormat.format(unresolved.map((token) => `{{${token}}}`))
+  return {
+    ok: false,
+    failure: fail(
+      'WF_ACTION_REF_RESOLVE',
+      `${tokens} ${unresolved.length === 1 ? 'has' : 'have'} no value in this run. No earlier step or first-row field has that name, or the step it reads left no rows.`,
+      0.1,
+    ),
+  }
+}
 
 function runChatMessage(input: StepInput): StepResult {
   const params = paramsFor('sendChatMessage', input.node.config.params)
   if (params.mode === 'send_and_wait' && !input.hasChatTrigger) {
     return fail('WF_COMPILE_ACTION_CHAT_WAIT_REQUIRES_CHAT_TRIGGER', 'Send and wait needs a Chat Input trigger in this workflow.')
   }
-  const rows = allRows(input)
-  const message = expandTemplate(params.message, { rows, ancestors: input.ancestors }).text
+  const filled = fillActionTemplate(params.message, { rows: allRows(input), ancestors: input.ancestors })
+  if (!filled.ok) return filled.failure
+  const message = filled.text
   if (!message.trim()) return fail('WF_ACTION_CHAT_MESSAGE_EMPTY', 'The message is empty once its references are filled in.')
   const session = input.triggerTypeId === 'chatInput'
-  const record: DataRecord = { mode: params.mode, message, bubble_written: session }
-  if (session && params.mode === 'send_and_wait') {
-    Object.assign(record, params.responseType === 'approval' ? { response_type: 'approval', response: params.approveLabel, approved: true } : { response_type: 'free_text', response: 'Noted, sending a team tomorrow.' })
+  const waits = params.mode === 'send_and_wait'
+  const chat: ChatExchange = {
+    message,
+    posted: session,
+    expects: !waits ? undefined : params.responseType === 'approval' ? { type: 'approval', approveLabel: params.approveLabel, rejectLabel: params.rejectLabel } : { type: 'free_text' },
   }
-  return done({ out: [record] }, session && params.mode === 'send_and_wait' ? 8 : 0.3, {
+  const record: DataRecord = { mode: params.mode, message, bubble_written: session }
+  if (session && waits) {
+    const { reply } = input
+    if (!reply) return { ok: true, ports: {}, seconds: 0.3, chat, waiting: true }
+    if (reply.type !== params.responseType) {
+      return fail('WF_CHAT_RESUME_RESPONSE_TYPE_MISMATCH', `The reply is ${reply.type === 'approval' ? 'an approval' : 'free text'}, but this step now expects ${params.responseType === 'approval' ? 'an approval' : 'free text'}.`, 0.1)
+    }
+    const response = reply.type === 'approval' ? (reply.approved ? params.approveLabel : params.rejectLabel) : reply.text
+    Object.assign(record, { response_type: reply.type, response }, reply.type === 'approval' ? { approved: reply.approved } : {})
+    chat.reply = { text: response, approved: reply.type === 'approval' ? reply.approved : undefined }
+  }
+  return done({ out: [record] }, 0.3, {
+    chat,
     note: session ? undefined : 'No chat session in this run, so the step succeeded without writing a bubble.',
   })
 }
@@ -826,6 +979,9 @@ function runChatMessage(input: StepInput): StepResult {
 function runEmail(input: StepInput): StepResult {
   const params = paramsFor('sendEmail', input.node.config.params)
   const scope = { rows: allRows(input), ancestors: input.ancestors }
+  const fields = [params.to, params.cc, params.bcc, params.subject, params.body].map((text) => fillActionTemplate(text, scope))
+  const broken = fields.find((field) => !field.ok)
+  if (broken && !broken.ok) return broken.failure
   const fill = (text: string) => expandTemplate(text, scope).text
   const to = emailList(fill(params.to))
   if (!to.length) return fail('WF_ACTION_EMAIL_TO_EMPTY', 'Add a recipient.')
@@ -833,30 +989,60 @@ function runEmail(input: StepInput): StepResult {
   if (!subject.trim()) return fail('WF_ACTION_EMAIL_SUBJECT_EMPTY', 'Add a subject.')
   const body = fill(params.body)
   if (!body.trim()) return fail('WF_ACTION_EMAIL_BODY_EMPTY', 'Write the email body.')
-  return done({ out: [{ simulated: true, to: to.join(', '), cc: emailList(fill(params.cc)).join(', ') || null, subject, body }] }, 0.6, {
+  const email: EmailMessage = { to, cc: emailList(fill(params.cc)), bcc: emailList(fill(params.bcc)), subject, body, sent: false }
+  const list = (addresses: readonly string[]) => addresses.join(', ') || null
+  return done({ out: [{ simulated: true, to: list(email.to), cc: list(email.cc), bcc: list(email.bcc), subject, body }] }, 0.6, {
+    email,
     note: 'Builder runs simulate email when no SMTP transport is configured: nothing was sent and no outbound row was written.',
   })
+}
+
+/** The builder's stand-in for the API answers like httpbin: a `/status/404` path gets a 404 back. */
+function pretendStatus(method: string, url: URL) {
+  const code = /\/status\/([1-5]\d\d)\/?$/.exec(url.pathname)?.[1]
+  return code ? Number(code) : method === 'POST' ? 201 : 200
 }
 
 function runApiRequest(input: StepInput): StepResult {
   const params = paramsFor('sendApiRequest', input.node.config.params)
   if (params.mode === 'source') {
-    const source = params.sourceId ? SOURCES_BY_ID[params.sourceId] : undefined
+    const { source, endpoint } = apiConnection(params)
     if (!source) return fail('WF_ACTION_API_SOURCE_REQUIRED', 'Select the API connection.')
-    return done({ out: [{ status: 202, ok: true, via: source.name, response_body: '{"accepted":true}' }] }, 1.1)
+    if (!endpoint) return fail('WF_ACTION_API_SOURCE_REQUEST_REQUIRED', 'Choose the request to make.')
+    const reply = JSON.stringify(endpoint.rows)
+    const api: ApiExchange = { method: endpoint.method, url: endpoint.path, via: source.name, headers: [], body: '', status: 200, reply, sent: false }
+    return done({ out: [{ status: 200, ok: true, via: source.name, request: `${endpoint.method} ${endpoint.path}`, response_body: reply }] }, 1.1, {
+      api,
+      note: `Pretend reply from ${source.name}’s sample data: the builder doesn’t call external APIs.`,
+    })
   }
   const scope = { rows: allRows(input), ancestors: input.ancestors }
+  const broken = [params.url, params.body, ...params.headers.map((header) => header.value)].map((text) => fillActionTemplate(text, scope)).find((field) => !field.ok)
+  if (broken && !broken.ok) return broken.failure
   const url = expandTemplate(params.url, scope).text
   const issue = urlIssue(url)
   if (issue) return fail(issue.includes('private') ? 'WF_ACTION_API_URL_DISALLOWED' : 'WF_ACTION_API_URL_REQUIRED', issue)
   const body = expandTemplate(params.body, scope).text
   if (body.trim() && !bodyAllowed(params.method)) return fail('WF_ACTION_API_REQUEST_BUILD', `A ${params.method} request can’t carry a body.`)
-  const host = new URL(url).hostname
-  return done(
-    { out: [{ status: params.method === 'POST' ? 201 : 200, ok: true, method: params.method, url, request_body: body || null, response_body: JSON.stringify({ received: true, id: stableId('req', url + body) }) }] },
-    0.9,
-    { note: `Simulated response from ${host}: the builder doesn’t call external APIs.` },
-  )
+  const headers = params.headers
+    .filter((header) => header.key.trim())
+    .map((header) => ({ name: header.key.trim(), value: isSecretHeader(header.key) ? SECRET_MASK : expandTemplate(header.value, scope).text }))
+  const target = new URL(url)
+  const status = pretendStatus(params.method, target)
+  const reply = answered(status) ? JSON.stringify({ received: true, id: stableId('req', url + body) }) : ''
+  const shown = withoutPassword(url)
+  const api: ApiExchange = { method: params.method, url: shown, headers, body, status, reply, sent: false }
+  if (!answered(status)) return { ...fail('WF_ACTION_API_HTTP', `The API answered ${statusLine(status)}.`, 0.9), api }
+  const record = {
+    status,
+    ok: true,
+    method: params.method,
+    url: shown,
+    request_headers: headers.length ? JSON.stringify(Object.fromEntries(headers.map((header) => [header.name, header.value]))) : null,
+    request_body: body || null,
+    response_body: reply,
+  }
+  return done({ out: [record] }, 0.9, { api, note: `Pretend reply from ${target.hostname}: the builder doesn’t call external APIs.` })
 }
 
 /** One node's work on its input. Configuration problems fail the step the way the compiler would. */
@@ -939,7 +1125,7 @@ export function executeStep(input: StepInput): StepResult {
       return runApp(input)
     case 'aiFindings':
       if (issue) return fail('WF_COMPILE_AI_FINDINGS_INVALID', `${issue}.`)
-      return done({}, 0.05, { note: 'Findings are written for runs of the published Flow, not for test runs from the builder. Publish the Flow and run it to see its finding here.' })
+      return runFindings(input)
     case 'sendChatMessage':
       return runChatMessage(input)
     case 'sendEmail':
@@ -989,6 +1175,13 @@ function ancestorIds(id: string, edges: readonly WorkflowEdge[]) {
   return seen
 }
 
+/** The picture an earlier step leaves behind, for a finding to place beside its text. */
+function ancestorPreview(node: CanvasNode, rows: readonly DataRecord[] | null): AssetPreview | undefined {
+  if (node.type === 'asset') return nodePreview(node)
+  if (node.type === 'createAsset') return previewOf(paramsFor('createAsset', node.config.params).chartType)
+  return rows?.[0]?.visual_asset_id ? 'map' : undefined
+}
+
 export type RunPlanInput = {
   nodes: readonly CanvasNode[]
   edges: readonly WorkflowEdge[]
@@ -1003,6 +1196,8 @@ export type RunPlanInput = {
   /** Forced outcomes from the Run agent menu. */
   simulate?: 'pass' | 'fail'
   forcedFailure?: string
+  /** Replies to steps parked on Send and wait, by node id; those steps resume with them. */
+  replies?: Readonly<Record<string, ChatReply>>
 }
 
 export type PlannedStep = { id: string; run: NodeRun }
@@ -1025,6 +1220,8 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
   const steps: PlannedStep[] = []
   /** The Stop and Error node that fired; every step after it in the order is skipped, on any branch. */
   let haltedBy: string | undefined
+  /** Steps parked on a chat reply, and every step that reads one; these don't run until the reply. */
+  const held = new Set(Object.entries(plan.previous).flatMap(([id, run]) => (run.status === 'waiting' && !plan.order.includes(id) ? [id] : [])))
 
   for (const id of plan.order) {
     const node = byId.get(id)
@@ -1038,6 +1235,10 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
     }
     const settings = nodeSettings(node)
     const inbound = plan.edges.filter((edge) => edge.to === id)
+    if (inbound.some((edge) => held.has(edge.from))) {
+      held.add(id)
+      continue
+    }
     const isTriggerEdge = (edge: WorkflowEdge) => NODE_TYPES_BY_ID[byId.get(edge.from)?.type ?? '']?.category === 'triggers'
     const arrived = (edge: WorkflowEdge) => {
       if (isTriggerEdge(edge)) return !plan.triggerId || edge.from === plan.triggerId
@@ -1090,11 +1291,12 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
     const ancestors: Ancestor[] = ancestorIds(id, plan.edges).flatMap((ancestorId) => {
       const ancestor = byId.get(ancestorId)
       if (!ancestor) return []
-      return [{ id: ancestorId, name: nodeName(ancestor, NODE_TYPES_BY_ID[ancestor.type]), alias: aliases[ancestorId], typeId: ancestor.type, rows: runRows(results[ancestorId]) }]
+      const rows = runRows(results[ancestorId])
+      return [{ id: ancestorId, name: nodeName(ancestor, NODE_TYPES_BY_ID[ancestor.type]), alias: aliases[ancestorId], typeId: ancestor.type, rows, preview: ancestorPreview(ancestor, rows) }]
     })
     const parents = inbound.map((edge) => ({ id: edge.from, typeId: byId.get(edge.from)?.type ?? '' }))
     const children = plan.edges.filter((edge) => edge.from === id).map((edge) => byId.get(edge.to)?.type ?? '')
-    const input: StepInput = { node, type, inputs, parents, children, ancestors, triggerTypeId, hasChatTrigger, stepTest, runId }
+    const input: StepInput = { node, type, inputs, parents, children, ancestors, triggerTypeId, hasChatTrigger, stepTest, runId, reply: plan.replies?.[id] }
 
     let result = executeStep(input)
     if (plan.simulate === 'pass' && !result.ok) result = done({ [nodeOutputs(node, type)[0]?.id ?? 'out']: allRows(input) }, result.seconds)
@@ -1104,13 +1306,16 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
     }
 
     let run: NodeRun
-    if (result.ok) {
+    if (result.ok && result.waiting) {
+      held.add(id)
+      run = { status: 'waiting', chat: result.chat, durationMs: Math.round(result.seconds * 1000) }
+    } else if (result.ok) {
       const branching = isBranching(node, type)
       const ports = Object.fromEntries(
         Object.entries(result.ports).filter(([, rows]) => !branching || rows.length > 0 || settings.alwaysOutputData),
       )
       const items = branching ? Object.values(result.ports).reduce((sum, rows) => sum + rows.length, 0) : Object.values(result.ports)[0]?.length
-      run = { status: 'success', ports, items, cost: result.cost, durationMs: Math.round(result.seconds * 1000), note: result.note, assetRows: result.assetRows }
+      run = { status: 'success', ports, items, cost: result.cost, durationMs: Math.round(result.seconds * 1000), note: result.note, assetRows: result.assetRows, finding: result.finding, chat: result.chat, email: result.email, api: result.api }
     } else {
       const attempts = settings.retryOnFail ? settings.retryMaxAttempts : 1
       const seconds = result.seconds * attempts + (attempts - 1) * settings.retryDelaySeconds
@@ -1122,7 +1327,7 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
           : settings.onError === 'errorOutput' && outputs[0]
             ? { [outputs[0].id]: [{ error: true, node_id: id, error_code: result.code, error_message: result.message }] }
             : undefined
-      run = { status: 'error', message, code: result.code, attempts, durationMs: Math.round(seconds * 1000), cost: result.cost, ports }
+      run = { status: 'error', message, code: result.code, attempts, durationMs: Math.round(seconds * 1000), cost: result.cost, ports, api: result.api }
     }
     results[id] = run
     steps.push({ id, run })

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { ArrowsInSimple, ArrowsOutSimple, CircleNotch, DotsThree, GearSix, Palette, Play } from '@phosphor-icons/react'
+import { CircleNotch, DotsThree, GearSix, Palette, Play } from '@phosphor-icons/react'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import { NodeMenu, type NodeMenuItem, type RunScope } from './nodeParts'
 import { useDismiss } from './useDismiss'
@@ -18,9 +18,6 @@ type NodeActionsBarProps = {
   annotation: boolean
   canDuplicate: boolean
   running: boolean
-  detailsHidden: boolean
-  /** Omitted when the card has no value rows or text to hide. */
-  onDetails?: () => void
   appearanceOpen: boolean
   onRun: (scope: RunScope) => void
   onConfigure: () => void
@@ -41,8 +38,6 @@ export function NodeActionsBar({
   annotation,
   canDuplicate,
   running,
-  detailsHidden,
-  onDetails,
   appearanceOpen,
   onRun,
   onConfigure,
@@ -79,18 +74,6 @@ export function NodeActionsBar({
             <button type="button" className={controls.barButton} aria-label={`Configure ${name}`} data-tooltip="Configure" onClick={onConfigure}>
               <GearSix size={18} aria-hidden />
             </button>
-            {onDetails ? (
-              <button
-                type="button"
-                className={controls.barButton}
-                aria-label="Show details"
-                aria-pressed={!detailsHidden}
-                data-tooltip={detailsHidden ? 'Show details' : 'Hide details'}
-                onClick={onDetails}
-              >
-                {detailsHidden ? <ArrowsOutSimple size={18} aria-hidden /> : <ArrowsInSimple size={18} aria-hidden />}
-              </button>
-            ) : null}
           </>
         )}
         {onAppearance ? (

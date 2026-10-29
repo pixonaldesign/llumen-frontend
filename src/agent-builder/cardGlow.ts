@@ -1,57 +1,9 @@
-import { DEFAULT_CANVAS_CARDS, readCardSurface, type CardSurface } from './canvasLook'
+import { readCardSurface, type CardSurface } from './canvasLook'
 
-/** Card layout and design for minimal cards; the canvas background is set on its own. */
-export type CardGlow = 'classic' | 'sections' | 'panel' | 'gradient' | 'iconHeader'
-
-/** In CSS pixels. Padding is the card's own, or in the panel styles the padding inside each panel. */
+/** In CSS pixels: the padding inside the card's black panel, and the card's corner radius. */
 export type CardLayout = { padding: number; radius: number }
 
-const PANEL_LAYOUT: CardLayout = { padding: 10, radius: 16 }
-
-export const CARD_GLOWS: readonly {
-  id: CardGlow
-  label: string
-  description: string
-  /** Whether the icon container and values panel options apply, and the card background is the canvas-wide one. */
-  nodeOptions: boolean
-  layout: CardLayout
-}[] = [
-  {
-    id: 'classic',
-    label: 'Style 1',
-    description: 'Dark card with a hairline border, values in their own panel underneath',
-    nodeOptions: true,
-    layout: { padding: 16, radius: 20 },
-  },
-  {
-    id: 'sections',
-    label: 'Style 2',
-    description: 'Header, content, and footer on a card tinted from the category colour; the footer previews run data',
-    nodeOptions: false,
-    layout: { padding: 16, radius: 20 },
-  },
-  {
-    id: 'panel',
-    label: 'Style 3',
-    description: 'A frame in the category colour holding the header, with the content and run data in black panels inside',
-    nodeOptions: false,
-    layout: PANEL_LAYOUT,
-  },
-  {
-    id: 'gradient',
-    label: 'Style 4',
-    description: 'Style 3 with a frame that fades from the category colour to a dark shade of it, and a white header',
-    nodeOptions: false,
-    layout: PANEL_LAYOUT,
-  },
-  {
-    id: 'iconHeader',
-    label: 'Style 5',
-    description: 'Style 4 without the category name: the header holds only the node’s icon and its actions',
-    nodeOptions: false,
-    layout: PANEL_LAYOUT,
-  },
-]
+export const DEFAULT_CARD_LAYOUT: CardLayout = { padding: 10, radius: 16 }
 
 export const CARD_LAYOUT_LIMITS: Record<keyof CardLayout, { min: number; max: number }> = {
   padding: { min: 4, max: 40 },
@@ -67,74 +19,52 @@ export const GLOW_CATEGORIES: readonly { id: GlowCategory; label: string }[] = [
   { id: 'action', label: 'Actions' },
 ]
 
-export type IconContainer = 'tile' | 'circle' | 'none'
-
-export const ICON_CONTAINERS: readonly { id: IconContainer; label: string; hint: string }[] = [
-  { id: 'tile', label: 'Tile', hint: 'A rounded square in the category colour behind the icon.' },
-  { id: 'circle', label: 'Circle', hint: 'A flat circle in the category colour behind the icon, like the node library cards.' },
-  { id: 'none', label: 'None', hint: 'A larger icon in the category colour, with nothing behind it.' },
-]
-
 export type CardGlowConfig = {
-  style: CardGlow
   colors: Record<GlowCategory, string>
-  /** What sits behind the card's category icon. */
-  iconContainer: IconContainer
-  /** Values in their own well, tinted from the category colour, with labels in that colour. */
-  valuesPanel: boolean
-  /** Card fill under the frame for the styles that tint the card themselves; `default` keeps their tint. The border is unused. */
+  /** Card fill under the frame; `default` keeps the card's own tint. The border is unused. */
   surface: CardSurface
-  /** Changes to each style's padding and corner radius; a node's own appearance still wins. */
-  layout: Partial<Record<CardGlow, Partial<CardLayout>>>
+  /** Changes to the card's padding and corner radius; a node's own appearance still wins. */
+  layout: Partial<CardLayout>
 }
 
 export const DEFAULT_GLOW_COLORS: Record<GlowCategory, string> = {
-  trigger: '#166bc0',
-  data: '#17b2d9',
-  agents: '#4f2fee',
-  action: '#3caf98',
+  trigger: '#2485e5',
+  data: '#0fc3f0',
+  agents: '#a97aff',
+  action: '#de9c3f',
 }
 
 export const DEFAULT_CARD_GLOW: CardGlowConfig = {
-  style: 'classic',
   colors: DEFAULT_GLOW_COLORS,
-  iconContainer: 'circle',
-  valuesPanel: true,
-  surface: { fill: 'default', top: DEFAULT_CANVAS_CARDS.top, bottom: DEFAULT_CANVAS_CARDS.bottom, border: DEFAULT_CANVAS_CARDS.border },
+  surface: {
+    fill: 'default',
+    top: { color: '#000000', opacity: 0.7 },
+    bottom: { color: '#000000', opacity: 0.1 },
+    border: { color: '#ffffff', opacity: 0.1 },
+  },
   layout: {},
 }
 
-/** The style's padding and corner radius, with the changes made to them. */
+/** The card's padding and corner radius, with the changes made to them. */
 export function cardLayout(config: CardGlowConfig): CardLayout {
-  const base = (CARD_GLOWS.find((option) => option.id === config.style) ?? CARD_GLOWS[0]).layout
-  return { ...base, ...config.layout[config.style] }
+  return { ...DEFAULT_CARD_LAYOUT, ...config.layout }
 }
 
-function readLayout(value: unknown): CardGlowConfig['layout'] {
-  const saved = (value ?? {}) as Record<string, Partial<Record<keyof CardLayout, unknown>> | undefined>
-  const layout: CardGlowConfig['layout'] = {}
-  for (const { id } of CARD_GLOWS) {
-    const entry: Partial<CardLayout> = {}
-    for (const key of ['padding', 'radius'] as const) {
-      const number = saved[id]?.[key]
-      const { min, max } = CARD_LAYOUT_LIMITS[key]
-      if (typeof number === 'number' && Number.isFinite(number)) entry[key] = Math.min(max, Math.max(min, Math.round(number)))
-    }
-    if (Object.keys(entry).length) layout[id] = entry
+function readLayout(value: unknown): Partial<CardLayout> {
+  const saved = (value ?? {}) as Partial<Record<keyof CardLayout, unknown>>
+  const layout: Partial<CardLayout> = {}
+  for (const key of ['padding', 'radius'] as const) {
+    const number = saved[key]
+    const { min, max } = CARD_LAYOUT_LIMITS[key]
+    if (typeof number === 'number' && Number.isFinite(number)) layout[key] = Math.min(max, Math.max(min, Math.round(number)))
   }
   return layout
 }
 
-/** Saved as on/off before the circle; on was the tile. */
-const readIconContainer = (saved: unknown): IconContainer =>
-  saved === false ? 'none' : saved === true ? 'tile' : ICON_CONTAINERS.some((option) => option.id === saved) ? (saved as IconContainer) : DEFAULT_CARD_GLOW.iconContainer
-
 /** Versioned so saves made before the defaults last changed don't override them. */
-const CONFIG_KEY = 'llumen.cardGlowConfig.v2'
-const DEFAULT_COLORS_KEY = 'llumen.cardGlowDefaultColors.v2'
+const CONFIG_KEY = 'llumen.cardGlowConfig.v3'
+const DEFAULT_COLORS_KEY = 'llumen.cardGlowDefaultColors.v3'
 const HEX = /^#[0-9a-f]{6}$/i
-
-const isStyle = (value: unknown): value is CardGlow => CARD_GLOWS.some((option) => option.id === value)
 
 /** What Reset goes back to: colours saved as the default, or the built-in ones. */
 export function readDefaultGlowColors(): Record<GlowCategory, string> {
@@ -162,17 +92,13 @@ export function saveDefaultGlowColors(colors: Record<GlowCategory, string> | nul
   }
 }
 
-/** Older saves carry settings for styles that are gone; only the fields above are read back. */
 export function readCardGlow(): CardGlowConfig {
   try {
     const raw = localStorage.getItem(CONFIG_KEY)
     if (!raw) return { ...DEFAULT_CARD_GLOW, colors: readDefaultGlowColors() }
     const saved = JSON.parse(raw) as Partial<CardGlowConfig>
     return {
-      style: isStyle(saved.style) ? saved.style : DEFAULT_CARD_GLOW.style,
       colors: { ...readDefaultGlowColors(), ...saved.colors },
-      iconContainer: readIconContainer(saved.iconContainer),
-      valuesPanel: saved.valuesPanel ?? true,
       surface: readCardSurface(saved.surface, DEFAULT_CARD_GLOW.surface),
       layout: readLayout(saved.layout),
     }

@@ -1,7 +1,8 @@
 import { conditionGroup, groupField, groupIssue, partsText, newCondition, type Combinator, type ConditionGroup, type Operator } from './conditions'
 import { DEFAULT_CREATE_ASSET, createAssetFields, createAssetIssue, type CreateAssetSettings } from './createAsset'
-import { ASSETS_BY_ID, ML_MODELS_BY_ID, SOURCES_BY_ID, measureLimit, type SourceMode } from './flowData'
-import type { FieldPart, NodeField, NodePort } from './nodeCatalog'
+import { addressSummary } from './emailMessage'
+import { ASSETS_BY_ID, ML_MODELS_BY_ID, SOURCES_BY_ID, measureLimit, previewOf, type SavedAsset, type SourceMode } from './flowData'
+import type { AssetPreview, FieldPart, NodeField, NodePort } from './nodeCatalog'
 
 /*
  * Each node kind's own configuration: the keys the builder writes, what the card shows, and what
@@ -11,6 +12,8 @@ import type { FieldPart, NodeField, NodePort } from './nodeCatalog'
 /* ---------- Triggers ---------- */
 
 export type ScheduleUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months'
+export type ScheduleEnds = 'never' | 'after' | 'on'
+export type ScheduleSpan = 'days' | 'weeks' | 'months' | 'years'
 
 export type ScheduleParams = {
   /** 1–10,000; seconds are not a unit the scheduler accepts. */
@@ -23,6 +26,13 @@ export type ScheduleParams = {
   /** 1–28, so February never skips a run; used when the unit is months. */
   monthDay: number
   timezone: string
+  /** When the schedule stops firing: never, a span after the flow is published, or after a day. */
+  ends: ScheduleEnds
+  /** 1–999 of `endAfterUnit`; used when it ends after a span. */
+  endAfter: number
+  endAfterUnit: ScheduleSpan
+  /** `YYYY-MM-DD` in the schedule's timezone, the last day it fires; used when it ends on a day. */
+  endDate: string
 }
 
 export type ChatInputParams = {
@@ -147,7 +157,13 @@ export type DataAlertCondition = { id: string; type: 'data'; sourceNodeId?: stri
 export type EventAlertCondition = { id: string; type: 'forecast_event'; withinHours: number; event: string }
 export type AlertCondition = DataAlertCondition | EventAlertCondition
 export type AlertLevel = 'critical_alert' | 'alert'
-export type AlertRule = { id: string; label: string; level: AlertLevel; combinator: Combinator; conditions: readonly AlertCondition[] }
+/** Conditions joined by the group's own AND or OR; a rule joins its groups by its own. */
+export type AlertGroup = { id: string; combinator: Combinator; conditions: readonly AlertCondition[] }
+export type AlertRule = { id: string; label: string; level: AlertLevel; combinator: Combinator; groups: readonly AlertGroup[] }
+/** The Engine's caps, per node, per rule and per group. */
+export const ALERT_LIMITS = { rules: 10, groups: 5, conditions: 10 } as const
+export const ALERT_LEVEL_LABEL: Record<AlertLevel, string> = { critical_alert: 'Critical alert', alert: 'Alert' }
+export const ruleConditions = (rule: AlertRule) => rule.groups.flatMap((group) => group.conditions)
 
 export type AiFindingsParams = {
   /** Up to 1,000 characters; read by the findings agent, never at run time. */
@@ -175,6 +191,8 @@ export type ApiRequestParams = {
   headers: readonly Header[]
   body: string
   sourceId?: string
+  /** The saved connection's request to make. */
+  endpointId?: string
 }
 
 /* ---------- Registry ---------- */
@@ -222,7 +240,19 @@ export const uid = (prefix: string) => `${prefix}_${(idCounter += 1).toString(36
 
 export const KIND_DEFAULTS: { readonly [K in KindId]: KindParamsMap[K] } = {
   manualTrigger: {},
-  scheduleTrigger: { every: 1, unit: 'days', atHour: 8, atMinute: 0, weekday: 1, monthDay: 1, timezone: 'Asia/Dubai' },
+  scheduleTrigger: {
+    every: 1,
+    unit: 'days',
+    atHour: 8,
+    atMinute: 0,
+    weekday: 1,
+    monthDay: 1,
+    timezone: 'Asia/Dubai',
+    ends: 'never',
+    endAfter: 1,
+    endAfterUnit: 'months',
+    endDate: '',
+  },
   chatInput: { testMessage: 'Which sites need an inspection this week?' },
   webhook: {
     method: 'POST',
@@ -280,11 +310,12 @@ export const KIND_DEFAULTS: { readonly [K in KindId]: KindParamsMap[K] } = {
   stickyNote: {},
 }
 
-const isKind = (typeId: string): typeId is KindId => typeId in KIND_DEFAULTS
+export const isKind = (typeId: string): typeId is KindId => typeId in KIND_DEFAULTS
 
-/** A node's parameters with the kind's defaults filled in. */
+/** A node's parameters with the kind's defaults filled in; a key saved as null or undefined takes its default too. */
 export function paramsFor<K extends KindId>(typeId: K, stored: unknown): KindParamsMap[K] {
-  return { ...KIND_DEFAULTS[typeId], ...(stored as Partial<KindParamsMap[K]> | undefined) }
+  const saved = stored && typeof stored === 'object' ? Object.entries(stored).filter(([, value]) => value != null) : []
+  return { ...KIND_DEFAULTS[typeId], ...(Object.fromEntries(saved) as Partial<KindParamsMap[K]>) }
 }
 
 /* ---------- Templates ---------- */
@@ -307,25 +338,83 @@ const UNIT_WORD: Record<ScheduleUnit, string> = { minutes: 'minute', hours: 'hou
 export const clockTime = (hour: number, minute: number) => `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 
 /** What the compiled schedule reads as, e.g. "Every day at 08:00". */
-export function scheduleCadence(params: ScheduleParams) {
+/** How often the schedule fires, with its numbers and names as value parts. */
+export function scheduleCadenceParts(params: ScheduleParams): FieldPart[] {
   const word = UNIT_WORD[params.unit]
-  const every = params.every === 1 ? `Every ${word}` : `Every ${params.every} ${word}s`
-  const at = clockTime(params.atHour, params.atMinute)
+  const every: FieldPart[] = [
+    { text: 'Every', role: 'label' },
+    { text: params.every === 1 ? word : `${params.every} ${word}s`, role: 'value' },
+  ]
+  const at: FieldPart[] = [
+    { text: 'at', role: 'label' },
+    { text: clockTime(params.atHour, params.atMinute), role: 'value' },
+  ]
   switch (params.unit) {
     case 'minutes':
       return every
     case 'hours':
-      return `${every} at :${String(params.atMinute).padStart(2, '0')}`
+      return [...every, { text: 'at', role: 'label' }, { text: `:${String(params.atMinute).padStart(2, '0')}`, role: 'value' }]
     case 'weeks':
-      return `${every} on ${WEEKDAYS[params.weekday]} at ${at}`
+      return [...every, { text: 'on', role: 'label' }, { text: WEEKDAYS[params.weekday], role: 'value' }, ...at]
     case 'months':
-      return `${every} on day ${params.monthDay} at ${at}`
+      return [...every, { text: 'on', role: 'label' }, { text: `day ${params.monthDay}`, role: 'value' }, ...at]
     default:
-      return `${every} at ${at}`
+      return [...every, ...at]
   }
 }
 
-export const scheduleSummary = (params: ScheduleParams) => `${scheduleCadence(params)} · ${params.timezone}`
+export const scheduleCadence = (params: ScheduleParams) => partsText(scheduleCadenceParts(params))
+
+export const SCHEDULE_MAX_SPAN = 999
+
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/** A `YYYY-MM-DD` day as UTC midnight, or undefined when it isn't a real day. */
+export function dayOf(text: string) {
+  const match = ISO_DAY.exec(text)
+  if (!match) return undefined
+  const day = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+  return day.toISOString().slice(0, 10) === text ? day : undefined
+}
+
+/** Today in `timezone`, as `YYYY-MM-DD`. */
+export function todayIn(timezone: string, now = new Date()) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  } catch {
+    return now.toISOString().slice(0, 10)
+  }
+}
+
+/** The last day a schedule that ends after a span fires, counted from the day it was published. */
+export function spanEnd(params: ScheduleParams, publishedAt: number) {
+  const start = dayOf(todayIn(params.timezone, new Date(publishedAt)))
+  if (!start) return undefined
+  const span = Math.max(1, params.endAfter)
+  const [years, months, days] =
+    params.endAfterUnit === 'years' ? [span, 0, 0] : params.endAfterUnit === 'months' ? [0, span, 0] : [0, 0, params.endAfterUnit === 'weeks' ? span * 7 : span]
+  return new Date(Date.UTC(start.getUTCFullYear() + years, start.getUTCMonth() + months, start.getUTCDate() + days))
+}
+
+export const formatDay = (day: Date) => new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }).format(day)
+
+/**
+ * When the schedule stops, e.g. "ends after 3 months" or "ends 31 Dec 2026"; undefined when it never does.
+ * Once published, a span reads as the day it ends.
+ */
+export function scheduleEnd(params: ScheduleParams, publishedAt?: number) {
+  if (params.ends === 'on') {
+    const day = dayOf(params.endDate)
+    return day ? `ends ${formatDay(day)}` : undefined
+  }
+  if (params.ends !== 'after') return undefined
+  const end = publishedAt === undefined ? undefined : spanEnd(params, publishedAt)
+  if (end) return `ends ${formatDay(end)}`
+  const word = params.endAfterUnit.slice(0, -1)
+  return `ends after ${params.endAfter} ${word}${params.endAfter === 1 ? '' : 's'}`
+}
+
+export const scheduleSummary = (params: ScheduleParams) => [scheduleCadence(params), params.timezone, scheduleEnd(params)].filter(Boolean).join(' · ')
 
 /* ---------- Card rows, summaries, issues ---------- */
 
@@ -429,11 +518,14 @@ function webhookIssue(params: WebhookParams) {
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-export const emailList = (text: string) =>
-  text
+/** Addresses in the order written, each once; case doesn't make two addresses different. */
+export const emailList = (text: string) => {
+  const addresses = text
     .split(/[,;\s]+/)
     .map((item) => item.trim())
     .filter(Boolean)
+  return addresses.filter((address, index) => addresses.findIndex((other) => other.toLowerCase() === address.toLowerCase()) === index)
+}
 
 /** Rejects non-http(s) schemes and private, loopback, and link-local hosts, like the worker's guard. */
 export function urlIssue(url: string): string | undefined {
@@ -463,8 +555,17 @@ export function urlIssue(url: string): string | undefined {
 
 export const bodyAllowed = (method: HttpMethod) => method !== 'GET'
 
+/** A saved API connection and the request picked on it; either is missing until chosen, or once deleted. */
+export function apiConnection(params: Pick<ApiRequestParams, 'sourceId' | 'endpointId'>) {
+  const source = params.sourceId ? SOURCES_BY_ID[params.sourceId] : undefined
+  return { source, endpoint: source?.endpoints?.find((endpoint) => endpoint.id === params.endpointId) }
+}
+
 function apiIssue(params: ApiRequestParams) {
-  if (params.mode === 'source') return params.sourceId ? undefined : 'Select the API connection'
+  if (params.mode === 'source') {
+    const { source, endpoint } = apiConnection(params)
+    return !source ? 'Select the API connection' : !endpoint ? 'Choose the request to make' : undefined
+  }
   const url = urlIssue(params.url)
   if (url) return url
   const keys = params.headers.map((header) => header.key.trim().toLowerCase()).filter(Boolean)
@@ -496,13 +597,17 @@ function alertsIssue(params: AiFindingsParams) {
   if (params.instructions.length > 1000) return 'The focus note is over 1,000 characters'
   if (!params.alerts.enabled) return undefined
   if (params.alerts.criteria.length > 500) return 'The alert criteria are over 500 characters'
+  if (params.alerts.rules.length > ALERT_LIMITS.rules) return `A Flow can have up to ${ALERT_LIMITS.rules} alert rules`
   for (const rule of params.alerts.rules) {
-    if (!rule.conditions.length) return `Add a condition to “${rule.label || 'Untitled rule'}”`
-    for (const condition of rule.conditions) {
+    const name = `“${rule.label || 'Untitled rule'}”`
+    if (rule.groups.length > ALERT_LIMITS.groups) return `${name} has more than ${ALERT_LIMITS.groups} groups`
+    if (!rule.groups.length || rule.groups.some((group) => !group.conditions.length)) return `Add a condition to every group in ${name}`
+    if (rule.groups.some((group) => group.conditions.length > ALERT_LIMITS.conditions)) return `A group in ${name} has more than ${ALERT_LIMITS.conditions} conditions`
+    for (const condition of ruleConditions(rule)) {
       if (condition.type === 'forecast_event') {
         if (condition.withinHours < 1 || condition.withinHours > 72) return 'A coming event must be within 1–72 hours'
       } else if (!condition.sourceNodeId || (condition.measure !== 'row_count' && !condition.field) || !condition.value.trim()) {
-        return `Finish the conditions in “${rule.label || 'Untitled rule'}”`
+        return `Finish the conditions in ${name}`
       }
     }
   }
@@ -552,7 +657,13 @@ export function kindIssue(typeId: string, stored: unknown): string | undefined {
   switch (typeId) {
     case 'scheduleTrigger': {
       const params = paramsFor(typeId, stored)
-      return params.every >= 1 && params.every <= 10_000 ? undefined : 'Every must be between 1 and 10,000'
+      if (params.every < 1 || params.every > 10_000) return 'Every must be between 1 and 10,000'
+      if (params.ends === 'after' && (params.endAfter < 1 || params.endAfter > SCHEDULE_MAX_SPAN)) return `Ends after must be between 1 and ${SCHEDULE_MAX_SPAN}`
+      if (params.ends === 'on') {
+        if (!dayOf(params.endDate)) return 'Pick the day the schedule ends'
+        if (params.endDate < todayIn(params.timezone)) return 'The end day has passed'
+      }
+      return undefined
     }
     case 'webhook':
       return webhookIssue(paramsFor(typeId, stored))
@@ -702,8 +813,9 @@ export function kindFields(typeId: string, stored: unknown): NodeField[] {
     case 'createApp':
       return [{ label: 'Pages', value: APP_NAVIGATION_LABEL[paramsFor(typeId, stored).navigation] }]
     case 'aiFindings': {
-      const alerts = paramsFor(typeId, stored).alerts
-      return [{ label: 'Alerts', value: alerts.enabled ? `${alerts.rules.length} ${alerts.rules.length === 1 ? 'rule' : 'rules'}` : 'Off' }]
+      const { enabled, rules } = paramsFor(typeId, stored).alerts
+      const value = !enabled ? 'Alerts off' : rules.length ? `${rules.length} alert ${rules.length === 1 ? 'rule' : 'rules'}` : 'Alerts on, no rules yet'
+      return [{ label: 'Alerts', value }]
     }
     case 'sendChatMessage': {
       const params = paramsFor(typeId, stored)
@@ -711,16 +823,17 @@ export function kindFields(typeId: string, stored: unknown): NodeField[] {
     }
     case 'sendEmail': {
       const params = paramsFor(typeId, stored)
+      const to = emailList(params.to)
       return [
-        ...(params.to.trim() ? [{ label: 'To', value: params.to }] : []),
+        ...(to.length ? [{ label: 'To', value: addressSummary(to) }] : []),
         ...(params.subject.trim() ? [{ label: 'Subject', value: params.subject }] : []),
       ]
     }
     case 'sendApiRequest': {
       const params = paramsFor(typeId, stored)
       if (params.mode === 'source') {
-        const source = params.sourceId ? SOURCES_BY_ID[params.sourceId] : undefined
-        return source ? [{ label: 'Via', value: source.name }] : []
+        const { source, endpoint } = apiConnection(params)
+        return source ? [{ label: 'Via', value: source.name }, ...(endpoint ? [{ label: endpoint.method, value: endpoint.path }] : [])] : []
       }
       return params.url.trim() ? [{ label: params.method, value: params.url.replace(/^https?:\/\//, '') }] : []
     }
@@ -730,7 +843,7 @@ export function kindFields(typeId: string, stored: unknown): NodeField[] {
 }
 
 /** The prompt a kind holds and passes on, by the param it lives in; cards can edit it in place. */
-export type KindPrompt = { param: 'instructions' | 'message'; value: string }
+export type KindPrompt = { param: 'instructions'; value: string }
 
 export function kindPrompt(typeId: string, stored: unknown): KindPrompt | undefined {
   if (!isKind(typeId)) return undefined
@@ -743,14 +856,12 @@ export function kindPrompt(typeId: string, stored: unknown): KindPrompt | undefi
     case 'createApp':
     case 'aiFindings':
       return { param: 'instructions', value: paramsFor(typeId, stored).instructions }
-    case 'sendChatMessage':
-      return { param: 'message', value: paramsFor(typeId, stored).message }
     default:
       return undefined
   }
 }
 
-/** Free text the card shows under its rows: an agent's instructions or a message. */
+/** Free text the card shows under its rows: an agent's instructions. */
 export function kindText(typeId: string, stored: unknown): string | undefined {
   return kindPrompt(typeId, stored)?.value.trim() || undefined
 }
@@ -790,8 +901,19 @@ export function gisLandIssue(params: GisParams, upstream: readonly WiredStep[], 
 /** What's wired straight in, triggers left out, and every ancestor; read only for kinds that check them. */
 export type WiringGraph = { wired: readonly WiredStep[]; upstream: readonly WiredStep[] }
 
+/** A data condition must read a step upstream of the AI Findings node; triggers don't count. */
+export function alertSourceIssue(params: AiFindingsParams, upstream: readonly { id: string }[]) {
+  if (!params.alerts.enabled) return undefined
+  const ids = new Set(upstream.map((step) => step.id))
+  const rule = params.alerts.rules.find((item) =>
+    ruleConditions(item).some((condition) => condition.type === 'data' && condition.sourceNodeId && !ids.has(condition.sourceNodeId)),
+  )
+  return rule ? `A condition in “${rule.label || 'Untitled rule'}” reads a step that isn’t upstream of this node` : undefined
+}
+
 /** Problems only the graph shows, e.g. a GIS node with nothing wired in; the node's own settings can be fine. */
 export function kindWiringIssue(typeId: string, stored: unknown, graph: () => WiringGraph) {
+  if (typeId === 'aiFindings') return alertSourceIssue(paramsFor(typeId, stored), graph().upstream)
   if (typeId !== 'gisCorrelationAgent') return undefined
   const { wired, upstream } = graph()
   return gisUpperIssue(wired) ?? gisLandIssue(paramsFor(typeId, stored), upstream, wired[0]?.id)
@@ -875,15 +997,25 @@ export function removeBranch(typeId: string, stored: unknown, portId: string): P
   return undefined
 }
 
-/** The Asset node's tile: the saved asset's own visual. */
-export function kindPreview(typeId: string, stored: unknown): 'chart' | 'map' | undefined {
+/** The saved asset an Asset node loads. */
+export function kindAsset(typeId: string, stored: unknown): SavedAsset | undefined {
   if (typeId !== 'asset') return undefined
   const params = paramsFor(typeId, stored)
-  return params.assetId ? ASSETS_BY_ID[params.assetId]?.preview : undefined
+  return params.assetId ? ASSETS_BY_ID[params.assetId] : undefined
+}
+
+/** The Asset node's tile: the saved asset's own visual. */
+export function kindPreview(typeId: string, stored: unknown): AssetPreview | undefined {
+  const asset = kindAsset(typeId, stored)
+  return asset ? previewOf(asset.view.chartType) : undefined
 }
 
 /** A notice that doesn't stop the run, e.g. an archived asset. */
 export function kindNotice(typeId: string, stored: unknown): string | undefined {
+  if (typeId === 'aiFindings') {
+    const { enabled, rules } = paramsFor(typeId, stored).alerts
+    return enabled && !rules.length ? 'Alerts are on with no rules yet, so every finding is an update.' : undefined
+  }
   if (typeId !== 'asset') return undefined
   const params = paramsFor(typeId, stored)
   return params.assetId && ASSETS_BY_ID[params.assetId]?.archived ? 'This asset is archived; it still runs.' : undefined

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } fr
 import {
   CaretLeft,
   CaretRight,
+  ChatCircleDots,
   CheckCircle,
   CircleNotch,
   Database,
@@ -18,6 +19,11 @@ import { Field, Menu, Popover, Select } from './ConfigControls'
 import { buttonClass, inputClass, layerClass, PopoverLayer } from './configStyles'
 import { columnsOf } from './createAsset'
 import { DataViewBody, type DataView } from './DataViews'
+import { ChatPreview } from './ChatPreview'
+import { ApiPreview } from './ApiPreview'
+import { EmailPreview } from './EmailPreview'
+import type { ChatReply } from './chatMessage'
+import { FindingReport } from './FindingReport'
 import { SAMPLE_ROWS } from './flowData'
 import { KindConfig } from './KindConfig'
 import { referencesFor, type EditorContext } from './kindEditor'
@@ -50,6 +56,8 @@ const INPUT_TABS: readonly { id: DataView | 'vars'; label: string }[] = [
   { id: 'vars', label: 'Global Vars' },
 ]
 const OUTPUT_TABS = INPUT_TABS.slice(0, 3) as readonly { id: DataView; label: string }[]
+/** Messages read first as the recipient sees them; the step's record stays a tab away. */
+const PREVIEW_TAB_LABEL: Readonly<Record<string, string>> = { sendChatMessage: 'Chat', sendEmail: 'Email', sendApiRequest: 'Request' }
 
 const TRIGGER_ACTIONS: Record<string, string> = {
   scheduleTrigger: 'Run Schedule Now',
@@ -93,6 +101,8 @@ type NodeConfigWindowProps = {
   onFixture: (records: DataRecord[] | null) => void
   onExecute: () => void
   onExecutePrevious: () => void
+  /** Answers a Send and wait step parked on the chat. */
+  onReply?: (reply: ChatReply) => void
   /** A branch to open on, e.g. the case edited from the card. */
   focus?: string
   onNavigate: (id: string) => void
@@ -181,7 +191,7 @@ export function NodeConfigWindow(props: NodeConfigWindowProps) {
               hasInput={hasInput}
               connected={connected}
             />
-            <OutputColumn node={node} type={type} run={run} format={type.category === 'dataFlow' ? 'parquet' : 'json'} />
+            <OutputColumn node={node} type={type} run={run} format={type.category === 'dataFlow' ? 'parquet' : 'json'} onReply={props.onReply} />
           </div>
           <div ref={setLayer} className={layerClass} />
         </PopoverLayer.Provider>
@@ -644,16 +654,24 @@ function FixtureEditor({
   )
 }
 
-const FINDINGS_NOTE = 'Findings are written for runs of the published Flow, not for test runs from the builder.'
+const FINDINGS_NOTE = 'Findings are written for runs of the published Flow, not for test runs from the builder. Run this node to preview the finding a published run would write.'
 
-function OutputColumn({ node, type, run, format }: { node: CanvasNode; type: NodeType; run: NodeRun; format: string }) {
-  const [tab, setTab] = useState<DataView>('schema')
+type OutputColumnProps = { node: CanvasNode; type: NodeType; run: NodeRun; format: string; onReply?: (reply: ChatReply) => void }
+
+function OutputColumn({ node, type, run, format, onReply }: OutputColumnProps) {
+  const previewLabel = PREVIEW_TAB_LABEL[type.id]
+  const [tab, setTab] = useState<DataView | 'preview'>(previewLabel ? 'preview' : 'schema')
   const outputs = nodeOutputs(node, type)
   const branching = outputs.length > 1
   const [picked, setPicked] = useState<string | null>(null)
   const ports = run.ports ?? {}
   const portId = picked && outputs.some((port) => port.id === picked) ? picked : (outputs.find((port) => ports[port.id]?.length)?.id ?? outputs[0]?.id)
   const records = run.status === 'success' || (run.status === 'error' && run.ports) ? (portId ? (ports[portId] ?? (branching ? [] : null)) : null) : null
+  const finding = run.status === 'success' ? run.finding : undefined
+  const chat = (run.status === 'success' || run.status === 'waiting') && previewLabel ? run.chat : undefined
+  const email = run.status === 'success' && previewLabel ? run.email : undefined
+  const api = (run.status === 'success' || run.status === 'error') && previewLabel ? run.api : undefined
+  const previewing = (chat || email || api) && tab === 'preview'
   const status =
     run.status === 'success'
       ? { label: 'Succeeded', icon: <CheckCircle size={12} weight="fill" aria-hidden /> }
@@ -661,12 +679,15 @@ function OutputColumn({ node, type, run, format }: { node: CanvasNode; type: Nod
         ? { label: 'Failed', icon: <WarningCircle size={12} weight="fill" aria-hidden /> }
         : run.status === 'running'
           ? { label: 'Executing', icon: <CircleNotch className={styles.spin} size={12} weight="bold" aria-hidden /> }
-          : run.status === 'skipped'
+          : run.status === 'waiting'
+            ? { label: 'Waiting for a reply', icon: <ChatCircleDots size={12} weight="fill" aria-hidden /> }
+            : run.status === 'skipped'
             ? { label: 'Skipped', icon: <MinusCircle size={12} weight="fill" aria-hidden /> }
             : null
 
   const body = () => {
     if (run.status === 'running') return <EmptyState icon={<CircleNotch className={styles.spin} size={20} />} title="Executing…" />
+    if (api && tab === 'preview') return <ApiPreview api={api} className={styles.finding} />
     if (run.status === 'error' && !records?.length) {
       return (
         <EmptyState icon={<WarningCircle size={20} />} title="Execution failed">
@@ -688,6 +709,16 @@ function OutputColumn({ node, type, run, format }: { node: CanvasNode; type: Nod
         </EmptyState>
       )
     }
+    if (chat && (tab === 'preview' || !records)) return <ChatPreview chat={chat} onReply={onReply} className={styles.finding} />
+    if (email && tab === 'preview') return <EmailPreview email={email} className={styles.finding} />
+    if (finding) return <FindingReport finding={finding} className={styles.finding} />
+    if (finding === null) {
+      return (
+        <EmptyState icon={<Database size={20} />} title="Nothing to write about">
+          {run.note}
+        </EmptyState>
+      )
+    }
     if (!records) {
       return (
         <EmptyState icon={<Database size={20} />} title="No output data">
@@ -702,7 +733,7 @@ function OutputColumn({ node, type, run, format }: { node: CanvasNode; type: Nod
         </EmptyState>
       )
     }
-    return <DataViewBody view={tab} records={records} />
+    return <DataViewBody view={tab === 'preview' ? 'schema' : tab} records={records} />
   }
 
   return (
@@ -730,13 +761,15 @@ function OutputColumn({ node, type, run, format }: { node: CanvasNode; type: Nod
             onChange={setPicked}
           />
         ) : null}
-        <Tabs tabs={OUTPUT_TABS} value={tab} label="Output format" onChange={setTab} />
+        {type.id === 'aiFindings' ? null : <Tabs tabs={previewLabel ? [{ id: 'preview', label: previewLabel }, ...OUTPUT_TABS] : OUTPUT_TABS} value={tab} label="Output format" onChange={setTab} />}
       </div>
-      {run.note && records?.length ? <p className={`${styles.hint} ${styles.outputNote}`}>{run.note}</p> : null}
+      {run.note && (records?.length || finding) && !previewing ? <p className={`${styles.hint} ${styles.outputNote}`}>{run.note}</p> : null}
       {run.status === 'error' && records?.length ? (
         <p className={`${styles.error} ${styles.outputNote}`}>
           {run.message} The error was published as output, so the steps after it ran.
         </p>
+      ) : run.status === 'error' && previewing ? (
+        <p className={`${styles.error} ${styles.outputNote}`}>{run.message}</p>
       ) : null}
       <div className={styles.columnScroll} data-native-scroll>
         {body()}

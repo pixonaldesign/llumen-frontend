@@ -430,15 +430,6 @@
   position: relative;
 }
 
-.glowMenuButton {
-  gap: var(--space-sm);
-  padding: 0 var(--space-md) 0 var(--space-lg);
-}
-
-.glowMenuButton svg {
-  color: rgba(255, 255, 255, 0.55);
-}
-
 .styleMenuButton {
   composes: iconButton from '../llumen-assistant/FloatingControls.module.css';
   padding: 0;
@@ -450,21 +441,6 @@
   right: 0;
   z-index: 5;
   min-width: 260px;
-}
-
-.styleMenuTitle {
-  margin: 0;
-  padding: 6px 18px 8px;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.styleMenuDivider {
-  display: block;
-  height: 1px;
-  margin: 6px 12px;
-  background: rgba(255, 255, 255, 0.1);
 }
 
 .styleOption {

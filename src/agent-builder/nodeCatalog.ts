@@ -32,11 +32,16 @@ import {
   kindIssue,
   kindNotice,
   kindOutputs,
+  kindAsset,
   kindPreview,
   kindText,
   type AnyParams,
   type KindId,
 } from './nodeKinds'
+import type { ChatExchange } from './chatMessage'
+import type { ApiExchange } from './apiExchange'
+import type { EmailMessage } from './emailMessage'
+import type { Finding } from './findings'
 import type { NodeAppearance } from './nodeAppearance'
 import { STICKY_SIZE, type StickyStyle } from './stickyNote'
 
@@ -68,7 +73,7 @@ export type NodeCategory = {
 }
 
 /** A piece of a field's value, styled by role, e.g. a condition's column, operator and compared value. */
-export type FieldPart = { text: string; role: 'field' | 'operator' | 'value' | 'join' }
+export type FieldPart = { text: string; role: 'label' | 'field' | 'operator' | 'value' | 'join' }
 
 export type NodeField = {
   label: string
@@ -84,7 +89,7 @@ export type NodeField = {
 }
 
 /** What an Asset node renders in its content area. */
-export type AssetPreview = 'chart' | 'map'
+export type AssetPreview = 'chart' | 'map' | 'table'
 
 /** Per-instance settings. */
 export type NodeConfig = {
@@ -96,8 +101,6 @@ export type NodeConfig = {
   note?: string
   /** Sticky note look; missing keys take `DEFAULT_STICKY`. */
   sticky?: Partial<StickyStyle>
-  /** Hides the card's value rows and text; toggled from the node toolbar. */
-  hideDetails?: boolean
 }
 
 /** What happens after a node fails, once its retries are spent. */
@@ -166,7 +169,8 @@ export type WorkflowEdge = {
   label?: string
 }
 
-export type RunStatus = 'idle' | 'running' | 'success' | 'error' | 'skipped'
+/** `waiting` is a Send and wait step parked until the chat replies. */
+export type RunStatus = 'idle' | 'running' | 'waiting' | 'success' | 'error' | 'skipped'
 
 export type DataValue = string | number | boolean | null
 export type DataRecord = Record<string, DataValue>
@@ -187,6 +191,14 @@ export type NodeRun = {
   note?: string
   /** The rows a saved asset holds, so the card can draw it without opening the asset. */
   assetRows?: readonly DataRecord[]
+  /** An AI Findings step's preview of what a published run would write; null when there was nothing to write about. */
+  finding?: Finding | null
+  /** A Send Chat Message step's bubble and the reply it got or waits for. */
+  chat?: ChatExchange
+  /** A Send Email step's email, as sent or as the simulation would have sent it. */
+  email?: EmailMessage
+  /** A Send API Request step's request and reply; kept when the reply was unsuccessful, too. */
+  api?: ApiExchange
   /** A wait being played back: when it started (`performance.now()`), how long it plays, and the wait it stands for. */
   countdown?: { startedAt: number; playMs: number; seconds: number }
 }
@@ -318,6 +330,7 @@ export const nodeText = (node: CanvasNode) => kindText(node.type, node.config.pa
 export const nodeIssue = (node: CanvasNode) => kindIssue(node.type, node.config.params)
 export const nodeNotice = (node: CanvasNode) => kindNotice(node.type, node.config.params)
 export const nodePreview = (node: CanvasNode) => kindPreview(node.type, node.config.params)
+export const nodeAsset = (node: CanvasNode) => kindAsset(node.type, node.config.params)
 export const nodeSettings = (node: CanvasNode): NodeSettings => ({ ...DEFAULT_NODE_SETTINGS, ...node.settings })
 
 export const formatCost = (cost: number) => `$${cost.toFixed(3)}`

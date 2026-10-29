@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type ReactNode } from 'react'
-import { BracketsCurly, CheckCircle, Info, Plus, Warning, WarningCircle, X } from '@phosphor-icons/react'
+import { BracketsCurly, CheckCircle, Eye, EyeSlash, Info, Plus, Warning, WarningCircle, X } from '@phosphor-icons/react'
 import { Field, Menu, Select, type SelectOption } from './ConfigControls'
 import { inputClass } from './configStyles'
 import type { Column } from './createAsset'
@@ -63,9 +63,9 @@ export function RemoveButton({ label, onClick, disabled }: { label: string; onCl
   )
 }
 
-export function AddButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+export function AddButton({ children, onClick, disabled, title }: { children: ReactNode; onClick: () => void; disabled?: boolean; title?: string }) {
   return (
-    <button type="button" className={styles.addButton} onClick={onClick}>
+    <button type="button" className={styles.addButton} disabled={disabled} title={title} onClick={onClick}>
       <Plus size={12} weight="bold" aria-hidden />
       {children}
     </button>
@@ -177,10 +177,8 @@ type TemplateFieldProps = {
   disabled?: boolean
 }
 
-/** A text field that takes `{{…}}` references, with a menu that inserts one at the caret. */
-export function TemplateField(props: TemplateFieldProps) {
-  const { label, value, onChange, references, multiline, mono, maxLength } = props
-  const id = useId()
+/** The Insert menu's state, and the menu itself, which puts a reference at the field's caret. */
+function useReferenceMenu(value: string, onChange: (value: string) => void, references: References, maxLength?: number) {
   const [open, setOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -197,6 +195,82 @@ export function TemplateField(props: TemplateFieldProps) {
       element?.setSelectionRange(start + token.length, start + token.length)
     })
   }
+
+  const menu = open ? (
+    <Menu
+      anchorRef={buttonRef}
+      align="end"
+      label="Insert a reference"
+      items={
+        references.length
+          ? references.map((reference) => ({ id: reference.token, label: reference.label, meta: reference.meta }))
+          : [{ id: '{{rows.count}}', label: 'rows.count', meta: 'Rows in' }]
+      }
+      onPick={insert}
+      onClose={() => setOpen(false)}
+    />
+  ) : null
+  return { inputRef, buttonRef, open, toggle: () => setOpen((current) => !current), menu }
+}
+
+type ReferenceInputProps = {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  references: References
+  placeholder?: string
+  mono?: boolean
+  /** Masks the value until it's shown, for credentials. */
+  secret?: boolean
+}
+
+/**
+ * A one-line input for a row of fields, followed by its Insert button and, for a secret, a show/hide
+ * button; an empty cell stands in for that one otherwise, so rows line up.
+ */
+export function ReferenceInput({ label, value, onChange, references, placeholder, mono, secret }: ReferenceInputProps) {
+  const [revealed, setRevealed] = useState(false)
+  const { inputRef, buttonRef, open, toggle, menu } = useReferenceMenu(value, onChange, references)
+  return (
+    <>
+      <input
+        ref={inputRef}
+        className={`${inputClass} ${mono ? styles.mono : ''}`}
+        type={secret && !revealed ? 'password' : 'text'}
+        autoComplete="off"
+        spellCheck={false}
+        value={value}
+        placeholder={placeholder}
+        aria-label={label}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <button ref={buttonRef} type="button" className={styles.iconButton} aria-label="Insert a reference" title="Insert a reference" aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
+        <BracketsCurly size={14} aria-hidden />
+      </button>
+      {secret ? (
+        <button
+          type="button"
+          className={styles.iconButton}
+          aria-label={revealed ? 'Hide value' : 'Show value'}
+          title={revealed ? 'Hide value' : 'Show value'}
+          aria-pressed={revealed}
+          onClick={() => setRevealed((current) => !current)}
+        >
+          {revealed ? <EyeSlash size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
+        </button>
+      ) : (
+        <span aria-hidden />
+      )}
+      {menu}
+    </>
+  )
+}
+
+/** A text field that takes `{{…}}` references, with a menu that inserts one at the caret. */
+export function TemplateField(props: TemplateFieldProps) {
+  const { label, value, onChange, references, multiline, mono, maxLength } = props
+  const id = useId()
+  const { inputRef, buttonRef, open, toggle, menu } = useReferenceMenu(value, onChange, references, maxLength)
 
   const className = [inputClass, multiline ? styles.textarea : null, mono ? styles.mono : null].filter(Boolean).join(' ')
   const shared = {
@@ -223,7 +297,7 @@ export function TemplateField(props: TemplateFieldProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={props.disabled}
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggle}
       >
         <BracketsCurly size={12} aria-hidden />
         Insert
@@ -238,20 +312,7 @@ export function TemplateField(props: TemplateFieldProps) {
       ) : (
         <input ref={inputRef} {...shared} onChange={(event) => onChange(event.target.value)} />
       )}
-      {open ? (
-        <Menu
-          anchorRef={buttonRef}
-          align="end"
-          label="Insert a reference"
-          items={
-            references.length
-              ? references.map((reference) => ({ id: reference.token, label: reference.label, meta: reference.meta }))
-              : [{ id: '{{rows.count}}', label: 'rows.count', meta: 'Rows in' }]
-          }
-          onPick={insert}
-          onClose={() => setOpen(false)}
-        />
-      ) : null}
+      {menu}
     </Field>
   )
 }

@@ -268,6 +268,11 @@ button.close:hover {
   color: #fca5a5;
 }
 
+.status[data-status='waiting'] {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fcd34d;
+}
+
 .outputNote {
   padding: var(--space-md) var(--column-pad) 0;
 }
@@ -403,6 +408,10 @@ button.tab[aria-selected='true'] {
 .columnScroll::-webkit-scrollbar-thumb {
   border-radius: 99px;
   background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+.finding {
+  padding: 0 var(--column-pad);
 }
 
 /* ---------- Empty states ---------- */

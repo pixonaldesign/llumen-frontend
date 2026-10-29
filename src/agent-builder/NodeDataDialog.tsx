@@ -2,7 +2,17 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { CaretRight, MagnifyingGlass, Warning, X } from '@phosphor-icons/react'
 import { nodeDataSides, nodeDataViews, type DataSide } from './cardSections'
 import { APP_THUMBNAIL } from './appThumbnail'
+import { ChatPreview } from './ChatPreview'
+import { ApiPreview } from './ApiPreview'
+import { statusLine } from './apiExchange'
+import { EmailPreview } from './EmailPreview'
+import type { ChatReply } from './chatMessage'
+import { AssetPreviewChart } from './AssetPreviewChart'
+import { chartName, type CreateAssetSettings } from './createAsset'
 import { DataViewBody } from './DataViews'
+import { previewOf } from './flowData'
+import { NodeAssetPreview } from './NodeAssetPreview'
+import { FindingReport } from './FindingReport'
 import { Tabs } from './NodeConfigWindow'
 import { nodeName, nodeOutputs, type CanvasNode, type DataRecord, type DataValue, type NodeRun, type NodeType } from './nodeCatalog'
 import { APP_NAVIGATION_LABEL, INSIGHT_TYPE_LABEL, isFallbackBranch, paramsFor } from './nodeKinds'
@@ -229,6 +239,43 @@ function SavedApp({ record }: { record: DataRecord }) {
   )
 }
 
+/** The asset a run saved, drawn as it will look, then its title and type; a test run draws the same rows without saving them. */
+function SavedAsset({ settings, rows, saved }: { settings: CreateAssetSettings; rows: readonly DataRecord[]; saved: boolean }) {
+  const { chartType } = settings
+  const preview = previewOf(chartType)
+  const title = settings.title?.trim() || 'Workflow Asset'
+  return (
+    <div className={styles.made}>
+      <figure className={styles.app}>
+        <div className={styles.assetVisual} data-preview={preview}>
+          {preview === 'map' ? (
+            <NodeAssetPreview kind="map" data={{ view: settings, rows }} interactive bare hint={false} />
+          ) : preview === 'table' ? (
+            <DataViewBody view="table" records={rows.slice(0, MAX_ROWS)} query="" bare />
+          ) : (
+            <AssetPreviewChart settings={settings} records={rows} flush />
+          )}
+        </div>
+        <figcaption className={styles.appCaption}>
+          <span className={styles.appText}>
+            <span className={styles.appTitle} title={title}>
+              {title}
+            </span>
+            <span className={styles.appMeta}>
+              {chartName(chartType)} · {rowCount(rows.length)} · {saved ? 'Saved to Assets' : 'Not saved on a test run'}
+            </span>
+          </span>
+          {saved ? (
+            <button type="button" className={styles.appOpen}>
+              Open asset
+            </button>
+          ) : null}
+        </figcaption>
+      </figure>
+    </div>
+  )
+}
+
 type NodeDataDialogProps = {
   node: CanvasNode
   type: NodeType
@@ -244,6 +291,8 @@ type NodeDataDialogProps = {
   onClose: () => void
   /** Opens the node's full input and output, past the rows shown here. */
   onViewAll: () => void
+  /** Answers a Send and wait step parked on the chat. */
+  onReply?: (reply: ChatReply) => void
 }
 
 /** A node's input or output rows, beside the node; the canvas stays usable while it's open. */
@@ -259,6 +308,7 @@ export function NodeDataDialog({
   clearBottom,
   onClose,
   onViewAll,
+  onReply,
 }: NodeDataDialogProps) {
   const windowRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -291,10 +341,15 @@ export function NodeDataDialog({
   const view = views[side]
   const records = view.records ?? []
   const savedApp = side === 'output' && records.length === 1 && records[0].created_entity_kind === 'app'
+  const assetRows = side === 'output' && type.id === 'createAsset' && view.records ? (run.assetRows ?? view.records) : undefined
   const layout = side === 'output' ? RECORD_LAYOUTS[type.id] : undefined
   const asRecord = !groups && readsAsRecord(records, layout)
   /** Only where there's something to sift: several rows, or one long record. */
-  const searchable = records.length > 1 || (asRecord && !savedApp && Object.keys(records[0]).length > SEARCH_FIELDS)
+  const finding = side === 'output' ? view.finding : undefined
+  const chat = side === 'output' ? view.chat : undefined
+  const email = side === 'output' ? view.email : undefined
+  const api = side === 'output' ? view.api : undefined
+  const searchable = finding === undefined && !chat && !email && !api && !assetRows && (records.length > 1 || (asRecord && !savedApp && Object.keys(records[0]).length > SEARCH_FIELDS))
   const query = searchable ? typed : ''
   /** Read from the output whichever side is showing, so switching sides doesn't move the header. */
   const verdict = views.output.records?.length === 1 ? views.output.records[0] : undefined
@@ -351,7 +406,15 @@ export function NodeDataDialog({
     }
   }, [node.id, onClose])
 
-  const count = (target: DataSide) => (views[target].records ? rowCount(views[target].records.length) : 'Failed')
+  const count = (target: DataSide) => {
+    const { records: rows, finding: written, chat: sent, email: mailed, api: called } = views[target]
+    if (written !== undefined) return written ? 'Preview' : 'No finding'
+    if (sent) return run.status === 'waiting' ? 'Waiting' : sent.posted ? 'Posted' : 'Not posted'
+    if (mailed) return mailed.sent ? 'Sent' : 'Not sent'
+    if (called) return statusLine(called.status)
+    if (target === 'output' && type.id === 'createAsset' && rows && run.assetRows) return 'Saved'
+    return rows ? rowCount(rows.length) : 'Failed'
+  }
 
   return (
     <div
@@ -413,8 +476,23 @@ export function NodeDataDialog({
         role={tabbed ? 'tabpanel' : 'region'}
         aria-label={`${SIDE_LABELS[side]} rows`}
       >
-        {view.error && !view.records ? (
+        {api ? (
+          <div className={styles.made}>
+            {view.error ? <p className={`${styles.empty} ${styles.error}`}>{view.error}</p> : null}
+            <ApiPreview api={api} />
+          </div>
+        ) : view.error && !view.records ? (
           <p className={`${styles.empty} ${styles.error}`}>{view.error}</p>
+        ) : chat ? (
+          <ChatPreview chat={chat} onReply={onReply} className={styles.made} />
+        ) : email ? (
+          <EmailPreview email={email} className={styles.made} />
+        ) : finding !== undefined ? (
+          finding ? (
+            <FindingReport finding={finding} className={styles.made} />
+          ) : (
+            <p className={styles.empty}>{view.emptyMessage}</p>
+          )
         ) : groups ? (
           <GroupList
             groups={groups}
@@ -424,6 +502,8 @@ export function NodeDataDialog({
             query={query}
             onViewAll={onViewAll}
           />
+        ) : assetRows ? (
+          <SavedAsset settings={paramsFor('createAsset', node.config.params)} rows={assetRows} saved={Boolean(run.assetRows)} />
         ) : !records.length ? (
           <p className={styles.empty}>No rows.</p>
         ) : savedApp ? (

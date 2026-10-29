@@ -1,12 +1,10 @@
 import { useId, useState } from 'react'
 import { ArrowsClockwise, X } from '@phosphor-icons/react'
 import {
-  CARD_GLOWS,
   CARD_LAYOUT_LIMITS,
   DEFAULT_CARD_GLOW,
   DEFAULT_GLOW_COLORS,
   GLOW_CATEGORIES,
-  ICON_CONTAINERS,
   readDefaultGlowColors,
   cardLayout,
   saveDefaultGlowColors,
@@ -18,7 +16,6 @@ import { CanvasBackdropSections } from './BackdropControls'
 import {
   CARD_MAX_BLUR,
   CARD_PRESETS,
-  DEFAULT_CANVAS_CARDS,
   GRAIN_SHIELD_BLUR,
   cardBlur,
   tintCss,
@@ -27,7 +24,7 @@ import {
   type CardFill,
   type Tint,
 } from './canvasLook'
-import { PopoverHost, SwitchRow } from './ConfigControls'
+import { PopoverHost } from './ConfigControls'
 import { ColorField, Slider, TintField } from './PaintControls'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import styles from './AppearancePanel.module.css'
@@ -53,20 +50,16 @@ const CARD_FILLS: readonly { id: CardFill; label: string }[] = [
 const sameTint = (a: Tint, b: Tint) => a.color.toLowerCase() === b.color.toLowerCase() && Math.abs(a.opacity - b.opacity) < 0.005
 
 type CardBackgroundProps = {
-  /** The fill and border being edited: the canvas-wide one, or the one for the styles that tint the card themselves. */
+  /** The card fill; the card keeps its own frame. */
   cards: CardSurface
   onCards: (next: CardSurface) => void
   onReset: () => void
-  /** What the Default fill shows. */
-  defaultHint: string
-  /** False where the style keeps its own frame and only the fill changes. */
-  border: boolean
-  /** Holds the blur, which every style shares. */
+  /** Holds the blur behind the card. */
   look: CanvasLook
   onLook: (next: CanvasLook) => void
 }
 
-function CardBackgroundSection({ cards, onCards, onReset, defaultHint, border, look, onLook }: CardBackgroundProps) {
+function CardBackgroundSection({ cards, onCards, onReset, look, onLook }: CardBackgroundProps) {
   const titleId = useId()
   const { ambient } = look
   const setCards = (patch: Partial<CardSurface>) => onCards({ ...cards, ...patch })
@@ -75,8 +68,7 @@ function CardBackgroundSection({ cards, onCards, onReset, defaultHint, border, l
     (preset) =>
       preset.cards.fill === cards.fill &&
       sameTint(preset.cards.top, cards.top) &&
-      (cards.fill === 'solid' || sameTint(preset.cards.bottom, cards.bottom)) &&
-      (!border || sameTint(preset.cards.border, cards.border)),
+      (cards.fill === 'solid' || sameTint(preset.cards.bottom, cards.bottom)),
   )?.id
 
   return (
@@ -132,15 +124,14 @@ function CardBackgroundSection({ cards, onCards, onReset, defaultHint, border, l
                 <TintField label="Bottom" tint={cards.bottom} onChange={(bottom) => setCards({ bottom })} />
               </>
             )}
-            {border ? <TintField label="Border" tint={cards.border} onChange={(next) => setCards({ border: next })} /> : null}
           </div>
-          {border ? null : <p className={styles.hint}>Only the fill changes; the frame and the category colour stay.</p>}
+          <p className={styles.hint}>Only the fill changes; the frame and the category colour stay.</p>
           {minBlur > 0 ? (
             <p className={styles.hint}>Cards keep at least {GRAIN_SHIELD_BLUR}px of blur so grain and dither stay off them.</p>
           ) : null}
         </>
       ) : (
-        <p className={styles.hint}>{defaultHint}</p>
+        <p className={styles.hint}>The card’s own fill, tinted from the category colour. Pick Solid or Gradient, or a preset, to set the colours.</p>
       )}
       <Slider
         label="Background blur"
@@ -150,21 +141,17 @@ function CardBackgroundSection({ cards, onCards, onReset, defaultHint, border, l
         format={(value) => (value === 0 ? 'Off' : `${value}px`)}
         onChange={(blur) => onLook({ ...look, cards: { ...look.cards, blur } })}
       />
-      <p className={styles.hint}>Blurs the canvas behind each card; it shows where the card is see-through. Applies to every style.</p>
+      <p className={styles.hint}>Blurs the canvas behind each card; it shows where the card is see-through.</p>
     </section>
   )
 }
 
-/** The active style's padding and corner radius, kept per style since each starts from its own. */
 function CardLayoutSection({ config, onChange }: { config: CardGlowConfig; onChange: (next: CardGlowConfig) => void }) {
   const titleId = useId()
   const { padding, radius } = cardLayout(config)
-  const changed = config.layout[config.style]
-  const panels = config.style !== 'classic' && config.style !== 'sections'
-  const setLayout = (patch: Partial<CardLayout>) =>
-    onChange({ ...config, layout: { ...config.layout, [config.style]: { ...changed, ...patch } } })
-  const reset = () =>
-    onChange({ ...config, layout: Object.fromEntries(Object.entries(config.layout).filter(([style]) => style !== config.style)) })
+  const changed = Object.keys(config.layout).length > 0
+  const setLayout = (patch: Partial<CardLayout>) => onChange({ ...config, layout: { ...config.layout, ...patch } })
+  const reset = () => onChange({ ...config, layout: {} })
 
   return (
     <section className={styles.section} aria-labelledby={titleId}>
@@ -190,20 +177,13 @@ function CardLayoutSection({ config, onChange }: { config: CardGlowConfig; onCha
         format={(value) => `${value}px`}
         onChange={(next) => setLayout({ radius: next })}
       />
-      <p className={styles.hint}>
-        {panels
-          ? 'Padding sits inside the black panels; their corners follow the card’s radius. '
-          : 'Padding sits between the card’s edge and its content. '}
-        A node’s own appearance still wins.
-      </p>
+      <p className={styles.hint}>Padding sits inside the black panel; its corners follow the card’s radius. A node’s own appearance still wins.</p>
     </section>
   )
 }
 
 export function CardStylePanel({ config, onChange, canvasLook, onCanvasLook, onClose }: CardStylePanelProps) {
   const colorsTitleId = useId()
-  const nodeTitleId = useId()
-  const active = CARD_GLOWS.find((option) => option.id === config.style) ?? CARD_GLOWS[0]
   const [defaultColors, setDefaultColors] = useState(readDefaultGlowColors)
   const saveDefaultColors = (colors: Record<GlowCategory, string> | null) => {
     saveDefaultGlowColors(colors)
@@ -216,7 +196,7 @@ export function CardStylePanel({ config, onChange, canvasLook, onCanvasLook, onC
         <header className={styles.head}>
           <div className={styles.headText}>
             <h2 className={styles.title}>Card style</h2>
-            <p className={styles.subtitle}>Applies to minimal cards on the canvas</p>
+            <p className={styles.subtitle}>Applies to every card on the canvas</p>
           </div>
           <button type="button" className={styles.iconAction} aria-label="Close card style" onClick={onClose}>
             <X size={16} weight="bold" aria-hidden />
@@ -224,77 +204,13 @@ export function CardStylePanel({ config, onChange, canvasLook, onCanvasLook, onC
         </header>
 
         <div className={styles.scroll} data-native-scroll>
-          <section className={styles.section}>
-            <div className={styles.segmentedAuto} role="radiogroup" aria-label="Card style">
-              {CARD_GLOWS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={config.style === option.id}
-                  className={`${styles.segmentTight}${config.style === option.id ? ` ${controls.segmentActive}` : ''}`}
-                  onClick={() => onChange({ ...config, style: option.id })}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <p className={styles.hint}>{active.description}</p>
-          </section>
-
-          {active.nodeOptions ? (
-            <section className={styles.section} aria-labelledby={nodeTitleId}>
-              <h3 id={nodeTitleId} className={styles.sectionTitle}>
-                Node
-              </h3>
-              <div className={styles.rowHead}>
-                <span>Icon container</span>
-              </div>
-              <div className={styles.segmented3} role="radiogroup" aria-label="Icon container">
-                {ICON_CONTAINERS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={config.iconContainer === option.id}
-                    className={`${styles.segmentTight}${config.iconContainer === option.id ? ` ${controls.segmentActive}` : ''}`}
-                    onClick={() => onChange({ ...config, iconContainer: option.id })}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <p className={styles.hint}>{ICON_CONTAINERS.find((option) => option.id === config.iconContainer)?.hint}</p>
-              <SwitchRow
-                label="Values panel"
-                description="Values move to their own panel 4px under the node, tinted dark from the category colour, with labels in that colour."
-                checked={config.valuesPanel}
-                onChange={(valuesPanel) => onChange({ ...config, valuesPanel })}
-              />
-            </section>
-          ) : null}
-
-          {active.nodeOptions ? (
-            <CardBackgroundSection
-              cards={canvasLook.cards}
-              onCards={(cards) => onCanvasLook({ ...canvasLook, cards: { ...canvasLook.cards, ...cards } })}
-              onReset={() => onCanvasLook({ ...canvasLook, cards: DEFAULT_CANVAS_CARDS })}
-              defaultHint="Each node style's own dark card. Pick Solid or Gradient, or a preset, to set the colours."
-              border
-              look={canvasLook}
-              onLook={onCanvasLook}
-            />
-          ) : (
-            <CardBackgroundSection
-              cards={config.surface}
-              onCards={(surface) => onChange({ ...config, surface })}
-              onReset={() => onChange({ ...config, surface: DEFAULT_CARD_GLOW.surface })}
-              defaultHint="The style's own card, tinted from the category colour. Pick Solid or Gradient, or a preset, to set the colours. Shared by Styles 2 to 5."
-              border={false}
-              look={canvasLook}
-              onLook={onCanvasLook}
-            />
-          )}
+          <CardBackgroundSection
+            cards={config.surface}
+            onCards={(surface) => onChange({ ...config, surface })}
+            onReset={() => onChange({ ...config, surface: DEFAULT_CARD_GLOW.surface })}
+            look={canvasLook}
+            onLook={onCanvasLook}
+          />
 
           <CardLayoutSection config={config} onChange={onChange} />
 
@@ -354,7 +270,7 @@ export function CardStylePanel({ config, onChange, canvasLook, onCanvasLook, onC
             <button
               type="button"
               className={`${styles.footButton} ${styles.footButtonPrimary}`}
-              onClick={() => onChange({ ...DEFAULT_CARD_GLOW, colors: defaultColors, style: config.style })}
+              onClick={() => onChange({ ...DEFAULT_CARD_GLOW, colors: defaultColors })}
             >
               <ArrowsClockwise size={14} weight="bold" aria-hidden />
               Reset card style

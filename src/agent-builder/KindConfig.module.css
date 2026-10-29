@@ -131,6 +131,14 @@ button.modeCard[aria-checked='true'] {
   align-items: center;
 }
 
+/* Name, value, then the value's Insert and show/hide buttons, then remove. */
+.headerRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 28px 28px 28px;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
 .tripleRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 28px;
@@ -227,9 +235,41 @@ button.addButton {
   cursor: pointer;
 }
 
-button.addButton:hover {
+button.addButton:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.3);
   color: #fff;
+}
+
+button.addButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A rule's group of conditions, framed once a rule has more than one. */
+.alertGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.alertGroupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.alertError {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 12px;
+  line-height: 17px;
 }
 
 .addRow {

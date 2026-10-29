@@ -1,4 +1,4 @@
-import type { DataRecord } from './nodeCatalog'
+import type { AssetPreview, DataRecord } from './nodeCatalog'
 
 /*
  * The workspace the builder runs against: sources, saved assets, and registered models. Rows are
@@ -126,7 +126,7 @@ const TRAFFIC_SEGMENTS: readonly DataRecord[] = [
 /** The five source buckets, one card each in the Source node. */
 export type SourceMode = 'query' | 'api_request' | 'file' | 'dataflow' | 'marketplace'
 
-export type ApiEndpoint = { id: string; method: 'GET' | 'POST'; path: string; rows: readonly DataRecord[] }
+export type ApiEndpoint = { id: string; name: string; method: 'GET' | 'POST'; path: string; rows: readonly DataRecord[] }
 export type MarketplaceOperation = { id: string; label: string; parameters: readonly { key: string; label: string; placeholder: string }[]; rows: readonly DataRecord[] }
 
 export type DataSource = {
@@ -156,8 +156,8 @@ export const SOURCES: readonly DataSource[] = [
     mode: 'api_request',
     detail: 'REST · api.airwatch.ae',
     endpoints: [
-      { id: 'latest', method: 'GET', path: '/v1/stations/latest', rows: STATIONS_LATEST },
-      { id: 'alerts', method: 'GET', path: '/v1/alerts', rows: AQ_ALERTS },
+      { id: 'latest', name: 'Latest station readings', method: 'GET', path: '/v1/stations/latest', rows: STATIONS_LATEST },
+      { id: 'alerts', name: 'Air quality alerts', method: 'GET', path: '/v1/alerts', rows: AQ_ALERTS },
     ],
   },
   { id: 'src_inspections', name: 'Field inspections.xlsx', mode: 'file', detail: 'Excel · 2 sheets', sheets: { Inspections: INSPECTIONS, Inspectors: INSPECTORS } },
@@ -188,10 +188,18 @@ export const SOURCES_BY_ID: Readonly<Record<string, DataSource>> = Object.fromEn
 
 /* ---------- Saved assets ---------- */
 
+/** How an asset draws: a Create Asset chart type and mapping, so a saved asset looks like the one a run makes. */
+export type AssetView = {
+  chartType: string
+  mapping?: Readonly<Record<string, string>>
+  /** The figure's caption on a line or area chart, e.g. "Active anomalies". */
+  label?: string
+}
+
 export type SavedAsset = {
   id: string
   name: string
-  preview: 'chart' | 'map'
+  view: AssetView
   /** e.g. "Points layer" or "Line chart". */
   detail: string
   rows: readonly DataRecord[]
@@ -199,13 +207,38 @@ export type SavedAsset = {
   archived?: boolean
 }
 
+const MUSSAFAH_PM10: readonly DataRecord[] = SENSOR_READINGS.filter((row) => row.station === 'Mussafah AQ-1').map(({ reading_date, pm10 }) => ({ reading_date, pm10 }))
+
+const WEEKLY_EMISSIONS: readonly DataRecord[] = [...new Set(EMISSIONS.map((row) => String(row.facility)))].map((facility) => {
+  const days = EMISSIONS.filter((row) => row.facility === facility)
+  return { facility, co2_tons: round(days.reduce((sum, row) => sum + Number(row.co2_tons), 0)), days: days.length }
+})
+
 export const SAVED_ASSETS: readonly SavedAsset[] = [
-  { id: 'ast_sites', name: 'High Risk Contaminated Sites', preview: 'map', detail: 'Points layer', rows: SITES },
-  { id: 'ast_anomalies', name: 'Detected Contamination Anomalies', preview: 'chart', detail: 'Line chart', rows: MONTHLY_ANOMALIES },
-  { id: 'ast_land', name: 'Abu Dhabi land use', preview: 'map', detail: 'Area layer', rows: LAND_USE },
-  { id: 'ast_wind', name: 'Wind at monitoring stations', preview: 'map', detail: 'Wind layer', rows: WIND_FIELD },
-  { id: 'ast_permits_2025', name: 'Permit backlog 2025', preview: 'chart', detail: 'Table', rows: PERMITS, archived: true },
+  { id: 'ast_sites', name: 'High Risk Contaminated Sites', view: { chartType: 'map:points', mapping: { value: 'risk' } }, detail: 'Points layer', rows: SITES },
+  {
+    id: 'ast_anomalies',
+    name: 'Detected Contamination Anomalies',
+    view: { chartType: 'line', mapping: { x: 'month', y: 'anomalies' }, label: 'Active anomalies' },
+    detail: 'Line chart',
+    rows: MONTHLY_ANOMALIES,
+  },
+  { id: 'ast_land', name: 'Abu Dhabi land use', view: { chartType: 'map:area', mapping: { category: 'land_type', value: 'area_km2' } }, detail: 'Area layer', rows: LAND_USE },
+  { id: 'ast_wind', name: 'Wind at monitoring stations', view: { chartType: 'map:wind', mapping: { direction: 'wd', speed: 'ws' } }, detail: 'Wind layer', rows: WIND_FIELD },
+  {
+    id: 'ast_pm10_mussafah',
+    name: 'PM10 at Mussafah AQ-1',
+    view: { chartType: 'area', mapping: { x: 'reading_date', y: 'pm10' }, label: 'PM10 µg/m³' },
+    detail: 'Area chart',
+    rows: MUSSAFAH_PM10,
+  },
+  { id: 'ast_emissions', name: 'CO₂ by facility this week', view: { chartType: 'bar', mapping: { x: 'facility', y: 'co2_tons' }, label: 'tonnes of CO₂' }, detail: 'Bar chart', rows: WEEKLY_EMISSIONS },
+  { id: 'ast_permits', name: 'Permit register', view: { chartType: 'table' }, detail: 'Table', rows: PERMITS },
+  { id: 'ast_inspections', name: 'Field inspections', view: { chartType: 'table' }, detail: 'Table', rows: INSPECTIONS },
+  { id: 'ast_permits_2025', name: 'Permit backlog 2025', view: { chartType: 'table' }, detail: 'Table', rows: PERMITS, archived: true },
 ]
+
+export const previewOf = (chartType: string): AssetPreview => (chartType.startsWith('map:') ? 'map' : chartType === 'table' ? 'table' : 'chart')
 
 export const ASSETS_BY_ID: Readonly<Record<string, SavedAsset>> = Object.fromEntries(SAVED_ASSETS.map((asset) => [asset.id, asset]))
 

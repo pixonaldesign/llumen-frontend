@@ -1,4 +1,5 @@
 import type { Point, Size } from './nodeCatalog'
+import { STICKY_AUTHOR } from './stickyNote'
 
 /** Placement tools in the content toolbar; `select` is the default pointer. */
 export type CanvasTool = 'select' | 'sticky' | 'text' | 'comment' | 'section'
@@ -19,11 +20,14 @@ export type CanvasSection = Rect & {
 
 export type CanvasText = Point & { id: string; text: string; size: number }
 
+export type CommentMessage = { id: string; text: string; author: string; createdAt: number }
+
+/** A comment thread; the first message started it, the rest are replies. */
 export type CanvasComment = Point & {
   id: string
-  text: string
-  author: string
-  createdAt: number
+  messages: CommentMessage[]
+  /** Someone else posted since you last opened it, or you marked it unread. */
+  unread?: boolean
   /** Pinned to this node: `x`/`y` are then an offset from its top-left, so the comment moves with it. */
   nodeId?: string
 }
@@ -38,8 +42,8 @@ export function commentPoint(comment: CanvasComment, positions: Readonly<Record<
 export function placeComment(comment: CanvasComment, point: Point, nodeId: string | undefined, positions: Readonly<Record<string, Point>>): CanvasComment {
   const at = nodeId ? positions[nodeId] : undefined
   if (!at) {
-    const { id, text, author, createdAt } = comment
-    return { id, text, author, createdAt, x: Math.round(point.x), y: Math.round(point.y) }
+    const { id, messages, unread } = comment
+    return { id, messages, unread, x: Math.round(point.x), y: Math.round(point.y) }
   }
   return { ...comment, nodeId, x: Math.round(point.x - at.x), y: Math.round(point.y - at.y) }
 }
@@ -71,7 +75,9 @@ export const TEXT_SIZES: readonly { label: string; size: number }[] = [
 ]
 export const TEXT_DEFAULT_SIZE = 24
 
-export const COMMENT_AUTHOR = 'You'
+export const COMMENT_AUTHOR = STICKY_AUTHOR
+/** Who an @mention can name. */
+export const COMMENT_PEOPLE: readonly string[] = [COMMENT_AUTHOR, 'Layla Haddad', 'Omar Saeed', 'Sara Al Mansoori']
 
 /** Rect from two corners, in any drag direction. */
 export function rectFromPoints(a: Point, b: Point): Rect {
@@ -101,6 +107,22 @@ export function nextSectionName(sections: readonly CanvasSection[]) {
   return `Section ${number}`
 }
 
-export function formatCommentTime(createdAt: number) {
-  return new Date(createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+/** "2 minutes ago" in a thread, "2 min. ago" in a pin's preview, like Figma. */
+export function commentAge(createdAt: number, now: number, short = false) {
+  const minutes = Math.floor((now - createdAt) / 60_000)
+  const ago = (count: number, unit: string, shortUnit: string) =>
+    short && shortUnit ? `${count} ${shortUnit} ago` : `${count} ${unit}${count === 1 ? '' : 's'} ago`
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return ago(minutes, 'minute', 'min.')
+  if (minutes < 60 * 24) return ago(Math.floor(minutes / 60), 'hour', 'hr.')
+  if (minutes < 60 * 24 * 7) return ago(Math.floor(minutes / (60 * 24)), 'day', '')
+  return new Date(createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+/** The section swatches that carry white initials. */
+const AVATAR_COLORS = SECTION_SWATCHES.filter((swatch) => !['Grey', 'Yellow', 'White'].includes(swatch.name)).map((swatch) => swatch.color)
+
+export function avatarColor(author: string) {
+  const hash = [...author].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0)
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
 }

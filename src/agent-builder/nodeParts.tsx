@@ -1,7 +1,6 @@
 import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { Check, Copy } from '@phosphor-icons/react'
 import controls from '../llumen-assistant/FloatingControls.module.css'
-import type { IconContainer } from './cardGlow'
 import type { FlowState } from './triggerCard'
 import type { CanvasNode, DataRecord, NodeField, NodePort, NodeRun, NodeType, Point, PortRef, PortSide } from './nodeCatalog'
 import type { AnyParams } from './nodeKinds'
@@ -64,8 +63,6 @@ export type NodeCardProps = {
   onNoteChange: (note: string) => void
   /** Edits made on the card itself, e.g. a prompt; typing into one field is one undo step. */
   onParamsChange?: (patch: Partial<AnyParams>) => void
-  /** Hides or shows the card's details, as the node toolbar does. */
-  onToggleDetails?: () => void
   /** Opens the node's settings, as a double-click does; with a branch, on that branch. */
   onOpenConfig?: (focus?: string) => void
   /** Removes a case or a category. */
@@ -74,14 +71,8 @@ export type NodeCardProps = {
   inputSources?: Readonly<Record<string, InputSource>>
   /** A problem only the graph shows, e.g. nothing wired in; the card shows it after the node's own. */
   wiringIssue?: string
-  /** No header or footer: the icon, actions, and title open the content panel, without a description; input and output open over the canvas (sectioned style). */
-  headless?: boolean
   /** Opens the node's input and output over the canvas. */
   onOpenData?: () => void
-  /** What sits behind the category icon (minimal style); without one it's larger, filled, and in the category colour. */
-  iconContainer?: IconContainer
-  /** Values in their own panel under the card, tinted from the category colour (minimal style). */
-  valuesPanel?: boolean
   /** Publish state and the default trigger, for trigger cards. */
   flow?: FlowState
 }
@@ -150,6 +141,15 @@ function DetailBadge({ field }: { field: NodeField }) {
     >
       <FieldValue field={{ ...field, value, parts }} />
     </li>
+  )
+}
+
+/** A badge inside running text, e.g. the recipients in an email's summary. */
+export function InlineBadge({ text, title }: { text: string; title?: string }) {
+  return (
+    <span className={styles.detailBadge} data-inline title={title}>
+      {text}
+    </span>
   )
 }
 
