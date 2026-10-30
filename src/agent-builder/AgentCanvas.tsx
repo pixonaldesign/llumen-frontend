@@ -144,6 +144,7 @@ import {
 import { cardLayout, categoryVars, readCardGlow, saveCardGlow, type CardGlowConfig } from './cardGlow'
 import { CardStylePanel } from './CardStylePanel'
 import { RayShader, SmokeShader } from './CanvasShader'
+import { RunFailureToast, type FailedStep } from './RunFailureToast'
 import styles from './AgentCanvas.module.css'
 
 const GRID_SIZE = 20
@@ -560,13 +561,21 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const [runs, setRuns] = useState<Record<string, NodeRun>>(SHOWCASE.runs)
   const runTimersRef = useRef<number[]>([])
   /** A flow run parked on Send and wait: the steps it still owes and how it was started, for the reply to resume. */
-  const parkedRunRef = useRef<{ pending: readonly string[]; triggerId?: string; simulate?: RunOutcome; forcedFailure?: string; failed: boolean } | null>(null)
+  const parkedRunRef = useRef<{
+    pending: readonly string[]
+    triggerId?: string
+    simulate?: RunOutcome
+    forcedFailure?: string
+    failures: readonly FailedStep[]
+  } | null>(null)
   const [activeRuns, setActiveRuns] = useState(0)
   /**
    * The last flow run's outcome while its glow shows; `id` restarts the glow for back-to-back results.
    * After a real run (`fromRun`), the canvas keeps its run look until the glow ends.
    */
   const [runResult, setRunResult] = useState<{ outcome: RunOutcome; id: number; fromRun: boolean } | null>(null)
+  /** The steps the last flow run failed at; stays until dismissed or the next flow run. */
+  const [runFailures, setRunFailures] = useState<readonly FailedStep[] | null>(null)
   const didInitialLayoutRef = useRef(false)
   const addedCountRef = useRef(0)
   const [panning, setPanning] = useState(false)
@@ -1101,7 +1110,10 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const unpark = (all: Record<string, NodeRun>) => Object.fromEntries(Object.entries(all).map(([id, run]) => [id, run.status === 'waiting' ? IDLE : run]))
     const previous = unpark(runs)
     setRuns((current) => ({ ...unpark(current), ...(scope === 'downstream' ? Object.fromEntries(order.map((id) => [id, IDLE])) : {}) }))
-    if (scope === 'downstream') setRunResult(null)
+    if (scope === 'downstream') {
+      setRunResult(null)
+      setRunFailures(null)
+    }
     const startsFlow = scope === 'downstream' && NODE_TYPES_BY_ID[current.nodes.find((node) => node.id === startId)?.type ?? '']?.category === 'triggers'
     const triggerId = startsFlow ? startId : undefined
     const steps = planRun({
@@ -1116,12 +1128,33 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       forcedFailure,
     })
     const parked = steps.some((step) => step.run.status === 'waiting')
+    const failures = failedSteps(steps)
     parkedRunRef.current = parked
-      ? { pending: order.filter((id) => !steps.some((step) => step.id === id)), triggerId, simulate, forcedFailure, failed: steps.some((step) => step.run.status === 'error') }
+      ? { pending: order.filter((id) => !steps.some((step) => step.id === id)), triggerId, simulate, forcedFailure, failures }
       : null
     playSteps(steps, (outcome) => {
-      if (scope === 'downstream' && !parked) setRunResult({ outcome, id: Date.now(), fromRun: true })
+      if (scope !== 'downstream' || parked) return
+      setRunResult({ outcome, id: Date.now(), fromRun: true })
+      if (failures.length) setRunFailures(failures)
     })
+  }
+
+  const failedSteps = (steps: readonly PlannedStep[]): FailedStep[] =>
+    steps.flatMap(({ id, run }) => {
+      const node = docRef.current.nodes.find((candidate) => candidate.id === id)
+      return run.status === 'error' && node ? [{ id, name: nodeName(node, NODE_TYPES_BY_ID[node.type]), message: run.message ?? 'Something went wrong.' }] : []
+    })
+
+  /** Centres the step at the current zoom, selects it, and opens its input and output. */
+  const showStep = (id: string) => {
+    const root = rootRef.current
+    const position = docRef.current.positions[id]
+    if (!root || !position) return
+    const size = layouts[id] ?? DEFAULT_NODE_SIZE
+    const { zoom } = viewRef.current
+    animateTo({ zoom, x: root.clientWidth / 2 - (position.x + size.w / 2) * zoom, y: root.clientHeight / 2 - (position.y + size.h / 2) * zoom })
+    setSelection({ kind: 'node', id })
+    setDataDialogId(id)
   }
 
   /** Resumes a parked flow run with the chat's reply: the step finishes, then the steps that waited on it run. */
@@ -1142,12 +1175,14 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       forcedFailure: parked.forcedFailure,
       replies: { [nodeId]: reply },
     })
-    const failed = parked.failed || steps.some((step) => step.run.status === 'error')
+    const failures = [...parked.failures, ...failedSteps(steps)]
     const stillWaiting =
       steps.some((step) => step.run.status === 'waiting') || Object.entries(runs).some(([id, run]) => id !== nodeId && run.status === 'waiting')
-    parkedRunRef.current = stillWaiting ? { ...parked, pending: order.filter((id) => !steps.some((step) => step.id === id)), failed } : null
+    parkedRunRef.current = stillWaiting ? { ...parked, pending: order.filter((id) => !steps.some((step) => step.id === id)), failures } : null
     playSteps(steps, (outcome) => {
-      if (!stillWaiting) setRunResult({ outcome: failed || outcome === 'fail' ? 'fail' : 'pass', id: Date.now(), fromRun: true })
+      if (stillWaiting) return
+      setRunResult({ outcome: failures.length || outcome === 'fail' ? 'fail' : 'pass', id: Date.now(), fromRun: true })
+      if (failures.length) setRunFailures(failures)
     })
   }
 
@@ -1215,6 +1250,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     setPast(next.past)
     setFuture(next.future)
     setRuns(next.runs)
+    setRunFailures(null)
     setSelection(null)
     setAppearanceFor(null)
     setMode((current) => (current === 'showcase' ? 'testFlow' : 'showcase'))
@@ -1741,9 +1777,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const element = event.currentTarget.closest<HTMLElement>('[data-node-id]')
     if (!layout || !position || !element) return
     const frameMinHeight = element.style.minHeight
+    const sized = element.dataset.sized
     element.style.minHeight = '0px'
+    element.dataset.sized = ''
     const contentHeight = element.offsetHeight
     element.style.minHeight = frameMinHeight
+    if (sized === undefined) delete element.dataset.sized
     event.currentTarget.setPointerCapture(event.pointerId)
     setSelection({ kind: 'node', id })
     resizeRef.current = {
@@ -2487,6 +2526,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         />
       ) : null}
 
+      {runFailures ? <RunFailureToast steps={runFailures} onShow={showStep} onClose={() => setRunFailures(null)} /> : null}
+
       <div className={styles.headerScrim} aria-hidden />
 
       <header className={styles.header}>
@@ -2504,14 +2545,14 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </div>
       </header>
 
-      <div className={`${controls.segmented} ${styles.tabs}`} role="tablist" aria-label="Agent view">
+      <div className={styles.tabs} role="tablist" aria-label="Agent view">
         {(['builder', 'executions'] as const).map((value) => (
           <button
             key={value}
             type="button"
             role="tab"
             aria-selected={tab === value}
-            className={`${controls.segment}${tab === value ? ` ${controls.segmentActive}` : ''}`}
+            className={styles.tab}
             onClick={() => setTab(value)}
           >
             {value === 'builder' ? 'Builder' : 'Executions'}

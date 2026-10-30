@@ -234,6 +234,61 @@
   color: rgb(var(--ink-rgb) / 0.9);
 }
 
+/* Holds the place the asset's preview will fill. */
+.content .placeholder {
+  flex-direction: column;
+  gap: var(--space-sm);
+  aspect-ratio: 16 / 9;
+  text-align: center;
+}
+
+/* Waiting on a run, so nothing to click. */
+.content .placeholder[data-static],
+.content .placeholder[data-static]:hover {
+  background: transparent;
+  color: rgb(var(--ink-rgb) / 0.45);
+  cursor: inherit;
+}
+
+/* The asset a Create Asset step made: a chart or map keeps the placeholder's 16:9, a table hugs its rows. */
+.made {
+  aspect-ratio: 16 / 9;
+}
+
+.made[data-preview='table'] {
+  aspect-ratio: auto;
+}
+
+/* Once resized, the table fills the card's height rather than stopping at its row cap. */
+[data-sized] .made[data-preview='table'] {
+  position: relative;
+  min-height: 96px;
+}
+
+[data-sized] .made[data-preview='table'] .tableScroll {
+  position: absolute;
+  inset: 0;
+  max-height: none;
+}
+
+.madePlot {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* The chart sizes itself to this box rather than its usual fixed height. */
+.madePlot > div {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  padding: 0;
+}
+
+.madePlot text {
+  font-family: inherit;
+}
+
 /* Only as wide as its text, so the count badge sits right after the name. */
 .branch > .branchLabel {
   flex: 0 1 auto;
@@ -595,15 +650,24 @@
   padding: 0 0 8px;
 }
 
-/* The map runs to the content panel's sides, and its bottom when it's the last block. */
-:global([data-card-glow='iconHeader']) .asset[data-preview='map'] {
+/* The map and table run to the content panel's sides, and its bottom when they're the last block. */
+:global([data-card-glow='iconHeader']) .asset:is([data-preview='map'], [data-preview='table']) {
   margin-inline: calc(-1 * var(--panel-pad));
   border-radius: 0;
 }
 
-:global([data-card-glow='iconHeader']) .asset[data-preview='map']:last-child {
+:global([data-card-glow='iconHeader']) .asset:is([data-preview='map'], [data-preview='table']):last-child {
   margin-bottom: calc(-1 * var(--panel-pad));
   border-radius: 0 0 var(--panel-radius) var(--panel-radius);
+}
+
+/* Bled to the edges, the table's first and last columns line up with the title again. */
+:global([data-card-glow='iconHeader']) .asset[data-preview='table'] .table :is(th, td):first-child {
+  padding-left: var(--panel-pad);
+}
+
+:global([data-card-glow='iconHeader']) .asset[data-preview='table'] .table :is(th, td):last-child {
+  padding-right: var(--panel-pad);
 }
 
 /* Where the frame finishes fading from the category colour; registered so a hover can animate it. */

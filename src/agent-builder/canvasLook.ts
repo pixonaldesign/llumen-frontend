@@ -77,10 +77,10 @@ export const DEFAULT_CANVAS_PORTS: CanvasPorts = {
   size: 10,
 }
 const DEFAULT_GLOW: Omit<ResultGlow, 'color'> = {
-  opacity: 0.3,
-  intensity: 0.12,
-  spread: 0.83,
-  height: 0.28,
+  opacity: 0.4,
+  intensity: 0.18,
+  spread: 0.82,
+  height: 0.38,
   softness: 1,
   pulse: 0.2,
   pulseSeconds: 3,
@@ -152,7 +152,7 @@ export const DOT_SWATCHES: readonly { name: string; color: string }[] = [
 ]
 
 /** Versioned so saves made before the defaults last changed don't override them. */
-const STORAGE_KEY = 'llumen.canvasLook.v3'
+const STORAGE_KEY = 'llumen.canvasLook.v4'
 const HEX = /^#[0-9a-f]{6}$/i
 
 const isHex = (value: unknown): value is string => typeof value === 'string' && HEX.test(value)

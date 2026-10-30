@@ -48,7 +48,7 @@ export function AssetConfig({ params, set }: EditorProps<AssetParams>) {
   }))
   const columns = asset ? columnsOf(asset.rows) : []
   return (
-    <Card icon={<ChartLineUp size={16} aria-hidden />} title="Asset" description="Reads a saved chart, table, or map layer’s rows into the flow.">
+    <Card icon={<ChartLineUp size={16} aria-hidden />} title="Asset" description="The saved chart, table, or map to show on the canvas.">
       <Field label="Asset" required>
         <Select label="Asset" value={params.assetId} options={options} placeholder="Choose an asset" invalid={!asset} onChange={(assetId) => set({ assetId }, 'assetId')} />
       </Field>

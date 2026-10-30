@@ -1,11 +1,12 @@
 import type { Icon } from '@phosphor-icons/react'
 import type { SavedAsset } from './flowData'
 import type { ChatExchange } from './chatMessage'
+import { chartName, createAssetIssue, type CreateAssetSettings } from './createAsset'
 import type { ApiExchange } from './apiExchange'
 import type { EmailMessage } from './emailMessage'
 import type { Finding } from './findings'
 import { nodeAsset, nodePreview, type AssetPreview, type CanvasNode, type DataRecord, type NodeField, type NodeRun, type NodeType } from './nodeCatalog'
-import { kindPrompt, type KindPrompt } from './nodeKinds'
+import { kindPrompt, paramsFor, type KindPrompt } from './nodeKinds'
 import { hasSummary, nodeSummary, type NodeSummary } from './nodeSummary'
 import { cardDetails, type FlowState } from './triggerCard'
 
@@ -17,6 +18,7 @@ import { cardDetails, type FlowState } from './triggerCard'
 /** What the content section shows under the title, in order. */
 export type ContentBlock =
   | { kind: 'asset'; preview: AssetPreview; asset?: SavedAsset }
+  | { kind: 'made'; settings: CreateAssetSettings; rows: readonly DataRecord[] }
   | { kind: 'prompt'; prompt: KindPrompt; label: string; placeholder: string }
   | ({ kind: 'summary' } & NodeSummary)
 
@@ -41,10 +43,25 @@ export const cardEdgeOutputs = (type: NodeType) => EDGE_OUTPUTS.has(type.id)
 export const cardValues = (node: CanvasNode, type: NodeType, flow: FlowState): readonly NodeField[] =>
   hasSummary(type.id) ? [] : cardDetails(node, type.category === 'triggers', flow).fields.filter((field) => !field.muted && field.value.trim())
 
-export function cardContent(node: CanvasNode): ContentBlock[] {
+/** Holds an asset's place on the card until there's one to show; `opensSettings` replaces the warning about what's missing. */
+export type CardPlaceholder = { label: string; opensSettings: boolean }
+
+/** What a card that shows an asset holds before it has one; it takes the asset's room, so the card keeps its size once it arrives. */
+export function cardPlaceholder(node: CanvasNode, blocks: readonly ContentBlock[]): CardPlaceholder | undefined {
+  if (node.type === 'asset') return nodeAsset(node) ? undefined : { label: 'Choose an asset to view', opensSettings: true }
+  if (node.type !== 'createAsset' || blocks.some((block) => block.kind === 'made')) return undefined
+  const settings = paramsFor('createAsset', node.config.params)
+  if (createAssetIssue(settings)) return { label: 'Set up the asset and run to preview', opensSettings: true }
+  return { label: `Run to preview the ${chartName(settings.chartType).toLowerCase()}`, opensSettings: false }
+}
+
+/** The card's blocks; a Create Asset step that ran shows the asset it made, drawn from `rows`. */
+export function cardContent(node: CanvasNode, run?: NodeRun, rows?: readonly DataRecord[] | null): ContentBlock[] {
   const blocks: ContentBlock[] = []
   const preview = nodePreview(node)
   if (preview) blocks.push({ kind: 'asset', preview, asset: nodeAsset(node) })
+  const made = run?.status === 'success' ? (run.assetRows ?? rows) : undefined
+  if (node.type === 'createAsset' && made) blocks.push({ kind: 'made', settings: paramsFor('createAsset', node.config.params), rows: made })
   const prompt = kindPrompt(node.type, node.config.params)
   if (prompt) blocks.push({ kind: 'prompt', prompt, ...(KIND_PROMPT_COPY[node.type] ?? PROMPT_COPY[prompt.param]) })
   const summary = nodeSummary(node.type, node.config.params)

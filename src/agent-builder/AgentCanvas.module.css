@@ -294,19 +294,50 @@
   line-height: 16px;
 }
 
+/* A button group in the toolbars' glass: segments sit edge to edge with a rule between them; the open one is lighter. */
 .tabs {
   position: absolute;
   top: var(--space-2xl);
   left: 50%;
-  transform: translateX(-50%);
-}
-
-/* Same glass as the toolbars; scoped so it outranks the shared `.segmented` styles. */
-.root .tabs {
-  border-color: rgba(255, 255, 255, 0.12);
+  display: flex;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
   background: rgba(30, 31, 36, 0.82);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
+  transform: translateX(-50%);
+}
+
+/* Under `.root` to outrank the canvas's `button { font: inherit }` reset. */
+.root .tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 var(--space-xl);
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease);
+}
+
+.root .tab + .tab {
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.root .tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.root .tab[aria-selected='true'] {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .stopRun {

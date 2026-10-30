@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { AssetPreviewChart } from './AssetPreviewChart'
 import type { ContentBlock } from './cardSections'
+import { previewOf } from './flowData'
 import { NodeAssetPreview } from './NodeAssetPreview'
 import type { DataRecord, DataValue } from './nodeCatalog'
 import { InlineBadge } from './nodeParts'
@@ -56,6 +58,22 @@ const CONTENT_VIEWS: { [K in ContentBlock['kind']]: (props: { block: BlockOf<K>;
       )}
     </div>
   ),
+  made: ({ block, context }) => {
+    const preview = previewOf(block.settings.chartType)
+    return (
+      <div className={`${styles.well} ${styles.asset} ${styles.made}`} data-preview={preview}>
+        {preview === 'map' ? (
+          <NodeAssetPreview kind="map" data={{ view: block.settings, rows: block.rows }} interactive={context.selected} bare />
+        ) : preview === 'table' ? (
+          <PreviewTable records={block.rows} />
+        ) : (
+          <div className={styles.madePlot}>
+            <AssetPreviewChart settings={block.settings} records={block.rows} flush />
+          </div>
+        )}
+      </div>
+    )
+  },
   prompt: ({ block, context }) => <PromptEditor block={block} onParamsChange={context.onParamsChange} />,
   summary: ({ block }) => (
     <div className={`${styles.well} ${styles.prompt} ${styles.summary}`}>

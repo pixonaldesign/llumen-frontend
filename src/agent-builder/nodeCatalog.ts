@@ -246,11 +246,11 @@ export const NODE_TYPES: readonly NodeType[] = [
   trigger('chatInput', 'Chat Input', 'Start from a chat conversation.', ChatCircle, { singleton: true }),
   trigger('webhook', 'Webhook', 'Start from an inbound HTTP request once the workflow is published.', PlugsConnected),
 
-  dataStep('asset', 'Asset', 'Load the rows behind a saved asset.', SquaresFour, { width: 420 }),
+  dataStep('asset', 'View Asset', 'Show a saved chart, table, or map on the canvas to explore.', SquaresFour, { width: 420 }),
   dataStep('source', 'Source', 'Query a configured source.', Database),
   dataStep('mlModel', 'ML Model', 'Run batch predictions through a registered ML model.', Cpu),
   dataStep('forecast', 'Forecast', 'Project a time series forward, with a confidence interval.', Graph),
-  dataStep('createAsset', 'Create Asset', 'Register upstream data as a saved chart, table, or map layer.', CubeFocus, { tone: 'create' }),
+  dataStep('createAsset', 'Create Asset', 'Register upstream data as a saved chart, table, or map layer.', CubeFocus, { tone: 'create', width: 420 }),
   dataStep('noOperation', 'No Operation', 'Continues the flow without passing any rows on.', Empty),
   dataStep('filter', 'Filter', 'Keep the rows that match; the rest leave on Discarded.', Funnel, {
     outputs: [

@@ -166,7 +166,7 @@ export const AMBIENT_MAX_STOPS = 8
 /** Offered in order when adding a stop, skipping colours already in use. */
 const NEW_STOP_COLORS = ['#4f7cff', '#a855f7', '#22d3ee', '#34d399', '#f59e0b', '#fb7185', '#6366f1', '#f43f5e']
 
-const DEFAULT_COLORS = ['#2a4147', '#6284a3', '#1f317a', '#000000']
+const DEFAULT_COLORS = ['#22292a', '#6284a3', '#1f317a', '#000000']
 
 export const DEFAULT_AMBIENT_IDLE: AmbientIdle = { intensity: 0.6, size: 0.69, drift: 0.13, cycleSeconds: 23 }
 export const DEFAULT_AMBIENT_RUN: AmbientRun = {

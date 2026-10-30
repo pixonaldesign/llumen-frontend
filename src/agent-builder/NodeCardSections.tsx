@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BracketsAngle, CircleNotch, Minus, PencilSimple, Plus, Warning } from '@phosphor-icons/react'
 import { ContentBlockView } from './CardSectionViews'
-import { cardContent, cardEdgeOutputs, cardValues, type HeaderAction } from './cardSections'
+import { cardContent, cardEdgeOutputs, cardPlaceholder, cardValues, type HeaderAction } from './cardSections'
 import { NodeDataCard } from './NodeDataCard'
 import { appearanceVars, inkRgb } from './nodeAppearance'
 import { DetailBadges, NodeFill, Port, ResizeHandles, type NodeCardProps } from './nodeParts'
@@ -140,12 +140,14 @@ export function NodeCardSections({
   const TypeIcon = type.icon
   const isTrigger = type.category === 'triggers'
   const title = nodeName(node, type)
-  const blocks = cardContent(node)
+  const blocks = cardContent(node, run, output)
   // Only a chart, table or map has no natural size; every other card hugs its content.
-  const resizable = blocks.some((block) => block.kind === 'asset')
+  const resizable = blocks.some((block) => block.kind === 'asset' || block.kind === 'made')
   const frame = resizable ? node.frame : undefined
-  const values = cardValues(node, type, flow)
-  const issue = nodeIssue(node) ?? wiringIssue ?? nodeNotice(node)
+  const placeholder = cardPlaceholder(node, blocks)
+  // Until it's set up, a default setting isn't something the user chose.
+  const values = placeholder?.opensSettings ? [] : cardValues(node, type, flow)
+  const issue = (placeholder?.opensSettings ? undefined : nodeIssue(node)) ?? wiringIssue ?? nodeNotice(node)
   const outputs = nodeOutputs(node, type)
   const addLabel = branchAddLabel(type.id)
   const edgeOutputs = outputs.length > 1 && cardEdgeOutputs(type)
@@ -218,6 +220,7 @@ export function NodeCardSections({
       aria-label={title}
       data-node-id={node.id}
       data-selected={selected || undefined}
+      data-sized={frame?.h !== undefined || undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -264,6 +267,16 @@ export function NodeCardSections({
           </div>
 
           {run.status === 'running' && run.countdown ? <WaitCountdown {...run.countdown} /> : null}
+          {placeholder?.opensSettings ? (
+            <button type="button" className={`${styles.branch} ${styles.addBranch} ${styles.placeholder}`} onClick={() => onOpenConfig?.()}>
+              <Plus size={16} weight="bold" aria-hidden />
+              {placeholder.label}
+            </button>
+          ) : placeholder ? (
+            <div className={`${styles.branch} ${styles.addBranch} ${styles.placeholder}`} data-static>
+              {placeholder.label}
+            </div>
+          ) : null}
           {blocks.map((block) => (
             <ContentBlockView key={block.kind} block={block} context={{ selected, onParamsChange }} />
           ))}
