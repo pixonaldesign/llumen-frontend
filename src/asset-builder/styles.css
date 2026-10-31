@@ -4419,6 +4419,18 @@ button {
   cursor: not-allowed;
   pointer-events: none;
 }
+/* Split button: a main action plus a caret, joined into one pill. */
+.btn-split {
+  display: inline-flex;
+  gap: 1px;
+}
+.btn-split > .btn:first-child {
+  border-radius: var(--radius-ui-pill) 0 0 var(--radius-ui-pill);
+}
+.btn-split > .btn:last-child {
+  padding-inline: var(--space-md);
+  border-radius: 0 var(--radius-ui-pill) var(--radius-ui-pill) 0;
+}
 
 /* ===================================================================
    Chart Builder IA — chart-type toolbar, grouped cards & controls

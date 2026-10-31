@@ -1,0 +1,195 @@
+/*
+ * Centred on the panel container, just above the toolbar row (the container's bottom edge is the
+ * toolbars'). Bottom padding is the gap between the two.
+ */
+.flyout {
+  position: absolute;
+  bottom: 44px;
+  left: 50%;
+  z-index: 6;
+  padding-bottom: 10px;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+/* ---------- Group buttons ---------- */
+
+.label {
+  padding: 0 6px 0 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.toolbar .group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 36px;
+  margin: 0;
+  padding: 0 14px 0 5px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.toolbar .group:hover,
+.toolbar .groupActive {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.groupIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--node-accent) 20%, transparent);
+  color: var(--node-accent);
+}
+
+/* ---------- Node panel ---------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: min(780px, calc(100vw - 48px));
+  max-height: min(480px, calc(100dvh - 260px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(30, 31, 36, 0.82);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.92);
+  animation: rise 160ms var(--lc-ease);
+}
+
+.panelHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2xl) var(--space-2xl) var(--space-xl);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.panelDescription {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* Full-bleed scroller; the grid carries the side padding so the thumb hugs the panel edge. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 0 var(--space-2xl);
+  overflow: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+}
+
+.scroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--space-md);
+  padding: 0 var(--space-2xl);
+}
+
+.grid .card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.grid .card:hover:not(:disabled),
+.grid .card:focus-visible {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.grid .card:active:not(:disabled) {
+  cursor: grabbing;
+}
+
+.grid .card:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.cardIcon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: var(--space-xs);
+  border-radius: 50%;
+  background: var(--node-accent);
+  color: var(--node-on-accent);
+}
+
+.cardTitle {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.cardDescription {
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  line-height: 16px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}

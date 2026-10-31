@@ -1,0 +1,476 @@
+/*
+ * Form controls for the node configuration window. Button rules carry the element so they win
+ * over the canvas root's `:where(button)` font reset whatever the stylesheet order.
+ */
+
+/* ---------- Card ---------- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-xl) var(--space-xl);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.cardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.cardText {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.cardDescription {
+  margin: 2px 0 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cardAction {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-sm);
+}
+
+/* ---------- Field ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fieldHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.required {
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 400;
+}
+
+.meta {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.error {
+  margin: 0;
+  color: #fca5a5;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+/* ---------- Text and number inputs ---------- */
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--lc-duration) var(--lc-ease), box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.input:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.input:focus {
+  border-color: var(--canvas-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--canvas-accent) 22%, transparent);
+}
+
+.input[aria-invalid='true'] {
+  border-color: rgba(248, 113, 113, 0.7);
+}
+
+.numberWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.numberWrap .input {
+  padding-right: 64px;
+  font-family: var(--lc-font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.unit {
+  position: absolute;
+  right: var(--space-lg);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* ---------- Select ---------- */
+
+button.selectTrigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 var(--space-md) 0 var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--lc-duration) var(--lc-ease), box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+button.selectTrigger:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+button.selectTrigger:focus-visible,
+button.selectTrigger[aria-expanded='true'] {
+  border-color: var(--canvas-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--canvas-accent) 22%, transparent);
+}
+
+button.selectTrigger[aria-invalid='true'] {
+  border-color: rgba(248, 113, 113, 0.7);
+}
+
+button.selectTrigger:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.selectValue {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.selectLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.selectMeta {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.caret {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.5);
+  transition: transform var(--lc-duration) var(--lc-ease);
+}
+
+[aria-expanded='true'] > .caret {
+  transform: rotate(180deg);
+}
+
+/* ---------- Popover ---------- */
+
+/* A layer spanning the window; popovers portal here so column scrollports don't clip them. */
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.popover {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 6px 0;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(46, 47, 53, 0.92);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+  animation: popoverIn 120ms var(--lc-ease);
+}
+
+.popover::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.popover::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover {
+    animation: none;
+  }
+}
+
+.group + .group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.groupLabel {
+  margin: 0;
+  padding: 6px var(--space-lg) 4px calc(var(--space-lg) + 6px);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+}
+
+button.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: calc(100% - 12px);
+  margin: 0 6px;
+  padding: 7px var(--space-md) 7px var(--space-lg);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.option:hover,
+button.option:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+button.option:disabled {
+  color: rgba(255, 255, 255, 0.35);
+  cursor: default;
+}
+
+button.option:disabled:hover {
+  background: transparent;
+}
+
+.optionIcon {
+  display: flex;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.optionText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.optionLabel {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.optionDescription {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: normal;
+}
+
+.optionCheck {
+  flex-shrink: 0;
+  color: var(--canvas-accent);
+}
+
+/* ---------- Switch ---------- */
+
+.switchRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.switchText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+button.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 32px;
+  height: 18px;
+  margin-top: 1px;
+  padding: 0;
+  border: none;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease);
+}
+
+button.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform var(--lc-duration) var(--lc-ease);
+}
+
+button.switch[aria-checked='true'] {
+  background: var(--canvas-accent);
+}
+
+button.switch[aria-checked='true']::after {
+  transform: translateX(14px);
+}
+
+button.switch:focus-visible {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Buttons ---------- */
+
+button.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease), border-color var(--lc-duration) var(--lc-ease);
+}
+
+button.button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+button.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button.buttonSmall {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+button.buttonPrimary {
+  border-color: transparent;
+  background: var(--canvas-accent);
+  color: #0b1220;
+}
+
+button.buttonPrimary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--canvas-accent) 86%, #fff);
+}
+
+button.buttonActive {
+  border-color: color-mix(in srgb, var(--canvas-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--canvas-accent) 14%, transparent);
+  color: #fff;
+}

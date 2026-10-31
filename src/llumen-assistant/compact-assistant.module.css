@@ -9,6 +9,11 @@
   background-color: #000;
 }
 
+/* Under a full-screen view: nothing here paints, so its animations stop costing GPU. */
+.demoPageCovered {
+  visibility: hidden;
+}
+
 .demoPageShader {
   position: fixed;
   inset: 0;

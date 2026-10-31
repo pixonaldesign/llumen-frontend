@@ -1,0 +1,547 @@
+/* Parts shared by the canvas node: values, asset previews, the data panel, and resize handles. */
+
+/* Failed node: ring and glow in the run-result failure colour; stays until the node runs again. */
+.failed,
+.failed:hover {
+  border-color: rgba(var(--run-fail-rgb, 239, 68, 68), 0.9);
+  box-shadow:
+    0 0 0 calc(1px / var(--zoom, 1)) rgba(var(--run-fail-rgb, 239, 68, 68), 0.9),
+    0 0 32px rgba(var(--run-fail-rgb, 239, 68, 68), 0.35),
+    0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+/* Options menu under the node toolbar's last button. */
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 5;
+  min-width: 168px;
+  cursor: default;
+}
+
+.menu .menuItemDanger {
+  color: #ff8a80;
+}
+
+/* Shared by both node styles (see `FieldValue`). */
+.liveDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  /* Room for the halo; values clip overflow for their ellipsis. */
+  margin: 0 6px 0 3px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgb(34 197 94 / 0.2);
+  vertical-align: 0.1em;
+}
+
+/* Shared by both node styles (see `DetailBadges`). */
+.detailBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Wraps rather than truncates, so a long condition reads in full; the radius is a one-line badge's half
+   height, so a wrapped one stays a rounded box instead of a stretched pill. */
+.detailBadge {
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px var(--space-sm);
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  border-radius: 11px;
+  color: rgb(var(--ink-rgb) / 0.75);
+  background: rgb(var(--ink-rgb) / 0.08);
+  font-size: var(--lc-font-small-size);
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+/* One line of the sentence it sits in: 16px text, 1px padding and 1px border fill a 20px line. */
+.detailBadge[data-inline] {
+  display: inline-block;
+  padding-block: 1px;
+  vertical-align: 1px;
+}
+
+.detailBadge[data-wrapped] {
+  padding: var(--space-sm);
+  border-radius: var(--radius-lg);
+}
+
+/* Pieces of a value (see `FieldPart`): columns read strongest, compared values in the data font and the
+   node's colour, operators and joiners recede. */
+.part[data-role='field'] {
+  color: rgb(var(--ink-rgb) / 0.95);
+  font-weight: 500;
+}
+
+.part[data-role='value'] {
+  color: color-mix(in srgb, var(--node-accent, currentColor) 70%, rgb(var(--ink-rgb)));
+}
+
+.part[data-role='operator'],
+.part[data-role='join'] {
+  color: rgb(var(--ink-rgb) / 0.5);
+}
+
+.detailBadge[data-muted] {
+  color: rgb(var(--ink-rgb) / 0.45);
+  background: transparent;
+}
+
+/* Shared by both node styles (see `FieldCopy`); sits after the value, which then stops short of it. */
+.fieldCopy {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: -2px -4px -2px calc(4px - var(--space-lg));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: rgb(var(--ink-rgb) / 0.55);
+  background: transparent;
+  cursor: pointer;
+  align-self: center;
+}
+
+.fieldCopy:hover {
+  color: rgb(var(--ink-rgb) / 0.95);
+  background: rgb(var(--ink-rgb) / 0.1);
+}
+
+/* ---------- Asset previews ---------- */
+
+.chart {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-height: 200px;
+  padding: var(--space-lg) var(--space-lg) var(--space-sm);
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(to bottom, rgba(16, 24, 56, 0.6), rgba(10, 14, 32, 0.6));
+}
+
+.chartKpi {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-md);
+  margin: 0;
+  color: rgb(var(--ink-rgb) / 0.6);
+  font-size: var(--lc-font-heading-sm-size);
+  line-height: 1.2;
+}
+
+.chartKpi strong {
+  color: rgb(var(--ink-rgb));
+  font-size: 32px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Labelled axis: the figure in mono with its label as a unit, a 160px chart, and four small axis labels. */
+.chart[data-labelled] {
+  gap: var(--space-md);
+  min-height: 160px;
+}
+
+.chart[data-labelled] .chartKpi {
+  gap: 6px;
+}
+
+.chart[data-labelled] .chartKpi strong {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.chart[data-labelled] .chartKpiLabel {
+  color: rgb(var(--ink-rgb) / 0.7);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.chart[data-labelled] .chartPlot {
+  min-height: 112px;
+}
+
+.chart[data-labelled] .chartAxis {
+  fill: rgb(var(--ink-rgb) / 0.5);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.chartKpiPeriod {
+  margin-left: auto;
+  color: rgb(var(--ink-rgb) / 0.5);
+  font-size: var(--lc-font-small-size);
+}
+
+.chartPlot {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+  cursor: crosshair;
+}
+
+/* Out of flow: drawn at the measured size, it would otherwise hold the plot at that size and stop the node shrinking. */
+.chartPlot svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.chartGrid {
+  stroke: rgb(var(--ink-rgb) / 0.08);
+}
+
+.chartAxis {
+  fill: rgb(var(--ink-rgb) / 0.45);
+  font-size: 11px;
+}
+
+.chartLine {
+  fill: none;
+  stroke: #ff3b6b;
+  stroke-width: 1.5;
+}
+
+.chartGuide {
+  stroke: rgb(var(--ink-rgb) / 0.3);
+  stroke-dasharray: 3 3;
+}
+
+.chartDot {
+  fill: #ff3b6b;
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+/* Create Asset's chart, in the asset chart's colour; it sizes itself for the config window, so here it fills the box. */
+.assetPlot {
+  --node-accent: #ff3b6b;
+
+  position: relative;
+  flex: 1;
+  min-height: 112px;
+}
+
+.assetPlot > div {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  padding: 0;
+}
+
+.assetPlot text {
+  font-family: inherit;
+}
+
+.assetTable {
+  --column-pad: var(--space-lg);
+
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  border-radius: var(--radius-xl);
+}
+
+.assetTableBare {
+  border: none;
+  border-radius: inherit;
+}
+
+.map {
+  position: relative;
+  flex: 1;
+  min-height: 220px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--ink-rgb) / 0.08);
+  border-radius: var(--radius-xl);
+  background: #0b1420;
+}
+
+.mapCanvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.chartBare {
+  min-height: 180px;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.mapBare {
+  min-height: 200px;
+  border: none;
+  border-radius: inherit;
+}
+
+/* The map only takes the pointer once its node is selected, so dragging the card still works. */
+.mapInteractive {
+  cursor: default;
+}
+
+.mapInteractive .mapCanvas {
+  pointer-events: auto;
+}
+
+.mapHint {
+  position: absolute;
+  bottom: var(--space-md);
+  left: 50%;
+  padding: 2px var(--space-md);
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: var(--lc-font-small-size);
+  line-height: 20px;
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity var(--lc-duration) var(--lc-ease);
+  pointer-events: none;
+}
+
+[data-ink='dark'] .chart:not(.chartBare) {
+  background: rgb(255 255 255 / 0.35);
+}
+
+/* ---------- Footer data panel ---------- */
+
+.dataPanel {
+  --ink-rgb: 255 255 255;
+
+  display: flex;
+  flex-direction: column;
+  color: rgba(255, 255, 255, 0.92);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
+  cursor: default;
+}
+
+.dataToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg) var(--space-md) var(--node-pad);
+}
+
+.dataCount {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: var(--lc-font-small-size);
+}
+
+.segmented {
+  composes: segmented from '../llumen-assistant/story/StoryBackground.module.css';
+}
+
+.segment {
+  composes: segment from '../llumen-assistant/story/StoryBackground.module.css';
+}
+
+.segmentActive {
+  composes: segmentActive from '../llumen-assistant/story/StoryBackground.module.css';
+}
+
+/* Scrollport stays full-bleed so its overlay thumb sits on the card edge; content carries the inset. */
+.dataScroll {
+  max-height: 220px;
+  padding: 0 0 var(--space-md);
+  overflow: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+  user-select: text;
+}
+
+.dataScroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+  height: var(--lc-scrollbar-size);
+}
+
+.dataScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dataScroll::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+.dataTable {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: var(--lc-font-small-size);
+  line-height: 18px;
+}
+
+.dataTable th,
+.dataTable td {
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dataTable th:first-child,
+.dataTable td:first-child {
+  padding-left: var(--node-pad);
+}
+
+.dataTable th {
+  position: sticky;
+  top: 0;
+  background: #141518;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+}
+
+.dataTable td {
+}
+
+.dataTable td[data-type='number'] {
+  color: #93c5fd;
+  text-align: right;
+}
+
+.dataTable td[data-type='boolean'] {
+  color: #fcd34d;
+}
+
+.dataJson {
+  margin: 0;
+  padding: var(--space-xs) var(--node-pad) 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: var(--lc-font-small-size);
+  line-height: 18px;
+}
+
+.dataSchema {
+  margin: 0;
+  padding: var(--space-xs) var(--node-pad) 0;
+  list-style: none;
+}
+
+.dataSchema li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  padding: var(--space-xs) 0;
+  font-size: var(--lc-font-small-size);
+  line-height: 18px;
+}
+
+.schemaName {
+}
+
+.schemaType {
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-xs);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.dataEmpty {
+  margin: 0;
+  padding: var(--space-lg) var(--node-pad);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: var(--lc-font-small-size);
+  line-height: 18px;
+}
+
+.dataError {
+  color: #fca5a5;
+}
+
+/* ---------- Resize (screen-sized at any zoom; `--px` is one screen pixel in world units) ---------- */
+
+/* Edge strips straddle the border between the rounded corners; corner squares cover the curves. */
+.resize {
+  --px: calc(1px / var(--zoom, 1));
+  --grab: calc(8 * var(--px));
+  --corner: calc(var(--node-radius) + var(--grab) / 2);
+
+  position: absolute;
+  z-index: 2;
+}
+
+.resize[data-edge='n'],
+.resize[data-edge='s'] {
+  right: var(--node-radius);
+  left: var(--node-radius);
+  height: var(--grab);
+  cursor: ns-resize;
+}
+
+.resize[data-edge='e'],
+.resize[data-edge='w'] {
+  top: var(--node-radius);
+  bottom: var(--node-radius);
+  width: var(--grab);
+  cursor: ew-resize;
+}
+
+.resize[data-edge='n'] {
+  top: calc(var(--grab) / -2);
+}
+
+.resize[data-edge='s'] {
+  bottom: calc(var(--grab) / -2);
+}
+
+.resize[data-edge='e'] {
+  right: calc(var(--grab) / -2);
+}
+
+.resize[data-edge='w'] {
+  left: calc(var(--grab) / -2);
+}
+
+.resize[data-edge='ne'],
+.resize[data-edge='se'],
+.resize[data-edge='sw'],
+.resize[data-edge='nw'] {
+  width: var(--corner);
+  height: var(--corner);
+}
+
+.resize[data-edge='ne'] {
+  top: calc(var(--grab) / -2);
+  right: calc(var(--grab) / -2);
+  cursor: nesw-resize;
+}
+
+.resize[data-edge='se'] {
+  right: calc(var(--grab) / -2);
+  bottom: calc(var(--grab) / -2);
+  cursor: nwse-resize;
+}
+
+.resize[data-edge='sw'] {
+  bottom: calc(var(--grab) / -2);
+  left: calc(var(--grab) / -2);
+  cursor: nesw-resize;
+}
+
+.resize[data-edge='nw'] {
+  top: calc(var(--grab) / -2);
+  left: calc(var(--grab) / -2);
+  cursor: nwse-resize;
+}

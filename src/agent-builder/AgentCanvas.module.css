@@ -1,0 +1,584 @@
+.root {
+  --canvas-accent: #73adf5;
+  --canvas-accent-bg: rgba(115, 173, 245, 0.2);
+  /*
+   * Opaque stand-in for the design's 20% tint + backdrop blur. Anything that creates its own
+   * compositing layer (backdrop-filter, will-change) inside the zoomed world can be rasterized
+   * at a stale scale and look pixelated.
+   */
+  --canvas-label-neutral: color-mix(in srgb, #ffffff 20%, #121214);
+
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  /* Clip, not hidden: a hidden scroller can still be scrolled by focus() into the sliding-in sheet. */
+  overflow: clip;
+  background: #121212;
+  color: var(--lc-text-primary);
+  font-family: var(--lc-font-sans);
+  user-select: none;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+.root :where(button) {
+  font: inherit;
+  color: inherit;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Keeps a custom background layer (z-index -1) inside the backdrop. */
+  isolation: isolate;
+}
+
+.backdropImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(196px);
+}
+
+.backdropTint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(12, 12, 15, 0.96), rgba(2, 4, 13, 0.96));
+}
+
+/* The smoke is drawn on black; screen keeps the background showing through the dark parts. */
+.backdropShader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: screen;
+}
+
+/* ---------- Infinite surface ---------- */
+
+.surface {
+  position: absolute;
+  inset: 0;
+  cursor: default;
+}
+
+.panning .surface,
+.panning .surface * {
+  cursor: grabbing;
+}
+
+.connecting,
+.connecting .surface,
+.connecting [data-node-id] {
+  cursor: crosshair;
+}
+
+.world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.edges path {
+  fill: none;
+}
+
+.edges .edgeLine {
+  stroke-width: 1;
+  transition: stroke-width var(--lc-duration) var(--lc-ease);
+}
+
+.edge:hover .edgeLine,
+.edgeSelected .edgeLine {
+  stroke-width: 2.5;
+}
+
+/* Wide invisible stroke so thin edges are easy to click. */
+.edges .edgeHit {
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.edges .edgeDraft {
+  stroke: var(--canvas-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.edgeLabel {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 0 var(--space-xs);
+  border-radius: 3px;
+  background: var(--canvas-label-neutral);
+  font-size: 10px;
+  line-height: 16px;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+
+/* ---------- Group labels ---------- */
+
+.groupLabel {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ---------- Floating chrome (shared controls live in FloatingControls.module.css) ---------- */
+
+.header {
+  position: absolute;
+  top: var(--space-2xl);
+  left: var(--space-2xl);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xl);
+  max-width: calc(50% - 140px);
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xxs);
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.draftBadge {
+  flex-shrink: 0;
+  padding: var(--space-xxs) var(--space-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.draftBadge[data-published] {
+  border-color: rgb(34 197 94 / 0.3);
+  color: #4ade80;
+  background: rgb(34 197 94 / 0.14);
+}
+
+/* Keeps nodes from showing through the top chrome; solid behind the header, then fades out. */
+.headerScrim {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 96px;
+  background: linear-gradient(to bottom, rgba(6, 6, 8, 0.6) 0%, rgba(6, 6, 8, 0.4) 50%, rgba(6, 6, 8, 0) 100%);
+  pointer-events: none;
+  transition: opacity 600ms var(--lc-ease);
+}
+
+/* Lets the run glow show along the top edge. */
+.runLook .headerScrim {
+  opacity: 0.3;
+}
+
+/* Run result: rises from the bottom edge behind the toolbars, holds, then fades, pulsing by `--result-pulse` (0 holds steady). */
+.resultGlow {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--result-height);
+  pointer-events: none;
+  animation: resultFade var(--result-seconds) ease-out forwards;
+}
+
+.resultGlow::before,
+.resultGlow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+  animation: resultPulse var(--result-pulse-seconds) ease-in-out infinite;
+}
+
+.resultGlow::before {
+  background: radial-gradient(
+    ellipse var(--result-spread) 100% at 50% 100%,
+    rgba(var(--result-rgb), var(--result-alpha)) 0%,
+    rgba(var(--result-rgb), calc(var(--result-alpha) * 0.6)) var(--result-core),
+    rgba(var(--result-rgb), 0) var(--result-fade)
+  );
+}
+
+/* Whitened core, half as wide and tall, brightening what's beneath. */
+.resultGlow::after {
+  background: radial-gradient(
+    ellipse calc(var(--result-spread) * 0.5) 55% at 50% 100%,
+    color-mix(in srgb, color-mix(in srgb, rgb(var(--result-rgb)) 55%, white) calc(var(--result-intensity) * 100%), transparent) 0%,
+    transparent var(--result-fade)
+  );
+  mix-blend-mode: screen;
+}
+
+@keyframes resultFade {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes resultPulse {
+  0%,
+  100% {
+    opacity: calc(1 - var(--result-pulse) * 0.6);
+    transform: scaleY(calc(1 - var(--result-pulse) * 0.2));
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(calc(1 + var(--result-pulse) * 0.1));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resultGlow::before,
+  .resultGlow::after {
+    animation: none;
+  }
+}
+
+.menuSeparator {
+  height: 1px;
+  margin: var(--space-xs) var(--space-sm);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.menuLabel {
+  padding: var(--space-xs) var(--space-md) var(--space-xxs);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* A button group in the toolbars' glass: segments sit edge to edge with a rule between them; the open one is lighter. */
+.tabs {
+  position: absolute;
+  top: var(--space-2xl);
+  left: 50%;
+  display: flex;
+  height: 36px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(30, 31, 36, 0.82);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  transform: translateX(-50%);
+}
+
+/* Under `.root` to outrank the canvas's `button { font: inherit }` reset. */
+.root .tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 var(--space-xl);
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease);
+}
+
+.root .tab + .tab {
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.root .tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.root .tab[aria-selected='true'] {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.stopRun {
+  composes: iconButton from '../llumen-assistant/FloatingControls.module.css';
+  position: absolute;
+  top: calc(var(--space-2xl) + 36px + var(--space-lg));
+  left: 50%;
+  gap: var(--space-sm);
+  width: auto;
+  padding: 0 var(--space-lg);
+  font-size: 14px;
+  line-height: 20px;
+  transform: translateX(-50%);
+  animation: stopRunIn var(--lc-duration) var(--lc-ease);
+}
+
+@keyframes stopRunIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+}
+
+.topRight {
+  position: absolute;
+  top: var(--space-2xl);
+  right: var(--space-2xl);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.runAgent {
+  position: relative;
+}
+
+.triggerMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  min-width: 220px;
+}
+
+.triggerCheck {
+  margin-left: auto;
+}
+
+.publishButton {
+  composes: iconButton from '../llumen-assistant/FloatingControls.module.css';
+  width: auto;
+  padding: 0 var(--space-lg);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.testFlowButton {
+  gap: var(--space-sm);
+  padding: 0 var(--space-lg) 0 var(--space-md);
+}
+
+.testFlowButton[aria-pressed='true'] {
+  border-color: rgba(115, 173, 245, 0.6);
+  background:
+    linear-gradient(rgba(115, 173, 245, 0.18), rgba(115, 173, 245, 0.18)),
+    rgba(34, 42, 42, 0.5);
+}
+
+.devToggle {
+  gap: var(--space-sm);
+  padding: 0 var(--space-md);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.devToggle[aria-checked='true'] {
+  color: var(--lc-text-primary);
+}
+
+.devSwitch {
+  position: relative;
+  flex-shrink: 0;
+  width: 26px;
+  height: 16px;
+  margin-left: var(--space-xxs);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background var(--lc-duration) var(--lc-ease);
+}
+
+.devSwitch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform var(--lc-duration) var(--lc-ease);
+}
+
+.devToggle[aria-checked='true'] .devSwitch {
+  background: var(--canvas-accent);
+}
+
+.devToggle[aria-checked='true'] .devSwitch::after {
+  transform: translateX(10px);
+}
+
+.shaderToggle {
+  composes: iconButton from '../llumen-assistant/FloatingControls.module.css';
+}
+
+.topDivider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.styleMenu {
+  position: relative;
+}
+
+.styleMenuButton {
+  composes: iconButton from '../llumen-assistant/FloatingControls.module.css';
+  padding: 0;
+}
+
+.styleMenuList {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 5;
+  min-width: 260px;
+}
+
+.styleOption {
+  text-align: left;
+}
+
+.styleOptionText {
+  display: flex;
+  flex-direction: column;
+}
+
+.styleOptionHint {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+/* Content tools on the left, chat and node library centred, canvas controls on the right. */
+.footer {
+  position: absolute;
+  right: var(--space-2xl);
+  bottom: 18px;
+  left: var(--space-2xl);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: var(--space-lg);
+  pointer-events: none;
+}
+
+/* Floats centred just above the toolbar row, like the story composer. */
+.chatDock {
+  position: absolute;
+  right: 0;
+  bottom: 88px;
+  left: 0;
+  width: min(640px, calc(100% - 48px));
+  margin-inline: auto;
+  pointer-events: none;
+}
+
+.toolbarGroup {
+  position: relative;
+  grid-column: 2;
+  display: flex;
+  gap: var(--space-md);
+}
+
+/* Glass matches the side panels. */
+.footer .footerBar {
+  justify-self: center;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(30, 31, 36, 0.82);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  pointer-events: auto;
+}
+
+.footer .contentBar {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.footer .controlsBar {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.footerBar .zoomLevel {
+  width: auto;
+  min-width: 48px;
+  padding: 0 6px;
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.placing .surface,
+.placing .surface * {
+  cursor: crosshair;
+}
+
+/* The comment pin's shape; its tail tip is the hotspot, where the pin will land. */
+.commenting .surface,
+.commenting .surface * {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 25V14A11 11 0 1 1 14 25Z' fill='white' stroke='black' stroke-opacity='0.55' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M14 9.5v9M9.5 14h9' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E")
+      3 25,
+    crosshair;
+}
+
+/* Node a comment is about to pin to, or is pinned to. */
+.commentTarget {
+  --px: calc(1px / var(--zoom, 1));
+
+  position: absolute;
+  z-index: 4;
+  box-sizing: border-box;
+  /* A few screen pixels clear of the card on every side; the inline size adds the same. */
+  margin: calc(-4 * var(--px));
+  border: calc(2 * var(--px)) solid var(--canvas-accent);
+  border-radius: calc(var(--radius-3xl) + 4 * var(--px));
+  box-shadow: 0 0 0 calc(4 * var(--px)) color-mix(in srgb, var(--canvas-accent) 18%, transparent);
+  pointer-events: none;
+}
+
+.commentTarget[data-sticky] {
+  border-radius: calc(4px + 4 * var(--px));
+}
