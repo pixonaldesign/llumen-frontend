@@ -172,8 +172,11 @@ const FEED_AUTOPLAY_MS = 9000
 const FINDING_FADE_MS = 320
 /** Dots shown at once; with more findings, the last two on a side with more shrink and fade. */
 const FEED_DOTS_VISIBLE = 7
-/** How far past the finding's content (category to actions) the pointer still holds autoplay, in px. */
-const HOLD_ZONE = { x: 70, top: 220, bottom: 144 }
+/**
+ * How far past the finding's content (category to actions) the pointer still holds autoplay, in px.
+ * `reach` is how far above the actions it always extends, so a finding without a card holds over the same map.
+ */
+const HOLD_ZONE = { x: 70, top: 220, bottom: 144, reach: 666 }
 
 /** One-section glide; longer jumps (Home, End) take up to the max. */
 const PAGE_GLIDE_MS = 900
@@ -821,6 +824,7 @@ export function BriefingLanding({
               place={mapPlace}
               blank={mapBlurred}
               focusRight={findingsStyle === 2 || findingsStyle === 5}
+              focusLow={findingsStyle === 8}
               enter={opening ? STORY_ENTER : null}
               onArrive={arriveAtStory}
               align={storyRelease && storyRelease !== 'home' ? storyRelease : null}
@@ -1421,7 +1425,7 @@ function ConversationalBubble({
       hovered =
         event.clientX >= left - HOLD_ZONE.x &&
         event.clientX <= right + HOLD_ZONE.x &&
-        event.clientY >= top - HOLD_ZONE.top &&
+        event.clientY >= Math.min(top - HOLD_ZONE.top, bottom - HOLD_ZONE.reach) &&
         event.clientY <= bottom + HOLD_ZONE.bottom
       sync()
     }

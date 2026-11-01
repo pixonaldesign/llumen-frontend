@@ -29,6 +29,11 @@ const SAMPLE_H = 20
 const SAMPLE_TIMEOUT_MS = 400
 /** Lifts the orbit centre so the tall columns rise above the centred greeting; top padding exposes the sky. */
 const CAMERA_PADDING = { top: 0, right: 0, bottom: 220, left: 0 }
+/**
+ * With the finding low on the stage, the orbit centre sits `lift` px above where the finding's category
+ * lands (`ratio` of the stage height), so the columns end just above the finding at any height.
+ */
+const LOW_FOCUS = { ratio: 0.69, lift: 200 }
 
 /** Web-mercator meters per pixel at zoom 0 for 512px tiles, at the demo latitude. */
 const METERS_PER_PX_Z0 = (40075016.686 / 512) * Math.cos((24.6 * Math.PI) / 180)
@@ -148,8 +153,12 @@ function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 
 /** `focusRight` moves the orbit centre into the right two thirds, clear of a left-hand panel. */
-function cameraPadding(el: HTMLElement, focusRight: boolean): mapboxgl.PaddingOptions {
-  return { ...CAMERA_PADDING, left: focusRight ? Math.round(el.clientWidth / 3) : 0 }
+function cameraPadding(el: HTMLElement, focusRight: boolean, focusLow: boolean): mapboxgl.PaddingOptions {
+  const left = focusRight ? Math.round(el.clientWidth / 3) : 0
+  if (!focusLow) return { ...CAMERA_PADDING, left }
+  const height = el.clientHeight
+  const shift = Math.round(2 * (height * LOW_FOCUS.ratio - LOW_FOCUS.lift) - height)
+  return { top: Math.max(0, shift), right: 0, bottom: Math.max(0, -shift), left }
 }
 
 /** Snaps onto the story's view, then flies back to the Briefing place. */
@@ -173,6 +182,7 @@ export function BriefingMap({
   place,
   blank = false,
   focusRight = false,
+  focusLow = false,
   enter = null,
   onArrive,
   start = null,
@@ -183,6 +193,8 @@ export function BriefingMap({
   place: BriefingPlace
   blank?: boolean
   focusRight?: boolean
+  /** The finding sits low on the stage: the columns frame down to just above it. */
+  focusLow?: boolean
   enter?: BriefingMapEnter | null
   onArrive?: () => void
   start?: BriefingMapEnter | null
@@ -198,6 +210,7 @@ export function BriefingMap({
   const placeRef = useRef(place)
   const blankRef = useRef(blank)
   const focusRightRef = useRef(focusRight)
+  const focusLowRef = useRef(focusLow)
   /** The place whose columns are on the map, and how far they've grown. */
   const drawnRef = useRef<Drawn>({ place, grow: 0 })
   const readyRef = useRef(false)
@@ -233,13 +246,15 @@ export function BriefingMap({
       antialias: true,
       attributionControl: false,
     })
-    map.setPadding(heldRef.current?.padding ?? cameraPadding(el, focusRightRef.current))
+    map.setPadding(heldRef.current?.padding ?? cameraPadding(el, focusRightRef.current, focusLowRef.current))
     if (heldRef.current) holdUntilRef.current = Number.POSITIVE_INFINITY
     mapRef.current = map
 
     const observer = new ResizeObserver(() => {
       map.resize()
-      if (focusRightRef.current && !flyingRef.current) map.setPadding(cameraPadding(el, true))
+      if ((focusRightRef.current || focusLowRef.current) && !flyingRef.current && !heldRef.current && !enterRef.current) {
+        map.setPadding(cameraPadding(el, focusRightRef.current, focusLowRef.current))
+      }
     })
     observer.observe(el)
 
@@ -278,7 +293,7 @@ export function BriefingMap({
         pendingReleaseRef.current = false
         holdUntilRef.current = 0
         flyingRef.current = true
-        flyHome(map, placeRef.current, cameraPadding(el, focusRightRef.current), alignRef.current)
+        flyHome(map, placeRef.current, cameraPadding(el, focusRightRef.current, focusLowRef.current), alignRef.current)
         map.once('moveend', () => {
           flyingRef.current = false
         })
@@ -353,10 +368,11 @@ export function BriefingMap({
 
   useEffect(() => {
     const map = mapRef.current
-    if (focusRightRef.current === focusRight) return
+    if (focusRightRef.current === focusRight && focusLowRef.current === focusLow) return
     focusRightRef.current = focusRight
+    focusLowRef.current = focusLow
     if (!map || !readyRef.current) return
-    const padding = cameraPadding(map.getContainer(), focusRight)
+    const padding = cameraPadding(map.getContainer(), focusRight, focusLow)
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       map.setPadding(padding)
       return
@@ -372,7 +388,7 @@ export function BriefingMap({
     map.once('moveend', () => {
       if (flightRef.current === flight) flyingRef.current = false
     })
-  }, [focusRight])
+  }, [focusRight, focusLow])
 
   useEffect(() => {
     const map = mapRef.current
@@ -396,7 +412,7 @@ export function BriefingMap({
     if (!moved && !swapping && from === target && !entering && !releasing) return
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const padding = cameraPadding(map.getContainer(), focusRightRef.current)
+    const padding = cameraPadding(map.getContainer(), focusRightRef.current, focusLowRef.current)
     window.cancelAnimationFrame(tweenRef.current)
     if (reduce) {
       if (entering) map.jumpTo({ ...enter.camera, padding: enter.padding })
