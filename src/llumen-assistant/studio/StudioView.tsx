@@ -12,8 +12,8 @@ import styles from './StudioView.module.css'
 
 const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
 
-/** Charcoal to blue-charcoal, with one pale blob for a hint of light. */
-const STUDIO_SHADER_COLORS = ['#1b1d21', '#181b21', '#121b2d', '#1b1d21', '#14213b', '#16181d', '#5c6e8f']
+/** Charcoal to blue-charcoal, with one slate blob for a hint of light. */
+const STUDIO_SHADER_COLORS = ['#1b1d21', '#181b21', '#121b2d', '#1b1d21', '#14213b', '#16181d', '#222d42']
 /** Cap the shader so a 2x display doesn't allocate a 4K buffer behind a mostly opaque page. */
 const STUDIO_SHADER_PIXELS = 1280 * 720
 
