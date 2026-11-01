@@ -86,9 +86,59 @@
 
 .panelHead {
   display: flex;
+  align-items: center;
+  gap: var(--space-xl);
+  padding: var(--space-2xl) var(--space-2xl) var(--space-xl);
+}
+
+.panelCopy {
+  display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
-  padding: var(--space-2xl) var(--space-2xl) var(--space-xl);
+  min-width: 0;
+}
+
+.search {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-md);
+  width: 240px;
+  height: 32px;
+  padding: 0 var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.16);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.search:focus-within {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-xl) var(--space-2xl);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .panelTitle {

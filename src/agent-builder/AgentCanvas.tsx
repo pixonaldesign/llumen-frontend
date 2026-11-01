@@ -17,17 +17,21 @@ import {
   ChatCircle,
   Check,
   CheckCircle,
+  ClockCounterClockwise,
   Code,
+  Flask,
   FlowArrow,
   FrameCorners,
   type Icon,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   NoteBlank,
+  PaintBrush,
   Pause,
   Play,
   Palette,
   Scan,
+  ShareNetwork,
   SlidersHorizontal,
   Stop,
   TextT,
@@ -155,12 +159,12 @@ const CARD_INTERACTIVE =
 /** The card's built-in padding and corner radius (px), shown by the appearance sliders. */
 const FRAME_DEFAULTS = { padding: 16, radius: 20 }
 
-/** Shows the card style and canvas background settings, and the per-node appearance button. */
-const DEV_TOOLS_KEY = 'llumen.devTools'
+/** Shows the appearance button on each node's toolbar; kept under the old key so earlier choices carry over. */
+const APPEARANCE_BUTTON_KEY = 'llumen.devTools'
 
-function readDevTools() {
+function readAppearanceButton() {
   try {
-    return localStorage.getItem(DEV_TOOLS_KEY) !== 'off'
+    return localStorage.getItem(APPEARANCE_BUTTON_KEY) !== 'off'
   } catch {
     return true
   }
@@ -582,10 +586,13 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const [draggingNode, setDraggingNode] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('builder')
   const [libraryOpen, setLibraryOpen] = useState(false)
-  const [devTools, setDevTools] = useState(readDevTools)
+  const [appearanceButton, setAppearanceButton] = useState(readAppearanceButton)
   /** Schedules, webhooks, and chat only start the published Flow; their cards show what publishing assigns. */
   const [publishedAt, setPublishedAt] = useState<number | null>(null)
   const published = publishedAt !== null
+  /** The trigger each run button starts from; null follows the flow's default. Simulated runs use the test one. */
+  const [testTriggerId, setTestTriggerId] = useState<string | null>(null)
+  const [executeTriggerId, setExecuteTriggerId] = useState<string | null>(null)
   const [cardLook, setCardLook] = useState<CardGlowConfig>(readCardGlow)
   const [cardStyleOpen, setCardStyleOpen] = useState(false)
   const updateCardLook = (next: CardGlowConfig) => {
@@ -639,17 +646,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     return { ...canvasAmbient, style, idle }
   }, [canvasAmbient])
   const [runPreview, setRunPreview] = useState(false)
-  const toggleDevTools = () => {
-    const next = !devTools
-    setDevTools(next)
-    if (!next) {
-      setCardStyleOpen(false)
-      setCanvasLookOpen(false)
-      setAppearanceFor(null)
-      setRunPreview(false)
-    }
+  const toggleAppearanceButton = () => {
+    const next = !appearanceButton
+    setAppearanceButton(next)
+    if (!next) setAppearanceFor(null)
     try {
-      localStorage.setItem(DEV_TOOLS_KEY, next ? 'on' : 'off')
+      localStorage.setItem(APPEARANCE_BUTTON_KEY, next ? 'on' : 'off')
     } catch {
       // Storage can be unavailable (private mode); the choice still applies for this session.
     }
@@ -2091,11 +2093,13 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   })()
   const toggleDataDialog = (id: string) => setDataDialogId((open) => (open === id ? null : id))
   const usedTypes = new Set(doc.nodes.map((node) => node.type))
-  /** Chat runs need a chat session, so Run agent offers the other triggers, default first. */
+  /** Chat runs need a chat session, so the run buttons offer the other triggers, default first. */
   const triggers: TriggerOption[] = executableTriggers(doc.nodes).map((node) => {
     const type = nodeType(node)
     return { id: node.id, title: nodeName(node, type), icon: type.icon }
   })
+  const triggerFor = (id: string | null) => triggers.find((option) => option.id === id) ?? triggers[0]
+  const testTrigger = triggerFor(testTriggerId)
   const flowState: FlowState = { published, publishedAt: publishedAt ?? undefined, defaultTriggerId: defaultTriggerId(doc.nodes) }
 
   const running = activeRuns > 0
@@ -2501,7 +2505,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           appearanceOpen={appearanceNode?.id === hoveredNode.id}
           onRun={(scope) => runNodes(hoveredNode.id, scope)}
           onConfigure={() => openConfig(hoveredNode.id)}
-          onAppearance={devTools ? () => toggleAppearance(hoveredNode.id) : undefined}
+          onAppearance={appearanceButton ? () => toggleAppearance(hoveredNode.id) : undefined}
           onDuplicate={() => duplicateNode(hoveredNode.id)}
           onDelete={() => deleteNode(hoveredNode.id)}
         />
@@ -2568,59 +2572,66 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       ) : null}
 
       <div className={styles.topRight}>
-        {devTools ? (
-          <CanvasSettingsMenu
-            cardStyleOpen={cardStyleOpen}
-            onCardStyle={() => {
-              setCardStyleOpen((open) => !open)
-              setCanvasLookOpen(false)
-              setAppearanceFor(null)
-            }}
-            canvasLookOpen={canvasLookOpen}
-            onCanvasLook={() => {
-              setCanvasLookOpen((open) => !open)
-              setCardStyleOpen(false)
-              setAppearanceFor(null)
-            }}
-          />
-        ) : null}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={devTools}
-          className={`${styles.publishButton} ${styles.devToggle}`}
-          data-tooltip={devTools ? 'Hide development tools' : 'Show development tools'}
-          onClick={toggleDevTools}
-        >
-          <Code size={16} weight="regular" aria-hidden />
-          Dev
-          <span className={styles.devSwitch} aria-hidden />
-        </button>
-        <button
-          type="button"
-          className={styles.shaderToggle}
-          aria-pressed={shaderPaused}
-          aria-label={shaderPaused ? 'Resume background animation' : 'Pause background animation'}
-          data-tooltip={shaderPaused ? 'Resume background animation' : 'Pause background animation'}
-          onClick={toggleShaderPaused}
-        >
-          {shaderPaused ? <Play size={16} weight="fill" aria-hidden /> : <Pause size={16} weight="fill" aria-hidden />}
-        </button>
+        <DevMenu
+          canSimulate={Boolean(testTrigger)}
+          onSimulate={(outcome) => testTrigger && runNodes(testTrigger.id, 'downstream', outcome)}
+          testFlow={mode === 'testFlow'}
+          onTestFlow={toggleTestFlow}
+          cardStyleOpen={cardStyleOpen}
+          onCardStyle={() => {
+            setCardStyleOpen((open) => !open)
+            setCanvasLookOpen(false)
+            setAppearanceFor(null)
+          }}
+          canvasLookOpen={canvasLookOpen}
+          onCanvasLook={() => {
+            setCanvasLookOpen((open) => !open)
+            setCardStyleOpen(false)
+            setAppearanceFor(null)
+          }}
+          appearanceButton={appearanceButton}
+          onAppearanceButton={toggleAppearanceButton}
+          shaderPaused={shaderPaused}
+          onShaderPaused={toggleShaderPaused}
+        />
         <span className={styles.topDivider} aria-hidden />
-        <button
-          type="button"
-          className={`${styles.publishButton} ${styles.testFlowButton}`}
-          aria-pressed={mode === 'testFlow'}
-          data-tooltip={mode === 'testFlow' ? 'Back to all nodes' : 'Load a test workflow'}
-          onClick={toggleTestFlow}
-        >
-          <FlowArrow size={16} weight={mode === 'testFlow' ? 'fill' : 'regular'} aria-hidden />
-          Test flow
+        <button type="button" className={controls.iconButton} aria-label="Version history" data-tooltip="Version history">
+          <ClockCounterClockwise size={20} weight="regular" aria-hidden />
         </button>
-        <RunAgentButton triggers={triggers} onRun={(triggerId, simulate) => runNodes(triggerId, 'downstream', simulate)} />
-        <button type="button" className={styles.publishButton} onClick={() => setPublishedAt((current) => (current === null ? Date.now() : null))}>
-          {published ? 'Unpublish' : 'Publish'}
+        <button type="button" className={controls.iconButton} aria-label="Share" data-tooltip="Share">
+          <ShareNetwork size={20} weight="regular" aria-hidden />
         </button>
+        <div className={SCOPE_CLASS} data-theme="dark" style={{ display: 'contents' }}>
+          <RunAgentButton
+            label="Test Agent"
+            icon={Flask}
+            variant="secondary"
+            tooltip={(title) => `Test from ${title}`}
+            triggers={triggers}
+            trigger={testTrigger}
+            onTrigger={setTestTriggerId}
+            onRun={(triggerId) => runNodes(triggerId, 'downstream')}
+          />
+          {published ? (
+            <RunAgentButton
+              label="Execute Agent"
+              icon={Play}
+              variant="primary"
+              tooltip={(title) => `Execute from ${title}`}
+              triggers={triggers}
+              trigger={triggerFor(executeTriggerId)}
+              onTrigger={setExecuteTriggerId}
+              onRun={(triggerId) => runNodes(triggerId, 'downstream')}
+            />
+          ) : null}
+          <button
+            type="button"
+            className={`pg-btn pg-btn--outline ${published ? 'pg-btn--warning' : 'pg-btn--primary'} ${styles.topButton}`}
+            onClick={() => setPublishedAt((current) => (current === null ? Date.now() : null))}
+          >
+            {published ? 'Unpublish' : 'Publish'}
+          </button>
+        </div>
       </div>
 
       {chatFrom ? (
@@ -2781,14 +2792,46 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   )
 }
 
-type CanvasSettingsMenuProps = {
+type DevMenuProps = {
+  /** Simulated runs start from the Test Agent trigger, so they need one. */
+  canSimulate: boolean
+  onSimulate: (outcome: RunOutcome) => void
+  testFlow: boolean
+  onTestFlow: () => void
   cardStyleOpen: boolean
   onCardStyle: () => void
   canvasLookOpen: boolean
   onCanvasLook: () => void
+  appearanceButton: boolean
+  onAppearanceButton: () => void
+  shaderPaused: boolean
+  onShaderPaused: () => void
 }
 
-function CanvasSettingsMenu({ cardStyleOpen, onCardStyle, canvasLookOpen, onCanvasLook }: CanvasSettingsMenuProps) {
+type DevItemProps = { icon: Icon; label: string; hint?: string; checked?: boolean; disabled?: boolean; onSelect: () => void }
+
+function DevItem({ icon: ItemIcon, label, hint, checked, disabled, onSelect }: DevItemProps) {
+  return (
+    <button
+      type="button"
+      role={checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+      aria-checked={checked}
+      disabled={disabled}
+      className={`${controls.menuItem} ${styles.styleOption}`}
+      onClick={onSelect}
+    >
+      <ItemIcon size={18} weight="regular" aria-hidden />
+      <span className={styles.styleOptionText}>
+        {label}
+        {hint ? <span className={styles.styleOptionHint}>{hint}</span> : null}
+      </span>
+      {checked ? <Check size={16} weight="bold" className={styles.triggerCheck} aria-hidden /> : null}
+    </button>
+  )
+}
+
+/** Every development action in one menu, so they stay off the bar. */
+function DevMenu(props: DevMenuProps) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setOpen(false), [])
@@ -2796,67 +2839,71 @@ function CanvasSettingsMenu({ cardStyleOpen, onCardStyle, canvasLookOpen, onCanv
 
   return (
     <div className={styles.styleMenu} ref={wrapRef}>
-      {open ? (
-        <div className={`${controls.menu} ${styles.styleMenuList}`} role="menu" aria-label="Canvas settings">
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={cardStyleOpen}
-            className={`${controls.menuItem} ${styles.styleOption}`}
-            onClick={() => {
-              onCardStyle()
-              setOpen(false)
-            }}
-          >
-            <SlidersHorizontal size={18} weight="regular" aria-hidden />
-            <span className={styles.styleOptionText}>
-              Card style
-              <span className={styles.styleOptionHint}>Card background, layout and category colours</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={canvasLookOpen}
-            className={`${controls.menuItem} ${styles.styleOption}`}
-            onClick={() => {
-              onCanvasLook()
-              setOpen(false)
-            }}
-          >
-            <Palette size={18} weight="regular" aria-hidden />
-            <span className={styles.styleOptionText}>
-              Canvas background
-              <span className={styles.styleOptionHint}>Background colours and dots</span>
-            </span>
-          </button>
-        </div>
-      ) : null}
       <button
         type="button"
-        className={styles.styleMenuButton}
-        aria-label="Canvas settings"
+        className={`${styles.publishButton} ${styles.topButton}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <SlidersHorizontal size={20} weight="regular" aria-hidden />
+        <Code size={16} weight="regular" aria-hidden />
+        Dev
+        <CaretDown size={14} weight="bold" aria-hidden />
       </button>
+      {open ? (
+        <div
+          className={`${controls.menu} ${styles.styleMenuList}`}
+          role="menu"
+          aria-label="Development tools"
+          onClick={(event) => {
+            if ((event.target as Element).closest('button')) close()
+          }}
+        >
+          <div className={styles.menuLabel}>Simulate a run</div>
+          <DevItem icon={CheckCircle} label="Passing run" disabled={!props.canSimulate} onSelect={() => props.onSimulate('pass')} />
+          <DevItem icon={XCircle} label="Failing run" disabled={!props.canSimulate} onSelect={() => props.onSimulate('fail')} />
+          <div className={styles.menuSeparator} role="separator" />
+          <DevItem icon={FlowArrow} label="Test flow" hint="A sample workflow to try runs on" checked={props.testFlow} onSelect={props.onTestFlow} />
+          <div className={styles.menuSeparator} role="separator" />
+          <div className={styles.menuLabel}>Look</div>
+          <DevItem icon={SlidersHorizontal} label="Card style" hint="Card background, layout and category colours" checked={props.cardStyleOpen} onSelect={props.onCardStyle} />
+          <DevItem icon={Palette} label="Canvas background" hint="Background colours and dots" checked={props.canvasLookOpen} onSelect={props.onCanvasLook} />
+          <DevItem icon={PaintBrush} label="Node appearance" hint="An appearance button on each node's toolbar" checked={props.appearanceButton} onSelect={props.onAppearanceButton} />
+          <DevItem
+            icon={props.shaderPaused ? Play : Pause}
+            label={props.shaderPaused ? 'Resume background animation' : 'Pause background animation'}
+            onSelect={props.onShaderPaused}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
 
+/** A run action split from a menu of the triggers it can start from. */
 function RunAgentButton({
+  label,
+  icon: RunIcon,
+  variant,
+  tooltip,
   triggers,
+  trigger,
+  onTrigger,
   onRun,
 }: {
+  label: string
+  icon: Icon
+  variant: 'primary' | 'secondary'
+  tooltip: (triggerTitle: string) => string
   triggers: readonly TriggerOption[]
-  onRun: (triggerId: string, simulate?: RunOutcome) => void
+  trigger: TriggerOption | undefined
+  onTrigger: (triggerId: string) => void
+  onRun: (triggerId: string) => void
 }) {
-  const [triggerId, setTriggerId] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
-  const trigger = triggers.find((option) => option.id === triggerId) ?? triggers[0]
+  const choosable = triggers.length > 1
+  const buttonClass = `${variant === 'primary' ? 'pg-btn pg-btn--primary' : styles.publishButton} ${styles.topButton}`
 
   useEffect(() => {
     if (!menuOpen) return
@@ -2878,31 +2925,31 @@ function RunAgentButton({
 
   return (
     <div className={styles.runAgent} ref={wrapRef}>
-      <div className={SCOPE_CLASS} data-theme="dark" style={{ display: 'contents' }}>
-        <div className="btn-split">
+      <div className={choosable ? styles.split : undefined} data-variant={variant}>
+        <button
+          type="button"
+          className={buttonClass}
+          data-tooltip={trigger ? tooltip(trigger.title) : undefined}
+          disabled={!trigger}
+          onClick={() => trigger && onRun(trigger.id)}
+        >
+          <RunIcon size={16} weight={variant === 'primary' ? 'fill' : 'regular'} aria-hidden />
+          {label}
+        </button>
+        {choosable ? (
           <button
             type="button"
-            className="btn btn--primary"
-            data-tooltip={trigger ? `Run from ${trigger.title}` : undefined}
-            disabled={!trigger}
-            onClick={() => trigger && onRun(trigger.id)}
-          >
-            <Play size={16} weight="fill" aria-hidden />
-            Run agent
-          </button>
-          <button
-            type="button"
-            className="btn btn--primary"
-            aria-label="Choose trigger"
+            className={buttonClass}
+            aria-label={`Choose the trigger to ${label.toLowerCase()} from`}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((value) => !value)}
           >
             <CaretDown size={16} weight="bold" aria-hidden />
           </button>
-        </div>
+        ) : null}
       </div>
-      {menuOpen ? (
+      {choosable && menuOpen ? (
         <div className={`${controls.menu} ${styles.triggerMenu}`} role="menu" aria-label="Start from trigger">
           {triggers.map((node) => {
             const NodeIcon = node.icon
@@ -2915,7 +2962,7 @@ function RunAgentButton({
                 aria-checked={selected}
                 className={`${controls.menuItem}${selected ? ` ${controls.menuItemActive}` : ''}`}
                 onClick={() => {
-                  setTriggerId(node.id)
+                  onTrigger(node.id)
                   setMenuOpen(false)
                 }}
               >
@@ -2925,29 +2972,6 @@ function RunAgentButton({
               </button>
             )
           })}
-          <div className={styles.menuSeparator} role="separator" />
-          <div className={styles.menuLabel}>Simulate a run</div>
-          {(
-            [
-              { outcome: 'pass', label: 'Passing run', icon: CheckCircle },
-              { outcome: 'fail', label: 'Failing run', icon: XCircle },
-            ] as const
-          ).map(({ outcome, label, icon: OutcomeIcon }) => (
-            <button
-              key={outcome}
-              type="button"
-              role="menuitem"
-              className={controls.menuItem}
-              disabled={!trigger}
-              onClick={() => {
-                setMenuOpen(false)
-                if (trigger) onRun(trigger.id, outcome)
-              }}
-            >
-              <OutcomeIcon size={18} weight="regular" aria-hidden />
-              {label}
-            </button>
-          ))}
         </div>
       ) : null}
     </div>

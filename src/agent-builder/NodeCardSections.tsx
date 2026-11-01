@@ -55,7 +55,7 @@ function RunInfo({ run, isTrigger, isDefault }: { run: NodeRun; isTrigger: boole
     run.status === 'success' || run.status === 'error' ? (
       <span className={`${minimal.badge} ${minimal[`badge_${run.status}`]}`}>{run.status === 'error' ? 'Failed' : isTrigger ? 'Fired' : 'Passed'}</span>
     ) : run.status === 'idle' && isDefault ? (
-      <span className={`${minimal.badge} ${minimal.badge_default}`} data-tooltip="Run agent starts here unless you pick another trigger">
+      <span className={`${minimal.badge} ${minimal.badge_default}`} data-tooltip="Test Agent and Execute Agent start here unless you pick another trigger">
         Default
       </span>
     ) : null

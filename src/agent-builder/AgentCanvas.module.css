@@ -281,19 +281,6 @@
   }
 }
 
-.menuSeparator {
-  height: 1px;
-  margin: var(--space-xs) var(--space-sm);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.menuLabel {
-  padding: var(--space-xs) var(--space-md) var(--space-xxs);
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 12px;
-  line-height: 16px;
-}
-
 /* A button group in the toolbars' glass: segments sit edge to edge with a rule between them; the open one is lighter. */
 .tabs {
   position: absolute;
@@ -386,69 +373,63 @@
   margin-left: auto;
 }
 
+/* Design-system buttons at the bar's 36px; under `.topRight` to outrank the canvas's `button { font: inherit }` reset. */
+.topRight .topButton {
+  gap: var(--space-sm);
+  height: 36px;
+  font-family: var(--lc-font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.topRight .topButton:global(.pg-btn) {
+  font-weight: 500;
+}
+
+/* A run action and its trigger caret, joined into one pill. */
+.split {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.split > :first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split > :last-child {
+  padding-inline: var(--space-md);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* Outlined halves share one border rather than doubling it. */
+.split[data-variant='secondary'] {
+  gap: 0;
+}
+
+.split[data-variant='secondary'] > :last-child {
+  margin-left: -1px;
+}
+
+/* The design system's outline hover switches to the dark ink meant for a solid fill, over a tint that's still dark. */
+.topRight .topButton:global(.pg-btn--outline.pg-btn--primary):is(:hover, :active) {
+  border-color: var(--lc-border-brand-subtle);
+  color: var(--lc-text-brand);
+}
+
+.topRight .topButton:global(.pg-btn--outline.pg-btn--warning):is(:hover, :active) {
+  border-color: var(--lc-border-warning-subtle);
+  color: var(--lc-text-warning);
+}
+
 .publishButton {
   composes: iconButton from '../llumen-assistant/FloatingControls.module.css';
   width: auto;
   padding: 0 var(--space-lg);
   font-size: 14px;
   line-height: 20px;
-}
-
-.testFlowButton {
-  gap: var(--space-sm);
-  padding: 0 var(--space-lg) 0 var(--space-md);
-}
-
-.testFlowButton[aria-pressed='true'] {
-  border-color: rgba(115, 173, 245, 0.6);
-  background:
-    linear-gradient(rgba(115, 173, 245, 0.18), rgba(115, 173, 245, 0.18)),
-    rgba(34, 42, 42, 0.5);
-}
-
-.devToggle {
-  gap: var(--space-sm);
-  padding: 0 var(--space-md);
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.devToggle[aria-checked='true'] {
-  color: var(--lc-text-primary);
-}
-
-.devSwitch {
-  position: relative;
-  flex-shrink: 0;
-  width: 26px;
-  height: 16px;
-  margin-left: var(--space-xxs);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.16);
-  transition: background var(--lc-duration) var(--lc-ease);
-}
-
-.devSwitch::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ffffff;
-  transition: transform var(--lc-duration) var(--lc-ease);
-}
-
-.devToggle[aria-checked='true'] .devSwitch {
-  background: var(--canvas-accent);
-}
-
-.devToggle[aria-checked='true'] .devSwitch::after {
-  transform: translateX(10px);
-}
-
-.shaderToggle {
-  composes: iconButton from '../llumen-assistant/FloatingControls.module.css';
 }
 
 .topDivider {
@@ -461,17 +442,25 @@
   position: relative;
 }
 
-.styleMenuButton {
-  composes: iconButton from '../llumen-assistant/FloatingControls.module.css';
-  padding: 0;
-}
-
 .styleMenuList {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   z-index: 5;
   min-width: 260px;
+}
+
+.menuLabel {
+  padding: var(--space-xs) var(--space-md) var(--space-xxs);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.menuSeparator {
+  height: 1px;
+  margin: var(--space-xs) var(--space-sm);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .styleOption {

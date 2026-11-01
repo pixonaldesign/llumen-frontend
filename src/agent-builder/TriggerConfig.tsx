@@ -30,7 +30,7 @@ export function ManualTriggerConfig() {
     <Card
       icon={<CursorClick size={16} aria-hidden />}
       title="Manual trigger"
-      description="Starts the flow when you click Run agent here, or Run on the published Flow. A flow has one manual trigger."
+      description="Starts the flow when you click Test Agent or Execute Agent here, or Run on the published Flow. A flow has one manual trigger."
     >
       <Notice>
         Its output is one row with the run id and who started it, so the steps after it run once. A manual run has no chat session, so Send chat
@@ -178,7 +178,7 @@ export function ChatInputConfig({ params, set }: EditorProps<ChatInputParams>) {
         hint="Test Chat sends this as the message. Steps read it as {{message}}."
         onChange={(testMessage) => set({ testMessage }, 'testMessage')}
       />
-      <Notice>Chat runs only start from the chat. Run agent from another trigger leaves this branch out.</Notice>
+      <Notice>Chat runs only start from the chat. Testing or executing from another trigger leaves this branch out.</Notice>
     </Card>
   )
 }

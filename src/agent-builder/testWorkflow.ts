@@ -9,7 +9,7 @@ type TestLink = [from: string, to: string, fromPort?: string, toPort?: string]
  * Contamination and air quality watch. Sites are scored and compared with land use, wind is laid over
  * the same land, expired permits become a table, and a PM10 forecast raises an alert where it crosses
  * 120 µg/m³; the high-risk sites and the alerts are merged for the app and the email.
- * Ordered so the manual trigger comes first, which makes it Run agent's default trigger.
+ * Ordered so the manual trigger comes first, which makes it the run buttons' default trigger.
  */
 const NODES: readonly TestNode[] = [
   ['t-manual', 'manualTrigger'],
@@ -210,7 +210,7 @@ const NODES: readonly TestNode[] = [
     'n-start',
     'stickyNote',
     {
-      note: 'Run agent starts from Manual Trigger; Every morning takes over once the flow is published. Run Field ops chat to see Alert field ops wait for a reply.',
+      note: 'Test Agent starts from Manual Trigger; Every morning takes over once the flow is published. Run Field ops chat to see Alert field ops wait for a reply.',
       sticky: { color: 'yellow' },
     },
   ],

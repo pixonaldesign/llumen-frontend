@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Brain, Database, Lightning, PaperPlaneTilt, type Icon } from '@phosphor-icons/react'
+import { Brain, Database, Lightning, MagnifyingGlass, PaperPlaneTilt, type Icon } from '@phosphor-icons/react'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import { NODE_DRAG_MIME, NODE_TYPES, type NodeCategoryId, type NodeTone } from './nodeCatalog'
 import tones from './nodeTones.module.css'
@@ -72,11 +72,21 @@ type NodeToolbarProps = {
  */
 export function NodeToolbar({ className, usedTypes, panelContainer, onAdd }: NodeToolbarProps) {
   const [groupId, setGroupId] = useState<NodeGroupId | null>(null)
+  const [query, setQuery] = useState('')
   const toolbarRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const group = NODE_GROUPS.find((item) => item.id === groupId)
-  const types = group ? group.categories.flatMap((id) => NODE_TYPES.filter((type) => type.category === id)) : []
+  const search = query.trim().toLowerCase()
+  const types = group
+    ? group.categories
+        .flatMap((id) => NODE_TYPES.filter((type) => type.category === id))
+        .filter((type) => !search || type.title.toLowerCase().includes(search) || type.description.toLowerCase().includes(search))
+    : []
   const close = () => setGroupId(null)
+  const toggleGroup = (id: NodeGroupId) => {
+    setGroupId((current) => (current === id ? null : id))
+    setQuery('')
+  }
 
   useEffect(() => {
     if (!groupId) return
@@ -98,7 +108,7 @@ export function NodeToolbar({ className, usedTypes, panelContainer, onAdd }: Nod
   return (
     <div ref={toolbarRef} className={`${controls.bar} ${styles.toolbar}${className ? ` ${className}` : ''}`} role="toolbar" aria-label="Add nodes">
       <span className={styles.label} aria-hidden>
-        Insert:
+        Add
       </span>
       {NODE_GROUPS.map((item) => {
         const GroupIcon = item.icon
@@ -110,7 +120,7 @@ export function NodeToolbar({ className, usedTypes, panelContainer, onAdd }: Nod
             className={`${styles.group}${active ? ` ${styles.groupActive}` : ''}`}
             aria-haspopup="true"
             aria-expanded={active}
-            onClick={() => setGroupId((current) => (current === item.id ? null : item.id))}
+            onClick={() => toggleGroup(item.id)}
           >
             <span className={`${styles.groupIcon} ${tones[`tone_${item.tone}`]}`} aria-hidden>
               <GroupIcon size={16} weight="bold" />
@@ -124,10 +134,26 @@ export function NodeToolbar({ className, usedTypes, panelContainer, onAdd }: Nod
         <div ref={panelRef} className={styles.flyout}>
           <section className={styles.panel} aria-label={`${group.title} nodes`}>
             <header className={styles.panelHead}>
-              <h3 className={styles.panelTitle}>{group.title}</h3>
-              <p className={styles.panelDescription}>{group.description}</p>
+              <div className={styles.panelCopy}>
+                <h3 className={styles.panelTitle}>{group.title}</h3>
+                <p className={styles.panelDescription}>{group.description}</p>
+              </div>
+              <label className={styles.search}>
+                <MagnifyingGlass size={14} aria-hidden />
+                <input
+                  // Remount per group so focus lands in the field each time a panel opens.
+                  key={group.id}
+                  autoFocus
+                  className={styles.searchInput}
+                  value={query}
+                  placeholder={`Search ${group.title}…`}
+                  aria-label={`Search ${group.title} nodes`}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </label>
             </header>
             <div className={styles.scroll} data-native-scroll>
+              {types.length === 0 ? <p className={styles.empty}>No nodes match “{query.trim()}”</p> : null}
               <div className={styles.grid}>
                 {types.map((type) => {
                   const TypeIcon = type.icon

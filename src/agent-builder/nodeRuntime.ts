@@ -1193,7 +1193,7 @@ export type RunPlanInput = {
   triggerId?: string
   /** Builder step tests: nothing is saved or sent, and a missing input is an error rather than a skip. */
   stepTest?: boolean
-  /** Forced outcomes from the Run agent menu. */
+  /** Forced outcomes from the simulate buttons in the dev tools. */
   simulate?: 'pass' | 'fail'
   forcedFailure?: string
   /** Replies to steps parked on Send and wait, by node id; those steps resume with them. */
