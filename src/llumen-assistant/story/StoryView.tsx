@@ -11,6 +11,7 @@ import {
   useState,
   type ComponentType,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -27,6 +28,7 @@ import {
   Copy,
   DotsSix,
   DotsSixVertical,
+  DotsThree,
   DotsThreeVertical,
   Export,
   Eye,
@@ -39,7 +41,6 @@ import {
   List,
   MapPin,
   MapTrifold,
-  PaintBucket,
   Pause,
   PencilSimple,
   Play,
@@ -68,6 +69,7 @@ import {
   warpPath,
 } from './StoryCharts'
 import { StoryCardConfigModal } from './StoryCardConfigModal'
+import { StoryLayerConfigModal, type MapLayerConfig } from './StoryLayerConfigModal'
 import { StoryMonitorModal } from './StoryMonitorModal'
 import { defaultMonitorConfig, monitorPrompt, monitorWorkflowProposal, type MonitorConfig } from './storyMonitor'
 import type { WorkflowProposal } from '../assistantReplyTypes'
@@ -84,6 +86,7 @@ import gradientStyles from './storyGradientBorder.module.css'
 import {
   StoryEditPanel,
   type StoryEditSection,
+  type StoryMapLayerPick,
   type StoryPresentationSettings,
 } from './StoryEditPanel'
 import {
@@ -97,6 +100,7 @@ import {
   STORY_MAP_STYLE,
   type StoryMapActionTooltip,
   type StoryMapHandle,
+  type StoryMapLayerOpacity,
   type StoryMapLayerVisibility,
   type StoryMapView,
 } from './StoryMap'
@@ -289,6 +293,13 @@ type MapPane = 'upper' | 'lower'
 
 const NO_TIMELINE_CHARTS: TimelineChartSeries[] = []
 type MapDataLayerKey = keyof StoryMapLayerVisibility
+/** Map Data's layers, top first; a deleted layer leaves the list and its map. */
+const MAP_DATA_LAYERS: MapDataLayerKey[] = ['junctions', 'distribution']
+type MapLayerTarget = { pane: MapPane; key: MapDataLayerKey }
+
+function defaultLayerTitle(key: MapDataLayerKey, place: string) {
+  return key === 'junctions' ? `${place} Monitored Junctions` : `${place} Value Distribution`
+}
 
 /** Upper map share of the screen height. */
 const COMPARISON_SPLIT_DEFAULT = 0.5
@@ -445,6 +456,8 @@ const CARD_MENU_WIDTH = 200
 const CARD_MENU_HEIGHT = 192
 const FILTER_MENU_WIDTH = 200
 const FILTER_MENU_HEIGHT = 88
+const LAYER_MENU_WIDTH = 200
+const LAYER_MENU_HEIGHT = 88
 
 function copySlide(slide: StorySlide): StorySlide {
   return {
@@ -532,6 +545,16 @@ export function StoryView({
     junctions: true,
     distribution: true,
   })
+  const [mapLayerOrder, setMapLayerOrder] = useState<Record<MapPane, MapDataLayerKey[]>>({
+    upper: MAP_DATA_LAYERS,
+    lower: MAP_DATA_LAYERS,
+  })
+  const [mapLayerConfig, setMapLayerConfig] = useState<
+    Record<MapPane, Partial<Record<MapDataLayerKey, MapLayerConfig>>>
+  >({ upper: {}, lower: {} })
+  const [layerMenu, setLayerMenu] = useState<(MapLayerTarget & { top: number; left: number }) | null>(null)
+  const [layerConfigTarget, setLayerConfigTarget] = useState<MapLayerTarget | null>(null)
+  const [draggingLayer, setDraggingLayer] = useState<MapLayerTarget | null>(null)
   const [mapStyle, setMapStyle] = useState<BackgroundBasemap>({
     kind: 'basemap',
     id: 'aimsun-teal',
@@ -1013,6 +1036,108 @@ export function StoryView({
       ...current,
       layers: { ...current.layers, [key]: !current.layers[key] },
     }))
+  const upperDrawnLayers = useMemo(
+    () => ({
+      junctions: layers.junctions && mapLayerOrder.upper.includes('junctions'),
+      distribution: layers.distribution && mapLayerOrder.upper.includes('distribution'),
+    }),
+    [layers, mapLayerOrder.upper],
+  )
+  const lowerDrawnLayers = useMemo(
+    () => ({
+      junctions: comparison.layers.junctions && mapLayerOrder.lower.includes('junctions'),
+      distribution: comparison.layers.distribution && mapLayerOrder.lower.includes('distribution'),
+    }),
+    [comparison.layers, mapLayerOrder.lower],
+  )
+  const upperLayerOpacity = useMemo<StoryMapLayerOpacity>(
+    () => ({
+      junctions: mapLayerConfig.upper.junctions?.opacity,
+      distribution: mapLayerConfig.upper.distribution?.opacity,
+    }),
+    [mapLayerConfig.upper],
+  )
+  const lowerLayerOpacity = useMemo<StoryMapLayerOpacity>(
+    () => ({
+      junctions: mapLayerConfig.lower.junctions?.opacity,
+      distribution: mapLayerConfig.lower.distribution?.opacity,
+    }),
+    [mapLayerConfig.lower],
+  )
+
+  const moveMapLayer = ({ pane, key }: MapLayerTarget, index: number) =>
+    setMapLayerOrder((current) => {
+      const rest = current[pane].filter((item) => item !== key)
+      const next = [...rest.slice(0, index), key, ...rest.slice(index)]
+      return next.every((item, i) => item === current[pane][i]) ? current : { ...current, [pane]: next }
+    })
+  const startLayerDrag = (target: MapLayerTarget, event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return
+    const list = event.currentTarget.closest<HTMLElement>('[data-map-layers]')
+    if (!list) return
+    event.preventDefault()
+    setDraggingLayer(target)
+    setLayerMenu(null)
+    const onMove = (move: PointerEvent) => {
+      const others = [...list.querySelectorAll<HTMLElement>('[data-map-layer]')].filter(
+        (item) => item.dataset.mapLayer !== target.key,
+      )
+      const index = others.filter((item) => {
+        const rect = item.getBoundingClientRect()
+        return move.clientY > rect.top + rect.height / 2
+      }).length
+      moveMapLayer(target, index)
+    }
+    const onEnd = () => {
+      setDraggingLayer(null)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onEnd)
+      window.removeEventListener('pointercancel', onEnd)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onEnd)
+    window.addEventListener('pointercancel', onEnd)
+  }
+  const toggleLayerMenu = (target: MapLayerTarget, button: HTMLElement) => {
+    if (layerMenu?.pane === target.pane && layerMenu.key === target.key) {
+      setLayerMenu(null)
+      return
+    }
+    const rect = button.getBoundingClientRect()
+    const below = rect.bottom + 6
+    setLayerMenu({
+      ...target,
+      top:
+        below + LAYER_MENU_HEIGHT > window.innerHeight - 8
+          ? Math.max(8, rect.top - 6 - LAYER_MENU_HEIGHT)
+          : below,
+      left: Math.max(8, Math.min(rect.right - LAYER_MENU_WIDTH, window.innerWidth - LAYER_MENU_WIDTH - 8)),
+    })
+    setFilterMenu(null)
+    setCardMenu(null)
+    setStoryMenuOpen(false)
+    setSlideMenuOpen(false)
+    setLayoutMenuOpen(false)
+  }
+  const deleteMapLayer = ({ pane, key }: MapLayerTarget) =>
+    setMapLayerOrder((current) => ({ ...current, [pane]: current[pane].filter((item) => item !== key) }))
+
+  useEffect(() => {
+    if (!layerMenu) return
+    const onPointerDown = (event: PointerEvent) => {
+      if ((event.target as Element).closest('#story-layer-menu, [data-layer-menu-trigger]')) return
+      setLayerMenu(null)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setLayerMenu(null)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [layerMenu])
   const placedIds = INSIGHT_CARD_IDS.filter((id) => !cardPrefs[id]?.deleted)
   const placedOneCell = placedIds.filter((id) => ONE_CELL_CARDS.has(id)).length
   const placedFull = placedIds.length - placedOneCell
@@ -1745,6 +1870,15 @@ export function StoryView({
   const editingLowerFilters =
     (editSection === 'filters' || editSection === 'assets') && filterTarget === 'lower' && viewLayout === 'comparison'
   const editingLowerMap = editSection === 'map' && filterTarget === 'lower' && viewLayout === 'comparison'
+  const addLowerMapLayer = ({ sceneIndex, title }: StoryMapLayerPick) => {
+    if (filterTarget !== 'lower' || viewLayout !== 'comparison') return
+    setMapLayerOrder((current) => ({ ...current, lower: MAP_DATA_LAYERS }))
+    updateComparison((current) => ({
+      ...current,
+      option: { ...current.option, sceneIndex, title },
+      layers: { junctions: true, distribution: true },
+    }))
+  }
   const setLowerFilters = (update: (current: StoryFilter[]) => StoryFilter[]) =>
     updateComparison((current) => ({ ...current, filters: update(current.filters ?? lowerFilters) }))
 
@@ -1758,104 +1892,166 @@ export function StoryView({
     addLayer: boolean,
     place = 'Abu Dhabi',
     pane: MapPane = 'upper',
-  ) => (
-    <div className={styles.mapDataBody}>
-      <div className={styles.legendGroup}>
-        <div className={styles.legendHead}>
-          <p className={styles.legendSection}>{place} Monitored Junctions</p>
-          <span className={styles.legendActions}>
-            <button type="button" className={styles.legendIconBtn} aria-label="Junction style">
-              <PaintBucket size={16} weight="regular" aria-hidden />
-            </button>
+  ) => {
+    const order = mapLayerOrder[pane]
+    const config = mapLayerConfig[pane]
+    const titleOf = (key: MapDataLayerKey) => config[key]?.title ?? defaultLayerTitle(key, place)
+    const attrs: Record<MapDataLayerKey, ReactNode> = {
+      junctions: (
+        <>
+          <div className={styles.mapLayerAttr}>
+            <p className={styles.mapLayerAttrLabel}>Color</p>
+            <div className={styles.legendRow}>
+              <span className={styles.legendMark}>Other</span>
+              <span className={styles.legendMark}>
+                <span className={styles.legendCount}>
+                  <AnimatedNumber value={legend.junctionCount} format={formatCount} />
+                </span>
+                <i
+                  className={styles.diskOther}
+                  style={{
+                    borderColor: legend.diskRing,
+                    backgroundColor: `${legend.diskRing}1f`,
+                  }}
+                />
+              </span>
+            </div>
+          </div>
+          <div className={styles.mapLayerAttr}>
+            <p className={styles.mapLayerAttrLabel}>Size</p>
+            <div className={styles.legendScale}>
+              <span>Low</span>
+              <span
+                className={styles.diskScale}
+                style={{ '--disk-scale': legend.diskScale } as CSSProperties}
+                aria-hidden
+              >
+                <i />
+                <i />
+                <i />
+              </span>
+              <span>High</span>
+            </div>
+          </div>
+        </>
+      ),
+      distribution: (
+        <>
+          <div className={styles.mapLayerAttr}>
+            <p className={styles.mapLayerAttrLabel}>Color</p>
+            <div className={styles.legendScale}>
+              <span>Low</span>
+              <span
+                className={styles.colorRamp}
+                style={{
+                  backgroundImage: `linear-gradient(to right, ${legend.glyphs.map((glyph) => glyph[0]).join(', ')})`,
+                }}
+                aria-hidden
+              />
+              <span>High</span>
+            </div>
+          </div>
+          <div className={styles.mapLayerAttr}>
+            <p className={styles.mapLayerAttrLabel}>Height</p>
+            <div className={styles.legendScale}>
+              <span>Low</span>
+              <span className={styles.columnScale} aria-hidden>
+                <ColumnGlyph height={16} colors={legend.glyphs[0]} />
+                <ColumnGlyph height={24} colors={legend.glyphs[1]} />
+                <ColumnGlyph height={34} colors={legend.glyphs[2]} />
+              </span>
+              <span>High</span>
+            </div>
+          </div>
+        </>
+      ),
+    }
+    const layerHead = (key: MapDataLayerKey, index: number) => {
+      const title = titleOf(key)
+      const menuOpen = layerMenu?.pane === pane && layerMenu.key === key
+      return (
+        <div className={styles.mapLayerHead}>
+          {addLayer ? (
             <button
               type="button"
-              className={`${styles.legendIconBtn}${layerState.junctions ? '' : ` ${styles.legendIconOff}`}`}
-              aria-label="Toggle monitored junctions"
-              aria-pressed={layerState.junctions}
-              onClick={() => onToggle('junctions')}
-            >
-              {layerState.junctions ? (
-                <Eye size={16} weight="regular" aria-hidden />
-              ) : (
-                <EyeSlash size={16} weight="regular" aria-hidden />
-              )}
-            </button>
-          </span>
-        </div>
-        <div className={styles.legendRow}>
-          <span className={styles.legendMark}>
-            <i
-              className={styles.diskOther}
-              style={{
-                borderColor: legend.diskRing,
-                backgroundColor: `${legend.diskRing}1f`,
+              className={styles.mapLayerGrip}
+              aria-label={`Reorder ${title}`}
+              onPointerDown={(event) => startLayerDrag({ pane, key }, event)}
+              onKeyDown={(event) => {
+                const step = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0
+                if (!step) return
+                event.preventDefault()
+                moveMapLayer({ pane, key }, Math.max(0, Math.min(order.length - 1, index + step)))
               }}
-            />
-            Other
-          </span>
-          <span className={styles.legendCount}>
-            <AnimatedNumber value={legend.junctionCount} format={formatCount} />
-          </span>
-        </div>
-        <div className={styles.legendScale}>
-          <span>Low</span>
-          <span
-            className={styles.diskScale}
-            style={{ '--disk-scale': legend.diskScale } as CSSProperties}
-            aria-hidden
-          >
-            <i />
-            <i />
-            <i />
-          </span>
-          <span>High</span>
-        </div>
-      </div>
-      <div className={styles.legendGroup}>
-        <div className={styles.legendHead}>
-          <p className={styles.legendSection}>{place} Value Distribution</p>
-          <span className={styles.legendActions}>
-            <button type="button" className={styles.legendIconBtn} aria-label="Distribution style">
-              <PaintBucket size={16} weight="regular" aria-hidden />
+            >
+              <DotsSixVertical size={16} weight="bold" aria-hidden />
             </button>
+          ) : null}
+          <p className={styles.mapLayerTitle}>{title}</p>
+          <span className={styles.legendActions}>
             <button
               type="button"
-              className={`${styles.legendIconBtn}${layerState.distribution ? '' : ` ${styles.legendIconOff}`}`}
-              aria-label="Toggle value distribution"
-              aria-pressed={layerState.distribution}
-              onClick={() => onToggle('distribution')}
+              className={`${styles.legendIconBtn}${layerState[key] ? '' : ` ${styles.legendIconOff}`}`}
+              aria-label={`Toggle ${title}`}
+              aria-pressed={layerState[key]}
+              onClick={() => onToggle(key)}
             >
-              {layerState.distribution ? (
+              {layerState[key] ? (
                 <Eye size={16} weight="regular" aria-hidden />
               ) : (
                 <EyeSlash size={16} weight="regular" aria-hidden />
               )}
             </button>
+            {addLayer ? (
+              <button
+                type="button"
+                className={`${styles.legendIconBtn}${menuOpen ? ` ${styles.legendIconBtnOpen}` : ''}`}
+                aria-label={`More options for ${title}`}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                data-layer-menu-trigger
+                onClick={(event) => toggleLayerMenu({ pane, key }, event.currentTarget)}
+              >
+                <DotsThree size={16} weight="bold" aria-hidden />
+              </button>
+            ) : null}
           </span>
         </div>
-        <div className={styles.legendScale}>
-          <span>Low</span>
-          <span className={styles.columnScale} aria-hidden>
-            <ColumnGlyph height={16} colors={legend.glyphs[0]} />
-            <ColumnGlyph height={24} colors={legend.glyphs[1]} />
-            <ColumnGlyph height={34} colors={legend.glyphs[2]} />
-          </span>
-          <span>High</span>
+      )
+    }
+    return (
+      <>
+        <div className={styles.mapLayers} data-map-layers>
+          {order.length === 0 ? <p className={styles.mapLayersEmpty}>No map layers</p> : null}
+          {order.map((key, index) => (
+            <section
+              key={key}
+              className={`${styles.mapLayer}${
+                draggingLayer?.pane === pane && draggingLayer.key === key ? ` ${styles.mapLayerDragging}` : ''
+              }`}
+              data-map-layer={key}
+            >
+              {layerHead(key, index)}
+              <div className={styles.mapLayerAttrs}>{attrs[key]}</div>
+            </section>
+          ))}
         </div>
-      </div>
-      {addLayer ? (
-        <button
-          type="button"
-          className={`${styles.addMapLayerBtn}${toolActive('layers', pane) ? ` ${styles.addMapLayerBtnActive}` : ''}`}
-          aria-pressed={toolActive('layers', pane)}
-          onClick={() => toggleTool('layers', pane)}
-        >
-          <Plus size={16} weight="bold" aria-hidden />
-          Map layer
-        </button>
-      ) : null}
-    </div>
-  )
+        {addLayer ? (
+          <div className={styles.mapDataFooter}>
+            <button
+              type="button"
+              className={`${styles.addMapLayerBtn}${toolActive('layers', pane) ? ` ${styles.addMapLayerBtnActive}` : ''}`}
+              aria-pressed={toolActive('layers', pane)}
+              onClick={() => toggleTool('layers', pane)}
+            >
+              <Plus size={16} weight="bold" aria-hidden />
+              Map layer
+            </button>
+          </div>
+        ) : null}
+      </>
+    )
+  }
 
   /**
    * Each comparison map's Map Data, as the sidebar layout's: its basemap, layers and annotations, for that
@@ -2185,7 +2381,8 @@ export function StoryView({
         <StoryMap
           className={`${styles.map} ${styles.mapFullHeight}`}
           fitParentHeight
-          layers={layers}
+          layers={upperDrawnLayers}
+          layerOpacity={upperLayerOpacity}
           sceneIndex={activeSlideIndex}
           framePhase={framePhase}
           frameDuration={timelinePlaying ? frameStepMs : 500}
@@ -2229,7 +2426,8 @@ export function StoryView({
           <StoryMap
             className={`${styles.map} ${styles.mapFullHeight}`}
             fitParentHeight
-            layers={comparison.layers}
+            layers={lowerDrawnLayers}
+            layerOpacity={lowerLayerOpacity}
             sceneIndex={comparison.option.sceneIndex}
             framePhase={comparisonFramePhase}
             frameDuration={lowerAnimating ? lowerStepMs : 500}
@@ -2635,6 +2833,7 @@ export function StoryView({
                 if (cardId) updateCard(cardId, { deleted: false, hidden: false })
               })
             }}
+            onAddMapLayer={addLowerMapLayer}
           />
         ) : null}
 
@@ -2972,6 +3171,42 @@ export function StoryView({
           document.body,
         )
       : null}
+    {layerMenu
+      ? createPortal(
+          <div
+            id="story-layer-menu"
+            className={styles.storyMenu}
+            role="menu"
+            aria-label="Map layer actions"
+            style={{ top: layerMenu.top, left: layerMenu.left }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setLayerConfigTarget({ pane: layerMenu.pane, key: layerMenu.key })
+                setLayerMenu(null)
+              }}
+            >
+              <GearSix size={16} weight="regular" aria-hidden />
+              Configure
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.storyMenuDanger}
+              onClick={() => {
+                deleteMapLayer(layerMenu)
+                setLayerMenu(null)
+              }}
+            >
+              <Trash size={16} weight="regular" aria-hidden />
+              Delete
+            </button>
+          </div>,
+          document.body,
+        )
+      : null}
     {openFilterMenu
       ? createPortal(
           <div
@@ -3075,6 +3310,26 @@ export function StoryView({
             setCardConfig(null)
           }}
           onClose={() => setCardConfig(null)}
+        />
+      ) : null}
+      {layerConfigTarget ? (
+        <StoryLayerConfigModal
+          key={`${layerConfigTarget.pane}-${layerConfigTarget.key}`}
+          initial={
+            mapLayerConfig[layerConfigTarget.pane][layerConfigTarget.key] ?? {
+              title: defaultLayerTitle(
+                layerConfigTarget.key,
+                layerConfigTarget.pane === 'lower' ? 'Abu Dhabi' : legendPlace,
+              ),
+              opacity: 1,
+            }
+          }
+          onSave={(config) => {
+            const { pane, key } = layerConfigTarget
+            setMapLayerConfig((current) => ({ ...current, [pane]: { ...current[pane], [key]: config } }))
+            setLayerConfigTarget(null)
+          }}
+          onClose={() => setLayerConfigTarget(null)}
         />
       ) : null}
       {openMonitor ? (

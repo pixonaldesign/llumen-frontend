@@ -90,6 +90,8 @@ export type StoryEditPanelProps = {
   basemapOnly?: boolean
   /** Places the picked charts (STORY_CHARTS ids) into the slide's grid. */
   onAddCharts?: (chartIds: string[]) => void
+  /** Draws a picked map layer's columns and disks on the map the picker opened for. */
+  onAddMapLayer?: (layer: StoryMapLayerPick) => void
   section: StoryEditSection
 }
 
@@ -126,6 +128,7 @@ export function StoryEditPanel({
   onBackgroundChange,
   basemapOnly = false,
   onAddCharts,
+  onAddMapLayer,
   section,
 }: StoryEditPanelProps) {
   const [isEditingSlide, setIsEditingSlide] = useState(directSlideEditor)
@@ -227,6 +230,7 @@ export function StoryEditPanel({
           filters={filters}
           onFiltersChange={onFiltersChange}
           onAddCharts={onAddCharts}
+          onAddMapLayer={onAddMapLayer}
           onClose={onClose}
           chartsOnly={section === 'assets'}
           filtersOnly={section === 'filters'}
@@ -422,7 +426,17 @@ const MAP_LAYERS = [
     category: 'Operations',
     image: landingAssets.assetLayerPins,
   },
+  {
+    id: 'layer-heat',
+    title: 'Corridor Heat Concentration',
+    category: 'Weather',
+    image: landingAssets.assetLayerHeat,
+    /** The STORY_SCENES map whose columns and disks this layer draws. */
+    sceneIndex: 1,
+  },
 ] as const
+
+export type StoryMapLayerPick = { sceneIndex: number; title: string }
 
 const CHARTS = STORY_CHARTS
 const AI_ASSET = {
@@ -632,6 +646,7 @@ function AssetsPicker({
   filters,
   onFiltersChange,
   onAddCharts,
+  onAddMapLayer,
   onClose,
   chartsOnly = false,
   filtersOnly = false,
@@ -640,6 +655,7 @@ function AssetsPicker({
   filters: StoryFilter[]
   onFiltersChange: (filters: StoryFilter[]) => void
   onAddCharts?: (chartIds: string[]) => void
+  onAddMapLayer?: (layer: StoryMapLayerPick) => void
   onClose: () => void
   chartsOnly?: boolean
   filtersOnly?: boolean
@@ -891,6 +907,10 @@ function AssetsPicker({
                 (item) => item.id,
               )
               if (selectedCharts.length > 0) onAddCharts?.(selectedCharts)
+              const drawnLayer = MAP_LAYERS.find((item) => selected.includes(item.id) && 'sceneIndex' in item)
+              if (drawnLayer && 'sceneIndex' in drawnLayer) {
+                onAddMapLayer?.({ sceneIndex: drawnLayer.sceneIndex, title: drawnLayer.title })
+              }
               onClose()
             }}
           >

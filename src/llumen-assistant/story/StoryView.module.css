@@ -971,13 +971,16 @@
   padding: 0 16px 0 14px;
   border: 1px dashed rgba(255, 255, 255, 0.3);
   border-radius: 40px;
-  background: transparent;
+  background: rgba(34, 42, 42, 0.5);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
   color: #fff;
   font: inherit;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
 }
 
 .pageAddBtn:hover {
@@ -2197,11 +2200,124 @@ button.summaryStatus:disabled {
   transform: rotate(180deg);
 }
 
-.mapDataBody {
+.mapLayers {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 14px 16px 16px;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.mapLayer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 160ms ease;
+}
+
+.mapLayer:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.mapLayerHead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.mapLayerDragging {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mapLayerGrip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.48);
+  cursor: grab;
+  touch-action: none;
+}
+
+.mapLayerGrip:hover {
+  color: #fff;
+}
+
+.mapLayerDragging .mapLayerGrip {
+  color: #fff;
+  cursor: grabbing;
+}
+
+.mapLayersEmpty {
+  margin: 0;
+  padding: 4px 16px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.mapLayerTitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapLayerAttrs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.mapLayerAttr {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mapLayerAttr:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.mapLayerAttrLabel {
+  margin: 0;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.colorRamp {
+  flex: 1;
+  height: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 24px;
+  background-origin: border-box;
+}
+
+.mapDataFooter {
+  padding: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .addMapLayerBtn {
@@ -2226,51 +2342,34 @@ button.summaryStatus:disabled {
   background: rgba(132, 220, 255, 0.16);
 }
 
-.legendGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.legendHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.legendSection {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 12px;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .legendActions {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
-  gap: 8px;
 }
 
 .legendIconBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
   margin: 0;
   padding: 0;
   border: none;
+  border-radius: 999px;
   background: transparent;
   color: rgba(255, 255, 255, 0.72);
   cursor: pointer;
 }
 
-.legendIconBtn:hover {
+.legendIconBtn:hover,
+.legendIconBtnOpen {
   color: #fff;
+}
+
+.legendIconBtnOpen {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .legendIconOff {
@@ -2282,6 +2381,7 @@ button.summaryStatus:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding-right: 6px;
   color: #fff;
   font-size: 12px;
   line-height: 16px;
@@ -2313,7 +2413,8 @@ button.summaryStatus:disabled {
 .legendScale {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding-right: 6px;
   color: #fff;
   font-size: 12px;
   line-height: 16px;

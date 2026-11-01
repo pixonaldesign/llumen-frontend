@@ -106,6 +106,9 @@ export type StoryMapLayerVisibility = {
   distribution: boolean
 }
 
+/** Per-layer opacity (0…1); missing layers draw fully opaque. */
+export type StoryMapLayerOpacity = Partial<Record<keyof StoryMapLayerVisibility, number>>
+
 /** A camera and the padding it was framed with, enough for another map to match the view. */
 export type StoryMapView = { camera: StorySceneCamera; padding: mapboxgl.PaddingOptions }
 
@@ -172,6 +175,7 @@ export type StoryMapProps = {
   className?: string
   controlsClassName?: string
   layers?: StoryMapLayerVisibility
+  layerOpacity?: StoryMapLayerOpacity
   /** Index of the demo scene (camera, columns, disks) to show. */
   sceneIndex?: number
   /** Position (0…1) within the slide's time-series loop. */
@@ -226,6 +230,8 @@ const JUNCTION_LAYERS = [
   'story-region-junctions',
 ]
 const COLUMN_LAYERS = ['story-columns', 'story-region-columns']
+const JUNCTION_HALO_OPACITY = 0.22
+const JUNCTION_CORE_OPACITY = 0.36
 const COLUMN_RADIUS_M = 36
 
 function ring(lng: number, lat: number, radiusMeters: number, sides: number) {
@@ -534,7 +540,7 @@ function addJunctionLayers(map: mapboxgl.Map, id: string, state: StorySceneState
     paint: {
       'circle-radius': metersToPixels(1.7),
       'circle-color': rgbString(state.diskHalo),
-      'circle-opacity': ['*', 0.22, ['coalesce', ['get', 'fade'], 1]],
+      'circle-opacity': ['*', JUNCTION_HALO_OPACITY, ['coalesce', ['get', 'fade'], 1]],
       'circle-blur': 1,
       'circle-pitch-alignment': 'map',
       'circle-pitch-scale': 'map',
@@ -549,7 +555,7 @@ function addJunctionLayers(map: mapboxgl.Map, id: string, state: StorySceneState
     paint: {
       'circle-radius': metersToPixels(1),
       'circle-color': rgbString(state.diskCore),
-      'circle-opacity': ['*', 0.36, ['coalesce', ['get', 'fade'], 1]],
+      'circle-opacity': ['*', JUNCTION_CORE_OPACITY, ['coalesce', ['get', 'fade'], 1]],
       'circle-blur': 0.55,
       'circle-pitch-alignment': 'map',
       'circle-pitch-scale': 'map',
@@ -938,9 +944,18 @@ function setLayerVisibility(map: mapboxgl.Map, id: string, visible: boolean) {
   map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none')
 }
 
-function syncDemoLayers(map: mapboxgl.Map, layers: StoryMapLayerVisibility) {
+function syncDemoLayers(map: mapboxgl.Map, layers: StoryMapLayerVisibility, opacity: StoryMapLayerOpacity = {}) {
   for (const id of JUNCTION_LAYERS) setLayerVisibility(map, id, layers.junctions)
   for (const id of COLUMN_LAYERS) setLayerVisibility(map, id, layers.distribution)
+  const disks = opacity.junctions ?? 1
+  for (const id of JUNCTION_LAYERS) {
+    if (!map.getLayer(id)) continue
+    const base = id.endsWith('-halo') ? JUNCTION_HALO_OPACITY : JUNCTION_CORE_OPACITY
+    map.setPaintProperty(id, 'circle-opacity', ['*', base * disks, ['coalesce', ['get', 'fade'], 1]])
+  }
+  for (const id of COLUMN_LAYERS) {
+    if (map.getLayer(id)) map.setPaintProperty(id, 'fill-extrusion-opacity', opacity.distribution ?? 1)
+  }
 }
 
 function easeInOutCubic(t: number) {
@@ -1009,6 +1024,7 @@ export function StoryMap({
   className,
   controlsClassName,
   layers = DEFAULT_LAYERS,
+  layerOpacity,
   sceneIndex = 0,
   framePhase = 0,
   frameDuration = 500,
@@ -1037,6 +1053,7 @@ export function StoryMap({
   const [ready, setReady] = useState(false)
   const appliedStyleRef = useRef(styleUrl)
   const layersRef = useRef(layers)
+  const layerOpacityRef = useRef(layerOpacity)
   const sceneIndexRef = useRef(sceneIndex)
   const appliedSceneRef = useRef(sceneIndex)
   const appliedPhaseRef = useRef(framePhase)
@@ -1081,7 +1098,8 @@ export function StoryMap({
 
   useEffect(() => {
     layersRef.current = layers
-  }, [layers])
+    layerOpacityRef.current = layerOpacity
+  }, [layers, layerOpacity])
 
   useEffect(() => {
     sceneIndexRef.current = sceneIndex
@@ -1137,7 +1155,7 @@ export function StoryMap({
     map.on('load', () => {
       mountStoryLayers(map, frameRef.current)
       mountAnnotationLayers(map, frameRef.current.lift)
-      syncDemoLayers(map, layersRef.current)
+      syncDemoLayers(map, layersRef.current, layerOpacityRef.current)
       setReady(true)
       onReadyRef.current?.('loaded')
       // The scene timeline repaints every frame, so the map never goes `idle`.
@@ -1213,8 +1231,8 @@ export function StoryMap({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
-    syncDemoLayers(map, layers)
-  }, [layers, ready])
+    syncDemoLayers(map, layers, layerOpacity)
+  }, [layers, layerOpacity, ready])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1536,7 +1554,7 @@ export function StoryMap({
     map.once('style.load', () => {
       mountStoryLayers(map, frameRef.current)
       mountAnnotationLayers(map, frameRef.current.lift)
-      syncDemoLayers(map, layersRef.current)
+      syncDemoLayers(map, layersRef.current, layerOpacityRef.current)
       setReady(true)
     })
     map.setStyle(styleUrl)

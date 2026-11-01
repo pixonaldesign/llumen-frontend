@@ -32,6 +32,7 @@ export const landingAssets = {
   assetLayerPermit: `${b}/asset-layer-permit.png`,
   assetLayerTerrain: `${b}/asset-layer-terrain.png`,
   assetLayerPins: `${b}/asset-layer-pins.png`,
+  assetLayerHeat: `${b}/asset-layer-heat.png`,
   mapStyleAimsunTeal: `${b}/map-style-aimsun-teal.jpg`,
   mapStyleAimsunBase: `${b}/map-style-aimsun-base.png`,
   mapStyleAimsunDefault: `${b}/map-style-aimsun-default.png`,
