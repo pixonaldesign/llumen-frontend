@@ -120,7 +120,8 @@ export type AggregateFn = 'count' | 'count_distinct' | 'sum' | 'avg' | 'min' | '
 export type Metric = { id: string; fn: AggregateFn; field: string; as: string }
 export type AggregateParams = { groupBy: readonly string[]; metrics: readonly Metric[] }
 
-export type MergeParams = { dedupe: boolean }
+/** `inputs` is how many inputs the card shows, Input 1 to Input N. */
+export type MergeParams = { dedupe: boolean; inputs: number }
 
 export type WaitUnit = 'seconds' | 'minutes' | 'hours' | 'days'
 export type WaitParams = { waitFor: number; waitUnit: WaitUnit }
@@ -280,7 +281,7 @@ export const KIND_DEFAULTS: { readonly [K in KindId]: KindParamsMap[K] } = {
   },
   editFields: { assignments: [{ id: 'a_status', name: 'status', type: 'text', value: 'flagged' }], keepOthers: true, remove: [] },
   aggregate: { groupBy: ['district'], metrics: [{ id: 'm_sum', fn: 'sum', field: 'anomalies', as: 'total_anomalies' }] },
-  merge: { dedupe: false },
+  merge: { dedupe: false, inputs: 2 },
   wait: { waitFor: 5, waitUnit: 'minutes' },
   stopAndError: { stopMessage: 'Workflow halted.' },
   generalAgent: { instructions: 'Review the flagged sites and explain which ones need a field inspection this week, and why.' },
@@ -978,6 +979,50 @@ export function addBranch(typeId: string, stored: unknown): Partial<AnyParams> |
     return { categories: [...params.categories, added] } satisfies Partial<ClassificationParams>
   }
   return undefined
+}
+
+/* ---------- Inputs ---------- */
+
+export const MERGE_MIN_INPUTS = 2
+export const MERGE_MAX_INPUTS = 10
+
+const mergeInputCount = (stored: unknown) =>
+  Math.min(MERGE_MAX_INPUTS, Math.max(MERGE_MIN_INPUTS, Math.round(paramsFor('merge', stored).inputs)))
+const mergeInput = (number: number): NodePort => ({ id: `input${number}`, label: `Input ${number}` })
+
+/** Kinds whose input ports come from their configuration. */
+export function kindInputs(typeId: string, stored: unknown): readonly NodePort[] | undefined {
+  if (typeId !== 'merge') return undefined
+  return Array.from({ length: mergeInputCount(stored) }, (_, index) => mergeInput(index + 1))
+}
+
+/** The parameter change that adds one input, or undefined when the kind can't take another. */
+export function addInput(typeId: string, stored: unknown): Partial<AnyParams> | undefined {
+  if (typeId !== 'merge') return undefined
+  const count = mergeInputCount(stored)
+  return count < MERGE_MAX_INPUTS ? ({ inputs: count + 1 } satisfies Partial<MergeParams>) : undefined
+}
+
+/** Whether the card can remove one of the kind's inputs. */
+export const canRemoveInput = (typeId: string, stored: unknown) => typeId === 'merge' && mergeInputCount(stored) > MERGE_MIN_INPUTS
+
+/**
+ * The parameter change that removes one input, and the later inputs' new ids: they move up one, so
+ * the rest stay numbered in order and lines into them follow.
+ */
+export function removeInput(
+  typeId: string,
+  stored: unknown,
+  portId: string,
+): { patch: Partial<AnyParams>; renamed: Readonly<Record<string, string>> } | undefined {
+  if (!canRemoveInput(typeId, stored)) return undefined
+  const count = mergeInputCount(stored)
+  const removed = Array.from({ length: count }, (_, index) => mergeInput(index + 1).id).indexOf(portId) + 1
+  if (!removed) return undefined
+  const renamed = Object.fromEntries(
+    Array.from({ length: count - removed }, (_, index) => [mergeInput(removed + index + 1).id, mergeInput(removed + index).id]),
+  )
+  return { patch: { inputs: count - 1 } satisfies Partial<MergeParams>, renamed }
 }
 
 /** The catch-all branch rows fall to when nothing else matches: Default or Unclassified. */

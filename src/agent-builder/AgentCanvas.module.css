@@ -525,6 +525,28 @@
   pointer-events: auto;
 }
 
+/* The single toolbar's flyouts open above it; the insert bar centres on its button. */
+.singleBar {
+  position: relative;
+  display: flex;
+}
+
+.barFlyout {
+  position: absolute;
+  bottom: calc(100% + var(--space-md));
+  left: 50%;
+  z-index: 6;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+/* The node panel spans the bar, edge to edge. */
+.barFlyoutFull {
+  right: 0;
+  left: 0;
+  transform: none;
+}
+
 .footer .contentBar {
   grid-column: 1;
   justify-self: start;

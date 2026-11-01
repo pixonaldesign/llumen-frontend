@@ -223,7 +223,7 @@ export function AggregateConfig({ params, set, ctx }: EditorProps<AggregateParam
 export function MergeConfig({ params, set, ctx }: EditorProps<MergeParams>) {
   const inputs = ctx.upstream.filter((step) => step.direct)
   return (
-    <Card icon={<ArrowsMerge size={16} aria-hidden />} title="Merge" description="Appends Input 1’s rows, then Input 2’s. It waits for both; if either branch sends nothing, Merge is skipped.">
+    <Card icon={<ArrowsMerge size={16} aria-hidden />} title="Merge" description="Appends each input’s rows in order: Input 1, then Input 2, and so on, up to 10 inputs. It waits for all of them; if any sends nothing, Merge is skipped.">
       {inputs.length ? (
         <dl className={styles.readout}>
           {inputs.map((step) => (

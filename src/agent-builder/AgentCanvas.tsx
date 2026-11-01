@@ -19,6 +19,7 @@ import {
   CheckCircle,
   ClockCounterClockwise,
   Code,
+  Columns,
   Cursor,
   Flask,
   FlowArrow,
@@ -32,7 +33,10 @@ import {
   Pause,
   Play,
   Palette,
+  Plus,
+  Rectangle,
   Scan,
+  Shapes,
   ShareNetwork,
   SlidersHorizontal,
   Stop,
@@ -46,6 +50,7 @@ import { HubChatbox } from '../llumen-assistant/landing/HubChatbox'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import { useCoverPage } from '../llumen-assistant/pageCover'
 import { autoLayout, type MeasuredNode } from './autoLayout'
+import { freeSpot, pushApart, type NodeBoxes } from './nodeCollision'
 import { NodeCardSections } from './NodeCardSections'
 import { AppearancePanel } from './AppearancePanel'
 import { AmbientLayer } from './AmbientLayer'
@@ -123,10 +128,11 @@ import { useDismiss } from './useDismiss'
 import { NodeLibrarySheet } from './NodeLibrarySheet'
 import { buildShowcase, layoutShowcase, type CanvasGroupLabel } from './showcase'
 import { nodeAliases, planRun, runRows, type PlannedStep } from './nodeRuntime'
-import { addBranch, kindInputLayers, kindWiringIssue, removeBranch, type AnyParams, type WiredStep } from './nodeKinds'
+import { addBranch, addInput, kindInputLayers, kindWiringIssue, removeBranch, removeInput, type AnyParams, type WiredStep } from './nodeKinds'
 import {
   createNode,
   isAnnotation,
+  nodeInputs,
   nodeIssue,
   nodeName,
   nodeOutputs,
@@ -162,7 +168,6 @@ const CARD_INTERACTIVE =
 /** The card's built-in padding and corner radius (px), shown by the appearance sliders. */
 const FRAME_DEFAULTS = { padding: 16, radius: 20 }
 
-/** Shows the appearance button on each node's toolbar; kept under the old key so earlier choices carry over. */
 /** Freezes the background shaders and ambient layer on their current frame. */
 const SHADER_PAUSED_KEY = 'llumen.shaderPaused'
 
@@ -171,6 +176,18 @@ function readShaderPaused() {
     return localStorage.getItem(SHADER_PAUSED_KEY) === 'on'
   } catch {
     return false
+  }
+}
+
+/** `split`: insert, nodes and canvas controls in three bars. `single`: all of them in one bar in the centre. */
+type ToolbarStyle = 'split' | 'single'
+const TOOLBAR_STYLE_KEY = 'llumen.toolbarStyle'
+
+function readToolbarStyle(): ToolbarStyle {
+  try {
+    return localStorage.getItem(TOOLBAR_STYLE_KEY) === 'single' ? 'single' : 'split'
+  } catch {
+    return 'split'
   }
 }
 
@@ -316,6 +333,10 @@ const INSERT_GAP = 16
 const INSERT_PANEL_LIFT = 28
 /** Pointer travel before pressing a line picks it up rather than selecting it. */
 const EDGE_DRAG_THRESHOLD = 4
+/** World distance a drag moves between collision checks; well under a node's height. */
+const PUSH_STEP = 12
+/** How far the line from a clicked output dot reaches before the insert panel. */
+const PORT_CLICK_REACH = 80
 /** World gap between an edge's end and its port dot. */
 const EDGE_PORT_GAP = 4
 
@@ -347,6 +368,61 @@ function withoutItem(doc: CanvasDoc, kind: ItemKind, id: string): CanvasDoc {
   if (kind === 'section') return { ...doc, sections: doc.sections.filter(keep) }
   if (kind === 'text') return { ...doc, texts: doc.texts.filter(keep) }
   return { ...doc, comments: doc.comments.filter(keep) }
+}
+
+/** The boxes of the nodes that keep their distance; sticky notes can sit anywhere, and unmeasured nodes wait. */
+function collisionBoxes(doc: CanvasDoc, positions: Positions, sizes: Readonly<Record<string, Size>>): NodeBoxes {
+  return Object.fromEntries(
+    doc.nodes.flatMap((node) => {
+      const position = positions[node.id]
+      const size = sizes[node.id]
+      return position && size && !isAnnotation(NODE_TYPES_BY_ID[node.type]) ? [[node.id, { ...position, w: size.w, h: size.h }]] : []
+    }),
+  )
+}
+
+/** Pushes whatever crowds the `fixed` nodes out of their way, and so on down the line. */
+function makeRoom(doc: CanvasDoc, fixed: ReadonlySet<string>, sizes: Readonly<Record<string, Size>>): CanvasDoc {
+  const moved = pushApart(collisionBoxes(doc, doc.positions, sizes), fixed)
+  return Object.keys(moved).length > 0 ? { ...doc, positions: { ...doc.positions, ...moved } } : doc
+}
+
+/**
+ * Takes a drag from offset `from` to `to` in short steps, clearing room at each, so a fast flick shoves
+ * nodes along the way a slow drag would rather than landing deep inside one and pushing it out sideways.
+ */
+function dragWithRoom(
+  doc: CanvasDoc,
+  from: Point,
+  to: Point,
+  move: (doc: CanvasDoc, offset: Point) => CanvasDoc,
+  fixed: ReadonlySet<string>,
+  sizes: Readonly<Record<string, Size>>,
+): CanvasDoc {
+  const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / PUSH_STEP))
+  let next = doc
+  for (let step = 1; step <= steps; step += 1) {
+    const t = step / steps
+    next = makeRoom(move(next, { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }), fixed, sizes)
+  }
+  return next
+}
+
+/** New nodes move to the nearest free spot, leaving the rest as they are; nodes that grew push their neighbours. */
+function settleNodes(doc: CanvasDoc, sizes: Readonly<Record<string, Size>>, added: readonly string[], grown: ReadonlySet<string>): CanvasDoc {
+  let positions = doc.positions
+  const waiting = new Set(added)
+  for (const id of added) {
+    waiting.delete(id)
+    const boxes = collisionBoxes(doc, positions, sizes)
+    const box = boxes[id]
+    if (!box) continue
+    const others = Object.entries(boxes).flatMap(([other, rect]) => (other === id || waiting.has(other) ? [] : [rect]))
+    const spot = freeSpot(box, others)
+    if (spot.x !== box.x || spot.y !== box.y) positions = { ...positions, [id]: spot }
+  }
+  if (grown.size > 0) positions = { ...positions, ...pushApart(collisionBoxes(doc, positions, sizes), grown) }
+  return positions === doc.positions ? doc : { ...doc, positions }
 }
 
 function moveMembers(doc: CanvasDoc, members: SectionMembers, dx: number, dy: number): CanvasDoc {
@@ -610,6 +686,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const [past, setPast] = useState<CanvasDoc[]>([])
   const [future, setFuture] = useState<CanvasDoc[]>([])
   const [layouts, setLayouts] = useState<Record<string, MeasuredNode>>({})
+  /** The last measure, for spotting nodes that grew or just appeared. */
+  const measuredRef = useRef<Record<string, MeasuredNode>>({})
   const [runs, setRuns] = useState<Record<string, NodeRun>>(SHOWCASE.runs)
   const runTimersRef = useRef<number[]>([])
   /** A flow run parked on Send and wait: the steps it still owes and how it was started, for the reply to resume. */
@@ -705,6 +783,33 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       // Storage can be unavailable (private mode); the choice still applies for this session.
     }
   }
+  const [toolbarStyle, setToolbarStyle] = useState<ToolbarStyle>(readToolbarStyle)
+  /** The single toolbar's flyouts: the node panel, or the bar of things to insert. */
+  const [barFlyout, setBarFlyout] = useState<'nodes' | 'insert' | null>(null)
+  const addNodeButtonRef = useRef<HTMLButtonElement>(null)
+  const insertButtonRef = useRef<HTMLButtonElement>(null)
+  const singleBarRef = useRef<HTMLDivElement>(null)
+  /** Where the insert bar centres, in px from the toolbar's left edge. */
+  const [insertBarX, setInsertBarX] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const button = insertButtonRef.current
+    const bar = singleBarRef.current
+    if (barFlyout !== 'insert' || !button || !bar) return
+    const b = button.getBoundingClientRect()
+    setInsertBarX(b.left + b.width / 2 - bar.getBoundingClientRect().left)
+  }, [barFlyout])
+  const chooseToolbarStyle = (next: ToolbarStyle) => {
+    setToolbarStyle(next)
+    setBarFlyout(null)
+    try {
+      localStorage.setItem(TOOLBAR_STYLE_KEY, next)
+    } catch {
+      // Storage can be unavailable (private mode); the choice still applies for this session.
+    }
+  }
+  const closeBarFlyout = useCallback(() => setBarFlyout(null), [])
+  const insertBarRef = useRef<HTMLDivElement>(null)
+  useDismiss(barFlyout === 'insert', insertBarRef, closeBarFlyout, insertButtonRef)
   const [mode, setMode] = useState<CanvasMode>('showcase')
   /** The mode that's off screen; null until the test flow is first opened. */
   const parkedModeRef = useRef<ModeSnapshot | null>(null)
@@ -718,6 +823,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
   /** A press on a line that becomes a drag of its nearer end once the pointer moves. */
   const edgePressRef = useRef<{ pointerId: number; edgeId: string; startX: number; startY: number } | null>(null)
+  /** A press on an output dot; let go without moving, it opens the insert panel. */
+  const portPressRef = useRef<{ pointerId: number; startX: number; startY: number } | null>(null)
   /** A node just inserted from a dropped line; once measured it shifts so its port meets the line. */
   const alignRef = useRef<{ port: PortRef; at: Point } | null>(null)
   const [tool, setTool] = useState<CanvasTool>('select')
@@ -754,6 +861,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     narrow: boolean
     snapshot: CanvasDoc
     moved: boolean
+    /** How far the nodes have been taken so far. */
+    offset: Point
   } | null>(null)
   const resizeRef = useRef<{
     pointerId: number
@@ -1074,6 +1183,33 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     })
   }
 
+  const patchParams = (node: CanvasNode, patch: Partial<AnyParams>): CanvasNode => ({
+    ...node,
+    config: { ...node.config, params: { ...node.config.params, ...patch } as Partial<AnyParams> },
+  })
+
+  /** Adds an input to a Merge, below the last one. */
+  const addNodeInput = (id: string) => {
+    const node = doc.nodes.find((candidate) => candidate.id === id)
+    const patch = node && addInput(node.type, node.config.params)
+    if (!patch) return
+    commit({ ...doc, nodes: doc.nodes.map((candidate) => (candidate.id === id ? patchParams(candidate, patch) : candidate)) })
+  }
+
+  /** Removes an input and the lines into it; lines into the inputs below move up with them. One undo step. */
+  const removeNodeInput = (id: string, portId: string) => {
+    const node = doc.nodes.find((candidate) => candidate.id === id)
+    const change = node && removeInput(node.type, node.config.params, portId)
+    if (!change) return
+    commit({
+      ...doc,
+      nodes: doc.nodes.map((candidate) => (candidate.id === id ? patchParams(candidate, change.patch) : candidate)),
+      edges: doc.edges
+        .filter((edge) => edge.to !== id || edge.toPort !== portId)
+        .map((edge) => (edge.to === id && change.renamed[edge.toPort] ? { ...edge, toPort: change.renamed[edge.toPort] } : edge)),
+    })
+  }
+
   /** Removes a case or a category and the edges leaving it, as one undo step. */
   const removeOutput = (id: string, portId: string) => {
     const node = doc.nodes.find((candidate) => candidate.id === id)
@@ -1331,6 +1467,10 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         }
         next[node.id] = { w: element.offsetWidth, h: element.offsetHeight, ports }
       }
+      const previous = measuredRef.current
+      measuredRef.current = next
+      // A canvas being laid out wholesale (first load, switching flows) places its nodes itself.
+      const laying = !didInitialLayoutRef.current || pendingLayoutRef.current !== null
       setLayouts(next)
       const align = alignRef.current
       const offset = align && next[align.port.nodeId]?.ports[layoutPortKey(align.port.side, align.port.portId)]
@@ -1340,6 +1480,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         setDoc((current) =>
           current.positions[id] ? { ...current, positions: { ...current.positions, [id]: { x: align.at.x - offset.x, y: align.at.y - offset.y } } } : current,
         )
+      }
+      if (!laying) {
+        const ids = Object.keys(next)
+        const added = ids.filter((id) => !previous[id])
+        const grown = new Set(ids.filter((id) => previous[id] && (next[id].w > previous[id].w || next[id].h > previous[id].h)))
+        if (added.length > 0 || grown.size > 0) setDoc((current) => settleNodes(current, next, added, grown))
       }
       const root = rootRef.current
       if (!didInitialLayoutRef.current && root) {
@@ -1713,7 +1859,15 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const section = doc.sections.find((candidate) => candidate.id === id)
     if (!section || section.locked || (event.target as Element).closest('input')) return
     const members = sectionMembers(section)
-    startGesture(event, (dx, dy) => setDoc((current) => moveMembers(current, members, dx, dy)))
+    const inside = new Set(Object.keys(members.nodes))
+    const shift = (current: CanvasDoc, by: Point) => moveMembers(current, members, by.x, by.y)
+    let offset: Point = { x: 0, y: 0 }
+    startGesture(event, (dx, dy) => {
+      const from = offset
+      const to = { x: dx, y: dy }
+      offset = to
+      setDoc((current) => dragWithRoom(current, from, to, shift, inside, layouts))
+    })
   }
 
   const onSectionResizePointerDown = (event: ReactPointerEvent<HTMLSpanElement>, id: string, corner: SectionCorner) => {
@@ -1875,6 +2029,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       narrow,
       snapshot: doc,
       moved: false,
+      offset: { x: 0, y: 0 },
     }
     setDraggingNodes(new Set(moving))
   }
@@ -1886,8 +2041,16 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const dy = (event.clientY - drag.startY) / view.zoom
     if (!drag.moved && Math.hypot(dx, dy) < 2) return
     drag.moved = true
-    const moved = Object.fromEntries(Object.entries(drag.origins).map(([id, origin]) => [id, { x: origin.x + dx, y: origin.y + dy }]))
-    setDoc((current) => ({ ...current, positions: { ...current.positions, ...moved } }))
+    const from = drag.offset
+    const to = { x: dx, y: dy }
+    drag.offset = to
+    const { origins } = drag
+    const dragged = new Set(Object.keys(origins))
+    const shift = (current: CanvasDoc, by: Point): CanvasDoc => ({
+      ...current,
+      positions: { ...current.positions, ...Object.fromEntries(Object.entries(origins).map(([id, origin]) => [id, { x: origin.x + by.x, y: origin.y + by.y }])) },
+    })
+    setDoc((current) => dragWithRoom(current, from, to, shift, dragged, layouts))
   }
 
   const endNodeDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1970,7 +2133,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const nodeType = (node: CanvasNode): NodeType => NODE_TYPES_BY_ID[node.type]
   const nodesById = Object.fromEntries(doc.nodes.map((node) => [node.id, node]))
 
-  const portsOn = (node: CanvasNode, side: PortSide) => (side === 'in' ? nodeType(node).inputs : nodeOutputs(node, nodeType(node)))
+  const portsOn = (node: CanvasNode, side: PortSide) => (side === 'in' ? nodeInputs : nodeOutputs)(node, nodeType(node))
 
   /** The closest `side` port to a world point within snapping distance, on any node but `skip`. */
   const nearestPort = (point: Point, side: PortSide, skip: string): PortRef | null => {
@@ -2045,6 +2208,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 
   const cancelConnection = () => {
     edgePressRef.current = null
+    portPressRef.current = null
     setConnection(null)
   }
 
@@ -2053,15 +2217,31 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     if (event.button !== 0) return
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
+    portPressRef.current = port.side === 'out' ? { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY } : null
     const wired = port.side === 'in' ? doc.edges.findLast((edge) => edge.to === port.nodeId && edge.toPort === port.portId) : undefined
     if (wired) beginConnection({ nodeId: wired.from, portId: wired.fromPort, side: 'out' }, event.clientX, event.clientY, wired.id)
     else beginConnection(port, event.clientX, event.clientY)
   }
 
+  /** A click on an output dot runs a line straight out from it and offers a node to connect. */
+  const onPortPointerUp = (event: ReactPointerEvent<HTMLSpanElement>) => {
+    const press = portPressRef.current
+    portPressRef.current = null
+    const clicked =
+      press?.pointerId === event.pointerId && Math.hypot(event.clientX - press.startX, event.clientY - press.startY) < EDGE_DRAG_THRESHOLD
+    const start = clicked && connection ? portWorldPoint(connection.from) : null
+    if (!connection || !start) {
+      endConnection(event)
+      return
+    }
+    setConnection(null)
+    setPendingInsert({ from: connection.from, point: { x: outEnd(start).x + PORT_CLICK_REACH, y: start.y } })
+  }
+
   const portHandlers: PortHandlers = {
     onPointerDown: onPortPointerDown,
     onPointerMove: moveConnection,
-    onPointerUp: endConnection,
+    onPointerUp: onPortPointerUp,
     onPointerCancel: cancelConnection,
   }
 
@@ -2232,10 +2412,10 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
    */
   const inputGroups = (node: CanvasNode): DataGroup[] | undefined => {
     if (fixtures[node.id]) return undefined
-    const type = nodeType(node)
+    const inputs = nodeInputs(node, nodeType(node))
     const layers = kindInputLayers(node.type, node.config.params, ancestorsNearestFirst(node.id, doc.edges).flatMap(wiredStep))
     const portLabel = (edge: WorkflowEdge) =>
-      type.inputs.length > 1 ? (type.inputs.find((port) => port.id === edge.toPort)?.label ?? edge.toPort) : undefined
+      inputs.length > 1 ? (inputs.find((port) => port.id === edge.toPort)?.label ?? edge.toPort) : undefined
     const wired = doc.edges.filter((edge) => edge.to === node.id && NODE_TYPES_BY_ID[nodesById[edge.from]?.type]?.category !== 'triggers')
     const wiredIds = new Set(wired.map((edge) => edge.from))
     return [
@@ -2259,11 +2439,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     ]
   }
   /** Per input port, the steps wired in, named with their branch when they have several, and the rows they sent. */
-  const inputSources = (id: string, type: NodeType): Record<string, InputSource> | undefined => {
-    if (type.inputs.length < 2) return undefined
+  const inputSources = (node: CanvasNode, type: NodeType): Record<string, InputSource> | undefined => {
+    const inputs = nodeInputs(node, type)
+    if (inputs.length < 2) return undefined
     return Object.fromEntries(
-      type.inputs.flatMap((port) => {
-        const edges = doc.edges.filter((edge) => edge.to === id && edge.toPort === port.id)
+      inputs.flatMap((port) => {
+        const edges = doc.edges.filter((edge) => edge.to === node.id && edge.toPort === port.id)
         if (!edges.length) return []
         const names = edges.flatMap((edge) => sourceName(edge) ?? [])
         const sent = edges.flatMap((edge) => runs[edge.from]?.ports?.[edge.fromPort] ?? [])
@@ -2358,11 +2539,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const selectedEdges = new Set(selectedIds(selection, 'edge'))
 
   const toScreen = (point: Point) => ({ left: view.x + point.x * view.zoom, top: view.y + point.y * view.zoom })
-  /** Just past the dropped line's end, with the header level with it. */
+  /** Just past the dropped line's end, with the header level with it, offering nodes for the other side of the line. */
   const insertPanelAnchor = ({ from, point }: PendingInsert) => {
     const screen = toScreen(point)
     const gap = INSERT_GAP * view.zoom
-    return { x: from.side === 'out' ? screen.left + gap : screen.left - gap, top: screen.top - INSERT_PANEL_LIFT }
+    const connectsOn: PortSide = from.side === 'out' ? 'in' : 'out'
+    return { x: from.side === 'out' ? screen.left + gap : screen.left - gap, top: screen.top - INSERT_PANEL_LIFT, connectsOn }
   }
   /** Bigger sections first, so a section drawn inside another sits on top of it. */
   const sectionsByArea = [...doc.sections].sort((a, b) => b.w * b.h - a.w * a.h)
@@ -2436,6 +2618,89 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     (hoveredFrame.top - NODE_TOOLBAR_GAP - NODE_ACTIONS_HEIGHT >= CHROME_TOP
       ? { left: hoveredFrame.left, top: hoveredFrame.top - NODE_TOOLBAR_GAP, below: false }
       : { left: hoveredFrame.left, top: hoveredFrame.bottom + NODE_TOOLBAR_GAP, below: true })
+
+  const toolButtons = (options: readonly ToolOption[], toggles: boolean) =>
+    options.map((option) => {
+      const ToolIcon = option.icon
+      const active = tool === option.id
+      return (
+        <button
+          key={option.id}
+          type="button"
+          className={`${controls.barButton}${active ? ` ${controls.barButtonActive}` : ''}`}
+          aria-label={option.label}
+          data-shortcut={option.shortcut}
+          aria-pressed={active}
+          onClick={() => setTool(toggles && active ? 'select' : option.id)}
+        >
+          <ToolIcon size={20} weight={active ? 'fill' : 'regular'} aria-hidden />
+        </button>
+      )
+    })
+  const askButton = (
+    <button
+      type="button"
+      className={`${controls.askButton} ${styles.footerBar}`}
+      aria-label="Ask Llumen"
+      aria-expanded={chatFrom !== null}
+      onClick={(event) => {
+        if (chatFrom) setChatCollapseToken((token) => token + 1)
+        else setChatFrom(event.currentTarget.getBoundingClientRect())
+      }}
+    >
+      <img className={controls.askIcon} src={llumenAssets.launcherOrb} alt="" width={24} height={24} />
+    </button>
+  )
+  /** Undo and redo, zoom, fit and tidy up: the right-hand bar in the split style. The single bar sets tidy up beside fit. */
+  const canvasControls = (tidyApart: boolean) => (
+    <>
+      <button type="button" className={controls.barButton} aria-label="Undo" data-shortcut={SHORTCUTS.undo} disabled={past.length === 0} onClick={undo}>
+        <ArrowUUpLeft size={20} weight="regular" aria-hidden />
+      </button>
+      <button type="button" className={controls.barButton} aria-label="Redo" data-shortcut={SHORTCUTS.redo} disabled={future.length === 0} onClick={redo}>
+        <ArrowUUpRight size={20} weight="regular" aria-hidden />
+      </button>
+      <span className={controls.barDivider} aria-hidden />
+      <button
+        type="button"
+        className={controls.barButton}
+        aria-label="Zoom out"
+        data-shortcut={SHORTCUTS.zoomOut}
+        disabled={view.zoom <= MIN_ZOOM}
+        onClick={() => zoomFromCenter(1 / BUTTON_ZOOM_STEP)}
+      >
+        <MagnifyingGlassMinus size={20} weight="regular" aria-hidden />
+      </button>
+      <button
+        type="button"
+        className={`${controls.barButton} ${styles.zoomLevel}`}
+        aria-label={`Zoom ${Math.round(view.zoom * 100)}%, reset to 100%`}
+        data-tooltip="Reset to 100%"
+        onClick={() => zoomFromCenter(1 / view.zoom)}
+      >
+        {Math.round(view.zoom * 100)}%
+      </button>
+      <button
+        type="button"
+        className={controls.barButton}
+        aria-label="Zoom in"
+        data-shortcut={SHORTCUTS.zoomIn}
+        disabled={view.zoom >= MAX_ZOOM}
+        onClick={() => zoomFromCenter(BUTTON_ZOOM_STEP)}
+      >
+        <MagnifyingGlassPlus size={20} weight="regular" aria-hidden />
+      </button>
+      <button type="button" className={controls.barButton} aria-label="Zoom to fit" data-shortcut={SHORTCUTS.fit} onClick={fitToView}>
+        <Scan size={20} weight="regular" aria-hidden />
+      </button>
+      {tidyApart ? <span className={controls.barDivider} aria-hidden /> : null}
+      <button type="button" className={controls.barButton} aria-label="Tidy up" data-shortcut={SHORTCUTS.tidy} disabled={doc.nodes.length === 0} onClick={tidyUp}>
+        <TreeStructure size={20} weight="regular" aria-hidden />
+      </button>
+    </>
+  )
+  const inserting = CONTENT_TOOLS.some((option) => option.id === tool)
+
   return (
     <div
       className={rootClass}
@@ -2617,7 +2882,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                 dragging={draggingNodes.has(node.id)}
                 run={nodeRun}
                 input={nodeInput}
-                inputSources={inputSources(node.id, type)}
+                inputSources={inputSources(node, type)}
                 wiringIssue={wiringIssue(node)}
                 output={nodeOutput}
                 activePorts={activePorts}
@@ -2641,6 +2906,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                 }}
                 onAddOutput={() => addOutput(node.id)}
                 onRemoveOutput={(portId) => removeOutput(node.id, portId)}
+                onAddInput={() => addNodeInput(node.id)}
+                onRemoveInput={(portId) => removeNodeInput(node.id, portId)}
                 appearanceOpen={appearanceNode?.id === node.id}
                 dataOpen={dataOpen.has(node.id)}
                 onDataOpen={(open) => setNodeData(node.id, open)}
@@ -2782,7 +3049,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       {pendingInsert ? (
         <InsertNodePanel
           {...insertPanelAnchor(pendingInsert)}
-          connectsOn={pendingInsert.from.side === 'out' ? 'in' : 'out'}
           usedTypes={usedTypes}
           onPick={insertConnected}
           onClose={() => setPendingInsert(null)}
@@ -2872,6 +3138,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           onNodeStyle={() => selection?.kind === 'node' && toggleAppearance(selection.id)}
           shaderPaused={shaderPaused}
           onShaderPaused={toggleShaderPaused}
+          toolbarStyle={toolbarStyle}
+          onToolbarStyle={chooseToolbarStyle}
         />
         <span className={styles.topDivider} aria-hidden />
         <button type="button" className={controls.iconButton} aria-label="Version history" data-tooltip="Version history">
@@ -2926,118 +3194,72 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </div>
       ) : null}
 
-      <footer className={styles.footer}>
-        <div className={`${controls.bar} ${styles.footerBar} ${styles.contentBar}`} role="toolbar" aria-label="Add to canvas">
-          {CONTENT_TOOLS.map((option) => {
-            const ToolIcon = option.icon
-            const active = tool === option.id
-            return (
-              <button
-                key={option.id}
-                type="button"
-                className={`${controls.barButton}${active ? ` ${controls.barButtonActive}` : ''}`}
-                aria-label={option.label}
-                data-shortcut={option.shortcut}
-                aria-pressed={active}
-                onClick={() => setTool(active ? 'select' : option.id)}
-              >
-                <ToolIcon size={20} weight={active ? 'fill' : 'regular'} aria-hidden />
-              </button>
-            )
-          })}
-        </div>
-        <div className={styles.toolbarGroup} ref={setToolbarGroup}>
-          <button
-            type="button"
-            className={`${controls.askButton} ${styles.footerBar}`}
-            aria-label="Ask Llumen"
-            aria-expanded={chatFrom !== null}
-            onClick={(event) => {
-              if (chatFrom) setChatCollapseToken((token) => token + 1)
-              else setChatFrom(event.currentTarget.getBoundingClientRect())
-            }}
-          >
-            <img className={controls.askIcon} src={llumenAssets.launcherOrb} alt="" width={24} height={24} />
-          </button>
-          <NodeToolbar
-            className={styles.footerBar}
-            usedTypes={usedTypes}
-            panelContainer={toolbarGroup}
-            onAdd={(typeId) => addNode(typeId)}
-          />
-        </div>
-
-        <div className={`${controls.bar} ${styles.footerBar} ${styles.controlsBar}`} role="toolbar" aria-label="Canvas controls">
-          {POINTER_TOOLS.map((option) => {
-            const ToolIcon = option.icon
-            const active = tool === option.id
-            return (
-              <button
-                key={option.id}
-                type="button"
-                className={`${controls.barButton}${active ? ` ${controls.barButtonActive}` : ''}`}
-                aria-label={option.label}
-                data-shortcut={option.shortcut}
-                aria-pressed={active}
-                onClick={() => setTool(option.id)}
-              >
-                <ToolIcon size={20} weight={active ? 'fill' : 'regular'} aria-hidden />
-              </button>
-            )
-          })}
-          <span className={controls.barDivider} aria-hidden />
-          <button type="button" className={controls.barButton} aria-label="Undo" data-shortcut={SHORTCUTS.undo} disabled={past.length === 0} onClick={undo}>
-            <ArrowUUpLeft size={20} weight="regular" aria-hidden />
-          </button>
-          <button type="button" className={controls.barButton} aria-label="Redo" data-shortcut={SHORTCUTS.redo} disabled={future.length === 0} onClick={redo}>
-            <ArrowUUpRight size={20} weight="regular" aria-hidden />
-          </button>
-          <span className={controls.barDivider} aria-hidden />
-          <button
-            type="button"
-            className={controls.barButton}
-            aria-label="Zoom out"
-            data-shortcut={SHORTCUTS.zoomOut}
-            disabled={view.zoom <= MIN_ZOOM}
-            onClick={() => zoomFromCenter(1 / BUTTON_ZOOM_STEP)}
-          >
-            <MagnifyingGlassMinus size={20} weight="regular" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className={`${controls.barButton} ${styles.zoomLevel}`}
-            aria-label={`Zoom ${Math.round(view.zoom * 100)}%, reset to 100%`}
-            data-tooltip="Reset to 100%"
-            onClick={() => zoomFromCenter(1 / view.zoom)}
-          >
-            {Math.round(view.zoom * 100)}%
-          </button>
-          <button
-            type="button"
-            className={controls.barButton}
-            aria-label="Zoom in"
-            data-shortcut={SHORTCUTS.zoomIn}
-            disabled={view.zoom >= MAX_ZOOM}
-            onClick={() => zoomFromCenter(BUTTON_ZOOM_STEP)}
-          >
-            <MagnifyingGlassPlus size={20} weight="regular" aria-hidden />
-          </button>
-          <button type="button" className={controls.barButton} aria-label="Zoom to fit" data-shortcut={SHORTCUTS.fit} onClick={fitToView}>
-            <Scan size={20} weight="regular" aria-hidden />
-          </button>
-          <span className={controls.barDivider} aria-hidden />
-          <button
-            type="button"
-            className={controls.barButton}
-            aria-label="Tidy up"
-            data-shortcut={SHORTCUTS.tidy}
-            disabled={doc.nodes.length === 0}
-            onClick={tidyUp}
-          >
-            <TreeStructure size={20} weight="regular" aria-hidden />
-          </button>
-        </div>
-      </footer>
+      {toolbarStyle === 'split' ? (
+        <footer className={styles.footer}>
+          <div className={`${controls.bar} ${styles.footerBar} ${styles.contentBar}`} role="toolbar" aria-label="Add to canvas">
+            {toolButtons(CONTENT_TOOLS, true)}
+          </div>
+          <div className={styles.toolbarGroup} ref={setToolbarGroup}>
+            {askButton}
+            <NodeToolbar className={styles.footerBar} usedTypes={usedTypes} panelContainer={toolbarGroup} onAdd={(typeId) => addNode(typeId)} />
+          </div>
+          <div className={`${controls.bar} ${styles.footerBar} ${styles.controlsBar}`} role="toolbar" aria-label="Canvas controls">
+            {toolButtons(POINTER_TOOLS, false)}
+            <span className={controls.barDivider} aria-hidden />
+            {canvasControls(true)}
+          </div>
+        </footer>
+      ) : (
+        <footer className={styles.footer}>
+          <div className={styles.toolbarGroup}>
+            {askButton}
+            <div ref={singleBarRef} className={styles.singleBar}>
+              {barFlyout === 'nodes' ? (
+                <div className={`${styles.barFlyout} ${styles.barFlyoutFull}`}>
+                  <InsertNodePanel usedTypes={usedTypes} anchorRef={addNodeButtonRef} onPick={(typeId) => addNode(typeId)} onClose={closeBarFlyout} />
+                </div>
+              ) : null}
+              {barFlyout === 'insert' ? (
+                <div
+                  ref={insertBarRef}
+                  className={`${controls.bar} ${styles.footerBar} ${styles.barFlyout}`}
+                  style={insertBarX === null ? undefined : { left: insertBarX }}
+                  role="toolbar"
+                  aria-label="Insert"
+                >
+                  {toolButtons(CONTENT_TOOLS, true)}
+                </div>
+              ) : null}
+              <div className={`${controls.bar} ${styles.footerBar}`} role="toolbar" aria-label="Canvas toolbar">
+                {toolButtons(POINTER_TOOLS, false)}
+                <span className={controls.barDivider} aria-hidden />
+                <button
+                  ref={addNodeButtonRef}
+                  type="button"
+                  className={`${controls.barAction}${barFlyout === 'nodes' ? ` ${controls.barActionActive}` : ''}`}
+                  aria-expanded={barFlyout === 'nodes'}
+                  onClick={() => setBarFlyout((current) => (current === 'nodes' ? null : 'nodes'))}
+                >
+                  <Plus size={20} weight={barFlyout === 'nodes' ? 'bold' : 'regular'} aria-hidden />
+                  Add node
+                </button>
+                <button
+                  ref={insertButtonRef}
+                  type="button"
+                  className={`${controls.barAction}${barFlyout === 'insert' || inserting ? ` ${controls.barActionActive}` : ''}`}
+                  aria-expanded={barFlyout === 'insert'}
+                  onClick={() => setBarFlyout((current) => (current === 'insert' ? null : 'insert'))}
+                >
+                  <Shapes size={20} weight={barFlyout === 'insert' || inserting ? 'fill' : 'regular'} aria-hidden />
+                  Insert
+                </button>
+                <span className={controls.barDivider} aria-hidden />
+                {canvasControls(false)}
+              </div>
+            </div>
+          </div>
+        </footer>
+      )}
 
       {appearanceNode ? (
         <AppearancePanel
@@ -3105,6 +3327,8 @@ type DevMenuProps = {
   onNodeStyle: () => void
   shaderPaused: boolean
   onShaderPaused: () => void
+  toolbarStyle: ToolbarStyle
+  onToolbarStyle: (style: ToolbarStyle) => void
 }
 
 type DevItemProps = { icon: Icon; label: string; hint?: string; checked?: boolean; disabled?: boolean; onSelect: () => void }
@@ -3179,6 +3403,22 @@ function DevMenu(props: DevMenuProps) {
             icon={props.shaderPaused ? Play : Pause}
             label={props.shaderPaused ? 'Resume background animation' : 'Pause background animation'}
             onSelect={props.onShaderPaused}
+          />
+          <div className={styles.menuSeparator} role="separator" />
+          <div className={styles.menuLabel}>Toolbar</div>
+          <DevItem
+            icon={Columns}
+            label="Split toolbars"
+            hint="Insert, nodes and canvas controls apart"
+            checked={props.toolbarStyle === 'split'}
+            onSelect={() => props.onToolbarStyle('split')}
+          />
+          <DevItem
+            icon={Rectangle}
+            label="Single toolbar"
+            hint="Everything in one bar in the centre"
+            checked={props.toolbarStyle === 'single'}
+            onSelect={() => props.onToolbarStyle('single')}
           />
         </div>
       ) : null}

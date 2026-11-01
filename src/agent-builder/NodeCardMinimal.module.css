@@ -271,7 +271,19 @@
     opacity var(--lc-duration) var(--lc-ease),
     border-color var(--lc-duration) var(--lc-ease),
     background var(--lc-duration) var(--lc-ease),
-    box-shadow var(--lc-duration) var(--lc-ease);
+    box-shadow var(--lc-duration) var(--lc-ease),
+    transform var(--lc-duration) var(--lc-ease);
+}
+
+.port svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 1px;
+  color: #0b1220;
+  opacity: 0;
+  transition: opacity var(--lc-duration) var(--lc-ease);
 }
 
 .selected .port,
@@ -319,6 +331,29 @@
   border-color: var(--canvas-accent);
   background: var(--canvas-accent);
   box-shadow: 0 0 0 4px rgba(115, 173, 245, 0.25);
+}
+
+/* Scaled, not resized, so the dot's centre, where lines meet it, stays put. */
+.port[data-port-side='out']:hover {
+  box-shadow: 0 0 0 2px rgba(115, 173, 245, 0.25);
+  transform: translateY(-50%) scale(1.8);
+}
+
+.port[data-port-side='out']:hover svg {
+  opacity: 1;
+}
+
+:global([data-connecting]) .node .port[data-port-side='out']:hover {
+  box-shadow: 0 0 0 4px rgba(115, 173, 245, 0.25);
+  transform: translateY(-50%);
+}
+
+:global([data-connecting]) .node .port[data-port-side='out'][data-target]:hover {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--canvas-accent) 30%, transparent);
+}
+
+:global([data-connecting]) .node .port[data-port-side='out']:hover svg {
+  opacity: 0;
 }
 
 /* Where a line being drawn will land. */

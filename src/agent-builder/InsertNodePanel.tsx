@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react'
 import { ArrowLeft, MagnifyingGlass, X } from '@phosphor-icons/react'
 import type { NodeType, PortSide } from './nodeCatalog'
 import { groupTypes, matchesQuery, NODE_GROUPS, type NodeGroupId } from './nodeGroups'
@@ -8,27 +8,35 @@ import styles from './InsertNodePanel.module.css'
 
 const EDGE = 12
 
-type InsertNodePanelProps = {
-  /** The edge nearest the line, in the canvas's screen space: the panel opens away from it, where the new node will sit. */
-  x: number
-  top: number
-  /** The side the new node is wired on: `in` when the line comes from an output. */
-  connectsOn: PortSide
+/** Beside a dropped line, where the new node will sit, or docked to a toolbar that places it. */
+type InsertNodePlacement =
+  | {
+      /** The edge nearest the line, in the canvas's screen space: the panel opens away from it. */
+      x: number
+      top: number
+      /** The side the new node is wired on: `in` when the line comes from an output. */
+      connectsOn: PortSide
+    }
+  | { x?: undefined; top?: undefined; connectsOn?: undefined }
+
+type InsertNodePanelProps = InsertNodePlacement & {
   /** Singleton node types that are already on the canvas. */
   usedTypes: ReadonlySet<string>
+  /** The button that toggles a docked panel; pressing it isn't a click outside. */
+  anchorRef?: RefObject<HTMLElement | null>
   onPick: (typeId: string) => void
   onClose: () => void
 }
 
-/** Picks the node a dropped line connects to: search, the four groups, then every node grouped by them. */
-export function InsertNodePanel({ x, top, connectsOn, usedTypes, onPick, onClose }: InsertNodePanelProps) {
+/** Picks a node to add: search, the four groups, then every node grouped by them. */
+export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPick, onClose }: InsertNodePanelProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [groupId, setGroupId] = useState<NodeGroupId | null>(null)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
-  useDismiss(true, ref, onClose)
+  useDismiss(true, ref, onClose, anchorRef)
 
-  /** Why a node can't take this line, or null when it can. */
+  /** Why a node can't be added here, or null when it can. */
   const unavailable = (type: NodeType) => {
     if (type.singleton && usedTypes.has(type.id)) return 'Already on the canvas'
     if (connectsOn === 'in' && type.inputs.length === 0) return 'Starts a flow, so nothing can lead into it'
@@ -48,7 +56,7 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, onPick, onClose
   useLayoutEffect(() => {
     const element = ref.current
     const parent = element?.offsetParent as HTMLElement | null
-    if (!element || !parent) return
+    if (!element || !parent || x === undefined) return
     const left = connectsOn === 'in' ? x : x - element.offsetWidth
     element.style.left = `${Math.max(EDGE, Math.min(left, parent.clientWidth - element.offsetWidth - EDGE))}px`
     element.style.top = `${Math.max(EDGE, Math.min(top, parent.clientHeight - element.offsetHeight - EDGE))}px`
@@ -82,7 +90,13 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, onPick, onClose
   }
 
   return (
-    <div ref={ref} className={styles.panel} style={{ left: x, top }} role="dialog" aria-label="Add node">
+    <div
+      ref={ref}
+      className={x === undefined ? `${styles.panel} ${styles.docked}` : styles.panel}
+      style={x === undefined ? undefined : { left: x, top }}
+      role="dialog"
+      aria-label="Add node"
+    >
       <header className={styles.head}>
         <h3 className={styles.title}>Add node</h3>
         <button type="button" className={styles.close} aria-label="Close" onClick={onClose}>

@@ -8,6 +8,7 @@ import type { Finding, FindingAsset, FindingRule, FindingSection } from './findi
 import { ASSETS_BY_ID, DAY_MS, ML_MODELS_BY_ID, SOURCES_BY_ID, isoDay, previewOf } from './flowData'
 import {
   NODE_TYPES_BY_ID,
+  nodeInputs,
   nodeName,
   nodeOutputs,
   nodePreview,
@@ -92,7 +93,7 @@ type Extra = { note?: string; cost?: number; assetRows?: readonly DataRecord[]; 
 const done = (ports: Ports, seconds: number, extra: Extra = {}): StepResult => ({ ok: true, ports, seconds, ...extra })
 
 /** Every input port's rows, in port order. */
-const allRows = (input: StepInput) => input.type.inputs.flatMap((port) => input.inputs[port.id] ?? [])
+const allRows = (input: StepInput) => nodeInputs(input.node, input.type).flatMap((port) => input.inputs[port.id] ?? [])
 
 const round = (value: number, digits = 2) => Number(value.toFixed(digits))
 

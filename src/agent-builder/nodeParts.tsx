@@ -1,5 +1,5 @@
 import { Fragment, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { Check, Copy } from '@phosphor-icons/react'
+import { Check, Copy, Plus } from '@phosphor-icons/react'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import type { FlowState } from './triggerCard'
 import type { CanvasNode, DataRecord, NodeField, NodePort, NodeRun, NodeType, Point, PortRef, PortSide } from './nodeCatalog'
@@ -70,6 +70,9 @@ export type NodeCardProps = {
   onOpenConfig?: (focus?: string) => void
   /** Removes a case or a category. */
   onRemoveOutput?: (portId: string) => void
+  /** Adds an input, for kinds that take more than their first two (Merge). */
+  onAddInput?: () => void
+  onRemoveInput?: (portId: string) => void
   /** What's wired into each input, by port, for kinds with more than one. */
   inputSources?: Readonly<Record<string, InputSource>>
   /** A problem only the graph shows, e.g. nothing wired in; the card shows it after the node's own. */
@@ -207,7 +210,9 @@ export function Port({ nodeId, port, side, active, connected, target, handlers, 
       onPointerMove={handlers.onPointerMove}
       onPointerUp={handlers.onPointerUp}
       onPointerCancel={handlers.onPointerCancel}
-    />
+    >
+      {side === 'out' ? <Plus weight="bold" /> : null}
+    </span>
   )
 }
 

@@ -30,6 +30,7 @@ import {
   KIND_DEFAULTS,
   kindFields,
   kindIssue,
+  kindInputs,
   kindNotice,
   kindOutputs,
   kindAsset,
@@ -270,6 +271,7 @@ export const NODE_TYPES: readonly NodeType[] = [
   dataStep('editFields', 'Edit Fields', 'Create, update, or remove fields on incoming rows.', PencilSimple),
   dataStep('aggregate', 'Aggregate', 'Summarise rows, optionally per group.', Database),
   dataStep('merge', 'Merge', 'Append inputs into one table, in input order.', ArrowsMerge, {
+    /** Where a new Merge starts; the node's params set how many it has, up to 10. */
     inputs: [
       { id: 'input1', label: 'Input 1' },
       { id: 'input2', label: 'Input 2' },
@@ -321,6 +323,7 @@ export const NODE_MIN_WIDTH = 350
 export const NODE_DEFAULT_WIDTH = 350
 
 export const nodeOutputs = (node: CanvasNode, type: NodeType) => kindOutputs(type.id, node.config.params) ?? node.outputs ?? type.outputs
+export const nodeInputs = (node: CanvasNode, type: NodeType) => kindInputs(type.id, node.config.params) ?? type.inputs
 export const nodeName = (node: CanvasNode, type: NodeType) => node.config.name || type.title
 /** Rows on the card, read from the node's params. */
 export const nodeFields = (node: CanvasNode) => kindFields(node.type, node.config.params)

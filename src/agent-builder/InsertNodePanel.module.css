@@ -16,6 +16,13 @@
   color: rgba(255, 255, 255, 0.92);
 }
 
+/* Above a toolbar: its wrapper places and sizes it, and the window bounds its height. */
+.docked {
+  position: relative;
+  width: 100%;
+  max-height: min(480px, calc(100dvh - 260px));
+}
+
 /* Only the list gives way when the panel runs out of height. */
 .panel > :not(.scroll) {
   flex-shrink: 0;

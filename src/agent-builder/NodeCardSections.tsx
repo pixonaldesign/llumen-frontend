@@ -9,6 +9,7 @@ import type { FlowState } from './triggerCard'
 import {
   formatCost,
   formatDuration,
+  nodeInputs,
   nodeIssue,
   nodeName,
   nodeNotice,
@@ -20,7 +21,7 @@ import {
   type PortSide,
 } from './nodeCatalog'
 import { plural } from './kindEditor'
-import { branchAddLabel, isAuthoredBranch, isFallbackBranch } from './nodeKinds'
+import { addInput, branchAddLabel, canRemoveInput, isAuthoredBranch, isFallbackBranch } from './nodeKinds'
 import tones from './nodeTones.module.css'
 import minimal from './NodeCardMinimal.module.css'
 import styles from './NodeCardSections.module.css'
@@ -133,6 +134,8 @@ export function NodeCardSections({
   onParamsChange,
   onOpenConfig,
   onRemoveOutput,
+  onAddInput,
+  onRemoveInput,
   inputSources,
   wiringIssue,
   onOpenData,
@@ -153,7 +156,10 @@ export function NodeCardSections({
   const addLabel = branchAddLabel(type.id)
   const edgeOutputs = outputs.length > 1 && cardEdgeOutputs(type)
   const branchOutputs = outputs.length > 1 && !edgeOutputs
-  const branchInputs = type.inputs.length > 1
+  const inputs = nodeInputs(node, type)
+  const branchInputs = inputs.length > 1
+  const canAddInput = Boolean(onAddInput && addInput(type.id, node.config.params))
+  const removableInputs = Boolean(onRemoveInput && canRemoveInput(type.id, node.config.params))
 
   const savedAsset = node.type === 'createAsset' && run.status === 'success' && Boolean(run.assetRows)
   const actions: HeaderAction[] = []
@@ -250,7 +256,7 @@ export function NodeCardSections({
         data-ink={inkRgb(node.appearance) ? 'dark' : undefined}
       >
         <NodeFill paint={node.appearance} />
-        {type.inputs.length === 1 ? port(type.inputs[0], 'in', minimal.portIn) : null}
+        {inputs.length === 1 ? port(inputs[0], 'in', minimal.portIn) : null}
         {outputs.length === 1 ? port(outputs[0], 'out', minimal.portOut) : null}
 
         <div className={styles.content}>
@@ -285,7 +291,7 @@ export function NodeCardSections({
 
           {branchInputs ? (
             <ul className={`${minimal.rows} ${styles.branches}`} aria-label="Inputs">
-              {type.inputs.map((value) => {
+              {inputs.map((value) => {
                 const source = inputSources?.[value.id]
                 return (
                   <li key={value.id} className={`${minimal.row} ${styles.branch}`}>
@@ -294,9 +300,24 @@ export function NodeCardSections({
                       {source ? source.names.join(', ') : value.label}
                     </span>
                     {source && source.rows !== null ? <span className={styles.branchCount}>{plural(source.rows, 'row')}</span> : null}
+                    {removableInputs ? (
+                      <span className={styles.branchActions}>
+                        <button type="button" className={styles.branchAction} aria-label={`Remove ${value.label}`} data-tooltip="Remove" onClick={() => onRemoveInput?.(value.id)}>
+                          <Minus size={14} weight="bold" aria-hidden />
+                        </button>
+                      </span>
+                    ) : null}
                   </li>
                 )
               })}
+              {canAddInput ? (
+                <li>
+                  <button type="button" className={`${styles.branch} ${styles.addBranch}`} onClick={onAddInput}>
+                    <Plus size={12} weight="bold" aria-hidden />
+                    Add input
+                  </button>
+                </li>
+              ) : null}
             </ul>
           ) : null}
 
