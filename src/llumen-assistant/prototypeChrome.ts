@@ -34,6 +34,22 @@ export type StudioAskBar = 'beside-sidebar' | 'full-width'
 
 export const DEFAULT_STUDIO_STYLE: StudioStyle = 10
 
+/** The Studio's animated backdrop: the mesh, a moving glow, or one of the dim, diffracted lights. */
+export const STUDIO_SHADERS = ['mesh', 'glow', 'rings', 'flare', 'streaks', 'orb', 'veil'] as const
+export type StudioShader = (typeof STUDIO_SHADERS)[number]
+
+export const DEFAULT_STUDIO_SHADER: StudioShader = 'mesh'
+
+export const STUDIO_SHADER_OPTIONS: readonly { shader: StudioShader; label: string; hint: string }[] = [
+  { shader: 'mesh', label: 'Mesh', hint: 'Slow charcoal-to-blue mesh' },
+  { shader: 'glow', label: 'Moving glow', hint: 'Blue light drifting across a dark screen' },
+  { shader: 'rings', label: 'Diffraction · Rings', hint: 'Faint spectral arcs breathing either side' },
+  { shader: 'flare', label: 'Diffraction · Lens flare', hint: 'A soft beam from the corner, split at its edge' },
+  { shader: 'streaks', label: 'Diffraction · Streaks', hint: 'Blurred blue light sweeping through the dark' },
+  { shader: 'orb', label: 'Diffraction · Prism orb', hint: 'A dim sphere with an iridescent rim' },
+  { shader: 'veil', label: 'Diffraction · Veil', hint: 'Slow, muted spectral bands' },
+]
+
 /** A story's Comparison layout: the maps one above the other (horizontal split) or side by side (vertical). */
 export type ComparisonSplit = 'horizontal' | 'vertical'
 
@@ -75,6 +91,11 @@ const TOP_BAR_KEY = 'llumen.topBarVariant'
 const FINDINGS_STYLE_KEY = 'llumen.findingsStyle'
 const STUDIO_STYLE_KEY = 'llumen.studioStyle'
 const COMPARISON_SPLIT_KEY = 'llumen.comparisonSplit'
+const STUDIO_SHADER_KEY = 'llumen.studioShader'
+
+function isStudioShader(value: string | null): value is StudioShader {
+  return (STUDIO_SHADERS as readonly (string | null)[]).includes(value)
+}
 
 function isComparisonSplit(value: string | null): value is ComparisonSplit {
   return value === 'horizontal' || value === 'vertical'
@@ -197,6 +218,28 @@ export function persistStudioStyle(style: StudioStyle) {
     /* private mode */
   }
   writeParam('studio', String(style), String(DEFAULT_STUDIO_STYLE))
+}
+
+export function readStudioShader(): StudioShader {
+  if (typeof window === 'undefined') return DEFAULT_STUDIO_SHADER
+  const fromUrl = new URLSearchParams(window.location.search).get('shader')
+  if (isStudioShader(fromUrl)) return fromUrl
+  try {
+    const stored = window.sessionStorage.getItem(STUDIO_SHADER_KEY)
+    return isStudioShader(stored) ? stored : DEFAULT_STUDIO_SHADER
+  } catch {
+    return DEFAULT_STUDIO_SHADER
+  }
+}
+
+export function persistStudioShader(shader: StudioShader) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(STUDIO_SHADER_KEY, shader)
+  } catch {
+    /* private mode */
+  }
+  writeParam('shader', shader, DEFAULT_STUDIO_SHADER)
 }
 
 export function readComparisonSplit(): ComparisonSplit {

@@ -5,10 +5,12 @@ import type { ChatInteractionModel } from './interactionModel'
 import {
   COMPARISON_SPLIT_OPTIONS,
   FINDINGS_STYLE_OPTIONS,
+  STUDIO_SHADER_OPTIONS,
   STUDIO_STYLE_OPTIONS,
   type ComparisonSplit,
   type FindingsStyle,
   type LandingVariant,
+  type StudioShader,
   type StudioStyle,
   type TopBarVariant,
 } from './prototypeChrome'
@@ -24,7 +26,7 @@ type Command = {
 }
 
 /** The tab row under the search: every command, or one group's. */
-const TABS = ['All', 'Landing', 'Findings', 'Studio', 'Comparison', 'Top bar', 'UX', 'Aurora'] as const
+const TABS = ['All', 'Landing', 'Findings', 'Studio', 'Shaders', 'Comparison', 'Top bar', 'UX', 'Aurora'] as const
 type Tab = (typeof TABS)[number]
 
 export type CommandPaletteProps = {
@@ -40,6 +42,8 @@ export type CommandPaletteProps = {
   studioStyle: StudioStyle
   onFindingsStyle: (next: FindingsStyle) => void
   onStudioStyle: (next: StudioStyle) => void
+  studioShader: StudioShader
+  onStudioShader: (next: StudioShader) => void
   comparisonSplit: ComparisonSplit
   onComparisonSplit: (next: ComparisonSplit) => void
   onOpenAurora: () => void
@@ -60,6 +64,8 @@ export function CommandPalette({
   studioStyle,
   onFindingsStyle,
   onStudioStyle,
+  studioShader,
+  onStudioShader,
   comparisonSplit,
   onComparisonSplit,
   onOpenAurora,
@@ -150,6 +156,14 @@ export function CommandPalette({
         active: studioStyle === option.style,
         run: choose(() => onStudioStyle(option.style)),
       })),
+      ...STUDIO_SHADER_OPTIONS.map((option) => ({
+        id: `shader-${option.shader}`,
+        group: 'Shaders',
+        label: option.label,
+        hint: option.hint,
+        active: studioShader === option.shader,
+        run: choose(() => onStudioShader(option.shader)),
+      })),
       ...COMPARISON_SPLIT_OPTIONS.map((option) => ({
         id: `comparison-${option.split}`,
         group: 'Comparison',
@@ -232,9 +246,11 @@ export function CommandPalette({
     onLanding,
     onOpenAurora,
     onOpenChange,
+    onStudioShader,
     onStudioStyle,
     onTopBar,
     onUx,
+    studioShader,
     studioStyle,
     topBar,
     ux,
@@ -334,7 +350,7 @@ export function CommandPalette({
               setQuery(event.target.value)
               setCursor(0)
             }}
-            placeholder="Landing, findings, Studio, comparison, top bar, UX, Aurora…"
+            placeholder="Landing, findings, Studio, shaders, comparison, top bar, UX, Aurora…"
             aria-label="Filter commands"
             aria-controls="command-palette-list"
             aria-activedescendant={filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined}

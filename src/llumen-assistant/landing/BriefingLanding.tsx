@@ -50,6 +50,7 @@ import {
   DEFAULT_STUDIO_STYLE,
   type FindingsStyle,
   type StudioAskBar,
+  type StudioShader,
   type StudioStyle,
   type TopBarVariant,
 } from '../prototypeChrome'
@@ -240,6 +241,7 @@ export type BriefingLandingProps = {
   findingsStyle?: FindingsStyle
   /** Which Studio experience the Studio view shows. */
   studioStyle?: StudioStyle
+  studioShader?: StudioShader
   /** An alert aurora holds the middle of the findings stage: the greeting and finding step aside, and the carousel waits. */
   alert?: boolean
   /** A toast finding shown in the finding's place until it is dismissed; the carousel waits underneath. */
@@ -266,6 +268,7 @@ export function BriefingLanding({
   onScrollActivity,
   findingsStyle = DEFAULT_FINDINGS_STYLE,
   studioStyle = DEFAULT_STUDIO_STYLE,
+  studioShader,
   alert = false,
   findingToast = null,
   view: viewProp,
@@ -805,7 +808,7 @@ export function BriefingLanding({
       </header>
       {inStudio ? (
         <Suspense fallback={null}>
-          <StudioView scenario={studioStyle} onAskBarChange={onStudioAskBarChange} />
+          <StudioView scenario={studioStyle} shader={studioShader} onAskBarChange={onStudioAskBarChange} />
         </Suspense>
       ) : null}
       <div

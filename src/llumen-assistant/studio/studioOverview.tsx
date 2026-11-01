@@ -76,7 +76,6 @@ export function OverviewHome({ go, onCreate }: { go: Go; onCreate: () => void })
   return (
     <div className={o.overview}>
       <header className={o.head}>
-        <span className={s.eyebrow}>Overview</span>
         <h1 className={o.title}>Good afternoon, Omar</h1>
       </header>
 

@@ -73,17 +73,20 @@ import {
   persistComparisonSplit,
   persistFindingsStyle,
   persistLandingVariant,
+  persistStudioShader,
   persistStudioStyle,
   persistTopBarVariant,
   readComparisonSplit,
   readFindingsStyle,
   readLandingVariant,
+  readStudioShader,
   readStudioStyle,
   readTopBarVariant,
   type ComparisonSplit,
   type FindingsStyle,
   type LandingVariant,
   type StudioAskBar,
+  type StudioShader,
   type StudioStyle,
   type TopBarVariant,
 } from './prototypeChrome'
@@ -543,6 +546,7 @@ export function CompactAssistantDemo() {
     setFindingsStyle(next)
   }, [])
   const [studioStyle, setStudioStyle] = useState<StudioStyle>(() => readStudioStyle())
+  const [studioShader, setStudioShader] = useState<StudioShader>(() => readStudioShader())
   const [comparisonSplit, setComparisonSplit] = useState<ComparisonSplit>(() => readComparisonSplit())
   const [paletteOpen, setPaletteOpen] = useState(false)
   const composerDockRef = useRef<HTMLDivElement>(null)
@@ -2164,6 +2168,11 @@ export function CompactAssistantDemo() {
     setStudioStyle(next)
     setBriefingView('studio')
   }, [])
+  const pickStudioShader = useCallback((next: StudioShader) => {
+    persistStudioShader(next)
+    setStudioShader(next)
+    setBriefingView('studio')
+  }, [])
   const pickComparisonSplit = useCallback((next: ComparisonSplit) => {
     persistComparisonSplit(next)
     setComparisonSplit(next)
@@ -2981,6 +2990,7 @@ export function CompactAssistantDemo() {
         onScrollActivity={onBriefingScroll}
         findingsStyle={findingsStyle}
         studioStyle={studioStyle}
+        studioShader={studioShader}
         alert={alertTakesCentre}
         findingToast={toastInFindings ? noticeToast(false) : null}
         view={briefingView}
@@ -3507,6 +3517,8 @@ export function CompactAssistantDemo() {
           studioStyle={studioStyle}
           onFindingsStyle={pickFindingsStyle}
           onStudioStyle={pickStudioStyle}
+          studioShader={studioShader}
+          onStudioShader={pickStudioShader}
           comparisonSplit={comparisonSplit}
           onComparisonSplit={pickComparisonSplit}
           onOpenAurora={() => onAuroraPanelOpenChange(true)}
