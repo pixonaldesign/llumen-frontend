@@ -1,57 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Brain, Database, Lightning, MagnifyingGlass, PaperPlaneTilt, type Icon } from '@phosphor-icons/react'
+import { MagnifyingGlass } from '@phosphor-icons/react'
 import controls from '../llumen-assistant/FloatingControls.module.css'
-import { NODE_DRAG_MIME, NODE_TYPES, type NodeCategoryId, type NodeTone } from './nodeCatalog'
+import { NODE_DRAG_MIME } from './nodeCatalog'
+import { groupTypes, matchesQuery, NODE_GROUPS, type NodeGroupId } from './nodeGroups'
 import tones from './nodeTones.module.css'
 import styles from './NodeToolbar.module.css'
-
-type NodeGroupId = 'triggers' | 'dataFlow' | 'agents' | 'actions'
-
-type NodeGroup = {
-  id: NodeGroupId
-  title: string
-  description: string
-  icon: Icon
-  tone: NodeTone
-  /** Catalog categories listed in this group's panel, in order. Annotations live on the sticky note tool. */
-  categories: readonly NodeCategoryId[]
-}
-
-const NODE_GROUPS: readonly NodeGroup[] = [
-  {
-    id: 'triggers',
-    title: 'Triggers',
-    description: 'Initiate the workflow from defined start points',
-    icon: Lightning,
-    tone: 'trigger',
-    categories: ['triggers'],
-  },
-  {
-    id: 'dataFlow',
-    title: 'Data & Flow',
-    description: 'Fetch data and control execution paths',
-    icon: Database,
-    tone: 'data',
-    categories: ['dataFlow'],
-  },
-  {
-    id: 'agents',
-    title: 'Agents',
-    description: 'Perform general and specialized AI tasks',
-    icon: Brain,
-    tone: 'analysis',
-    categories: ['analysisAgents'],
-  },
-  {
-    id: 'actions',
-    title: 'Actions',
-    description: 'Generate output content and execute external operations',
-    icon: PaperPlaneTilt,
-    tone: 'action',
-    categories: ['outputAgents', 'actions'],
-  },
-]
 
 type NodeToolbarProps = {
   className?: string
@@ -68,7 +22,7 @@ type NodeToolbarProps = {
 /**
  * One button per node group. Clicking a button opens that group's nodes in a card grid above the
  * toolbar; clicking another swaps the panel, and clicking it again or anywhere outside closes it.
- * Click a card to add it, or drag it onto the canvas.
+ * Click a card to add it, or drag it onto the canvas; the panel stays open for adding more.
  */
 export function NodeToolbar({ className, usedTypes, panelContainer, onAdd }: NodeToolbarProps) {
   const [groupId, setGroupId] = useState<NodeGroupId | null>(null)
@@ -77,12 +31,7 @@ export function NodeToolbar({ className, usedTypes, panelContainer, onAdd }: Nod
   const panelRef = useRef<HTMLDivElement>(null)
   const group = NODE_GROUPS.find((item) => item.id === groupId)
   const search = query.trim().toLowerCase()
-  const types = group
-    ? group.categories
-        .flatMap((id) => NODE_TYPES.filter((type) => type.category === id))
-        .filter((type) => !search || type.title.toLowerCase().includes(search) || type.description.toLowerCase().includes(search))
-    : []
-  const close = () => setGroupId(null)
+  const types = group ? groupTypes(group).filter((type) => matchesQuery(type, search)) : []
   const toggleGroup = (id: NodeGroupId) => {
     setGroupId((current) => (current === id ? null : id))
     setQuery('')
@@ -165,15 +114,11 @@ export function NodeToolbar({ className, usedTypes, panelContainer, onAdd }: Nod
                       className={styles.card}
                       disabled={used}
                       draggable={!used}
-                      onClick={() => {
-                        onAdd(type.id)
-                        close()
-                      }}
+                      onClick={() => onAdd(type.id)}
                       onDragStart={(event) => {
                         event.dataTransfer.setData(NODE_DRAG_MIME, type.id)
                         event.dataTransfer.effectAllowed = 'copy'
                       }}
-                      onDragEnd={close}
                     >
                       <span className={`${styles.cardIcon} ${tones[`tone_${type.tone}`]}`} aria-hidden>
                         <TypeIcon size={20} weight="regular" />

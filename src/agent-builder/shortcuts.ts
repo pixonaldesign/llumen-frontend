@@ -6,6 +6,8 @@ const ALT = IS_MAC ? '⌥' : 'Alt+'
 
 /** Shortcut labels shown in tooltips, in the platform's notation. */
 export const SHORTCUTS = {
+  select: 'V',
+  hand: 'H',
   sticky: 'S',
   comment: 'C',
   text: 'T',

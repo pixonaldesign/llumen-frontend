@@ -198,12 +198,22 @@
   transform: translateX(-50%);
 }
 
+/* Compact: 36px bar around 28px buttons. */
 .nodeBar .floatingBar {
   position: relative;
+  height: 36px;
+  padding: 3px;
 }
 
-.nodeBar .sizeButton {
+.nodeBar .floatingBar button {
+  width: 28px;
+  height: 28px;
+}
+
+.nodeBar .floatingBar .sizeButton {
   gap: 6px;
+  width: auto;
+  min-width: 28px;
 }
 
 .spin {

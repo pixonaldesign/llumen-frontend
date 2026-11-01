@@ -9,7 +9,8 @@ const WARM_MS = 300
 const GAP = 8
 const EDGE = 8
 
-type Tip = { label: string; shortcut?: string; x: number; y: number; placement: 'top' | 'bottom' }
+/** `top` and `bottom` are the control's edges; the tip goes above it unless that runs off screen. */
+type Tip = { label: string; shortcut?: string; x: number; top: number; bottom: number }
 
 /** FigJam-style hover tooltips (name plus shortcut) for every control inside `rootRef`. */
 export function CanvasTooltip({ rootRef }: { rootRef: RefObject<HTMLElement | null> }) {
@@ -28,15 +29,8 @@ export function CanvasTooltip({ rootRef }: { rootRef: RefObject<HTMLElement | nu
       const label = element.dataset.tooltip || element.getAttribute('aria-label')
       if (!label || !element.isConnected) return
       const rect = element.getBoundingClientRect()
-      const below = rect.top + rect.height / 2 < window.innerHeight / 2
       visible = true
-      setTip({
-        label,
-        shortcut: element.dataset.shortcut,
-        x: rect.left + rect.width / 2,
-        y: below ? rect.bottom + GAP : rect.top - GAP,
-        placement: below ? 'bottom' : 'top',
-      })
+      setTip({ label, shortcut: element.dataset.shortcut, x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom })
     }
     const hide = () => {
       window.clearTimeout(timer)
@@ -91,13 +85,16 @@ export function CanvasTooltip({ rootRef }: { rootRef: RefObject<HTMLElement | nu
     }
   }, [rootRef])
 
-  // Keep the tip on screen; needs its rendered width.
+  // Keep the tip on screen; needs its rendered size.
   useLayoutEffect(() => {
     const element = tipRef.current
     if (!element || !tip) return
     const half = element.offsetWidth / 2
     const x = Math.min(window.innerWidth - EDGE - half, Math.max(EDGE + half, tip.x))
     element.style.left = `${x}px`
+    const above = tip.top - GAP - element.offsetHeight >= EDGE
+    element.dataset.placement = above ? 'top' : 'bottom'
+    element.style.top = `${above ? tip.top - GAP : tip.bottom + GAP}px`
   }, [tip])
 
   if (!tip) return null
@@ -105,8 +102,8 @@ export function CanvasTooltip({ rootRef }: { rootRef: RefObject<HTMLElement | nu
     <div
       ref={tipRef}
       className={styles.tooltip}
-      data-placement={tip.placement}
-      style={{ left: tip.x, top: tip.y }}
+      data-placement="top"
+      style={{ left: tip.x, top: tip.top - GAP }}
       role="tooltip"
     >
       {tip.label}

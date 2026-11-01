@@ -2,7 +2,7 @@ import type { Point, Size } from './nodeCatalog'
 import { STICKY_AUTHOR } from './stickyNote'
 
 /** Placement tools in the content toolbar; `select` is the default pointer. */
-export type CanvasTool = 'select' | 'sticky' | 'text' | 'comment' | 'section'
+export type CanvasTool = 'select' | 'hand' | 'sticky' | 'text' | 'comment' | 'section'
 
 export type Rect = Point & Size
 

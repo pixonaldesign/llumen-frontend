@@ -43,7 +43,10 @@ export type NodeCardProps = {
   /** Output of the upstream nodes, or null when nothing upstream has run. */
   input: readonly DataRecord[] | null
   output: readonly DataRecord[] | null
+  /** Lit: the ends of hovered or selected lines, and the end a line is being drawn from. */
   activePorts: ReadonlySet<string>
+  /** The port a line being drawn will land on. */
+  targetPort: string | null
   /** Ports with an edge attached; they stay visible when the node isn't selected. */
   connectedPorts: ReadonlySet<string>
   ports: PortHandlers
@@ -182,19 +185,21 @@ type PortProps = {
   side: PortSide
   active: boolean
   connected: boolean
+  target?: boolean
   handlers: PortHandlers
   /** Look and placement come from the node style. */
   className: string
   activeClassName: string
 }
 
-export function Port({ nodeId, port, side, active, connected, handlers, className, activeClassName }: PortProps) {
+export function Port({ nodeId, port, side, active, connected, target, handlers, className, activeClassName }: PortProps) {
   const ref: PortRef = { nodeId, portId: port.id, side }
   return (
     <span
       className={active ? `${className} ${activeClassName}` : className}
       aria-hidden
       data-connected={connected || undefined}
+      data-target={target || undefined}
       data-port-node={nodeId}
       data-port-id={port.id}
       data-port-side={side}
@@ -206,7 +211,7 @@ export function Port({ nodeId, port, side, active, connected, handlers, classNam
   )
 }
 
-export type NodeMenuItem = { label: string; danger?: boolean; onSelect: () => void }
+export type NodeMenuItem = { label: string; danger?: boolean; disabled?: boolean; onSelect: () => void }
 
 export function NodeMenu({ items, label, onClose }: { items: readonly NodeMenuItem[]; label: string; onClose: () => void }) {
   return (
@@ -217,6 +222,7 @@ export function NodeMenu({ items, label, onClose }: { items: readonly NodeMenuIt
           type="button"
           role="menuitem"
           className={item.danger ? `${controls.menuItem} ${styles.menuItemDanger}` : controls.menuItem}
+          disabled={item.disabled}
           onClick={() => {
             onClose()
             item.onSelect()

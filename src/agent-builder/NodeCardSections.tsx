@@ -118,6 +118,7 @@ export function NodeCardSections({
   input,
   output,
   activePorts,
+  targetPort,
   connectedPorts,
   ports,
   resize,
@@ -187,6 +188,7 @@ export function NodeCardSections({
         port={value}
         side={side}
         active={activePorts.has(key)}
+        target={targetPort === key}
         connected={connectedPorts.has(key)}
         handlers={ports}
         className={`${minimal.port} ${placement}`}

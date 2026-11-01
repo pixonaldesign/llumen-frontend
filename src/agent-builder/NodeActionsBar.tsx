@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { CircleNotch, DotsThree, GearSix, Palette, Play } from '@phosphor-icons/react'
+import { CircleNotch, DotsThree, GearSix, Play } from '@phosphor-icons/react'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import { NodeMenu, type NodeMenuItem, type RunScope } from './nodeParts'
 import { useDismiss } from './useDismiss'
@@ -18,11 +18,8 @@ type NodeActionsBarProps = {
   annotation: boolean
   canDuplicate: boolean
   running: boolean
-  appearanceOpen: boolean
   onRun: (scope: RunScope) => void
   onConfigure: () => void
-  /** Omitted while the development tools are off, which hides the appearance button. */
-  onAppearance?: () => void
   onDuplicate: () => void
   onDelete: () => void
 }
@@ -38,10 +35,8 @@ export function NodeActionsBar({
   annotation,
   canDuplicate,
   running,
-  appearanceOpen,
   onRun,
   onConfigure,
-  onAppearance,
   onDuplicate,
   onDelete,
 }: NodeActionsBarProps) {
@@ -50,7 +45,15 @@ export function NodeActionsBar({
   const closeMenu = useCallback(() => setMenuOpen(false), [])
   useDismiss(menuOpen, ref, closeMenu)
 
+  const run = () => onRun(isTrigger ? 'downstream' : 'node')
+  // The menu repeats the bar's buttons, so every action is in one list.
   const menuItems: NodeMenuItem[] = [
+    ...(annotation
+      ? []
+      : [
+          { label: isTrigger ? testLabel : 'Run this node', disabled: running, onSelect: run },
+          { label: 'Configure', onSelect: onConfigure },
+        ]),
     ...(canDuplicate ? [{ label: 'Duplicate', onSelect: onDuplicate }] : []),
     { label: 'Delete', danger: true, onSelect: onDelete },
   ]
@@ -66,7 +69,7 @@ export function NodeActionsBar({
               aria-label={isTrigger ? testLabel : `Run ${name}`}
               data-tooltip={isTrigger ? undefined : 'Run this node'}
               disabled={running}
-              onClick={() => onRun(isTrigger ? 'downstream' : 'node')}
+              onClick={run}
             >
               {running ? <CircleNotch size={18} weight="bold" className={styles.spin} aria-hidden /> : <Play size={18} weight="fill" aria-hidden />}
               {isTrigger ? testLabel : null}
@@ -74,27 +77,9 @@ export function NodeActionsBar({
             <button type="button" className={controls.barButton} aria-label={`Configure ${name}`} data-tooltip="Configure" onClick={onConfigure}>
               <GearSix size={18} aria-hidden />
             </button>
+            <span className={controls.barDivider} aria-hidden />
           </>
         )}
-        {onAppearance ? (
-          <button
-            type="button"
-            className={`${controls.barButton}${appearanceOpen ? ` ${controls.barButtonActive}` : ''}`}
-            aria-label="Appearance"
-            aria-pressed={appearanceOpen}
-            data-tooltip="Appearance"
-            data-appearance-toggle
-            onPointerDown={(event) => {
-              if (event.button === 0) onAppearance()
-            }}
-            onClick={(event) => {
-              if (event.detail === 0) onAppearance()
-            }}
-          >
-            <Palette size={18} aria-hidden />
-          </button>
-        ) : null}
-        {annotation && !onAppearance ? null : <span className={controls.barDivider} aria-hidden />}
         <button
           type="button"
           className={`${controls.barButton}${menuOpen ? ` ${controls.barButtonActive}` : ''}`}

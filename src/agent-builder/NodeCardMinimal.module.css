@@ -295,7 +295,7 @@
   pointer-events: auto;
 }
 
-:global([data-ports-hidden]) .node .port {
+:global([data-ports-hidden]) .node .port:not(.portActive, [data-target]) {
   opacity: 0;
   pointer-events: none;
 }
@@ -307,11 +307,23 @@
   border-radius: var(--radius-full);
 }
 
-.port:hover,
-.portActive {
+/* Lit: the ends of a hovered or selected line, so it's clear where it's wired. */
+.portActive,
+.port[data-target] {
+  opacity: 1;
+  border-color: var(--canvas-accent);
+  background: var(--canvas-accent);
+}
+
+.port:hover {
   border-color: var(--canvas-accent);
   background: var(--canvas-accent);
   box-shadow: 0 0 0 4px rgba(115, 173, 245, 0.25);
+}
+
+/* Where a line being drawn will land. */
+.port[data-target] {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--canvas-accent) 30%, transparent);
 }
 
 .portIn {

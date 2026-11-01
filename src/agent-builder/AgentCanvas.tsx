@@ -19,9 +19,11 @@ import {
   CheckCircle,
   ClockCounterClockwise,
   Code,
+  Cursor,
   Flask,
   FlowArrow,
   FrameCorners,
+  Hand,
   type Icon,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
@@ -86,6 +88,7 @@ import { CanvasTooltip } from './CanvasTooltip'
 import { annotateTestFlow, buildTestWorkflow } from './testWorkflow'
 import { NodeToolbar } from './NodeToolbar'
 import { NodeActionsBar } from './NodeActionsBar'
+import { InsertNodePanel } from './InsertNodePanel'
 import { StickyNoteCard } from './StickyNoteCard'
 import { StickyToolbar } from './StickyToolbar'
 import { STICKY_MIN_SIZE, stickyStyle, type StickyStyle } from './stickyNote'
@@ -160,16 +163,6 @@ const CARD_INTERACTIVE =
 const FRAME_DEFAULTS = { padding: 16, radius: 20 }
 
 /** Shows the appearance button on each node's toolbar; kept under the old key so earlier choices carry over. */
-const APPEARANCE_BUTTON_KEY = 'llumen.devTools'
-
-function readAppearanceButton() {
-  try {
-    return localStorage.getItem(APPEARANCE_BUTTON_KEY) !== 'off'
-  } catch {
-    return true
-  }
-}
-
 /** Freezes the background shaders and ambient layer on their current frame. */
 const SHADER_PAUSED_KEY = 'llumen.shaderPaused'
 
@@ -210,7 +203,27 @@ type CanvasDoc = {
 }
 type TriggerOption = { id: string; title: string; icon: Icon }
 type ItemKind = 'section' | 'text' | 'comment'
-type Selection = { kind: 'node' | 'edge' | ItemKind; id: string } | null
+type Selection =
+  | { kind: 'node' | 'edge' | ItemKind; id: string }
+  /** Two or more nodes and lines, picked with the selection box or Shift-click. */
+  | { kind: 'many'; nodes: readonly string[]; edges: readonly string[] }
+  | null
+
+const selectedIds = (selection: Selection, kind: 'node' | 'edge'): readonly string[] => {
+  if (!selection) return []
+  if (selection.kind === 'many') return kind === 'node' ? selection.nodes : selection.edges
+  return selection.kind === kind ? [selection.id] : []
+}
+
+/** A single pick stays a plain selection so its toolbar shows. */
+function pickedSelection(nodes: readonly string[], edges: readonly string[]): Selection {
+  if (nodes.length + edges.length > 1) return { kind: 'many', nodes, edges }
+  if (nodes[0]) return { kind: 'node', id: nodes[0] }
+  if (edges[0]) return { kind: 'edge', id: edges[0] }
+  return null
+}
+
+const toggled = (ids: readonly string[], id: string) => (ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id])
 /** A pointer drag on a section, text, or comment; `apply` gets the offset in world units. */
 type Gesture = {
   pointerId: number
@@ -230,7 +243,19 @@ type SectionMembers = {
   comments: Positions
 }
 /** An edge being drawn from a port; `target` is the port it would snap to on release. */
-type Connection = { from: PortRef; pointer: Point; target: PortRef | null }
+type Connection = {
+  /** The end that stays put; the other follows the pointer. */
+  from: PortRef
+  pointer: Point
+  /** The port the line will land on, snapped from nearby. */
+  target: PortRef | null
+  /** Over open canvas, where letting go offers a new node to connect. */
+  free: boolean
+  /** The line being moved, when an existing one was picked up. */
+  edgeId?: string
+}
+/** A line dropped on open canvas, waiting for a node from the insert panel. */
+type PendingInsert = { from: PortRef; point: Point; edgeId?: string }
 
 const SHOWCASE = buildShowcase()
 const DEFAULT_NODE_SIZE: Size = { w: NODE_DEFAULT_WIDTH, h: 120 }
@@ -276,16 +301,29 @@ const CHROME_BOTTOM = 72
 /** Screen gap between a node and its toolbar, and the toolbar's height. */
 const NODE_TOOLBAR_GAP = 6
 const NODE_TOOLBAR_HEIGHT = 44
+const NODE_ACTIONS_HEIGHT = 36
 /** How long the toolbar stays after the pointer leaves its node, so it can cross the gap to the bar. */
 const NODE_TOOLBAR_LEAVE_MS = 250
 /** At or below this zoom, as the zoom readout rounds it, the ports hide; they still show while connecting. */
 const PORTS_MIN_ZOOM = 0.3
 /** Screen pixels around a node within which its ports show. */
 const PORT_REACH = 20
+/** Screen distance at which a dragged line snaps to a port. */
+const PORT_SNAP = 28
+/** Room between a dropped line's end and the new node it offers. */
+const INSERT_GAP = 16
+/** How far the insert panel's top sits above the line, so its header lines up with it. */
+const INSERT_PANEL_LIFT = 28
+/** Pointer travel before pressing a line picks it up rather than selecting it. */
+const EDGE_DRAG_THRESHOLD = 4
 /** World gap between an edge's end and its port dot. */
 const EDGE_PORT_GAP = 4
 
 type ToolOption = { id: CanvasTool; label: string; shortcut: string; icon: Icon }
+const POINTER_TOOLS: readonly ToolOption[] = [
+  { id: 'select', label: 'Select', shortcut: SHORTCUTS.select, icon: Cursor },
+  { id: 'hand', label: 'Hand tool', shortcut: SHORTCUTS.hand, icon: Hand },
+]
 const CONTENT_TOOLS: readonly ToolOption[] = [
   { id: 'sticky', label: 'Sticky note', shortcut: SHORTCUTS.sticky, icon: NoteBlank },
   { id: 'comment', label: 'Comment', shortcut: SHORTCUTS.comment, icon: ChatCircle },
@@ -297,7 +335,7 @@ function shortcutTool(event: KeyboardEvent): CanvasTool | null {
   if (event.metaKey || event.ctrlKey || event.altKey) return null
   if (event.code === 'KeyS') return event.shiftKey ? 'section' : 'sticky'
   if (event.shiftKey) return null
-  return ({ KeyT: 'text', KeyC: 'comment' } as Record<string, CanvasTool>)[event.code] ?? null
+  return ({ KeyV: 'select', KeyH: 'hand', KeyT: 'text', KeyC: 'comment' } as Record<string, CanvasTool>)[event.code] ?? null
 }
 
 function newMessage(text: string): CommentMessage {
@@ -470,11 +508,21 @@ function edgeControls(a: Point, b: Point): [Point, Point] {
   ]
 }
 
-function bezierMidpoint(a: Point, c1: Point, c2: Point, b: Point): Point {
+function bezierPoint(a: Point, c1: Point, c2: Point, b: Point, t: number): Point {
+  const u = 1 - t
   return {
-    x: (a.x + 3 * c1.x + 3 * c2.x + b.x) / 8,
-    y: (a.y + 3 * c1.y + 3 * c2.y + b.y) / 8,
+    x: u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x,
+    y: u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y,
   }
+}
+
+const EDGE_SAMPLES = 24
+
+function curveInsideRect(a: Point, c1: Point, c2: Point, b: Point, rect: Rect) {
+  for (let step = 0; step <= EDGE_SAMPLES; step++) {
+    if (!rectContainsPoint(rect, bezierPoint(a, c1, c2, b, step / EDGE_SAMPLES))) return false
+  }
+  return true
 }
 
 /** The start node followed by everything reachable downstream of it, breadth first. */
@@ -583,10 +631,11 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const didInitialLayoutRef = useRef(false)
   const addedCountRef = useRef(0)
   const [panning, setPanning] = useState(false)
-  const [draggingNode, setDraggingNode] = useState<string | null>(null)
+  const [draggingNodes, setDraggingNodes] = useState<ReadonlySet<string>>(() => new Set())
+  /** Space held: drags pan, like the hand tool, until it's let go. */
+  const [spaceHeld, setSpaceHeld] = useState(false)
   const [tab, setTab] = useState<Tab>('builder')
   const [libraryOpen, setLibraryOpen] = useState(false)
-  const [appearanceButton, setAppearanceButton] = useState(readAppearanceButton)
   /** Schedules, webhooks, and chat only start the published Flow; their cards show what publishing assigns. */
   const [publishedAt, setPublishedAt] = useState<number | null>(null)
   const published = publishedAt !== null
@@ -646,16 +695,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     return { ...canvasAmbient, style, idle }
   }, [canvasAmbient])
   const [runPreview, setRunPreview] = useState(false)
-  const toggleAppearanceButton = () => {
-    const next = !appearanceButton
-    setAppearanceButton(next)
-    if (!next) setAppearanceFor(null)
-    try {
-      localStorage.setItem(APPEARANCE_BUTTON_KEY, next ? 'on' : 'off')
-    } catch {
-      // Storage can be unavailable (private mode); the choice still applies for this session.
-    }
-  }
   const [shaderPaused, setShaderPaused] = useState(readShaderPaused)
   const toggleShaderPaused = () => {
     const next = !shaderPaused
@@ -675,11 +714,20 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const liveEditRef = useRef<{ key: string; depth: number } | null>(null)
   const [selection, setSelection] = useState<Selection>(null)
   const [connection, setConnection] = useState<Connection | null>(null)
+  const [pendingInsert, setPendingInsert] = useState<PendingInsert | null>(null)
+  const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
+  /** A press on a line that becomes a drag of its nearer end once the pointer moves. */
+  const edgePressRef = useRef<{ pointerId: number; edgeId: string; startX: number; startY: number } | null>(null)
+  /** A node just inserted from a dropped line; once measured it shifts so its port meets the line. */
+  const alignRef = useRef<{ port: PortRef; at: Point } | null>(null)
   const [tool, setTool] = useState<CanvasTool>('select')
   /** A tool press on the surface; the item is placed on release. */
   const placeRef = useRef<{ pointerId: number } | null>(null)
   const sectionDrawRef = useRef<{ pointerId: number; start: Point } | null>(null)
   const [sectionDraft, setSectionDraft] = useState<Rect | null>(null)
+  /** A selection box drag from empty canvas; Shift adds to what was already selected. */
+  const marqueeRef = useRef<{ pointerId: number; startX: number; startY: number; start: Point; base: Selection } | null>(null)
+  const [marquee, setMarquee] = useState<Rect | null>(null)
   const [renamingSection, setRenamingSection] = useState<string | null>(null)
   const [textDraft, setTextDraft] = useState<Point | null>(null)
   const [editingText, setEditingText] = useState<string | null>(null)
@@ -700,7 +748,10 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     id: string
     startX: number
     startY: number
-    origin: Point
+    /** Where each moving node started; more than one when a picked group is dragged. */
+    origins: Readonly<Record<string, Point>>
+    /** A press on a node in a group that doesn't move narrows the selection to that node. */
+    narrow: boolean
     snapshot: CanvasDoc
     moved: boolean
   } | null>(null)
@@ -850,40 +901,40 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     setSelection({ kind: 'node', id })
   }
 
-  const deleteNode = useCallback(
-    (id: string) => {
-      if (!doc.nodes.some((node) => node.id === id)) return
+  /** Removes nodes with the lines into and out of them, plus any other lines named. */
+  const deleteObjects = useCallback(
+    (nodeIds: readonly string[], edgeIds: readonly string[] = []) => {
+      const gone = new Set(nodeIds.filter((id) => doc.nodes.some((node) => node.id === id)))
+      const cut = new Set(edgeIds)
+      if (gone.size === 0 && !doc.edges.some((edge) => cut.has(edge.id))) return
       const positions = { ...doc.positions }
-      delete positions[id]
+      for (const id of gone) delete positions[id]
       commit({
         ...doc,
-        nodes: doc.nodes.filter((node) => node.id !== id),
+        nodes: doc.nodes.filter((node) => !gone.has(node.id)),
         positions,
-        edges: doc.edges.filter((edge) => edge.from !== id && edge.to !== id),
+        edges: doc.edges.filter((edge) => !cut.has(edge.id) && !gone.has(edge.from) && !gone.has(edge.to)),
         comments: doc.comments.map((comment) =>
-          comment.nodeId === id ? placeComment(comment, commentPoint(comment, doc.positions), undefined, doc.positions) : comment,
+          comment.nodeId && gone.has(comment.nodeId)
+            ? placeComment(comment, commentPoint(comment, doc.positions), undefined, doc.positions)
+            : comment,
         ),
       })
       setSelection(null)
     },
     [commit, doc],
   )
+  const deleteNode = useCallback((id: string) => deleteObjects([id]), [deleteObjects])
 
   const deleteSelection = useCallback(() => {
     if (!selection) return
-    if (selection.kind === 'node') {
-      deleteNode(selection.id)
+    if (selection.kind === 'node' || selection.kind === 'edge' || selection.kind === 'many') {
+      deleteObjects(selectedIds(selection, 'node'), selectedIds(selection, 'edge'))
       return
     }
-    if (selection.kind !== 'edge') {
-      commit(withoutItem(doc, selection.kind, selection.id))
-      setSelection(null)
-      return
-    }
-    if (!doc.edges.some((edge) => edge.id === selection.id)) return
-    commit({ ...doc, edges: doc.edges.filter((edge) => edge.id !== selection.id) })
+    commit(withoutItem(doc, selection.kind, selection.id))
     setSelection(null)
-  }, [commit, deleteNode, doc, selection])
+  }, [commit, deleteObjects, doc, selection])
 
   const duplicateNode = (id: string) => {
     const source = doc.nodes.find((node) => node.id === id)
@@ -1281,6 +1332,15 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         next[node.id] = { w: element.offsetWidth, h: element.offsetHeight, ports }
       }
       setLayouts(next)
+      const align = alignRef.current
+      const offset = align && next[align.port.nodeId]?.ports[layoutPortKey(align.port.side, align.port.portId)]
+      if (align && offset) {
+        alignRef.current = null
+        const id = align.port.nodeId
+        setDoc((current) =>
+          current.positions[id] ? { ...current, positions: { ...current.positions, [id]: { x: align.at.x - offset.x, y: align.at.y - offset.y } } } : current,
+        )
+      }
       const root = rootRef.current
       if (!didInitialLayoutRef.current && root) {
         didInitialLayoutRef.current = true
@@ -1343,7 +1403,13 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       if ((event.target as HTMLElement | null)?.closest('input, textarea, [contenteditable="true"]')) return
       const mod = event.metaKey || event.ctrlKey
       const shortcut = shortcutTool(event)
-      if (mod && event.key.toLowerCase() === 'z') {
+      if (event.code === 'Space' && !mod) {
+        event.preventDefault()
+        setSpaceHeld(true)
+      } else if (mod && event.code === 'KeyA') {
+        event.preventDefault()
+        setSelection(pickedSelection(doc.nodes.map((node) => node.id), doc.edges.map((edge) => edge.id)))
+      } else if (mod && event.key.toLowerCase() === 'z') {
         event.preventDefault()
         if (event.shiftKey) redo()
         else undo()
@@ -1380,22 +1446,46 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [configuringId, deleteSelection, fitToView, redo, tool, undo, zoomFromCenter])
+  }, [configuringId, deleteSelection, doc.edges, doc.nodes, fitToView, redo, tool, undo, zoomFromCenter])
+
+  useEffect(() => {
+    const release = (event: Event) => {
+      if (event instanceof KeyboardEvent && event.code !== 'Space') return
+      setSpaceHeld(false)
+    }
+    window.addEventListener('keyup', release)
+    window.addEventListener('blur', release)
+    return () => {
+      window.removeEventListener('keyup', release)
+      window.removeEventListener('blur', release)
+    }
+  }, [])
 
   const onSurfacePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 && event.button !== 1) return
     stopAnimation()
-    setSelection(null)
+    const pans = event.button === 1 || tool === 'hand' || spaceHeld
+    if (!pans && !event.shiftKey) setSelection(null)
     setCommentDraft(null)
     event.currentTarget.setPointerCapture(event.pointerId)
-    if (event.button === 0 && tool === 'section') {
+    if (!pans && tool === 'section') {
       const start = toWorld(event.clientX, event.clientY)
       sectionDrawRef.current = { pointerId: event.pointerId, start }
       setSectionDraft({ ...start, w: 0, h: 0 })
       return
     }
-    if (event.button === 0 && tool !== 'select') {
+    if (!pans && tool !== 'select') {
       placeRef.current = { pointerId: event.pointerId }
+      return
+    }
+    if (!pans && event.pointerType !== 'touch') {
+      marqueeRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        start: toWorld(event.clientX, event.clientY),
+        base: event.shiftKey ? selection : null,
+      }
       return
     }
     panRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, view: viewRef.current }
@@ -1436,6 +1526,14 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       setSectionDraft(rectFromPoints(draw.start, toWorld(event.clientX, event.clientY)))
       return
     }
+    const box = marqueeRef.current
+    if (box?.pointerId === event.pointerId) {
+      if (!marquee && Math.hypot(event.clientX - box.startX, event.clientY - box.startY) < 3) return
+      const rect = rectFromPoints(box.start, toWorld(event.clientX, event.clientY))
+      setMarquee(rect)
+      setSelection(boxSelection(rect, box.base))
+      return
+    }
     const pan = panRef.current
     if (!pan || pan.pointerId !== event.pointerId) return
     setView({
@@ -1451,19 +1549,40 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     setPanning(false)
   }
 
+  const endMarquee = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (marqueeRef.current?.pointerId !== event.pointerId) return
+    marqueeRef.current = null
+    setMarquee(null)
+  }
+
   const onSurfacePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (sectionDrawRef.current?.pointerId === event.pointerId) finishSection(event)
     else if (placeRef.current?.pointerId === event.pointerId) {
       placeRef.current = null
       placeItem(toWorld(event.clientX, event.clientY))
-    } else endPan(event)
+    } else if (marqueeRef.current?.pointerId === event.pointerId) endMarquee(event)
+    else endPan(event)
   }
 
   const onSurfacePointerCancel = (event: ReactPointerEvent<HTMLDivElement>) => {
     sectionDrawRef.current = null
     placeRef.current = null
     setSectionDraft(null)
+    endMarquee(event)
     endPan(event)
+  }
+
+  /** The nodes and lines wholly inside a selection box, added to `base`. */
+  const boxSelection = (rect: Rect, base: Selection): Selection => {
+    const nodes = doc.nodes
+      .filter((node) => {
+        const position = doc.positions[node.id]
+        return position ? rectContains(rect, { ...position, ...(layouts[node.id] ?? DEFAULT_NODE_SIZE) }) : false
+      })
+      .map((node) => node.id)
+    const lines = edges.filter((edge) => curveInsideRect(edge.a, edge.c1, edge.c2, edge.b, rect)).map((edge) => edge.id)
+    const union = (picked: readonly string[], hits: readonly string[]) => [...new Set([...picked, ...hits])]
+    return pickedSelection(union(selectedIds(base, 'node'), nodes), union(selectedIds(base, 'edge'), lines))
   }
 
   /** Drops a sticky note, text, or comment where the placement tool was clicked. */
@@ -1729,10 +1848,22 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     // Placement tools work over nodes too, so let the press reach the surface.
     if (event.button !== 0 || tool !== 'select') return
     event.stopPropagation()
-    setSelection({ kind: 'node', id })
     const target = event.target as Element
-    if (appearanceNode && !target.closest('[data-appearance-toggle]')) setAppearanceFor(id)
-    if (target.closest('button, input, textarea, select, a, [data-node-interactive], [data-native-scroll]')) return
+    const control = target.closest('button, input, textarea, select, a, [data-node-interactive], [data-native-scroll]')
+    const picked = selectedIds(selection, 'node')
+    let moving = [id]
+    let narrow = false
+    if (event.shiftKey && !control) {
+      const nodes = toggled(picked, id)
+      setSelection(pickedSelection(nodes, selectedIds(selection, 'edge')))
+      if (!nodes.includes(id)) return
+      moving = [...nodes]
+    } else if (selection?.kind === 'many' && picked.includes(id) && !control) {
+      moving = [...picked]
+      narrow = true
+    } else setSelection({ kind: 'node', id })
+    if (appearanceNode) setAppearanceFor(id)
+    if (control) return
     stopArrange()
     event.currentTarget.setPointerCapture(event.pointerId)
     dragRef.current = {
@@ -1740,11 +1871,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       id,
       startX: event.clientX,
       startY: event.clientY,
-      origin: doc.positions[id],
+      origins: Object.fromEntries(moving.flatMap((nodeId) => (doc.positions[nodeId] ? [[nodeId, doc.positions[nodeId]]] : []))),
+      narrow,
       snapshot: doc,
       moved: false,
     }
-    setDraggingNode(id)
+    setDraggingNodes(new Set(moving))
   }
 
   const onNodePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1754,10 +1886,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const dy = (event.clientY - drag.startY) / view.zoom
     if (!drag.moved && Math.hypot(dx, dy) < 2) return
     drag.moved = true
-    setDoc((current) => ({
-      ...current,
-      positions: { ...current.positions, [drag.id]: { x: drag.origin.x + dx, y: drag.origin.y + dy } },
-    }))
+    const moved = Object.fromEntries(Object.entries(drag.origins).map(([id, origin]) => [id, { x: origin.x + dx, y: origin.y + dy }]))
+    setDoc((current) => ({ ...current, positions: { ...current.positions, ...moved } }))
   }
 
   const endNodeDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1766,9 +1896,9 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     if (drag.moved) {
       setPast((stack) => [...stack, drag.snapshot])
       setFuture([])
-    }
+    } else if (drag.narrow) setSelection({ kind: 'node', id: drag.id })
     dragRef.current = null
-    setDraggingNode(null)
+    setDraggingNodes(new Set())
   }
 
   const onResizePointerDown = (event: ReactPointerEvent<HTMLSpanElement>, id: string, edge: ResizeEdge) => {
@@ -1840,69 +1970,166 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const nodeType = (node: CanvasNode): NodeType => NODE_TYPES_BY_ID[node.type]
   const nodesById = Object.fromEntries(doc.nodes.map((node) => [node.id, node]))
 
-  /** The opposite-side port under the pointer, or the first matching port of the node under it. */
-  const connectionTarget = (clientX: number, clientY: number, from: PortRef): PortRef | null => {
+  const portsOn = (node: CanvasNode, side: PortSide) => (side === 'in' ? nodeType(node).inputs : nodeOutputs(node, nodeType(node)))
+
+  /** The closest `side` port to a world point within snapping distance, on any node but `skip`. */
+  const nearestPort = (point: Point, side: PortSide, skip: string): PortRef | null => {
+    let best: PortRef | null = null
+    let reach = PORT_SNAP / viewRef.current.zoom
+    for (const node of doc.nodes) {
+      if (node.id === skip) continue
+      for (const port of portsOn(node, side)) {
+        const ref: PortRef = { nodeId: node.id, portId: port.id, side }
+        const at = portWorldPoint(ref)
+        const distance = at ? Math.hypot(at.x - point.x, at.y - point.y) : Infinity
+        if (distance < reach) {
+          best = ref
+          reach = distance
+        }
+      }
+    }
+    return best
+  }
+
+  /** Where a dragged line would land: a port under or near the pointer, else the first one of the node under it. */
+  const connectionAim = (clientX: number, clientY: number, from: PortRef): { target: PortRef | null; free: boolean } => {
+    const side: PortSide = from.side === 'out' ? 'in' : 'out'
     const hit = document.elementFromPoint(clientX, clientY)
     const portElement = hit?.closest<HTMLElement>('[data-port-side]')
+    const nodeId = hit?.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId
     let target: PortRef | null = null
     if (portElement) {
       const { portNode, portId, portSide } = portElement.dataset
-      if (portNode && portId && (portSide === 'in' || portSide === 'out')) target = { nodeId: portNode, portId, side: portSide }
-    } else {
-      const nodeId = hit?.closest<HTMLElement>('[data-node-id]')?.dataset.nodeId
-      const node = nodeId ? nodesById[nodeId] : undefined
-      if (node) {
-        const side: PortSide = from.side === 'out' ? 'in' : 'out'
-        const port = (side === 'in' ? nodeType(node).inputs : nodeOutputs(node, nodeType(node)))[0]
-        if (port) target = { nodeId: node.id, portId: port.id, side }
-      }
+      if (portNode && portId && portSide === side) target = { nodeId: portNode, portId, side }
     }
-    if (!target || target.side === from.side || target.nodeId === from.nodeId) return null
-    return target
+    target ??= nearestPort(toWorld(clientX, clientY), side, from.nodeId)
+    const node = nodeId ? nodesById[nodeId] : undefined
+    if (!target && node) {
+      const port = portsOn(node, side)[0]
+      if (port) target = { nodeId: node.id, portId: port.id, side }
+    }
+    if (target?.nodeId === from.nodeId) target = null
+    return { target, free: !target && !node && Boolean(hit?.closest('[data-canvas-surface]')) }
   }
 
+  /** Wires `fixed` to `target`, moving `edgeId` there when a line was picked up; a line that's already there is left alone. */
+  const connectPorts = (fixed: PortRef, target: PortRef, edgeId?: string) => {
+    const [out, input] = fixed.side === 'out' ? [fixed, target] : [target, fixed]
+    const wired = { from: out.nodeId, fromPort: out.portId, to: input.nodeId, toPort: input.portId }
+    const exists = doc.edges.some(
+      (edge) => edge.from === wired.from && edge.fromPort === wired.fromPort && edge.to === wired.to && edge.toPort === wired.toPort,
+    )
+    if (exists) return
+    const next = edgeId ? doc.edges.map((edge) => (edge.id === edgeId ? { ...edge, ...wired } : edge)) : [...doc.edges, { id: createId('edge'), ...wired }]
+    commit({ ...doc, edges: next })
+  }
+
+  const beginConnection = (from: PortRef, clientX: number, clientY: number, edgeId?: string) => {
+    stopAnimation()
+    setPendingInsert(null)
+    setConnection({ from, pointer: toWorld(clientX, clientY), target: null, free: false, edgeId })
+  }
+
+  const moveConnection = (event: ReactPointerEvent<Element>) => {
+    if (!connection) return
+    setConnection({ ...connection, pointer: toWorld(event.clientX, event.clientY), ...connectionAim(event.clientX, event.clientY, connection.from) })
+  }
+
+  const endConnection = (event: ReactPointerEvent<Element>) => {
+    if (!connection) return
+    const { target, free } = connectionAim(event.clientX, event.clientY, connection.from)
+    setConnection(null)
+    if (target) connectPorts(connection.from, target, connection.edgeId)
+    else if (free) setPendingInsert({ from: connection.from, point: toWorld(event.clientX, event.clientY), edgeId: connection.edgeId })
+  }
+
+  const cancelConnection = () => {
+    edgePressRef.current = null
+    setConnection(null)
+  }
+
+  /** An input already wired picks up its line; anything else starts a new one. */
   const onPortPointerDown = (event: ReactPointerEvent<HTMLSpanElement>, port: PortRef) => {
     if (event.button !== 0) return
     event.stopPropagation()
-    stopAnimation()
     event.currentTarget.setPointerCapture(event.pointerId)
-    setConnection({ from: port, pointer: toWorld(event.clientX, event.clientY), target: null })
-  }
-
-  const onPortPointerMove = (event: ReactPointerEvent<HTMLSpanElement>) => {
-    if (!connection) return
-    setConnection({
-      ...connection,
-      pointer: toWorld(event.clientX, event.clientY),
-      target: connectionTarget(event.clientX, event.clientY, connection.from),
-    })
-  }
-
-  const onPortPointerUp = (event: ReactPointerEvent<HTMLSpanElement>) => {
-    if (!connection) return
-    const target = connectionTarget(event.clientX, event.clientY, connection.from)
-    setConnection(null)
-    if (!target) return
-    const [out, input] = connection.from.side === 'out' ? [connection.from, target] : [target, connection.from]
-    const exists = doc.edges.some(
-      (edge) => edge.from === out.nodeId && edge.fromPort === out.portId && edge.to === input.nodeId && edge.toPort === input.portId,
-    )
-    if (exists) return
-    const id = createId('edge')
-    commit({ ...doc, edges: [...doc.edges, { id, from: out.nodeId, fromPort: out.portId, to: input.nodeId, toPort: input.portId }] })
+    const wired = port.side === 'in' ? doc.edges.findLast((edge) => edge.to === port.nodeId && edge.toPort === port.portId) : undefined
+    if (wired) beginConnection({ nodeId: wired.from, portId: wired.fromPort, side: 'out' }, event.clientX, event.clientY, wired.id)
+    else beginConnection(port, event.clientX, event.clientY)
   }
 
   const portHandlers: PortHandlers = {
     onPointerDown: onPortPointerDown,
-    onPointerMove: onPortPointerMove,
-    onPointerUp: onPortPointerUp,
-    onPointerCancel: () => setConnection(null),
+    onPointerMove: moveConnection,
+    onPointerUp: endConnection,
+    onPointerCancel: cancelConnection,
   }
 
   const onEdgePointerDown = (event: ReactPointerEvent<SVGPathElement>, id: string) => {
     if (event.button !== 0) return
     event.stopPropagation()
+    if (event.shiftKey) {
+      setSelection(pickedSelection(selectedIds(selection, 'node'), toggled(selectedIds(selection, 'edge'), id)))
+      return
+    }
     setSelection({ kind: 'edge', id })
+    event.currentTarget.setPointerCapture(event.pointerId)
+    edgePressRef.current = { pointerId: event.pointerId, edgeId: id, startX: event.clientX, startY: event.clientY }
+  }
+
+  /** Past the threshold, the end nearer the press comes loose and follows the pointer. */
+  const onEdgePointerMove = (event: ReactPointerEvent<SVGPathElement>) => {
+    const press = edgePressRef.current
+    if (press?.pointerId !== event.pointerId) {
+      moveConnection(event)
+      return
+    }
+    if (Math.hypot(event.clientX - press.startX, event.clientY - press.startY) < EDGE_DRAG_THRESHOLD) return
+    edgePressRef.current = null
+    const edge = edges.find((item) => item.id === press.edgeId)
+    if (!edge) return
+    const start = toWorld(press.startX, press.startY)
+    const nearInput = Math.hypot(start.x - edge.b.x, start.y - edge.b.y) <= Math.hypot(start.x - edge.a.x, start.y - edge.a.y)
+    const fixed: PortRef = nearInput ? { nodeId: edge.from, portId: edge.fromPort, side: 'out' } : { nodeId: edge.to, portId: edge.toPort, side: 'in' }
+    beginConnection(fixed, event.clientX, event.clientY, edge.id)
+  }
+
+  const onEdgePointerUp = (event: ReactPointerEvent<SVGPathElement>) => {
+    edgePressRef.current = null
+    endConnection(event)
+  }
+
+  /** Where the node offered for a dropped line goes: just past the line's end, on the side it connects from. */
+  const insertBox = (from: PortRef, point: Point, width = DEFAULT_NODE_SIZE.w): Rect => ({
+    x: from.side === 'out' ? point.x + INSERT_GAP : point.x - INSERT_GAP - width,
+    y: point.y - DEFAULT_NODE_SIZE.h / 2,
+    w: width,
+    h: DEFAULT_NODE_SIZE.h,
+  })
+
+  /** Adds the node picked for a dropped line and wires it in one undo step. */
+  const insertConnected = (typeId: string) => {
+    const pending = pendingInsert
+    const type = NODE_TYPES_BY_ID[typeId]
+    setPendingInsert(null)
+    if (!pending || !type) return
+    const id = createId(typeId)
+    const node = createNode(type, id)
+    const port = pending.from.side === 'out' ? type.inputs[0] : nodeOutputs(node, type)[0]
+    if (!port) return
+    const box = insertBox(pending.from, pending.point, type.width ?? DEFAULT_NODE_SIZE.w)
+    const wired =
+      pending.from.side === 'out'
+        ? { from: pending.from.nodeId, fromPort: pending.from.portId, to: id, toPort: port.id }
+        : { from: id, fromPort: port.id, to: pending.from.nodeId, toPort: pending.from.portId }
+    const next = pending.edgeId
+      ? doc.edges.map((edge) => (edge.id === pending.edgeId ? { ...edge, ...wired } : edge))
+      : [...doc.edges, { id: createId('edge'), ...wired }]
+    commit({ ...doc, nodes: [...doc.nodes, node], positions: { ...doc.positions, [id]: { x: box.x, y: box.y } }, edges: next })
+    const side: PortSide = pending.from.side === 'out' ? 'in' : 'out'
+    const clearance = side === 'in' ? portClearance : -portClearance
+    alignRef.current = { port: { nodeId: id, portId: port.id, side }, at: { x: pending.point.x + clearance, y: pending.point.y } }
+    setSelection({ kind: 'node', id })
   }
 
   const onLibraryDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
@@ -1935,23 +2162,35 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const a = outEnd(from)
     const b = inEnd(to)
     const [c1, c2] = edgeControls(a, b)
-    return [{ ...edge, a, b, d: `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`, mid: bezierMidpoint(a, c1, c2, b) }]
+    return [{ ...edge, a, b, c1, c2, d: `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`, mid: bezierPoint(a, c1, c2, b, 0.5) }]
   })
+  /** The line being drawn, or the one waiting on the insert panel. */
+  const drawing = connection ?? (pendingInsert && { from: pendingInsert.from, pointer: pendingInsert.point, target: null, free: false, edgeId: pendingInsert.edgeId })
   const draftEdge = (() => {
-    if (!connection) return null
-    const start = portWorldPoint(connection.from)
-    const target = connection.target && portWorldPoint(connection.target)
+    if (!drawing) return null
+    const start = portWorldPoint(drawing.from)
+    const target = drawing.target && portWorldPoint(drawing.target)
     if (!start) return null
     const [a, b] =
-      connection.from.side === 'out'
-        ? [outEnd(start), target ? inEnd(target) : connection.pointer]
-        : [target ? outEnd(target) : connection.pointer, inEnd(start)]
+      drawing.from.side === 'out'
+        ? [outEnd(start), target ? inEnd(target) : drawing.pointer]
+        : [target ? outEnd(target) : drawing.pointer, inEnd(start)]
     const [c1, c2] = edgeControls(a, b)
     return `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`
   })()
-  const activePorts = new Set(
-    connection ? [portKey(connection.from), ...(connection.target ? [portKey(connection.target)] : [])] : [],
-  )
+  const insertGhost = connection?.free ? insertBox(connection.from, connection.pointer) : null
+  /** Lit: the hovered or selected lines' ends, and the end a drawn line leaves from. */
+  const litEdges = new Set([...(hoveredEdge ? [hoveredEdge] : []), ...selectedIds(selection, 'edge')])
+  const activePorts = new Set([
+    ...(drawing ? [portKey(drawing.from)] : []),
+    ...doc.edges
+      .filter((edge) => litEdges.has(edge.id) && edge.id !== drawing?.edgeId)
+      .flatMap((edge) => [
+        portKey({ nodeId: edge.from, portId: edge.fromPort, side: 'out' }),
+        portKey({ nodeId: edge.to, portId: edge.toPort, side: 'in' }),
+      ]),
+  ])
+  const targetPort = connection?.target ? portKey(connection.target) : null
   const connectedPorts = new Set(
     doc.edges.flatMap((edge) => [
       portKey({ nodeId: edge.from, portId: edge.fromPort, side: 'out' }),
@@ -2109,14 +2348,22 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     styles.root,
     panning ? styles.panning : null,
     connection ? styles.connecting : null,
-    tool !== 'select' ? styles.placing : null,
+    tool === 'hand' || spaceHeld ? styles.handTool : tool !== 'select' ? styles.placing : null,
     tool === 'comment' ? styles.commenting : null,
     runLook ? styles.runLook : null,
   ]
     .filter(Boolean)
     .join(' ')
+  const selectedNodes = new Set(selectedIds(selection, 'node'))
+  const selectedEdges = new Set(selectedIds(selection, 'edge'))
 
   const toScreen = (point: Point) => ({ left: view.x + point.x * view.zoom, top: view.y + point.y * view.zoom })
+  /** Just past the dropped line's end, with the header level with it. */
+  const insertPanelAnchor = ({ from, point }: PendingInsert) => {
+    const screen = toScreen(point)
+    const gap = INSERT_GAP * view.zoom
+    return { x: from.side === 'out' ? screen.left + gap : screen.left - gap, top: screen.top - INSERT_PANEL_LIFT }
+  }
   /** Bigger sections first, so a section drawn inside another sits on top of it. */
   const sectionsByArea = [...doc.sections].sort((a, b) => b.w * b.h - a.w * a.h)
   const selectedSection = selection?.kind === 'section' ? doc.sections.find((item) => item.id === selection.id) : undefined
@@ -2138,7 +2385,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   }
   /** Hidden mid-drag, like FigJam, so it doesn't trail the node around. */
   const selectedNode =
-    selection?.kind === 'node' && draggingNode !== selection.id && !connection ? nodesById[selection.id] : undefined
+    selection?.kind === 'node' && !draggingNodes.has(selection.id) && !connection ? nodesById[selection.id] : undefined
   const nodeFrame = (node: CanvasNode | undefined) => {
     const position = node && doc.positions[node.id]
     const size = node && layouts[node.id]
@@ -2180,13 +2427,13 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     top: Math.max(CHROME_TOP + NODE_TOOLBAR_HEIGHT, selectedFrame.top - NODE_TOOLBAR_GAP),
   }
   /** Sticky notes keep their toolbar on selection; every other node shows its actions on hover. */
-  const hoverTarget = hoveredNodeId && draggingNode !== hoveredNodeId && !connection ? nodesById[hoveredNodeId] : undefined
+  const hoverTarget = hoveredNodeId && !draggingNodes.has(hoveredNodeId) && !connection ? nodesById[hoveredNodeId] : undefined
   const hoveredNode = hoverTarget && !isAnnotation(nodeType(hoverTarget)) ? hoverTarget : undefined
   const hoveredFrame = nodeFrame(hoveredNode)
   /** Above the node, or below it when the header leaves no room; never over the card. */
   const hoveredNodeBar =
     hoveredFrame &&
-    (hoveredFrame.top - NODE_TOOLBAR_GAP - NODE_TOOLBAR_HEIGHT >= CHROME_TOP
+    (hoveredFrame.top - NODE_TOOLBAR_GAP - NODE_ACTIONS_HEIGHT >= CHROME_TOP
       ? { left: hoveredFrame.left, top: hoveredFrame.top - NODE_TOOLBAR_GAP, below: false }
       : { left: hoveredFrame.left, top: hoveredFrame.bottom + NODE_TOOLBAR_GAP, below: true })
   return (
@@ -2230,6 +2477,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 
       <div
         className={styles.surface}
+        data-canvas-surface
         style={gridStyle(view, canvasLook.dots)}
         onPointerDown={onSurfacePointerDown}
         onPointerMove={onSurfacePointerMove}
@@ -2286,14 +2534,33 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
             {edges.map((edge) => (
               <g
                 key={edge.id}
-                className={selection?.kind === 'edge' && selection.id === edge.id ? `${styles.edge} ${styles.edgeSelected}` : styles.edge}
+                className={selectedEdges.has(edge.id) ? `${styles.edge} ${styles.edgeSelected}` : styles.edge}
+                data-moving={edge.id === drawing?.edgeId || undefined}
               >
                 <path className={styles.edgeLine} d={edge.d} stroke={`url(#edge-${edge.id})`} />
-                <path className={styles.edgeHit} d={edge.d} onPointerDown={(event) => onEdgePointerDown(event, edge.id)} />
+                <path
+                  className={styles.edgeHit}
+                  d={edge.d}
+                  onPointerDown={(event) => onEdgePointerDown(event, edge.id)}
+                  onPointerMove={onEdgePointerMove}
+                  onPointerUp={onEdgePointerUp}
+                  onPointerCancel={cancelConnection}
+                  onPointerEnter={() => setHoveredEdge(edge.id)}
+                  onPointerLeave={() => setHoveredEdge((current) => (current === edge.id ? null : current))}
+                />
               </g>
             ))}
             {draftEdge ? <path className={styles.edgeDraft} d={draftEdge} /> : null}
           </svg>
+          {insertGhost ? (
+            <svg
+              className={styles.insertGhost}
+              style={{ left: insertGhost.x, top: insertGhost.y, width: insertGhost.w, height: insertGhost.h }}
+              aria-hidden
+            >
+              <rect />
+            </svg>
+          ) : null}
 
           {edges.map((edge) =>
             edge.label ? (
@@ -2317,8 +2584,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                   key={node.id}
                   node={node}
                   position={doc.positions[node.id]}
-                  selected={selection?.kind === 'node' && selection.id === node.id}
-                  dragging={draggingNode === node.id}
+                  selected={selectedNodes.has(node.id)}
+                  dragging={draggingNodes.has(node.id)}
                   resize={{
                     onPointerDown: (event, edge) => onResizePointerDown(event, node.id, edge),
                     onPointerMove: onResizePointerMove,
@@ -2346,14 +2613,15 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                 node={node}
                 type={type}
                 position={doc.positions[node.id]}
-                selected={selection?.kind === 'node' && selection.id === node.id}
-                dragging={draggingNode === node.id}
+                selected={selectedNodes.has(node.id)}
+                dragging={draggingNodes.has(node.id)}
                 run={nodeRun}
                 input={nodeInput}
                 inputSources={inputSources(node.id, type)}
                 wiringIssue={wiringIssue(node)}
                 output={nodeOutput}
                 activePorts={activePorts}
+                targetPort={targetPort}
                 connectedPorts={connectedPorts}
                 ports={portHandlers}
                 resize={{
@@ -2421,6 +2689,9 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
               onEdit={() => {}}
               onCommit={commitTextDraft}
             />
+          ) : null}
+          {marquee ? (
+            <div className={styles.marquee} style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} aria-hidden />
           ) : null}
         </div>
       </div>
@@ -2502,12 +2773,19 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           annotation={false}
           canDuplicate={!nodeType(hoveredNode).singleton}
           running={runs[hoveredNode.id]?.status === 'running'}
-          appearanceOpen={appearanceNode?.id === hoveredNode.id}
           onRun={(scope) => runNodes(hoveredNode.id, scope)}
           onConfigure={() => openConfig(hoveredNode.id)}
-          onAppearance={appearanceButton ? () => toggleAppearance(hoveredNode.id) : undefined}
           onDuplicate={() => duplicateNode(hoveredNode.id)}
           onDelete={() => deleteNode(hoveredNode.id)}
+        />
+      ) : null}
+      {pendingInsert ? (
+        <InsertNodePanel
+          {...insertPanelAnchor(pendingInsert)}
+          connectsOn={pendingInsert.from.side === 'out' ? 'in' : 'out'}
+          usedTypes={usedTypes}
+          onPick={insertConnected}
+          onClose={() => setPendingInsert(null)}
         />
       ) : null}
       {selectedText ? (
@@ -2589,8 +2867,9 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
             setCardStyleOpen(false)
             setAppearanceFor(null)
           }}
-          appearanceButton={appearanceButton}
-          onAppearanceButton={toggleAppearanceButton}
+          canStyleNode={selection?.kind === 'node'}
+          nodeStyleOpen={Boolean(appearanceNode)}
+          onNodeStyle={() => selection?.kind === 'node' && toggleAppearance(selection.id)}
           shaderPaused={shaderPaused}
           onShaderPaused={toggleShaderPaused}
         />
@@ -2689,6 +2968,24 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </div>
 
         <div className={`${controls.bar} ${styles.footerBar} ${styles.controlsBar}`} role="toolbar" aria-label="Canvas controls">
+          {POINTER_TOOLS.map((option) => {
+            const ToolIcon = option.icon
+            const active = tool === option.id
+            return (
+              <button
+                key={option.id}
+                type="button"
+                className={`${controls.barButton}${active ? ` ${controls.barButtonActive}` : ''}`}
+                aria-label={option.label}
+                data-shortcut={option.shortcut}
+                aria-pressed={active}
+                onClick={() => setTool(option.id)}
+              >
+                <ToolIcon size={20} weight={active ? 'fill' : 'regular'} aria-hidden />
+              </button>
+            )
+          })}
+          <span className={controls.barDivider} aria-hidden />
           <button type="button" className={controls.barButton} aria-label="Undo" data-shortcut={SHORTCUTS.undo} disabled={past.length === 0} onClick={undo}>
             <ArrowUUpLeft size={20} weight="regular" aria-hidden />
           </button>
@@ -2802,8 +3099,10 @@ type DevMenuProps = {
   onCardStyle: () => void
   canvasLookOpen: boolean
   onCanvasLook: () => void
-  appearanceButton: boolean
-  onAppearanceButton: () => void
+  /** The appearance panel styles the selected node, so it needs one. */
+  canStyleNode: boolean
+  nodeStyleOpen: boolean
+  onNodeStyle: () => void
   shaderPaused: boolean
   onShaderPaused: () => void
 }
@@ -2868,7 +3167,14 @@ function DevMenu(props: DevMenuProps) {
           <div className={styles.menuLabel}>Look</div>
           <DevItem icon={SlidersHorizontal} label="Card style" hint="Card background, layout and category colours" checked={props.cardStyleOpen} onSelect={props.onCardStyle} />
           <DevItem icon={Palette} label="Canvas background" hint="Background colours and dots" checked={props.canvasLookOpen} onSelect={props.onCanvasLook} />
-          <DevItem icon={PaintBrush} label="Node appearance" hint="An appearance button on each node's toolbar" checked={props.appearanceButton} onSelect={props.onAppearanceButton} />
+          <DevItem
+            icon={PaintBrush}
+            label="Node appearance"
+            hint={props.canStyleNode ? 'Style the selected node' : 'Select a node first'}
+            checked={props.nodeStyleOpen}
+            disabled={!props.canStyleNode}
+            onSelect={props.onNodeStyle}
+          />
           <DevItem
             icon={props.shaderPaused ? Play : Pause}
             label={props.shaderPaused ? 'Resume background animation' : 'Pause background animation'}

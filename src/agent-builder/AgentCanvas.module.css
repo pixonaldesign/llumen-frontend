@@ -108,6 +108,11 @@
   stroke-width: 2.5;
 }
 
+/* A line picked up to move: its new place is drawn as the draft, so the old one steps back. */
+.edge[data-moving] {
+  opacity: 0.25;
+}
+
 /* Wide invisible stroke so thin edges are easy to click. */
 .edges .edgeHit {
   stroke: transparent;
@@ -542,6 +547,57 @@
 .placing .surface,
 .placing .surface * {
   cursor: crosshair;
+}
+
+/* The hand only pans: everything on the canvas lets the pointer through to the surface. */
+.handTool .surface * {
+  pointer-events: none;
+}
+
+.handTool:not(.panning) .surface {
+  cursor: grab;
+}
+
+.marquee {
+  position: absolute;
+  z-index: 10;
+  box-sizing: border-box;
+  border: calc(1px / var(--zoom, 1)) solid var(--canvas-accent);
+  background: color-mix(in srgb, var(--canvas-accent) 10%, transparent);
+  pointer-events: none;
+}
+
+/* Where a line let go on open canvas would offer a new node: the marquee, but dashed and marching. */
+.insertGhost {
+  --line: calc(1.5px / var(--zoom, 1));
+  --dash: calc(6px / var(--zoom, 1));
+  position: absolute;
+  z-index: 10;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.insertGhost rect {
+  width: 100%;
+  height: 100%;
+  rx: var(--radius-lg);
+  fill: color-mix(in srgb, var(--canvas-accent) 10%, transparent);
+  stroke: var(--canvas-accent);
+  stroke-width: var(--line);
+  stroke-dasharray: var(--dash) var(--dash);
+  animation: insertGhostMarch 0.6s linear infinite;
+}
+
+@keyframes insertGhostMarch {
+  to {
+    stroke-dashoffset: calc(-2 * var(--dash));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .insertGhost rect {
+    animation: none;
+  }
 }
 
 /* The comment pin's shape; its tail tip is the hotspot, where the pin will land. */
