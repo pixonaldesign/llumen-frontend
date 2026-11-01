@@ -134,11 +134,11 @@
   bottom: 0;
   left: 0;
   z-index: 2;
-  height: 72%;
+  height: 56%;
   backdrop-filter: blur(34px) saturate(1.14);
   -webkit-backdrop-filter: blur(34px) saturate(1.14);
-  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 48%, rgba(0, 0, 0, 0.72) 68%, transparent 100%);
-  mask-image: linear-gradient(to top, #000 0%, #000 48%, rgba(0, 0, 0, 0.72) 68%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 54%, rgba(0, 0, 0, 0.72) 72%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 54%, rgba(0, 0, 0, 0.72) 72%, transparent 100%);
   pointer-events: none;
 }
 
@@ -1054,8 +1054,16 @@
  * 64px gap and a two-column grid (2 x 260 + 12) in its 4px / 28px paddings, past the modal's own 28px
  * start padding, plus the 24px it once stood off the edge.
  */
+.root[data-findings-style='8'] {
+  /*
+   * The modal's bottom edge, where the edge peek is cut too. The composer sits 48px up and is 62px tall
+   * (compact-assistant.module.css); the modal clears it by the 24px it keeps under the bar. Plain px: JS reads it.
+   */
+  --side-modal-under: 134px;
+}
+
 .root[data-findings-style='8'] .sideView {
-  inset: calc(var(--briefing-bar-h, 64px) + 24px) 0 calc(var(--side-composer) + 28px) auto;
+  inset: calc(var(--briefing-bar-h, 64px) + 24px) 0 var(--side-modal-under) auto;
   z-index: 6;
   width: min(calc(28px + 480px + 64px + 4px + 532px + 28px + 24px), calc(100% - 64px));
   padding: 28px 0 0 28px;
@@ -1091,6 +1099,32 @@
 .root[data-findings-style='8'] .sideView[data-shown='true'] {
   opacity: 1;
   transform: none;
+}
+
+/* Closing, the copy fades first (220ms), then the sheet fades over the second half of --side-slide's 900ms. */
+.root[data-findings-style='8'] .sideView:not([data-shown='true']) {
+  transition:
+    transform var(--side-slide),
+    opacity 400ms ease 400ms,
+    --side-bg-top 600ms ease,
+    --side-bg-bottom 600ms ease,
+    --side-bg-accent 600ms ease;
+}
+
+.root[data-findings-style='8'] .sideView:not([data-shown='true']) :is(
+    .assetsIntroTitle,
+    .sideHead,
+    .sideTools,
+    .assetsFilters,
+    .sideGreeting,
+    .assetsSummary,
+    .assetsDetail,
+    .sideMoreTitle,
+    .sideInsights
+  ) {
+  transition:
+    opacity 220ms ease,
+    transform 0s linear 900ms;
 }
 
 /* The rim: a 1px ring open at the screen edge, masked out of a diagonal light, over the content. */

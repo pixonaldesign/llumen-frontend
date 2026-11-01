@@ -153,7 +153,7 @@ const PEEK_CARDS_MIN = 1
  */
 const FLOATING_PEEK_CARDS_MIN = 3
 const FLOATING_PEEK_PARTIAL = 96
-/** The edge peek's room ends this far above the composer, as the style 8 modal does. */
+/** The edge peek's room ends this far above the composer, unless the style 8 modal sets its edge (--side-modal-under). */
 const PEEK_COMPOSER_GAP = 28
 
 /** The Agents section is hidden for now; Apps follows Assets directly. */
@@ -645,9 +645,13 @@ export function BriefingLanding({
       const top = slot.top - box.top + view.offsetTop + grid.scrollTop
       peek.style.setProperty('--peek-top', `${top}px`)
       peek.style.setProperty('--peek-w', `${slot.width}px`)
-      const composer = parseFloat(getComputedStyle(peek).getPropertyValue('--side-composer')) || 0
+      const vars = getComputedStyle(peek)
+      const modalUnder = parseFloat(vars.getPropertyValue('--side-modal-under'))
+      const under = Number.isNaN(modalUnder)
+        ? (parseFloat(vars.getPropertyValue('--side-composer')) || 0) + PEEK_COMPOSER_GAP
+        : modalUnder
       const height = peek.offsetParent?.clientHeight ?? window.innerHeight
-      const room = Math.max(0, height - top - composer - PEEK_COMPOSER_GAP)
+      const room = Math.max(0, height - top - under)
       setPeekRoom(room)
       peek.style.setProperty('--peek-room', `${room}px`)
       const shift = floating ? 0 : Math.max(0, (room - stack.offsetHeight) / 2)
