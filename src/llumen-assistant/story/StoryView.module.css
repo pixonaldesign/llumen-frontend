@@ -208,10 +208,6 @@
 }
 
 /* 5px under each map's header rule, as the story map's controls sit outside comparison. */
-.mapPaneUpper .comparisonControlsUpper {
-  top: calc(var(--story-header-end, 155px) + 5px);
-}
-
 .mapPaneLower .comparisonControls {
   top: calc(var(--comparison-title-end, 129px) + 5px);
 }
@@ -427,39 +423,6 @@
 
 .backBtn:hover {
   background: rgba(34, 42, 42, 0.72);
-}
-
-.shareBtn {
-  box-sizing: border-box;
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  margin: 0;
-  padding: 0 14px 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  background: rgba(34, 42, 42, 0.5);
-  backdrop-filter: blur(46px);
-  -webkit-backdrop-filter: blur(46px);
-  color: #fff;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-  white-space: nowrap;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.shareBtn:hover {
-  background: rgba(34, 42, 42, 0.72);
-}
-
-.shareBtn:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
 }
 
 /*
@@ -687,9 +650,10 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  margin: 0;
+  width: 32px;
+  height: 32px;
+  /* Bigger than the title rows' line boxes; the negative margin keeps the rows' height. */
+  margin: -2px 0;
   padding: 0;
   border: none;
   border-radius: 999px;
@@ -700,8 +664,7 @@
 }
 
 .infoBtnSmall {
-  width: 22px;
-  height: 22px;
+  margin: -5px 0;
   color: rgba(255, 255, 255, 0.72);
 }
 

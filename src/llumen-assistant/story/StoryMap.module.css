@@ -14,9 +14,12 @@
   height: 100%;
 }
 
+/* A horizontal pill level with the header's back button, at the header's right end. */
 .controls {
-  top: 160px;
+  top: 35px;
   right: 20px;
+  flex-direction: row;
+  padding: 8px 12px;
 }
 
 /* Map annotations. Mapbox positions each marker root with `transform`, so only children animate. */

@@ -1712,7 +1712,7 @@ export function StoryView({
             aria-describedby={info?.kind === 'slide' ? 'slide-description' : undefined}
             onClick={(event) => toggleInfo('slide', event.currentTarget)}
           >
-            <Info size={18} weight="regular" aria-hidden />
+            <Info size={22} weight="regular" aria-hidden />
           </button>
         )}
       </nav>
@@ -2454,7 +2454,6 @@ export function StoryView({
             editing: annotationPane === 'upper' ? editingAnnotation : null,
             onEdited: (shape) => onAnnotationEdited(shape, 'upper'),
           }}
-          controlsClassName={viewLayout === 'comparison' ? styles.comparisonControlsUpper : undefined}
           onHandle={onMapHandle}
           onReady={onMapReady}
         />
@@ -2528,16 +2527,27 @@ export function StoryView({
               <div className={styles.storyTitleRow}>
                 <h1 className={styles.storyTitle}>{storyTitle}</h1>
                 {storyMode === 'view' ? (
-                  <button
-                    type="button"
-                    className={`${styles.infoBtn} ${styles.infoBtnSmall}`}
-                    aria-label="Show story description"
-                    aria-expanded={info?.kind === 'story'}
-                    aria-describedby={info?.kind === 'story' ? 'story-description' : undefined}
-                    onClick={(event) => toggleInfo('story', event.currentTarget)}
-                  >
-                    <Info size={14} weight="regular" aria-hidden />
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className={`${styles.infoBtn} ${styles.infoBtnSmall}`}
+                      aria-label="Show story description"
+                      aria-expanded={info?.kind === 'story'}
+                      aria-describedby={info?.kind === 'story' ? 'story-description' : undefined}
+                      onClick={(event) => toggleInfo('story', event.currentTarget)}
+                    >
+                      <Info size={22} weight="regular" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.infoBtn} ${styles.infoBtnSmall}`}
+                      aria-label="Share story"
+                      aria-haspopup="dialog"
+                      onClick={() => setShareOpen(true)}
+                    >
+                      <Export size={22} weight="regular" aria-hidden />
+                    </button>
+                  </>
                 ) : null}
                 {storyMode === 'edit' ? (
                   <button
@@ -2579,7 +2589,7 @@ export function StoryView({
                       aria-describedby={info?.kind === 'slide' ? 'slide-description' : undefined}
                       onClick={(event) => toggleInfo('slide', event.currentTarget)}
                     >
-                      <Info size={18} weight="regular" aria-hidden />
+                      <Info size={22} weight="regular" aria-hidden />
                     </button>
                   )}
                 </div>
@@ -2595,15 +2605,6 @@ export function StoryView({
                 </div>
               ) : null}
             </div>
-            <button
-              type="button"
-              className={styles.shareBtn}
-              aria-haspopup="dialog"
-              onClick={() => setShareOpen(true)}
-            >
-              <Export size={16} weight="regular" aria-hidden />
-              Share
-            </button>
             {headerEnd ? <div className={styles.headerEnd}>{headerEnd}</div> : null}
           </div>
           {filterRow('upper', filters, (filterId) =>
