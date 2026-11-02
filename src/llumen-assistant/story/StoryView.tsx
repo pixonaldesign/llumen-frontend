@@ -45,10 +45,10 @@ import {
   PencilSimple,
   Play,
   Plus,
+  Pulse,
   Sidebar,
   Student,
   SquaresFour,
-  Target,
   Toolbox,
   Trash,
   type IconProps,
@@ -1437,7 +1437,7 @@ export function StoryView({
                 setMonitorTarget({ slideId: slide.id, cardId: id })
               }}
             >
-              <Target size={16} weight="regular" aria-hidden />
+              <Pulse size={16} weight="regular" aria-hidden />
             </CardActionButton>
           )}
           <CardActionButton

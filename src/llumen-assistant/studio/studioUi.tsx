@@ -16,9 +16,11 @@ import {
   ListBullets,
   MagnifyingGlass,
   Prohibit,
+  Pulse,
   SquaresFour,
   Trash,
   WarningCircle,
+  ChatCircleText,
   ChatText,
   X,
 } from '@phosphor-icons/react'
@@ -416,7 +418,15 @@ const ROW_ACTIONS = [
 ]
 
 /** The three-dot button on a row or card, with Duplicate, Deactivate and Delete. */
-export function RowMenu({ label, onDelete }: { label: string; onDelete?: () => void }) {
+export function RowMenu({
+  label,
+  onDelete,
+  triggerClassName = styles.kebab,
+}: {
+  label: string
+  onDelete?: () => void
+  triggerClassName?: string
+}) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -446,7 +456,7 @@ export function RowMenu({ label, onDelete }: { label: string; onDelete?: () => v
       <button
         ref={buttonRef}
         type="button"
-        className={styles.kebab}
+        className={triggerClassName}
         aria-label={`More options for ${label}`}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -481,6 +491,33 @@ export function RowMenu({ label, onDelete }: { label: string; onDelete?: () => v
             document.body,
           )
         : null}
+    </div>
+  )
+}
+
+/** An asset card's hover toolbar, as on a story's cards: add to chat, monitor it, and its row menu. */
+export function AssetActions({ title }: { title: string }) {
+  return (
+    <div className={styles.assetActions} role="toolbar" aria-label={`${title} actions`}>
+      <button
+        type="button"
+        className={styles.assetAction}
+        aria-label={`Add ${title} to chat`}
+        title="Add to chat"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <ChatCircleText size={16} aria-hidden />
+      </button>
+      <button
+        type="button"
+        className={styles.assetAction}
+        aria-label={`Monitor ${title}`}
+        title="Monitor this"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Pulse size={16} aria-hidden />
+      </button>
+      <RowMenu label={title} triggerClassName={styles.assetAction} />
     </div>
   )
 }

@@ -8,6 +8,7 @@ import {
   Chalkboard,
   CheckCircle,
   Clock,
+  Cpu,
   Database,
   DiamondsFour,
   FlowArrow,
@@ -20,7 +21,6 @@ import {
   Play,
   Plus,
   PresentationChart,
-  Robot,
   SlidersHorizontal,
   Sparkle,
   SquaresFour,
@@ -53,6 +53,7 @@ import {
   type StudioWorkflow,
 } from './studioData'
 import {
+  AssetActions,
   Button,
   EmptyState,
   FilterBar,
@@ -193,6 +194,7 @@ export function AssetCard({ item, index = 0, onOpen }: { item: StudioAsset; inde
         ) : (
           <img src={item.image} alt={item.title} loading="lazy" />
         )}
+        <AssetActions title={item.title} />
       </div>
       <div className={styles.assetMeta}>
         <Tag icon={<ChartLine size={16} aria-hidden />}>{item.type}</Tag>
@@ -1083,10 +1085,9 @@ export function WorkflowCard({ item }: { item: StudioWorkflow }) {
           </span>
         ) : null}
         <h3 className={styles.workflowTitle}>{item.title}</h3>
-        <p className={styles.workflowText}>{item.description}</p>
         <div className={styles.workflowFoot}>
           {item.running ? (
-            <Tag icon={<Robot size={16} aria-hidden />}>{item.running} AI agents</Tag>
+            <Tag icon={<Cpu size={16} aria-hidden />}>{item.running} AI agents</Tag>
           ) : (
             <span className={styles.meta}>{item.updated}</span>
           )}

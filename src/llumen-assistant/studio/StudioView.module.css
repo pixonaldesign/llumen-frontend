@@ -1180,6 +1180,62 @@
   content: '';
 }
 
+/* A story card's hover toolbar (StoryView .cardActions), on the asset's top-right corner. */
+.assetActions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out;
+}
+
+.assetCard:hover .assetActions,
+.assetActions:focus-within,
+.assetActions:has([aria-expanded='true']) {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.assetActions .assetAction {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 40px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.assetActions .assetAction:hover,
+.assetActions .assetAction[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.assetActions .assetAction:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: -2px;
+}
+
 .assetImage img,
 .storyCover img,
 .briefingCard > img {
@@ -1329,15 +1385,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 160px;
+  height: 120px;
   background:
     radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1.2px) 0 0 / 14px 14px,
     linear-gradient(rgba(14, 18, 34, 0.9), rgba(10, 12, 24, 0.9));
   border-bottom: 1px solid var(--st-border);
-}
-
-.workflowCard[data-running] .workflowArt {
-  height: 200px;
 }
 
 .workflowArt[data-compact] {
@@ -1468,17 +1520,6 @@
   font-size: 16px;
   font-weight: 600;
   line-height: 24px;
-}
-
-.workflowText {
-  display: -webkit-box;
-  margin: 0;
-  overflow: hidden;
-  color: var(--st-text-secondary);
-  font-size: 12px;
-  line-height: 16px;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .workflowFoot {
