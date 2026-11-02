@@ -50,14 +50,18 @@ export const STUDIO_SHADER_OPTIONS: readonly { shader: StudioShader; label: stri
   { shader: 'veil', label: 'Diffraction · Veil', hint: 'Slow, muted spectral bands' },
 ]
 
-/** A story's Comparison layout: the maps one above the other (horizontal split) or side by side (vertical). */
-export type ComparisonSplit = 'horizontal' | 'vertical'
+/**
+ * A story's Comparison layout: the maps one above the other (horizontal split), side by side (vertical), or one
+ * above the other with the story header and each map's filters, assets and map on their own solid blocks.
+ */
+export type ComparisonSplit = 'horizontal' | 'vertical' | 'blocks'
 
 export const DEFAULT_COMPARISON_SPLIT: ComparisonSplit = 'horizontal'
 
 export const COMPARISON_SPLIT_OPTIONS: readonly { split: ComparisonSplit; label: string; hint: string }[] = [
   { split: 'horizontal', label: 'Horizontal comparison', hint: 'Story map on top, compared map below' },
   { split: 'vertical', label: 'Vertical comparison', hint: 'Story map on the left, compared map on the right' },
+  { split: 'blocks', label: 'Block comparison', hint: 'Header, filters, assets and each map on separate blocks' },
 ]
 
 export type StyleOption<T extends number> = { style: T; label: string; hint: string }
@@ -98,7 +102,7 @@ function isStudioShader(value: string | null): value is StudioShader {
 }
 
 function isComparisonSplit(value: string | null): value is ComparisonSplit {
-  return value === 'horizontal' || value === 'vertical'
+  return value === 'horizontal' || value === 'vertical' || value === 'blocks'
 }
 
 function toFindingsStyle(value: string | null): FindingsStyle | null {

@@ -380,6 +380,187 @@
   cursor: col-resize;
 }
 
+/* The upper map's filters and, in block comparison, its Assets and Tools. */
+.paneBar {
+  display: contents;
+}
+
+/*
+ * Block comparison: the maps one above the other, framed by solid blocks for the story header, each map's
+ * filters bar and each map's assets column. The column is as wide as the sidebar's cards plus its inset.
+ */
+.root[data-comparison='blocks'] {
+  --blocks-column: calc(var(--sidebar-columns, 2) * 184px + (var(--sidebar-columns, 2) - 1) * 12px + 32px);
+  --blocks-surface: #0a1320;
+  --blocks-line: rgba(255, 255, 255, 0.1);
+  --blocks-inset: 16px;
+  background: #060c16;
+}
+
+.root[data-comparison='blocks'] .header {
+  gap: 0;
+  padding: 0;
+  background: var(--blocks-surface);
+}
+
+.root[data-comparison='blocks'] .titleRow {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--blocks-line);
+}
+
+.root[data-comparison='blocks'] .paneBar,
+.root[data-comparison='blocks'] .comparisonFilters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.root[data-comparison='blocks'] .paneBar {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--blocks-line);
+}
+
+.root[data-comparison='blocks'] .headerRule,
+.root[data-comparison='blocks'] .comparisonTitle > :not(.comparisonFilters) {
+  display: none;
+}
+
+/* Floats at the bottom of each assets column; the column keeps room for it under its last card. */
+.paneTools {
+  position: absolute;
+  bottom: var(--blocks-inset);
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.paneTools > .filterAddBtn {
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+}
+
+.root[data-comparison='blocks'] .mapPaneUpper {
+  top: var(--story-header-end, 155px);
+  left: var(--blocks-column);
+}
+
+.root[data-comparison='blocks'] .mapPaneLower {
+  top: calc(var(--comparison-split) * 100% + var(--comparison-title-end, 129px));
+  left: var(--blocks-column);
+}
+
+.root[data-comparison='blocks'] .mapPaneLower::after {
+  display: none;
+}
+
+.root[data-comparison='blocks'] .comparisonControls {
+  top: var(--blocks-inset);
+  right: var(--blocks-inset);
+}
+
+/* Left of the upper map's controls (104 × 36px), centred on them. */
+.paneLinkMaps {
+  position: absolute;
+  top: calc(var(--story-header-end, 155px) + var(--blocks-inset) - 4px);
+  right: calc(var(--blocks-inset) + 104px + 8px);
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.root[data-comparison='blocks'] .bodyComparison {
+  box-sizing: border-box;
+  width: var(--blocks-column);
+  padding: 0 var(--blocks-inset);
+  border-right: 1px solid var(--blocks-line);
+  background: var(--blocks-surface);
+}
+
+.root[data-comparison='blocks'] .bodyComparison > .insight {
+  flex: 1 1 auto;
+  padding-block: var(--blocks-inset);
+}
+
+.root[data-comparison='blocks'] .bodyComparison:has(> .paneTools) > .insight {
+  padding-bottom: calc(var(--blocks-inset) + 34px + 12px);
+}
+
+.root[data-comparison='blocks'] .comparisonTitle {
+  right: 0;
+  left: 0;
+  padding: 16px 20px;
+  border-top: 1px solid var(--blocks-line);
+  border-bottom: 1px solid var(--blocks-line);
+  background: var(--blocks-surface);
+}
+
+.root[data-comparison='blocks'] .comparisonFilters {
+  margin-top: 0;
+}
+
+.paneAssets {
+  position: absolute;
+  top: calc(var(--comparison-split) * 100% + var(--comparison-title-end, 129px));
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  box-sizing: border-box;
+  width: var(--blocks-column);
+  padding: var(--blocks-inset);
+  border-right: 1px solid var(--blocks-line);
+  background: var(--blocks-surface);
+}
+
+.paneAssetsEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* One toolbar, centred along the bottom of the lower map; Assets and Tools float over each assets column. */
+.root[data-comparison='blocks'] .lowerNavUpper {
+  bottom: var(--blocks-inset);
+  left: calc((100% + var(--blocks-column)) / 2);
+}
+
+.root[data-comparison='blocks'] .lowerNavCompared,
+.root[data-comparison='blocks'] .modeActions {
+  display: none;
+}
+
+.root[data-comparison='blocks'] .mapStack {
+  right: var(--blocks-inset);
+  --map-controls-room: calc(var(--blocks-inset) + 44px + 12px - 4px);
+}
+
+.root[data-comparison='blocks'] .mapStack.mapStackComparisonUpper {
+  bottom: calc((1 - var(--comparison-split)) * 100% + var(--blocks-inset));
+  max-height: calc(
+    var(--comparison-split) * 100cqh - var(--blocks-inset) - var(--story-header-end, 155px) -
+      var(--map-controls-room)
+  );
+}
+
+.root[data-comparison='blocks'] .mapStack.mapStackCompared {
+  bottom: var(--blocks-inset);
+  max-height: calc(
+    (1 - var(--comparison-split)) * 100cqh - var(--blocks-inset) - var(--comparison-title-end, 129px) -
+      var(--map-controls-room)
+  );
+}
+
 .overlay {
   position: absolute;
   inset: 0;

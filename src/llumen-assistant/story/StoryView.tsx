@@ -946,6 +946,7 @@ export function StoryView({
     cardPrefs.summary?.summary ?? defaultSummaryConfig(slide.id)
   const viewLayout = layoutBySlide[slide.id] ?? 'sidebar'
   const sideBySide = viewLayout === 'comparison' && comparisonDirection === 'vertical'
+  const blocks = viewLayout === 'comparison' && comparisonDirection === 'blocks'
   const headerRef = useRef<HTMLElement>(null)
   const comparisonTitleRef = useRef<HTMLElement>(null)
   // Each comparison map's controls sit under its header's rule, which moves as the filters wrap.
@@ -1826,7 +1827,7 @@ export function StoryView({
   )
   /** Comparison sets the Link maps pill beside the Layout pill (or alone, outside edit mode). */
   const withLinkMaps = (layoutBar: ReactNode) =>
-    viewLayout === 'comparison' ? (
+    viewLayout === 'comparison' && !blocks ? (
       <div className={styles.layoutRow}>
         {layoutBar}
         {linkMapsToggle}
@@ -1903,6 +1904,33 @@ export function StoryView({
       </div>
     )
   }
+
+  /** Block comparison moves each map's Assets and Tools from the toolbar to float over its assets column. */
+  const paneTools = (target: MapPane) =>
+    blocks && storyMode === 'edit' ? (
+      <div className={styles.paneTools}>
+        <button
+          type="button"
+          className={`${styles.filterAddBtn}${toolActive('assets', target) ? ` ${styles.filterAddBtnActive}` : ''}`}
+          aria-pressed={toolActive('assets', target)}
+          aria-label={target === 'lower' ? 'Assets for the comparison map' : undefined}
+          onClick={() => toggleTool('assets', target)}
+        >
+          <Plus size={16} weight="bold" aria-hidden />
+          Assets
+        </button>
+        <button
+          type="button"
+          className={`${styles.filterAddBtn}${toolActive('tools', target) ? ` ${styles.filterAddBtnActive}` : ''}`}
+          aria-pressed={toolActive('tools', target)}
+          aria-label={target === 'lower' ? 'Tools for the comparison map' : undefined}
+          onClick={() => toggleTool('tools', target)}
+        >
+          <Plus size={16} weight="bold" aria-hidden />
+          Tools
+        </button>
+      </div>
+    ) : null
 
   const editingLowerFilters =
     (editSection === 'filters' || editSection === 'assets') && filterTarget === 'lower' && viewLayout === 'comparison'
@@ -2408,7 +2436,12 @@ export function StoryView({
     <div
       ref={rootRef}
       className={`${styles.root}${splitDragging ? ` ${styles.rootSplitDragging}` : ''}`}
-      style={{ '--comparison-split': comparisonSplit } as CSSProperties}
+      style={
+        {
+          '--comparison-split': comparisonSplit,
+          ...(blocks ? { '--sidebar-columns': sidebarColumns } : null),
+        } as CSSProperties
+      }
       data-comparison={viewLayout === 'comparison' ? comparisonDirection : undefined}
       aria-label={`${story.storyTitle} story`}
       data-entrance={entrance}
@@ -2427,6 +2460,7 @@ export function StoryView({
           frameLinear={timelinePlaying}
           styleUrl={mapStyle.url}
           flat={mapStyle.dimension === '2d' || (annotationPane === 'upper' && annotating)}
+          controlsClassName={blocks ? styles.comparisonControls : undefined}
           cameraLink={viewLayout === 'comparison' && mapsLinked ? cameraLink : undefined}
           region={aiRegion}
           cameraRequest={cameraRequest}
@@ -2472,6 +2506,7 @@ export function StoryView({
             styleUrl={lowerMapStyle.url}
             flat={lowerMapStyle.dimension === '2d' || (annotationPane === 'lower' && annotating)}
             controlsClassName={styles.comparisonControls}
+            controls={!mapsLinked}
             cameraLink={mapsLinked ? cameraLink : undefined}
             flyToScene={false}
             annotations={{
@@ -2607,14 +2642,17 @@ export function StoryView({
             </div>
             {headerEnd ? <div className={styles.headerEnd}>{headerEnd}</div> : null}
           </div>
-          {filterRow('upper', filters, (filterId) =>
-            setFiltersBySlide((current) => ({
-              ...current,
-              [slide.id]: (current[slide.id] ?? filters).filter((item) => item.id !== filterId),
-            })),
-          )}
+          <div className={styles.paneBar}>
+            {filterRow('upper', filters, (filterId) =>
+              setFiltersBySlide((current) => ({
+                ...current,
+                [slide.id]: (current[slide.id] ?? filters).filter((item) => item.id !== filterId),
+              })),
+            )}
+          </div>
           <div className={styles.headerRule} aria-hidden />
         </header>
+        {blocks ? <div className={styles.paneLinkMaps}>{linkMapsToggle}</div> : null}
 
         <div
           ref={bodyRef}
@@ -2718,6 +2756,7 @@ export function StoryView({
                 : null}
             </aside>
           )}
+          {paneTools('upper')}
         </div>
 
         {viewLayout === 'comparison' ? (
@@ -2735,6 +2774,16 @@ export function StoryView({
             </div>
             <div className={`${styles.headerRule} ${styles.comparisonRule}`} aria-hidden />
           </header>
+        ) : null}
+        {blocks ? (
+          <aside className={styles.paneAssets} aria-label="Comparison map assets">
+            <p className={styles.paneAssetsEmpty}>
+              {storyMode === 'edit'
+                ? 'Add assets for this map from Assets below.'
+                : 'No assets on this map.'}
+            </p>
+            {paneTools('lower')}
+          </aside>
         ) : null}
 
         {viewLayout === 'comparison' ? (
