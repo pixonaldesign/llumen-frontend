@@ -135,6 +135,43 @@
 }
 
 /*
+ * The design system's secondary outline button (pg-btn--outline pg-btn--secondary), as tall as the page
+ * arrows beside it; literal, since its tokens aren't in the Studio's scope.
+ */
+.sectionHead .shelfLink {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  border: 1px solid #ffffff1a;
+  border-radius: 999px;
+  background: #ffffff1a;
+  color: #d4d5d7;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.sectionHead .shelfLink:hover,
+.sectionHead .shelfLink:active {
+  border-color: transparent;
+  background: #ffffff12;
+  color: #fff;
+}
+
+.sectionHead .shelfLink:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--st-brand) 30%, transparent);
+  outline-offset: 2px;
+}
+
+/*
  * Bleeds to the overview's edges; the first and last cards keep its inset. --columns whole cards fill the
  * row after the inset, leaving --peek of the next showing at the far edge.
  */

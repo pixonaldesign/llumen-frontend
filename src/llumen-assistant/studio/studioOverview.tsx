@@ -227,9 +227,9 @@ function Shelf({
           {title}
         </h2>
         <div className={o.shelfTools}>
-          <button type="button" className={s.linkButton} onClick={onLink}>
+          <button type="button" className={o.shelfLink} onClick={onLink}>
             {link}
-            <ArrowRight size={14} aria-hidden />
+            <ArrowRight size={16} aria-hidden />
           </button>
           {edges.start && edges.end ? null : (
             <>
