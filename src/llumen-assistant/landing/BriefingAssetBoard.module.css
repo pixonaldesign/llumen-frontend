@@ -185,6 +185,16 @@
   margin-top: 4px;
 }
 
+/* A single square cell: a shorter title leaves the thumbnail room to read. */
+@container (max-height: 300px) {
+  .app[data-layout='tall'] .appTitle {
+    font-size: 16px;
+    line-height: 22px;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+
 .appView:hover {
   background: rgba(255, 255, 255, 0.12);
 }

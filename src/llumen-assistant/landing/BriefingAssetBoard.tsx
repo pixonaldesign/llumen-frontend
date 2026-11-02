@@ -35,7 +35,7 @@ const SETTLE_EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
 type Fit = Omit<BoardFit, 'id'>
 /**
  * Apps as assets: `wide` puts the thumbnail on the left, `tall` puts it on top. Each app has a
- * preferred shape, but its card lays out by the slot it gets: one cell tall is `wide`, taller is `tall`.
+ * preferred shape, but its card lays out by the slot it gets: wider than tall is `wide`, otherwise `tall`.
  */
 type AppLayout = 'wide' | 'tall'
 
@@ -58,10 +58,13 @@ const ASSET_FITS: Record<string, Fit> = {
 
 /**
  * A roomy board's cell is wide enough for the small charts, so they pair up a cell each (the donut and
- * pie without their legends, the clinic visits beside the night-time lows that drive them). The rest run the board's width one row tall, apps thumbnail-left, so three
- * cards down the first column still fit the edge peek above the composer.
+ * pie without their legends, the clinic visits beside the night-time lows that drive them). Apps take a
+ * square cell each too, thumbnail on top, except the tourism peak, thumbnail-left across the row. The rest
+ * run the board's width one row tall, so three cards down the first column still fit the edge peek above
+ * the composer.
  */
 const ROOMY_SMALL: Fit = { cols: 1, min: 1, max: 2, rows: 1 }
+const ROOMY_APP: Fit = { cols: 1, min: 1, max: 1, rows: 1 }
 const ROOMY_WIDE: Fit = { cols: 2, min: 2, max: 2, rows: 1 }
 const ROOMY_FITS: Record<string, Fit> = {
   'permit-deviation': ROOMY_SMALL,
@@ -71,6 +74,7 @@ const ROOMY_FITS: Record<string, Fit> = {
   'heat-visits': ROOMY_SMALL,
   'night-temperature': ROOMY_SMALL,
   'station-uptime': { cols: 2, min: 2, max: 2, rows: 2 },
+  'tourism-peak': ROOMY_WIDE,
 }
 
 const APP_LAYOUTS: Record<string, AppLayout> = {
@@ -118,7 +122,8 @@ function packOrder(order: readonly string[], columns: number, roomy: boolean) {
     order.flatMap((id) => {
       const item = ITEMS.get(id)
       if (!item) return []
-      return [{ id, ...(roomy ? (ROOMY_FITS[id] ?? ROOMY_WIDE) : item.fit) }]
+      const roomyFit = ROOMY_FITS[id] ?? (item.kind === 'app' ? ROOMY_APP : ROOMY_WIDE)
+      return [{ id, ...(roomy ? roomyFit : item.fit) }]
     }),
     columns,
   )
@@ -398,7 +403,7 @@ export function BriefingAssetBoard({
               ) : (
                 <AppAssetCard
                   app={item.app}
-                  layout={slot.rows === 1 ? 'wide' : 'tall'}
+                  layout={slot.cols > slot.rows ? 'wide' : 'tall'}
                   menuOpen={open}
                   onToggleMenu={() => setMenuFor(open ? null : id)}
                 />
