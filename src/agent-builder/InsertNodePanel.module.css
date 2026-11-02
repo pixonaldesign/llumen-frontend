@@ -215,8 +215,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--node-accent);
-  color: var(--node-on-accent);
+  background: color-mix(in srgb, var(--node-accent) 18%, transparent);
+  color: var(--node-accent);
 }
 
 .rowCopy {

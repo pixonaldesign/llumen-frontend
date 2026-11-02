@@ -1,0 +1,213 @@
+/* Inside the column's scrollport, so the inset sits on the tree, not the scroller. */
+.tree {
+  padding: 0 var(--column-pad);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+/* ---------- Node rows ---------- */
+
+button.sourceRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: rgba(255, 255, 255, 0.9);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.sourceRow:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sourceCaret,
+.caret svg {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.6);
+  transition: transform var(--lc-duration) var(--lc-ease);
+}
+
+.item[aria-expanded='true'] > .sourceRow .sourceCaret,
+.item[aria-expanded='true'] > .fieldRow .caret svg {
+  transform: rotate(90deg);
+}
+
+.sourceIcon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--node-accent);
+}
+
+.sourceName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sourceMeta {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+}
+
+/* ---------- Field rows ---------- */
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  min-height: 30px;
+  /* A level in is a caret plus the gap, so a child's caret sits under its parent's chip. */
+  padding-left: calc(var(--depth, 0) * (16px + var(--space-md)));
+}
+
+/* Carets under the node row's icon, chips under its name. */
+.sourceFields {
+  padding-left: calc(var(--space-md) * 2 + 12px);
+}
+
+button.caret,
+.caretSpace {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+}
+
+button.caret {
+  cursor: pointer;
+}
+
+button.caret:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  max-width: 60%;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  cursor: grab;
+  user-select: none;
+  transition:
+    border-color var(--lc-duration) var(--lc-ease),
+    background var(--lc-duration) var(--lc-ease);
+}
+
+.chipSmall {
+  max-width: none;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px 0 7px;
+}
+
+.chip:hover {
+  border-color: color-mix(in srgb, var(--canvas-accent) 60%, transparent);
+  background: color-mix(in srgb, var(--canvas-accent) 10%, transparent);
+}
+
+.chip:active {
+  cursor: grabbing;
+}
+
+.chipIcon {
+  flex-shrink: 0;
+  color: var(--canvas-accent);
+}
+
+.chipName {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sample {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ---------- A table cell's object ---------- */
+
+.valueTree {
+  min-width: 200px;
+}
+
+/* Chips sit on a long value's first line. */
+.valueRow {
+  align-items: flex-start;
+  min-height: 0;
+}
+
+.valueRow > .caret {
+  margin-top: 3px;
+}
+
+.value {
+  min-width: 0;
+  max-width: 220px;
+  padding-top: 2px;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--lc-font-sans);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+  padding: var(--space-xs) 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.noteNested {
+  padding-left: calc(var(--space-md) * 3 + 12px + 16px);
+}

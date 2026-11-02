@@ -10,6 +10,7 @@ import {
   MinusCircle,
   Play,
   Plugs,
+  Stack,
   TestTube,
   WarningCircle,
   X,
@@ -19,6 +20,7 @@ import { Field, Menu, Popover, Select } from './ConfigControls'
 import { buttonClass, inputClass, layerClass, PopoverLayer } from './configStyles'
 import { columnsOf } from './createAsset'
 import { DataViewBody, type DataView } from './DataViews'
+import { FieldTree, type TreeSource } from './FieldTree'
 import { ChatPreview } from './ChatPreview'
 import { ApiPreview } from './ApiPreview'
 import { EmailPreview } from './EmailPreview'
@@ -116,6 +118,8 @@ const mergeRecords = (sources: readonly UpstreamNode[]) =>
 export function NodeConfigWindow(props: NodeConfigWindowProps) {
   const { node, type, run, previous, next, upstream, fixture, onClose } = props
   const [layer, setLayer] = useState<HTMLDivElement | null>(null)
+  /** A field chip is being dragged, so the fields it can drop into are marked. */
+  const [fieldDrag, setFieldDrag] = useState(false)
   const windowRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const TypeIcon = type.icon
@@ -149,6 +153,7 @@ export function NodeConfigWindow(props: NodeConfigWindowProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
+        data-field-drag={fieldDrag || undefined}
       >
         <PopoverLayer.Provider value={layer}>
           <header className={styles.head}>
@@ -182,6 +187,7 @@ export function NodeConfigWindow(props: NodeConfigWindowProps) {
                 workflowName={props.workflowName}
                 onClearFixture={() => props.onFixture(null)}
                 onExecutePrevious={props.onExecutePrevious}
+                onFieldDrag={setFieldDrag}
               />
             ) : null}
             <ConfigColumn
@@ -327,15 +333,36 @@ type InputColumnProps = {
   workflowName: string
   onClearFixture: () => void
   onExecutePrevious: () => void
+  onFieldDrag: (dragging: boolean) => void
 }
 
-function InputColumn({ upstream, fixture, workflowName, onClearFixture, onExecutePrevious }: InputColumnProps) {
+/** The source picker's entry for every upstream node at once. */
+const ALL_SOURCES = '*all'
+
+function InputColumn({ upstream, fixture, workflowName, onClearFixture, onExecutePrevious, onFieldDrag }: InputColumnProps) {
+  const direct = upstream.filter((item) => item.direct)
   const [tab, setTab] = useState<DataView | 'vars'>('schema')
-  const [sourceId, setSourceId] = useState<string | undefined>(() => upstream.find((source) => source.direct)?.id ?? upstream[0]?.id)
+  const [sourceId, setSourceId] = useState<string | undefined>(() => (upstream.length > 1 ? ALL_SOURCES : upstream[0]?.id))
   const [query, setQuery] = useState('')
-  const source = upstream.find((item) => item.id === sourceId) ?? upstream[0]
-  const records = fixture ?? source?.records ?? null
+  /** Only the schema lists every node; the table and JSON show one, the first connected node with data unless one is picked. */
+  const canShowAll = tab === 'schema' && upstream.length > 1
+  const all = sourceId === ALL_SOURCES && canShowAll && !fixture
+  const fallback = direct.find((item) => item.records) ?? upstream.find((item) => item.records) ?? upstream[0]
+  const source = all ? undefined : (upstream.find((item) => item.id === sourceId) ?? fallback)
+  const records = fixture ?? (all ? mergeRecords(upstream) : (source?.records ?? null))
   const running = upstream.some((item) => item.run.status === 'running')
+  /** The rows coming straight in are `{{field}}`; with several inputs, or from earlier steps, a field names its node. */
+  const tokenPrefix = (item: UpstreamNode) => (item.direct && direct.length === 1 ? null : item.alias)
+  const treeSource = (item: UpstreamNode, open: boolean): TreeSource => ({
+    id: item.id,
+    name: item.name,
+    icon: item.icon,
+    tone: item.tone,
+    records: item.records,
+    prefix: tokenPrefix(item),
+    open,
+  })
+  const fixtureSource: TreeSource = { id: 'fixture', name: 'Fixture input', icon: TestTube, tone: 'data', records: fixture, prefix: null, open: true }
 
   const body = () => {
     if (tab === 'vars') return <GlobalVars workflowName={workflowName} />
@@ -362,8 +389,14 @@ function InputColumn({ upstream, fixture, workflowName, onClearFixture, onExecut
         </EmptyState>
       )
     }
+    if (all) return <FieldTree key={ALL_SOURCES} sources={upstream.map((item) => treeSource(item, item.direct))} query={query} onDragChange={onFieldDrag} />
     if (!records.length) return <EmptyState icon={<Database size={20} />} title="Execution completed without output" />
-    return <DataViewBody view={tab} records={records} query={query} />
+    if (tab === 'schema') {
+      const only = fixture || !source ? fixtureSource : treeSource(source, true)
+      return <FieldTree key={only.id} flat sources={[only]} query={query} onDragChange={onFieldDrag} />
+    }
+    const prefix = fixture || !source ? null : tokenPrefix(source)
+    return <DataViewBody view={tab} records={records} query={query} fields={{ prefix, onDragChange: onFieldDrag }} />
   }
 
   return (
@@ -387,21 +420,37 @@ function InputColumn({ upstream, fixture, workflowName, onClearFixture, onExecut
           ) : (
             <Select
               label="Upstream node"
-              value={source?.id}
-              options={upstream.map((item) => {
-                const ItemIcon = item.icon
-                return {
-                  id: item.id,
-                  label: item.name,
-                  group: item.direct ? 'Connected' : 'Earlier steps',
-                  meta: item.records ? `${item.records.length} ${item.records.length === 1 ? 'item' : 'items'}` : 'Not run',
-                  icon: (
-                    <span className={`${styles.pillIcon} ${tones[`tone_${item.tone}`]}`}>
-                      <ItemIcon size={12} weight="fill" />
-                    </span>
-                  ),
-                }
-              })}
+              value={all ? ALL_SOURCES : source?.id}
+              options={[
+                ...(canShowAll
+                  ? [
+                      {
+                        id: ALL_SOURCES,
+                        label: 'All nodes',
+                        meta: `${upstream.length} nodes`,
+                        icon: (
+                          <span className={styles.pillIcon}>
+                            <Stack size={12} weight="fill" />
+                          </span>
+                        ),
+                      },
+                    ]
+                  : []),
+                ...upstream.map((item) => {
+                  const ItemIcon = item.icon
+                  return {
+                    id: item.id,
+                    label: item.name,
+                    group: item.direct ? 'Connected' : 'Earlier steps',
+                    meta: item.records ? `${item.records.length} ${item.records.length === 1 ? 'item' : 'items'}` : 'Not run',
+                    icon: (
+                      <span className={`${styles.pillIcon} ${tones[`tone_${item.tone}`]}`}>
+                        <ItemIcon size={12} weight="fill" />
+                      </span>
+                    ),
+                  }
+                }),
+              ]}
               onChange={setSourceId}
             />
           )}

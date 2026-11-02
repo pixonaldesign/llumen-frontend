@@ -111,6 +111,21 @@ const STATIONS_LATEST: readonly DataRecord[] = STATIONS.map((station, index) => 
   return { station: station.station, pm10: last.pm10 ?? null, aqi: Math.round(Number(last.pm10 ?? 0) * 0.9), updated_at: '2026-10-20T08:00:00Z', online: index !== 3 }
 })
 
+/** API replies nest objects and lists, which the flat row type can't describe. */
+const STATION_DETAILS = STATIONS.map((station, index) => {
+  const latest = STATIONS_LATEST[index]
+  return {
+    station: station.station,
+    online: latest.online,
+    location: { district: station.district, coordinates: { lat: SITES[index].lat, lng: SITES[index].lng } },
+    latest: { pm10: latest.pm10, aqi: latest.aqi, updated_at: latest.updated_at },
+    sensors: [
+      { id: `${station.station.slice(-4)}-PM`, kind: 'pm10', status: index === 3 ? 'offline' : 'ok' },
+      { id: `${station.station.slice(-4)}-WD`, kind: 'wind', status: 'ok' },
+    ],
+  }
+}) as unknown as readonly DataRecord[]
+
 const AQ_ALERTS: readonly DataRecord[] = [
   { alert_id: 'AQ-311', station: 'Mussafah AQ-1', level: 'amber', message: 'PM10 above 120 µg/m³ for 3 hours', issued_at: '2026-10-19T14:00:00Z' },
 ]
@@ -157,6 +172,7 @@ export const SOURCES: readonly DataSource[] = [
     detail: 'REST · api.airwatch.ae',
     endpoints: [
       { id: 'latest', name: 'Latest station readings', method: 'GET', path: '/v1/stations/latest', rows: STATIONS_LATEST },
+      { id: 'details', name: 'Station details', method: 'GET', path: '/v1/stations', rows: STATION_DETAILS },
       { id: 'alerts', name: 'Air quality alerts', method: 'GET', path: '/v1/alerts', rows: AQ_ALERTS },
     ],
   },

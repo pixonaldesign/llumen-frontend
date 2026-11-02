@@ -224,8 +224,8 @@
   height: 36px;
   margin-bottom: var(--space-xs);
   border-radius: 50%;
-  background: var(--node-accent);
-  color: var(--node-on-accent);
+  background: color-mix(in srgb, var(--node-accent) 18%, transparent);
+  color: var(--node-accent);
 }
 
 .cardTitle {

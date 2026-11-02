@@ -3,7 +3,24 @@ import type { DataRecord, DataValue } from './nodeCatalog'
 export const displayValue = (value: DataValue | undefined) => {
   if (value === null || value === undefined) return '—'
   if (typeof value === 'boolean') return value ? 'true' : 'false'
-  return String(value)
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
+}
+
+/**
+ * A row's field by its own key, else by walking a nested path such as `hair.color` or `items.0.sku`;
+ * rows from a fixture can hold objects and arrays even though the type says flat. Objects come back as JSON.
+ */
+export function fieldAt(row: DataRecord, path: string): DataValue | undefined {
+  let value: unknown = row
+  if (path in row) value = row[path]
+  else {
+    for (const key of path.split('.')) {
+      if (value === null || typeof value !== 'object') return undefined
+      value = (value as Record<string, unknown>)[key]
+    }
+  }
+  if (value === undefined) return undefined
+  return value !== null && typeof value === 'object' ? JSON.stringify(value) : (value as DataValue)
 }
 
 /** A fixed label in sentence case: later capitalised words go lower case, acronyms like KPI stay. */

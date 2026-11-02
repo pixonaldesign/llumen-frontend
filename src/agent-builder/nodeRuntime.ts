@@ -21,6 +21,7 @@ import {
   type NodeType,
   type WorkflowEdge,
 } from './nodeCatalog'
+import { fieldAt } from './recordUtils'
 import {
   TEMPLATE_TOKEN,
   UNCLASSIFIED,
@@ -115,12 +116,13 @@ function tokenValues(token: string, scope: TemplateScope): DataValue[] | undefin
     const ancestor = scope.ancestors.find((item) => item.alias === token.slice(0, dot))
     if (ancestor) {
       const field = token.slice(dot + 1)
-      if (!ancestor.rows?.length || !(field in ancestor.rows[0])) return undefined
-      return [...new Set(ancestor.rows.map((row) => row[field] ?? null))]
+      if (!ancestor.rows?.length || fieldAt(ancestor.rows[0], field) === undefined) return undefined
+      return [...new Set(ancestor.rows.map((row) => fieldAt(row, field) ?? null))]
     }
   }
   const row = scope.row ?? scope.rows[0]
-  return row && token in row ? [row[token] ?? null] : undefined
+  const value = row ? fieldAt(row, token) : undefined
+  return value === undefined ? undefined : [value]
 }
 
 const sqlLiteral = (value: DataValue) => (typeof value === 'number' || typeof value === 'boolean' ? String(value) : value === null ? 'NULL' : `'${String(value).replace(/'/g, "''")}'`)

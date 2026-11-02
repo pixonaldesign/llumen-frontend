@@ -123,6 +123,8 @@ const NODES: readonly TestNode[] = [
       },
     },
   ],
+  ['d-stations', 'source', { name: 'Station details', params: { mode: 'api_request', sourceId: 'src_aq_api', endpointId: 'details', query: '', queryString: '', operationParams: {} } }],
+  ['f-offline', 'filter', { name: 'Offline stations', params: { where: conditionGroup({ id: 'c_offline', field: 'online', operator: 'boolean__is_false', value: '' }) } }],
   [
     'd-forecast',
     'forecast',
@@ -245,6 +247,9 @@ const LINKS: readonly TestLink[] = [
   ['a-gis-wind', 'o-findings'],
   ['m-risk', 's-risk'],
   ['s-risk', 'c-watch', 'watch'],
+  ['t-manual', 'd-stations'],
+  ['t-schedule', 'd-stations'],
+  ['d-stations', 'f-offline'],
   ['d-readings', 'd-forecast'],
   ['d-readings', 'a-daily'],
   ['a-daily', 'c-pm10'],
@@ -269,7 +274,7 @@ const SECTIONS: readonly { id: string; name: string; fill: string; members: read
     id: 'test-section-data',
     name: 'Load data',
     fill: '#4f7cff',
-    members: ['d-land', 'd-readings', 'd-permits', 'd-anomalies', 'd-emissions', 'd-sites', 'd-wind', 'c-landmix', 'f-expired', 'd-forecast', 'a-daily'],
+    members: ['d-land', 'd-readings', 'd-permits', 'd-anomalies', 'd-emissions', 'd-sites', 'd-wind', 'c-landmix', 'f-expired', 'd-forecast', 'a-daily', 'd-stations', 'f-offline'],
   },
   {
     id: 'test-section-analyse',

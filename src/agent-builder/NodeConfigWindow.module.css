@@ -591,11 +591,16 @@ button.tab[aria-selected='true'] {
 
 .dataTable td {
   font-family: var(--lc-font-data);
+  vertical-align: top;
+}
+
+.dataTable td[data-nested] {
+  padding-block: var(--space-sm);
+  white-space: normal;
 }
 
 .dataTable td[data-type='number'] {
   color: #93c5fd;
-  text-align: right;
 }
 
 .dataTable td[data-type='boolean'] {
@@ -617,6 +622,55 @@ button.tab[aria-selected='true'] {
   user-select: text;
 }
 
+/* The input's JSON, with its keys as field chips. */
+.jsonTree {
+  padding: 0 var(--column-pad);
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.jsonLine {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 28px;
+  padding-left: calc(var(--depth, 0) * 18px);
+  white-space: nowrap;
+}
+
+.jsonPunct {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.jsonColon {
+  margin: 0 6px 0 4px;
+}
+
+.jsonValue {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.8);
+  text-overflow: ellipsis;
+}
+
+.jsonValue[data-kind='string'] {
+  color: #86efac;
+}
+
+.jsonValue[data-kind='number'] {
+  color: #93c5fd;
+}
+
+.jsonValue[data-kind='boolean'] {
+  color: #fcd34d;
+}
+
+.jsonValue[data-kind='null'] {
+  color: rgba(255, 255, 255, 0.35);
+}
+
 .vars {
   display: flex;
   flex-direction: column;
@@ -633,6 +687,12 @@ button.tab[aria-selected='true'] {
 }
 
 /* ---------- Configuration column ---------- */
+
+/* While a field chip is dragged, the text fields it can drop into. */
+.window[data-field-drag] .configColumn :is(input:not([type]), input[type='text'], textarea) {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--canvas-accent) 60%, transparent);
+}
 
 .configHead {
   display: flex;
