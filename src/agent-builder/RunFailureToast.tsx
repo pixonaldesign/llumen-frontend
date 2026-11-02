@@ -3,7 +3,8 @@ import { SCOPE_CLASS } from '../asset-builder/host'
 import { plural } from './kindEditor'
 import styles from './RunFailureToast.module.css'
 
-export type FailedStep = { id: string; name: string; message: string }
+/** A failed step, its first problem, and how many problems it has in all. */
+export type FailedStep = { id: string; name: string; message: string; problems: number }
 
 /** What broke on the last flow run, as the design system's small outlined negative alert. */
 export function RunFailureToast({ steps, onShow, onClose }: { steps: readonly FailedStep[]; onShow: (id: string) => void; onClose: () => void }) {
@@ -20,11 +21,14 @@ export function RunFailureToast({ steps, onShow, onClose }: { steps: readonly Fa
             <p className={styles.title} title={title}>
               {title}
             </p>
-            <p className={styles.message}>{first.message}</p>
+            <p className={styles.message}>
+              {first.message}
+              {first.problems > 1 ? `, and ${plural(first.problems - 1, 'more problem')}.` : '.'}
+            </p>
           </div>
           <div className={styles.actions}>
             <button type="button" className={styles.action} onClick={() => onShow(first.id)}>
-              Show step
+              {first.problems > 1 ? 'Show problems' : 'Show problem'}
             </button>
           </div>
         </div>

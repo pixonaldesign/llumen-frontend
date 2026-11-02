@@ -4,6 +4,25 @@ import { NODE_TYPES_BY_ID, createNode, type CanvasNode, type NodeConfig, type Po
 type TestNode = [id: string, typeId: string, config?: NodeConfig]
 /** `from` and `to` are node ids; ports default to `out` and `in`. */
 type TestLink = [from: string, to: string, fromPort?: string, toPort?: string]
+type TestSection = { id: string; name: string; fill: string; members: readonly string[] }
+type SeedMessage = { text: string; author: string; minutesAgo: number }
+type TestComment = { id: string; nodeId: string; unread?: boolean; messages: readonly SeedMessage[] }
+
+export type TestFlowKind = 'simple' | 'complex'
+
+type TestFlow = {
+  /** The first node anchors the title, so it should be the trigger the run buttons default to. */
+  nodes: readonly TestNode[]
+  links: readonly TestLink[]
+  /** Each section frames whole layout columns, so it never takes in a node from another section. */
+  sections: readonly TestSection[]
+  /** Pinned near each node's top-right corner, so they move with it. */
+  comments: readonly TestComment[]
+  /** Sticky notes, each seated below the nodes it explains. */
+  notes: readonly { id: string; below: readonly string[] }[]
+  title: string
+  subtitle: string
+}
 
 /**
  * Contamination and air quality watch. Sites are scored and compared with land use, wind is laid over
@@ -11,7 +30,7 @@ type TestLink = [from: string, to: string, fromPort?: string, toPort?: string]
  * 120 µg/m³; the high-risk sites and the alerts are merged for the app and the email.
  * Ordered so the manual trigger comes first, which makes it the run buttons' default trigger.
  */
-const NODES: readonly TestNode[] = [
+const COMPLEX_NODES: readonly TestNode[] = [
   ['t-manual', 'manualTrigger'],
   ['t-schedule', 'scheduleTrigger', { name: 'Every morning', params: { every: 1, unit: 'days', atHour: 7, atMinute: 0, timezone: 'Asia/Dubai', ends: 'after', endAfter: 3, endAfterUnit: 'months' } }],
   ['t-chat', 'chatInput', { name: 'Field ops chat', params: { testMessage: 'Is any station heading over the PM10 limit this week?' } }],
@@ -223,7 +242,7 @@ const NODES: readonly TestNode[] = [
   ],
 ]
 
-const LINKS: readonly TestLink[] = [
+const COMPLEX_LINKS: readonly TestLink[] = [
   ['t-manual', 'd-land'],
   ['t-schedule', 'd-land'],
   ['t-manual', 'd-readings'],
@@ -268,8 +287,7 @@ const LINKS: readonly TestLink[] = [
   ['a-insight', 'x-email'],
 ]
 
-/** Each section frames whole layout columns, so it never takes in a node from another section. */
-const SECTIONS: readonly { id: string; name: string; fill: string; members: readonly string[] }[] = [
+const COMPLEX_SECTIONS: readonly TestSection[] = [
   {
     id: 'test-section-data',
     name: 'Load data',
@@ -285,14 +303,9 @@ const SECTIONS: readonly { id: string; name: string; fill: string; members: read
   { id: 'test-section-report', name: 'Report', fill: '#a855f7', members: ['c-watch', 'd-merge', 'a-insight', 'a-analyst', 'o-app', 'x-email', 'n-report'] },
 ]
 
-const REPORT_NODES = ['a-insight', 'a-analyst', 'o-app', 'x-email']
-
 const COMMENT_TIME = Date.now()
 
-type SeedMessage = { text: string; author: string; minutesAgo: number }
-
-/** Pinned near each node's top-right corner, so they move with it. */
-const COMMENTS: readonly { id: string; nodeId: string; unread?: boolean; messages: readonly SeedMessage[] }[] = [
+const COMPLEX_COMMENTS: readonly TestComment[] = [
   {
     id: 'test-comment-land',
     nodeId: 'd-land',
@@ -331,6 +344,62 @@ const COMMENTS: readonly { id: string; nodeId: string; unread?: boolean; message
     ],
   },
 ]
+
+/** PM10 per station: the averages are charted, and ops get an email for any station that peaked over 120 µg/m³ (Mussafah does). */
+const SIMPLE_NODES: readonly TestNode[] = [
+  ['t-manual', 'manualTrigger'],
+  ['d-readings', 'source', { name: 'Sensor readings', params: { mode: 'query', sourceId: 'src_envdb', query: 'SELECT station, reading_date, pm10 FROM sensor_readings' } }],
+  [
+    'a-daily',
+    'aggregate',
+    {
+      name: 'PM10 per station',
+      params: {
+        groupBy: ['station'],
+        metrics: [
+          { id: 'm_avg', fn: 'avg', field: 'pm10', as: 'avg_pm10' },
+          { id: 'm_peak', fn: 'max', field: 'pm10', as: 'peak_pm10' },
+        ],
+      },
+    },
+  ],
+  ['c-pm10', 'createAsset', { name: 'PM10 by station', params: { title: 'Average PM10 by station', chartType: 'bar', mapping: { x: 'station', y: 'avg_pm10' }, refresh: 'update' } }],
+  ['f-threshold', 'ifElse', { name: 'Peak above 120 µg/m³', params: { when: conditionGroup({ id: 'c_peak', field: 'peak_pm10', operator: 'number__greater_than', value: '120' }) } }],
+  ['x-email', 'sendEmail', { params: { to: 'ops@llumen.ai', subject: 'PM10 peaked above 120 µg/m³ at {{station}}', body: 'The peak was {{peak_pm10}} µg/m³.' } }],
+]
+
+const SIMPLE_LINKS: readonly TestLink[] = [
+  ['t-manual', 'd-readings'],
+  ['d-readings', 'a-daily'],
+  ['a-daily', 'c-pm10'],
+  ['a-daily', 'f-threshold'],
+  ['f-threshold', 'x-email', 'true'],
+]
+
+const FLOWS: Record<TestFlowKind, TestFlow> = {
+  simple: {
+    nodes: SIMPLE_NODES,
+    links: SIMPLE_LINKS,
+    sections: [],
+    comments: [],
+    notes: [],
+    title: 'Daily PM10 check',
+    subtitle: 'Average PM10 per station, with an email when one peaks over 120 µg/m³.',
+  },
+  complex: {
+    nodes: COMPLEX_NODES,
+    links: COMPLEX_LINKS,
+    sections: COMPLEX_SECTIONS,
+    comments: COMPLEX_COMMENTS,
+    notes: [
+      { id: 'n-start', below: ['t-manual', 't-schedule', 't-chat'] },
+      { id: 'n-report', below: ['a-insight', 'a-analyst', 'o-app', 'x-email'] },
+    ],
+    title: 'Contamination and air quality watch',
+    subtitle: 'Sites, permits, wind, and PM10 forecasts, checked every morning at 7:00.',
+  },
+}
+
 const COMMENT_INSET = { right: 24, top: 16 }
 
 /** Room between the flow and the notes placed around it. */
@@ -342,18 +411,19 @@ const SUBTITLE_SIZE = 16
  * Sections, texts, comments, and sticky note spots for the test workflow, fitted to where the nodes
  * landed; `size` is each node's measured size, or an estimate before the cards are measured.
  */
-export function annotateTestFlow(positions: Readonly<Record<string, Point>>, size: (id: string) => Size) {
+export function annotateTestFlow(kind: TestFlowKind, positions: Readonly<Record<string, Point>>, size: (id: string) => Size) {
+  const flow = FLOWS[kind]
   const box = (id: string) => ({ ...positions[id], ...size(id) })
   const notes: Record<string, Point> = {}
 
-  const trigger = box('t-manual')
-  const triggers = boundsOf(['t-manual', 't-schedule', 't-chat'].map(box)) ?? trigger
-  notes['n-start'] = { x: triggers.x, y: triggers.y + triggers.h + NOTE_GAP }
-  const reportNodes = boundsOf(REPORT_NODES.map(box))
-  if (reportNodes) notes['n-report'] = { x: reportNodes.x, y: reportNodes.y + reportNodes.h + NOTE_GAP }
+  for (const note of flow.notes) {
+    const below = boundsOf(note.below.map(box))
+    if (below) notes[note.id] = { x: below.x, y: below.y + below.h + NOTE_GAP }
+  }
   const place = (id: string) => (notes[id] ? { ...notes[id], ...size(id) } : box(id))
 
-  const sections: CanvasSection[] = SECTIONS.flatMap(({ id, name, fill, members }) => {
+  const trigger = box(flow.nodes[0][0])
+  const sections: CanvasSection[] = flow.sections.flatMap(({ id, name, fill, members }) => {
     const bounds = boundsOf(members.map(place))
     if (!bounds) return []
     return [
@@ -373,11 +443,11 @@ export function annotateTestFlow(positions: Readonly<Record<string, Point>>, siz
 
   const top = Math.min(trigger.y, ...sections.map((section) => section.y)) - 200
   const texts: CanvasText[] = [
-    { id: 'test-text-title', x: trigger.x, y: top, text: 'Contamination and air quality watch', size: TITLE_SIZE },
-    { id: 'test-text-subtitle', x: trigger.x, y: top + 64, text: 'Sites, permits, wind, and PM10 forecasts, checked every morning at 7:00.', size: SUBTITLE_SIZE },
+    { id: 'test-text-title', x: trigger.x, y: top, text: flow.title, size: TITLE_SIZE },
+    { id: 'test-text-subtitle', x: trigger.x, y: top + 64, text: flow.subtitle, size: SUBTITLE_SIZE },
   ]
 
-  const comments: CanvasComment[] = COMMENTS.flatMap(({ id, nodeId, unread, messages }) =>
+  const comments: CanvasComment[] = flow.comments.flatMap(({ id, nodeId, unread, messages }) =>
     positions[nodeId]
       ? [
           {
@@ -400,10 +470,11 @@ export function annotateTestFlow(positions: Readonly<Record<string, Point>>, siz
   return { notes, sections, texts, comments }
 }
 
-/** A large, branching workflow for exercising runs and the run animation. */
-export function buildTestWorkflow(): { nodes: CanvasNode[]; edges: WorkflowEdge[] } {
-  const nodes = NODES.map(([id, typeId, config]) => createNode(NODE_TYPES_BY_ID[typeId], id, config))
-  const edges = LINKS.map(([from, to, fromPort = 'out', toPort = 'in']) => ({
+/** A sample workflow for exercising runs and the run animation: a short chain, or a large branching flow. */
+export function buildTestWorkflow(kind: TestFlowKind): { nodes: CanvasNode[]; edges: WorkflowEdge[] } {
+  const flow = FLOWS[kind]
+  const nodes = flow.nodes.map(([id, typeId, config]) => createNode(NODE_TYPES_BY_ID[typeId], id, config))
+  const edges = flow.links.map(([from, to, fromPort = 'out', toPort = 'in']) => ({
     id: `test-${from}-${fromPort}-${to}-${toPort}`,
     from,
     fromPort,

@@ -44,6 +44,7 @@ import type { ApiExchange } from './apiExchange'
 import type { EmailMessage } from './emailMessage'
 import type { Finding } from './findings'
 import type { NodeAppearance } from './nodeAppearance'
+import type { NodeProblem } from './nodeProblems'
 import { STICKY_SIZE, type StickyStyle } from './stickyNote'
 
 export type Point = { x: number; y: number }
@@ -185,6 +186,8 @@ export type NodeRun = {
   message?: string
   /** The failure's error code, e.g. `WF_FORECAST_REFUSED`. */
   code?: string
+  /** Everything that failed the run, each with its fix; `message` and `code` are the first. */
+  problems?: readonly NodeProblem[]
   attempts?: number
   /** Rows per output port. A branch that sent nothing is absent, which is what skips its downstream. */
   ports?: Readonly<Record<string, readonly DataRecord[]>>

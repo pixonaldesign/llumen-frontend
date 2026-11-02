@@ -1,11 +1,13 @@
 import { conditionText, evaluateRule, observeDataCondition } from './alerts'
 import { SECRET_MASK, answered, isSecretHeader, statusLine, withoutPassword, type ApiExchange } from './apiExchange'
 import type { ChatExchange, ChatReply } from './chatMessage'
-import { matches } from './conditions'
+import { matches, type ConditionScope } from './conditions'
 import { columnsOf, detectGeometry, isMapLayer } from './createAsset'
 import type { EmailMessage } from './emailMessage'
 import type { Finding, FindingAsset, FindingRule, FindingSection } from './findings'
 import { ASSETS_BY_ID, DAY_MS, ML_MODELS_BY_ID, SOURCES_BY_ID, isoDay, previewOf } from './flowData'
+import { globalVars } from './globalVars'
+import { configProblems, needsInput, noInputProblem, runtimeProblem, upstreamProblem, wiringProblems, type NodeProblem } from './nodeProblems'
 import {
   NODE_TYPES_BY_ID,
   nodeInputs,
@@ -30,7 +32,6 @@ import {
   bodyAllowed,
   emailList,
   isAppAsset,
-  kindIssue,
   paramsFor,
   ruleConditions,
   scheduleSummary,
@@ -43,6 +44,7 @@ import {
   type KindId,
   type SourceParams,
   type WaitUnit,
+  type WiringGraph,
 } from './nodeKinds'
 
 /* ---------- Step input and result ---------- */
@@ -67,6 +69,7 @@ export type StepInput = {
   runId: string
   /** The chat's answer, when this step is a Send and wait being resumed. */
   reply?: ChatReply
+  workflowName?: string
 }
 
 type Ports = Record<string, DataRecord[]>
@@ -87,7 +90,7 @@ export type StepResult =
       seconds: number
     }
   /** `api` is the request and its unsuccessful reply, when the API answered with an error. */
-  | { ok: false; code: string; message: string; seconds: number; cost?: number; api?: ApiExchange }
+  | { ok: false; code: string; message: string; seconds: number; cost?: number; api?: ApiExchange; problems?: readonly NodeProblem[] }
 
 const fail = (code: string, message: string, seconds = 0.4): StepResult => ({ ok: false, code, message, seconds })
 type Extra = { note?: string; cost?: number; assetRows?: readonly DataRecord[]; finding?: Finding | null; chat?: ChatExchange; email?: EmailMessage; api?: ApiExchange }
@@ -1048,13 +1051,23 @@ function runApiRequest(input: StepInput): StepResult {
   return done({ out: [record] }, 0.9, { api, note: `Pretend reply from ${target.hostname}: the builder doesn’t call external APIs.` })
 }
 
-/** One node's work on its input. Configuration problems fail the step the way the compiler would. */
+const notTrigger = (step: { typeId: string }) => NODE_TYPES_BY_ID[step.typeId]?.category !== 'triggers'
+
+/** The steps wired into this one and every step before it, as the wiring checks read them; triggers don't count. */
+function stepGraph(input: StepInput): WiringGraph {
+  const upstream = input.ancestors.map(({ id, typeId, name }) => ({ id, typeId, name })).filter(notTrigger)
+  const wired = input.parents.filter(notTrigger).map(({ id, typeId }) => ({ id, typeId, name: upstream.find((step) => step.id === id)?.name ?? typeId }))
+  return { wired, upstream }
+}
+
+/** One node's work on its input. Configuration and wiring problems fail the step the way the compiler would. */
 export function executeStep(input: StepInput): StepResult {
   const typeId = input.type.id as KindId
+  const problems = [...configProblems(typeId, input.node.config.params), ...wiringProblems(typeId, input.node.config.params, () => stepGraph(input))]
+  if (problems.length) return { ok: false, code: problems[0].code, message: problems[0].fix, seconds: 0.1, problems }
   if (input.type.category === 'triggers') return runTrigger(input)
-  const issue = kindIssue(typeId, input.node.config.params)
-  if (issue && typeId !== 'aiFindings') return fail('WF_COMPILE_INVALID_CONFIG', `${issue}.`.replace(/\.\.$/, '.'), 0.1)
   const rows = allRows(input)
+  const scope: ConditionScope = { steps: input.ancestors, globals: globalVars(input.workflowName ?? '', input.runId) }
   switch (typeId) {
     case 'asset': {
       const params = paramsFor('asset', input.node.config.params)
@@ -1074,17 +1087,17 @@ export function executeStep(input: StepInput): StepResult {
       return done({ out: [] }, 0.05)
     case 'filter': {
       const { where } = paramsFor('filter', input.node.config.params)
-      return done({ kept: rows.filter((row) => matches(where, row)), discarded: rows.filter((row) => !matches(where, row)) }, 0.15)
+      return done({ kept: rows.filter((row) => matches(where, row, scope)), discarded: rows.filter((row) => !matches(where, row, scope)) }, 0.15)
     }
     case 'ifElse': {
       const { when } = paramsFor('ifElse', input.node.config.params)
-      return done({ true: rows.filter((row) => matches(when, row)), false: rows.filter((row) => !matches(when, row)) }, 0.15)
+      return done({ true: rows.filter((row) => matches(when, row, scope)), false: rows.filter((row) => !matches(when, row, scope)) }, 0.15)
     }
     case 'switchCases': {
       const params = paramsFor('switchCases', input.node.config.params)
       const ports: Ports = Object.fromEntries([...params.cases.map((item) => [item.id, [] as DataRecord[]]), ['default', []]])
       for (const row of rows) {
-        const hits = params.cases.filter((item) => matches(item.when, row))
+        const hits = params.cases.filter((item) => matches(item.when, row, scope))
         const targets = params.sendToAllMatching ? hits : hits.slice(0, 1)
         if (!targets.length) ports.default.push(row)
         for (const item of targets) ports[item.id].push(row)
@@ -1127,7 +1140,6 @@ export function executeStep(input: StepInput): StepResult {
     case 'createApp':
       return runApp(input)
     case 'aiFindings':
-      if (issue) return fail('WF_COMPILE_AI_FINDINGS_INVALID', `${issue}.`)
       return runFindings(input)
     case 'sendChatMessage':
       return runChatMessage(input)
@@ -1201,6 +1213,8 @@ export type RunPlanInput = {
   forcedFailure?: string
   /** Replies to steps parked on Send and wait, by node id; those steps resume with them. */
   replies?: Readonly<Record<string, ChatReply>>
+  /** Read by conditions as `{{ $llumen.workflow.name }}`. */
+  workflowName?: string
 }
 
 export type PlannedStep = { id: string; run: NodeRun }
@@ -1221,6 +1235,14 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
   const triggerTypeId = plan.triggerId ? byId.get(plan.triggerId)?.type : undefined
   const stepTest = plan.stepTest ?? !plan.triggerId
   const steps: PlannedStep[] = []
+  const wiredStep = (nodeId: string) => {
+    const node = byId.get(nodeId)
+    return node ? [{ id: nodeId, typeId: node.type, name: nodeName(node, NODE_TYPES_BY_ID[node.type]) }] : []
+  }
+  const graphFor = (id: string): WiringGraph => ({
+    wired: plan.edges.filter((edge) => edge.to === id).flatMap((edge) => wiredStep(edge.from)).filter(notTrigger),
+    upstream: ancestorIds(id, plan.edges).flatMap(wiredStep).filter(notTrigger),
+  })
   /** The Stop and Error node that fired; every step after it in the order is skipped, on any branch. */
   let haltedBy: string | undefined
   /** Steps parked on a chat reply, and every step that reads one; these don't run until the reply. */
@@ -1250,6 +1272,7 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
 
     let inputs: Record<string, DataRecord[]> = {}
     let waiting: string | undefined
+    let inputProblem: NodeProblem | undefined
     const fixture = plan.fixtures[id]
     if (fixture && type.inputs.length) {
       inputs = { [type.inputs[0].id]: [...fixture] }
@@ -1271,10 +1294,12 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
               : from?.status === 'success'
                 ? `Skipped: the ${branch} branch of ${fromName} sent no rows.`
                 : `No input yet: execute ${fromName} first.`
+        inputProblem = upstreamProblem(fromName)
       } else if (!data.length && triggerEdges.length && !triggerEdges.some(arrived)) {
         waiting = 'Skipped: the trigger wired into it didn’t fire.'
-      } else if (!inbound.length && type.inputs.length && !['source', 'asset'].includes(type.id)) {
+      } else if (!inbound.length && needsInput(type.id, type.inputs.length)) {
         waiting = 'Nothing is connected to this node’s input.'
+        inputProblem = noInputProblem()
       }
       for (const edge of data) {
         const rows = results[edge.from]?.ports?.[edge.fromPort]
@@ -1285,7 +1310,17 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
     if (waiting) {
       const run: NodeRun = waiting.startsWith('Skipped')
         ? { status: 'skipped', message: waiting }
-        : { status: 'error', message: waiting, code: 'WF_STEP_NO_INPUT', durationMs: 0 }
+        : {
+            status: 'error',
+            message: waiting,
+            code: 'WF_STEP_NO_INPUT',
+            durationMs: 0,
+            problems: [
+              ...(inputProblem ? [inputProblem] : []),
+              ...configProblems(type.id, node.config.params),
+              ...wiringProblems(type.id, node.config.params, () => graphFor(id)),
+            ],
+          }
       results[id] = run
       steps.push({ id, run })
       continue
@@ -1299,7 +1334,20 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
     })
     const parents = inbound.map((edge) => ({ id: edge.from, typeId: byId.get(edge.from)?.type ?? '' }))
     const children = plan.edges.filter((edge) => edge.from === id).map((edge) => byId.get(edge.to)?.type ?? '')
-    const input: StepInput = { node, type, inputs, parents, children, ancestors, triggerTypeId, hasChatTrigger, stepTest, runId, reply: plan.replies?.[id] }
+    const input: StepInput = {
+      node,
+      type,
+      inputs,
+      parents,
+      children,
+      ancestors,
+      triggerTypeId,
+      hasChatTrigger,
+      stepTest,
+      runId,
+      reply: plan.replies?.[id],
+      workflowName: plan.workflowName,
+    }
 
     let result = executeStep(input)
     if (plan.simulate === 'pass' && !result.ok) result = done({ [nodeOutputs(node, type)[0]?.id ?? 'out']: allRows(input) }, result.seconds)
@@ -1330,7 +1378,18 @@ export function planRun(plan: RunPlanInput): PlannedStep[] {
           : settings.onError === 'errorOutput' && outputs[0]
             ? { [outputs[0].id]: [{ error: true, node_id: id, error_code: result.code, error_message: result.message }] }
             : undefined
-      run = { status: 'error', message, code: result.code, attempts, durationMs: Math.round(seconds * 1000), cost: result.cost, ports, api: result.api }
+      const problems = result.problems ?? [runtimeProblem(result.code, result.message)]
+      run = {
+        status: 'error',
+        message,
+        code: result.code,
+        problems,
+        attempts,
+        durationMs: Math.round(seconds * 1000),
+        cost: result.cost,
+        ports,
+        api: result.api,
+      }
     }
     results[id] = run
     steps.push({ id, run })

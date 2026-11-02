@@ -49,11 +49,25 @@ function RunStatus({ run }: { run: NodeRun }) {
   return null
 }
 
-/** Run details (on hover or selection) and the result badge, pushed to the end of their row. */
-function RunInfo({ run, isTrigger, isDefault }: { run: NodeRun; isTrigger: boolean; isDefault: boolean }) {
+/** Run details (on hover or selection) and the result badge, pushed to the end of their row. A failed badge opens the errors. */
+function RunInfo({ run, isTrigger, isDefault, onShowErrors }: { run: NodeRun; isTrigger: boolean; isDefault: boolean; onShowErrors?: () => void }) {
   const meta = runMeta(run, isTrigger)
+  const problems = run.problems?.length || 1
   const badge =
-    run.status === 'success' || run.status === 'error' ? (
+    run.status === 'error' && onShowErrors ? (
+      <button
+        type="button"
+        className={`${minimal.badge} ${minimal.badge_error} ${minimal.badgeButton}`}
+        aria-label={`Failed with ${plural(problems, 'problem')}: show them`}
+        data-tooltip={problems === 1 ? 'Show the problem' : 'Show the problems'}
+        onClick={onShowErrors}
+      >
+        Failed
+        <span className={minimal.badgeCount} aria-hidden>
+          {problems}
+        </span>
+      </button>
+    ) : run.status === 'success' || run.status === 'error' ? (
       <span className={`${minimal.badge} ${minimal[`badge_${run.status}`]}`}>{run.status === 'error' ? 'Failed' : isTrigger ? 'Fired' : 'Passed'}</span>
     ) : run.status === 'idle' && isDefault ? (
       <span className={`${minimal.badge} ${minimal.badge_default}`} data-tooltip="Test Agent and Execute Agent start here unless you pick another trigger">
@@ -151,7 +165,8 @@ export function NodeCardSections({
   const placeholder = cardPlaceholder(node, blocks)
   // Until it's set up, a default setting isn't something the user chose.
   const values = placeholder?.opensSettings ? [] : cardValues(node, type, flow)
-  const issue = (placeholder?.opensSettings ? undefined : nodeIssue(node)) ?? wiringIssue ?? nodeNotice(node)
+  // A failed run's badge lists the problems, so the card doesn't repeat one of them.
+  const issue = run.status === 'error' ? undefined : ((placeholder?.opensSettings ? undefined : nodeIssue(node)) ?? wiringIssue ?? nodeNotice(node))
   const outputs = nodeOutputs(node, type)
   const addLabel = branchAddLabel(type.id)
   const edgeOutputs = outputs.length > 1 && cardEdgeOutputs(type)
@@ -236,7 +251,7 @@ export function NodeCardSections({
       onDoubleClick={onDoubleClick}
     >
       <div className={styles.runAbove}>
-        <RunInfo run={run} isTrigger={isTrigger} isDefault={flow.defaultTriggerId === node.id} />
+        <RunInfo run={run} isTrigger={isTrigger} isDefault={flow.defaultTriggerId === node.id} onShowErrors={onOpenData} />
       </div>
 
       {edgeOutputs ? (

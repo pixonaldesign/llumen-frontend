@@ -48,9 +48,25 @@
   }
 }
 
+/* A field a problem's fix led to: a ring outside it, so nothing shifts. */
+.window [data-attention] {
+  border-radius: var(--radius-md);
+  outline: 2px solid transparent;
+  outline-offset: 6px;
+  animation: attention 1800ms var(--lc-ease);
+}
+
+@keyframes attention {
+  0%,
+  45% {
+    outline-color: color-mix(in srgb, var(--canvas-accent) 70%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .overlay,
-  .window {
+  .window,
+  .window [data-attention] {
     animation: none;
   }
 }
@@ -286,6 +302,9 @@ button.close:hover {
 }
 
 button.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   height: 34px;
   margin-bottom: -1px;
   padding: 0;
@@ -306,6 +325,23 @@ button.tab:hover {
 button.tab[aria-selected='true'] {
   border-bottom-color: var(--canvas-accent);
   color: #fff;
+}
+
+.tabCount {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+button.tab[aria-selected='true'] .tabCount {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 /* Tabs with something at the far end; the bar's rule spans both. */
@@ -646,6 +682,20 @@ button.tab[aria-selected='true'] {
 
 .jsonColon {
   margin: 0 6px 0 4px;
+}
+
+/* Without chips the lines sit at text height. */
+.jsonTree[data-plain] .jsonLine {
+  min-height: 20px;
+}
+
+.jsonKey {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.jsonKeyColon {
+  margin-right: 6px;
 }
 
 .jsonValue {

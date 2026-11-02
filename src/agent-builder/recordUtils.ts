@@ -8,17 +8,21 @@ export const displayValue = (value: DataValue | undefined) => {
 
 /**
  * A row's field by its own key, else by walking a nested path such as `hair.color` or `items.0.sku`;
- * rows from a fixture can hold objects and arrays even though the type says flat. Objects come back as JSON.
+ * rows from a fixture or an API can hold objects and lists even though the type says flat.
  */
-export function fieldAt(row: DataRecord, path: string): DataValue | undefined {
+export function valueAt(row: DataRecord, path: string): unknown {
+  if (path in row) return row[path]
   let value: unknown = row
-  if (path in row) value = row[path]
-  else {
-    for (const key of path.split('.')) {
-      if (value === null || typeof value !== 'object') return undefined
-      value = (value as Record<string, unknown>)[key]
-    }
+  for (const key of path.split('.')) {
+    if (value === null || typeof value !== 'object') return undefined
+    value = (value as Record<string, unknown>)[key]
   }
+  return value
+}
+
+/** `valueAt` for text: objects and lists come back as JSON. */
+export function fieldAt(row: DataRecord, path: string): DataValue | undefined {
+  const value = valueAt(row, path)
   if (value === undefined) return undefined
   return value !== null && typeof value === 'object' ? JSON.stringify(value) : (value as DataValue)
 }

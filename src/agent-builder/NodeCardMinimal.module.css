@@ -105,6 +105,44 @@
   background: rgba(var(--run-fail-rgb, 239, 68, 68), 0.2);
 }
 
+/* The canvas resets buttons' font and colour after these rules load, so the badge's are restated here. */
+button.badgeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding-right: 2px;
+  border: 0;
+  color: rgb(var(--run-fail-rgb, 239, 68, 68));
+  font-family: inherit;
+  font-size: var(--lc-font-small-size);
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease);
+}
+
+/* Darkened so white text on it stays above 4.5:1. */
+.badgeCount {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, rgb(var(--run-fail-rgb, 239, 68, 68)) 78%, black);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+button.badgeButton:hover {
+  background: rgba(var(--run-fail-rgb, 239, 68, 68), 0.32);
+}
+
+button.badgeButton:focus-visible {
+  outline: 2px solid rgb(var(--run-fail-rgb, 239, 68, 68));
+  outline-offset: 2px;
+}
+
 .badge_default {
   color: rgb(var(--ink-rgb) / 0.7);
   background: rgb(var(--ink-rgb) / 0.1);

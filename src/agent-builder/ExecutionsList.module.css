@@ -1,0 +1,166 @@
+/* Covers the canvas under the header; the page scrolls edge to edge and its content carries the inset. */
+.page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  padding: calc(var(--space-2xl) * 2 + 36px) 0 var(--space-5xl);
+  background: rgba(6, 6, 8, 0.94);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.page::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.page::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.page::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.inner {
+  padding: 0 var(--space-2xl);
+}
+
+.title {
+  margin: 0 0 var(--space-xl);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  padding: 0 var(--space-lg) var(--space-md);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.table td {
+  height: 52px;
+  padding: 0 var(--space-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+.table :is(th, td):first-child {
+  padding-left: 0;
+}
+
+.table :is(th, td):last-child {
+  padding-right: 0;
+}
+
+.table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.date {
+  color: #fff;
+  font-weight: 500;
+}
+
+.muted {
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  text-align: right;
+}
+
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status[data-status='success'] {
+  background: rgba(74, 222, 128, 0.14);
+  color: #86efac;
+}
+
+.status[data-status='error'] {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+}
+
+.status[data-status='waiting'] {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fcd34d;
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+
+.empty {
+  padding: var(--space-5xl) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.emptyText {
+  max-width: 420px;
+  margin: var(--space-xs) auto 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

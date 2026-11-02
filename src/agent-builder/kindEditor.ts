@@ -1,5 +1,8 @@
 import { useCallback, useRef, useState, type FocusEvent } from 'react'
+import { BracketsCurly, Rows, type Icon } from '@phosphor-icons/react'
+import type { ConditionScope } from './conditions'
 import { columnsOf, type Column } from './createAsset'
+import { globalVars } from './globalVars'
 import type { CanvasNode, DataRecord, NodeRun, NodeType } from './nodeCatalog'
 import type { UpstreamNode } from './NodeConfigWindow'
 
@@ -17,6 +20,7 @@ export type EditorContext = {
   onExecutePrevious: () => void
   /** A branch to open on, e.g. the case edited from the card. */
   focus?: string
+  workflowName: string
 }
 
 /**
@@ -78,4 +82,51 @@ export const plural = (count: number, word: string, many = `${word}s`) => `${cou
 export const stepColumns = (upstream: readonly UpstreamNode[], id: string | undefined) => {
   const records = upstream.find((step) => step.id === id)?.records
   return records ? columnsOf(records) : []
+}
+
+/** A group the field picker lists: a node's rows, or a global such as `$llumen`. */
+export type FieldSource = {
+  id: string
+  name: string
+  icon: Icon
+  tone?: string
+  /** Put before its fields' paths, e.g. `alias.field`; null for the rows coming straight in. */
+  prefix: string | null
+  records: readonly DataRecord[] | null
+  open: boolean
+  /** Beside the name, e.g. how many items the node sent. */
+  meta?: string
+  /** Shown when it has no fields. */
+  empty?: string
+}
+
+/** What a condition can read: the rows coming in, the nodes before, and the globals. */
+export type ConditionFields = { records: readonly DataRecord[] | null; sources: readonly FieldSource[]; scope: ConditionScope }
+
+export function conditionFields(ctx: EditorContext): ConditionFields {
+  const direct = ctx.upstream.filter((step) => step.direct)
+  const single = direct.length === 1
+  const globals = globalVars(ctx.workflowName)
+  const nodes: FieldSource[] = [...direct, ...ctx.upstream.filter((step) => !step.direct)].map((step) => ({
+    id: step.id,
+    name: step.name,
+    icon: step.icon,
+    tone: step.tone,
+    prefix: step.direct && single ? null : step.alias,
+    // A fixture stands in for what the connected node sent.
+    records: step.direct && single ? ctx.records : step.records,
+    open: step.direct,
+    meta: step.records ? plural(step.records.length, 'item') : 'Not run',
+  }))
+  const input: FieldSource[] = direct.length === 0 && ctx.records ? [{ id: 'input', name: 'Input', icon: Rows, prefix: null, records: ctx.records, open: true, meta: plural(ctx.records.length, 'item') }] : []
+  const vars: FieldSource[] = Object.entries(globals).map(([name, record]) => ({
+    id: name,
+    name,
+    icon: BracketsCurly,
+    prefix: name,
+    records: [record],
+    open: false,
+    empty: 'No workflow variables yet.',
+  }))
+  return { records: ctx.records, scope: { steps: ctx.upstream.map((step) => ({ alias: step.alias, rows: step.records })), globals }, sources: [...input, ...nodes, ...vars] }
 }

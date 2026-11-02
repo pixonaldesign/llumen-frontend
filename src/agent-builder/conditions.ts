@@ -1,53 +1,153 @@
-import type { DataRecord, DataValue, FieldPart, NodeField } from './nodeCatalog'
+import { evaluateExpression } from './expressions'
+import { fieldKind, isObject } from './fieldPaths'
+import type { DataRecord, FieldPart, NodeField } from './nodeCatalog'
+import { valueAt } from './recordUtils'
 
-/** The guided vocabulary's operators: `<type>__<comparison>`. */
-export type Operator =
-  | 'text__equals'
-  | 'text__not_equals'
-  | 'text__contains'
-  | 'text__not_contains'
-  | 'text__starts_with'
-  | 'text__ends_with'
-  | 'number__equals'
-  | 'number__not_equals'
-  | 'number__greater_than'
-  | 'number__greater_than_or_equal'
-  | 'number__less_than'
-  | 'number__less_than_or_equal'
-  | 'boolean__is_true'
-  | 'boolean__is_false'
-  | 'any__is_empty'
-  | 'any__is_not_empty'
+/** What an operator compares, as the operator menu groups them. */
+export type OperatorGroup = 'String' | 'Number' | 'Date & Time' | 'Boolean' | 'Array' | 'Object'
 
-export type OperatorGroup = 'Text' | 'Number' | 'Boolean' | 'Any'
+const GROUP_PREFIX = { String: 'text', Number: 'number', 'Date & Time': 'date', Boolean: 'boolean', Array: 'array', Object: 'object' } as const satisfies Record<
+  OperatorGroup,
+  string
+>
 
-export type OperatorSpec = { id: Operator; label: string; symbol: string; group: OperatorGroup; unary?: boolean }
+export const OPERATOR_GROUPS = Object.keys(GROUP_PREFIX) as OperatorGroup[]
 
-export const OPERATORS: readonly OperatorSpec[] = [
-  { id: 'text__equals', label: 'is', symbol: 'is', group: 'Text' },
-  { id: 'text__not_equals', label: 'is not', symbol: 'is not', group: 'Text' },
-  { id: 'text__contains', label: 'contains', symbol: 'contains', group: 'Text' },
-  { id: 'text__not_contains', label: 'does not contain', symbol: 'does not contain', group: 'Text' },
-  { id: 'text__starts_with', label: 'starts with', symbol: 'starts with', group: 'Text' },
-  { id: 'text__ends_with', label: 'ends with', symbol: 'ends with', group: 'Text' },
-  { id: 'number__equals', label: 'equals', symbol: '=', group: 'Number' },
-  { id: 'number__not_equals', label: 'does not equal', symbol: '≠', group: 'Number' },
-  { id: 'number__greater_than', label: 'is greater than', symbol: '>', group: 'Number' },
-  { id: 'number__greater_than_or_equal', label: 'is at least', symbol: '≥', group: 'Number' },
-  { id: 'number__less_than', label: 'is less than', symbol: '<', group: 'Number' },
-  { id: 'number__less_than_or_equal', label: 'is at most', symbol: '≤', group: 'Number' },
-  { id: 'boolean__is_true', label: 'is true', symbol: 'is true', group: 'Boolean', unary: true },
-  { id: 'boolean__is_false', label: 'is false', symbol: 'is false', group: 'Boolean', unary: true },
-  { id: 'any__is_empty', label: 'is empty', symbol: 'is empty', group: 'Any', unary: true },
-  { id: 'any__is_not_empty', label: 'is not empty', symbol: 'is not empty', group: 'Any', unary: true },
-]
+/** `<type>__<comparison>`, e.g. `number__greater_than`. */
+export type Operator = `${(typeof GROUP_PREFIX)[OperatorGroup]}__${string}`
+
+/** What the value box takes when the value is typed in. */
+export type ValueKind = 'text' | 'number' | 'date'
+
+export type OperatorSpec = { id: Operator; label: string; symbol: string; group: OperatorGroup; unary?: boolean; valueKind?: ValueKind }
+
+const PRESENCE = [
+  ['exists', 'exists'],
+  ['not_exists', 'does not exist'],
+  ['is_empty', 'is empty'],
+  ['is_not_empty', 'is not empty'],
+] as const
+
+/** Each comparison, its label, and its short form on the card when that differs. */
+type Entry = readonly [comparison: string, label: string, symbol?: string, valueKind?: ValueKind]
+
+const ENTRIES: Record<OperatorGroup, readonly Entry[]> = {
+  String: [
+    ['equals', 'is equal to', 'is'],
+    ['equals_ci', 'is equal to (case insensitive)', 'is'],
+    ['not_equals', 'is not equal to', 'is not'],
+    ['not_equals_ci', 'is not equal to (case insensitive)', 'is not'],
+    ['contains', 'contains'],
+    ['contains_ci', 'contains (case insensitive)', 'contains'],
+    ['not_contains', 'does not contain'],
+    ['not_contains_ci', 'does not contain (case insensitive)', 'does not contain'],
+    ['starts_with', 'starts with'],
+    ['starts_with_ci', 'starts with (case insensitive)', 'starts with'],
+    ['not_starts_with', 'does not start with'],
+    ['not_starts_with_ci', 'does not start with (case insensitive)', 'does not start with'],
+    ['ends_with', 'ends with'],
+    ['ends_with_ci', 'ends with (case insensitive)', 'ends with'],
+    ['not_ends_with', 'does not end with'],
+    ['not_ends_with_ci', 'does not end with (case insensitive)', 'does not end with'],
+    ['regex', 'matches regex', 'matches'],
+    ['regex_ci', 'matches regex (case insensitive)', 'matches'],
+    ['not_regex', 'does not match regex', 'does not match'],
+    ['not_regex_ci', 'does not match regex (case insensitive)', 'does not match'],
+  ],
+  Number: [
+    ['equals', 'is equal to', '='],
+    ['not_equals', 'is not equal to', '≠'],
+    ['greater_than', 'is greater than', '>'],
+    ['less_than', 'is less than', '<'],
+    ['greater_than_or_equal', 'is greater than or equal to', '≥'],
+    ['less_than_or_equal', 'is less than or equal to', '≤'],
+  ],
+  'Date & Time': [
+    ['equals', 'is equal to', 'is'],
+    ['not_equals', 'is not equal to', 'is not'],
+    ['after', 'is after'],
+    ['before', 'is before'],
+    ['after_or_equal', 'is after or equal to', 'is on or after'],
+    ['before_or_equal', 'is before or equal to', 'is on or before'],
+  ],
+  Boolean: [
+    ['is_true', 'is true'],
+    ['is_false', 'is false'],
+  ],
+  Array: [
+    ['contains', 'contains', 'contains', 'text'],
+    ['not_contains', 'does not contain', 'does not contain', 'text'],
+    ['length_equals', 'length equal to', 'length ='],
+    ['length_not_equals', 'length not equal to', 'length ≠'],
+    ['length_greater_than', 'length greater than', 'length >'],
+    ['length_less_than', 'length less than', 'length <'],
+    ['length_greater_than_or_equal', 'length greater than or equal to', 'length ≥'],
+    ['length_less_than_or_equal', 'length less than or equal to', 'length ≤'],
+  ],
+  Object: [],
+}
+
+const GROUP_VALUE: Record<OperatorGroup, ValueKind | undefined> = {
+  String: 'text',
+  Number: 'number',
+  'Date & Time': 'date',
+  Boolean: undefined,
+  Array: 'number',
+  Object: undefined,
+}
+
+export const OPERATORS: readonly OperatorSpec[] = OPERATOR_GROUPS.flatMap((group) => [
+  ...PRESENCE.map(([comparison, label]): OperatorSpec => ({ id: `${GROUP_PREFIX[group]}__${comparison}`, label, symbol: label, group, unary: true })),
+  ...ENTRIES[group].map(
+    ([comparison, label, symbol, valueKind]): OperatorSpec => ({
+      id: `${GROUP_PREFIX[group]}__${comparison}`,
+      label,
+      symbol: symbol ?? label,
+      group,
+      unary: group === 'Boolean' || undefined,
+      valueKind: group === 'Boolean' ? undefined : (valueKind ?? GROUP_VALUE[group]),
+    }),
+  ),
+])
+
+/** Ids saved before every type had its own emptiness checks. */
+const RENAMED: Readonly<Record<string, Operator>> = { any__is_empty: 'text__is_empty', any__is_not_empty: 'text__is_not_empty' }
 
 const OPERATORS_BY_ID = Object.fromEntries(OPERATORS.map((spec) => [spec.id, spec])) as Record<Operator, OperatorSpec>
-export const operatorSpec = (id: Operator) => OPERATORS_BY_ID[id] ?? OPERATORS[0]
+export const operatorSpec = (id: string) => OPERATORS_BY_ID[(RENAMED[id] ?? id) as Operator] ?? OPERATORS[0]
+
+/** The operator a group starts on when the field's type changes. */
+const GROUP_DEFAULT: Record<OperatorGroup, Operator> = {
+  String: 'text__equals',
+  Number: 'number__greater_than',
+  'Date & Time': 'date__after',
+  Boolean: 'boolean__is_true',
+  Array: 'array__is_not_empty',
+  Object: 'object__exists',
+}
+
+/** The same comparison for another type when it has one, e.g. `is empty` or `contains`; else that type's default. */
+export function operatorIn(group: OperatorGroup, current: string): Operator {
+  const spec = operatorSpec(current)
+  if (spec.group === group) return spec.id
+  const same = `${GROUP_PREFIX[group]}__${spec.id.slice(spec.id.indexOf('__') + 2)}` as Operator
+  return OPERATORS_BY_ID[same] ? same : GROUP_DEFAULT[group]
+}
 
 export type Combinator = 'and' | 'or'
 
-export type Condition = { id: string; field: string; operator: Operator; value: string }
+/**
+ * `field` is a path in the row, e.g. `hair.color`, or an expression when `fieldMode` says so; `value` is typed
+ * in, or an expression when `valueMode` says so.
+ */
+export type Condition = {
+  id: string
+  field: string
+  operator: Operator
+  value: string
+  fieldMode?: 'expression'
+  valueMode?: 'expression'
+}
 
 export type ConditionGroup = { combinator: Combinator; conditions: readonly Condition[] }
 
@@ -55,57 +155,154 @@ export const newCondition = (id: string, operator: Operator = 'text__equals'): C
 
 export const conditionGroup = (...conditions: Condition[]): ConditionGroup => ({ combinator: 'and', conditions })
 
-const isEmpty = (value: DataValue | undefined) => value === null || value === undefined || value === ''
+const missing = (value: unknown) => value === null || value === undefined
+const empty = (value: unknown) =>
+  missing(value) || value === '' || (Array.isArray(value) && value.length === 0) || (isObject(value) && Object.keys(value).length === 0)
 
-/** Whether one row passes one comparison. Text compares case-insensitively; a non-number never passes a number comparison. */
-export function compare(value: DataValue | undefined, operator: Operator, right: string): boolean {
-  const spec = operatorSpec(operator)
-  if (operator === 'any__is_empty') return isEmpty(value)
-  if (operator === 'any__is_not_empty') return !isEmpty(value)
-  if (spec.group === 'Boolean') {
-    const truthy = value === true || String(value).toLowerCase() === 'true'
-    return operator === 'boolean__is_true' ? truthy : !truthy
-  }
-  if (spec.group === 'Number') {
-    const left = typeof value === 'number' ? value : Number(value)
-    const target = Number(right)
-    if (isEmpty(value) || !Number.isFinite(left) || !Number.isFinite(target)) return false
-    switch (operator) {
-      case 'number__equals':
-        return left === target
-      case 'number__not_equals':
-        return left !== target
-      case 'number__greater_than':
-        return left > target
-      case 'number__greater_than_or_equal':
-        return left >= target
-      case 'number__less_than':
-        return left < target
-      default:
-        return left <= target
-    }
-  }
-  const left = isEmpty(value) ? '' : String(value).toLowerCase()
-  const target = right.toLowerCase()
-  switch (operator) {
-    case 'text__equals':
-      return left === target
-    case 'text__not_equals':
-      return left !== target
-    case 'text__contains':
-      return left.includes(target)
-    case 'text__not_contains':
-      return !left.includes(target)
-    case 'text__starts_with':
-      return left.startsWith(target)
+const asText = (value: unknown) => (missing(value) ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value))
+
+function order(comparison: string, left: number, right: number) {
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return false
+  switch (comparison) {
+    case 'equals':
+      return left === right
+    case 'not_equals':
+      return left !== right
+    case 'greater_than':
+      return left > right
+    case 'greater_than_or_equal':
+      return left >= right
+    case 'less_than':
+      return left < right
     default:
-      return left.endsWith(target)
+      return left <= right
   }
 }
 
-export function matches(group: ConditionGroup, row: DataRecord): boolean {
+const DATE_ORDER: Readonly<Record<string, string>> = { after: 'greater_than', before: 'less_than', after_or_equal: 'greater_than_or_equal', before_or_equal: 'less_than_or_equal' }
+
+const toTime = (value: unknown) => (typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Date.parse(value) : Number.NaN)
+
+/** A list, or text holding one as JSON. */
+function asList(value: unknown): readonly unknown[] | null {
+  if (Array.isArray(value)) return value
+  if (typeof value !== 'string' || !value.trim().startsWith('[')) return null
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function matchesText(comparison: string, left: string, right: string) {
+  const insensitive = comparison.endsWith('_ci')
+  const base = insensitive ? comparison.slice(0, -3) : comparison
+  if (base === 'regex' || base === 'not_regex') {
+    try {
+      const found = new RegExp(right, insensitive ? 'i' : '').test(left)
+      return base === 'regex' ? found : !found
+    } catch {
+      return false
+    }
+  }
+  const a = insensitive ? left.toLowerCase() : left
+  const b = insensitive ? right.toLowerCase() : right
+  switch (base) {
+    case 'equals':
+      return a === b
+    case 'not_equals':
+      return a !== b
+    case 'contains':
+      return a.includes(b)
+    case 'not_contains':
+      return !a.includes(b)
+    case 'starts_with':
+      return a.startsWith(b)
+    case 'not_starts_with':
+      return !a.startsWith(b)
+    case 'ends_with':
+      return a.endsWith(b)
+    default:
+      return !a.endsWith(b)
+  }
+}
+
+/** Whether a value passes one comparison; a value of the wrong type never passes a typed comparison. */
+export function compare(value: unknown, operator: string, right: unknown): boolean {
+  const spec = operatorSpec(operator)
+  const comparison = spec.id.slice(spec.id.indexOf('__') + 2)
+  if (comparison === 'exists') return !missing(value)
+  if (comparison === 'not_exists') return missing(value)
+  if (comparison === 'is_empty') return empty(value)
+  if (comparison === 'is_not_empty') return !empty(value)
+  switch (spec.group) {
+    case 'Boolean': {
+      const truthy = value === true || asText(value).toLowerCase() === 'true'
+      return comparison === 'is_true' ? truthy : !truthy
+    }
+    case 'Number':
+      return !empty(value) && order(comparison, typeof value === 'number' ? value : Number(value), Number(right))
+    case 'Date & Time':
+      return order(DATE_ORDER[comparison] ?? comparison, toTime(value), toTime(right))
+    case 'Array': {
+      const list = asList(value)
+      if (!list) return false
+      if (comparison === 'contains' || comparison === 'not_contains') {
+        const found = list.some((item) => asText(item) === asText(right))
+        return comparison === 'contains' ? found : !found
+      }
+      return order(comparison.replace('length_', ''), list.length, Number(right))
+    }
+    case 'Object':
+      return false
+    default:
+      return matchesText(comparison, asText(value), asText(right))
+  }
+}
+
+/** What a condition reads besides its row: earlier steps by alias, and globals such as `$llumen`. */
+export type ConditionScope = {
+  steps?: readonly { alias: string; rows: readonly DataRecord[] | null }[]
+  globals?: Readonly<Record<string, DataRecord>>
+}
+
+/**
+ * Reads a path for one row. `$name.…` reads a global and `alias.…` an earlier step's first row,
+ * unless the row has a field of that name, which wins.
+ */
+export function resolver(row: DataRecord, scope: ConditionScope = {}) {
+  return (path: string): unknown => {
+    const dot = path.indexOf('.')
+    const head = dot < 0 ? path : path.slice(0, dot)
+    const rest = dot < 0 ? '' : path.slice(dot + 1)
+    if (head.startsWith('$')) {
+      const global = scope.globals?.[head]
+      return global && rest ? valueAt(global, rest) : global
+    }
+    if (path in row || head in row) return valueAt(row, path)
+    const step = scope.steps?.find((item) => item.alias === head)
+    if (step) return step.rows?.[0] && rest ? valueAt(step.rows[0], rest) : undefined
+    return valueAt(row, path)
+  }
+}
+
+/** The condition's left side for one row: the field at its path, or what its expression gives. */
+export function leftValue(condition: Condition, row: DataRecord, scope?: ConditionScope): unknown {
+  const resolve = resolver(row, scope)
+  return condition.fieldMode === 'expression' ? evaluateExpression(condition.field, resolve) : resolve(condition.field)
+}
+
+export function rightValue(condition: Condition, row: DataRecord, scope?: ConditionScope): unknown {
+  return condition.valueMode === 'expression' ? evaluateExpression(condition.value, resolver(row, scope)) : condition.value
+}
+
+export const conditionHolds = (condition: Condition, row: DataRecord, scope?: ConditionScope) =>
+  compare(leftValue(condition, row, scope), condition.operator, rightValue(condition, row, scope))
+
+export function matches(group: ConditionGroup, row: DataRecord, scope?: ConditionScope): boolean {
   if (!group.conditions.length) return true
-  const test = (condition: Condition) => compare(row[condition.field], condition.operator, condition.value)
+  const test = (condition: Condition) => conditionHolds(condition, row, scope)
   return group.combinator === 'and' ? group.conditions.every(test) : group.conditions.some(test)
 }
 
@@ -114,10 +311,13 @@ export const isComplete = (condition: Condition) =>
 
 export function conditionParts(condition: Condition): FieldPart[] {
   const spec = operatorSpec(condition.operator)
-  const field: FieldPart = { text: condition.field || '…', role: 'field' }
-  if (spec.group === 'Boolean') return [field, { text: 'is', role: 'operator' }, { text: spec.id === 'boolean__is_true' ? 'true' : 'false', role: 'value' }]
+  const field: FieldPart = { text: condition.field.trim() || '…', role: 'field' }
+  if (spec.id === 'boolean__is_true' || spec.id === 'boolean__is_false') {
+    return [field, { text: 'is', role: 'operator' }, { text: spec.id === 'boolean__is_true' ? 'true' : 'false', role: 'value' }]
+  }
   if (spec.unary) return [field, { text: spec.symbol, role: 'operator' }]
-  const value = spec.group === 'Text' ? `"${condition.value}"` : condition.value || '…'
+  const typed = condition.valueMode !== 'expression' && spec.valueKind === 'text'
+  const value = typed ? `"${condition.value}"` : condition.value.trim() || '…'
   return [field, { text: spec.symbol, role: 'operator' }, { text: value, role: 'value' }]
 }
 
@@ -143,9 +343,18 @@ export function groupIssue(group: ConditionGroup, what: string): string | undefi
   return undefined
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/
+
+/** The operator group a sample value belongs to; dates are text written as ISO dates. */
+export function groupFor(value: unknown): OperatorGroup | undefined {
+  const kind = fieldKind(value)
+  if (kind === 'null') return undefined
+  if (kind === 'string') return ISO_DATE.test(String(value)) ? 'Date & Time' : 'String'
+  return ({ number: 'Number', boolean: 'Boolean', array: 'Array', object: 'Object' } as const)[kind]
+}
+
 /** Picks a sensible operator for a column's values. */
-export function operatorFor(value: DataValue | undefined): Operator {
-  if (typeof value === 'number') return 'number__greater_than'
-  if (typeof value === 'boolean') return 'boolean__is_true'
-  return 'text__equals'
+export function operatorFor(value: unknown): Operator {
+  const group = groupFor(value)
+  return group ? GROUP_DEFAULT[group] : 'text__equals'
 }

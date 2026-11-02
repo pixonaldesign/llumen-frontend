@@ -16,8 +16,6 @@ import { PopoverLayer } from './configStyles'
 import styles from './ConfigControls.module.css'
 
 const POPOVER_GAP = 4
-const POPOVER_MAX_HEIGHT = 340
-const POPOVER_MIN_ROOM = 160
 
 type PopoverProps = {
   anchorRef: RefObject<HTMLElement | null>
@@ -25,14 +23,26 @@ type PopoverProps = {
   /** Matches the anchor's width when true; otherwise sizes to its content from the anchor's edge. */
   matchWidth?: boolean
   align?: 'start' | 'end'
+  /** `side` opens beside the anchor, e.g. a submenu off a row, flipping left when the right has no room. */
+  placement?: 'below' | 'side'
+  className?: string
   label: string
   children: ReactNode
 }
 
-/**
- * Anchored glass popover. Closes on an outside press, Escape, or when anything around it scrolls;
- * carries `data-config-popover` so the window leaves Escape to it.
- */
+/** Each open popover's anchor, so a submenu opened from a popover counts as part of it. */
+const anchors = new WeakMap<Element, Element | null>()
+
+/** Whether `target` is in `popover` or in a popover opened from inside it, however deep. */
+function within(popover: Element | null, target: EventTarget | null) {
+  let current = target instanceof Element ? target.closest('[data-config-popover]') : null
+  while (current) {
+    if (current === popover) return true
+    current = anchors.get(current)?.closest('[data-config-popover]') ?? null
+  }
+  return false
+}
+
 /** Gives popovers inside `children` a layer over the nearest positioned ancestor, e.g. a side panel. */
 export function PopoverHost({ children }: { children: ReactNode }) {
   const [layer, setLayer] = useState<HTMLDivElement | null>(null)
@@ -44,7 +54,11 @@ export function PopoverHost({ children }: { children: ReactNode }) {
   )
 }
 
-export function Popover({ anchorRef, onClose, matchWidth = false, align = 'start', label, children }: PopoverProps) {
+/**
+ * Anchored glass popover. Closes on an outside press, Escape, or when anything around it scrolls;
+ * carries `data-config-popover` so the window leaves Escape to it.
+ */
+export function Popover({ anchorRef, onClose, matchWidth = false, align = 'start', placement = 'below', className, label, children }: PopoverProps) {
   const layer = useContext(PopoverLayer)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -53,36 +67,55 @@ export function Popover({ anchorRef, onClose, matchWidth = false, align = 'start
     const anchor = anchorRef.current
     const popover = ref.current
     if (!anchor || !popover || !layer) return
+    anchors.set(popover, anchor)
     const box = anchor.getBoundingClientRect()
     const bounds = layer.getBoundingClientRect()
+    const px = (value: number) => `${value}px`
+    if (placement === 'side') {
+      const edge = POPOVER_GAP * 3
+      popover.style.maxHeight = px(bounds.height - edge * 2)
+      const { width, height } = popover.getBoundingClientRect()
+      // A row inside a popover opens from the popover's edge, not the row's.
+      const side = anchor.closest('[data-config-popover]')?.getBoundingClientRect() ?? box
+      const right = side.right + POPOVER_GAP + width <= bounds.right - edge
+      // Lines the first option up with the anchor row, past the popover's own top padding.
+      const top = Math.min(Math.max(box.top - bounds.top - 7, edge), bounds.height - height - edge)
+      Object.assign(popover.style, {
+        top: px(Math.max(edge, top)),
+        ...(right ? { left: px(side.right - bounds.left + POPOVER_GAP) } : { right: px(bounds.right - side.left + POPOVER_GAP) }),
+      })
+      return
+    }
+    Object.assign(popover.style, matchWidth ? { width: px(box.width) } : { maxWidth: px(Math.min(360, bounds.width - POPOVER_GAP * 4)) })
+    // As tall as its content; only the room in the window caps it, on whichever side the content fits.
+    const { height } = popover.getBoundingClientRect()
     const below = bounds.bottom - box.bottom - POPOVER_GAP * 3
     const above = box.top - bounds.top - POPOVER_GAP * 3
-    const flip = below < POPOVER_MIN_ROOM && above > below
-    const room = Math.min(POPOVER_MAX_HEIGHT, flip ? above : below)
-    const px = (value: number) => `${value}px`
+    const flip = height > below && above > below
     const place: Partial<Record<keyof CSSProperties, string>> = {
       ...(flip ? { bottom: px(bounds.bottom - box.top + POPOVER_GAP) } : { top: px(box.bottom - bounds.top + POPOVER_GAP) }),
       ...(align === 'end' ? { right: px(bounds.right - box.right) } : { left: px(box.left - bounds.left) }),
-      ...(matchWidth ? { width: px(box.width) } : { maxWidth: px(Math.min(360, bounds.width - POPOVER_GAP * 4)) }),
-      maxHeight: px(Math.max(120, room)),
+      maxHeight: px(flip ? above : below),
     }
     Object.assign(popover.style, place)
-  }, [align, anchorRef, layer, matchWidth])
+  }, [align, anchorRef, layer, matchWidth, placement])
 
   useEffect(() => {
-    const outside = (target: EventTarget | null) =>
-      !ref.current?.contains(target as Node) && !anchorRef.current?.contains(target as Node)
+    const outside = (target: EventTarget | null) => !within(ref.current, target) && !anchorRef.current?.contains(target as Node)
     const onPointer = (event: PointerEvent) => {
       if (outside(event.target)) onClose()
     }
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.stopPropagation()
+      // With focus in a submenu, Escape steps back out of that one only.
+      const focused = document.activeElement?.closest('[data-config-popover]')
+      if (focused && focused !== ref.current) return
       onClose()
       anchorRef.current?.focus()
     }
     const onScroll = (event: Event) => {
-      if (!ref.current?.contains(event.target as Node)) onClose()
+      if (!within(ref.current, event.target)) onClose()
     }
     document.addEventListener('pointerdown', onPointer, true)
     document.addEventListener('keydown', onKey, true)
@@ -98,7 +131,7 @@ export function Popover({ anchorRef, onClose, matchWidth = false, align = 'start
 
   if (!layer) return null
   return createPortal(
-    <div ref={ref} className={styles.popover} role="dialog" aria-label={label} data-config-popover data-native-scroll>
+    <div ref={ref} className={className ? `${styles.popover} ${className}` : styles.popover} role="dialog" aria-label={label} data-config-popover data-native-scroll>
       {children}
     </div>,
     layer,
@@ -311,7 +344,7 @@ type FieldProps = {
 
 export function Field({ label, htmlFor, required, meta, hint, error, children }: FieldProps) {
   return (
-    <div className={styles.field}>
+    <div className={styles.field} data-field={label}>
       <div className={styles.fieldHead}>
         <label className={styles.label} htmlFor={htmlFor}>
           {label}

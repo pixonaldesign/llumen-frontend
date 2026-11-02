@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { Circle, Hash, TextAa, ToggleLeft } from '@phosphor-icons/react'
 import { columnsOf, type ColumnKind } from './createAsset'
 import { fieldKind, fieldToken, isObject } from './fieldPaths'
-import { FieldChip, ValueTree } from './FieldTree'
+import { FieldChip, FieldTree, ValueTree } from './FieldTree'
 import type { DataRecord } from './nodeCatalog'
 import { displayValue, filterRecords } from './recordUtils'
 import styles from './NodeConfigWindow.module.css'
@@ -26,15 +26,22 @@ type DataViewProps = {
   query?: string
   /** The table without its own sideways scroller, for a container that scrolls both ways and pins the header. */
   bare?: boolean
+  /** Fields as a chip tree, nested values opened in place, and JSON laid out line by line. */
+  structured?: boolean
+  /** Structured, with the field names dragging their tokens. */
   fields?: DraggableFields
 }
 
-export function DataViewBody({ view, records, query = '', bare = false, fields }: DataViewProps) {
-  if (view === 'schema') return <SchemaList records={records} query={query} />
+export function DataViewBody({ view, records, query = '', bare = false, structured = false, fields }: DataViewProps) {
+  const rich = structured || Boolean(fields)
+  if (view === 'schema') {
+    if (!rich) return <SchemaList records={records} query={query} />
+    return <FieldTree flat sources={[{ id: 'rows', name: 'Rows', records, prefix: fields?.prefix ?? null, open: true }]} query={query} draggable={Boolean(fields)} onDragChange={fields?.onDragChange} />
+  }
   const rows = filterRecords(records, query)
   if (rows.length === 0) return <p className={styles.noMatch}>Nothing matches “{query.trim()}”.</p>
-  if (view === 'table') return <DataTable records={rows} bare={bare} fields={fields} />
-  return fields ? <JsonTree rows={rows} fields={fields} /> : <pre className={styles.json}>{JSON.stringify(rows, null, 2)}</pre>
+  if (view === 'table') return <DataTable records={rows} bare={bare} nested={rich} fields={fields} />
+  return rich ? <JsonTree rows={rows} fields={fields} /> : <pre className={styles.json}>{JSON.stringify(rows, null, 2)}</pre>
 }
 
 function SchemaList({ records, query }: { records: readonly DataRecord[]; query: string }) {
@@ -61,7 +68,9 @@ function SchemaList({ records, query }: { records: readonly DataRecord[]; query:
   )
 }
 
-function DataTable({ records, bare, fields }: { records: readonly DataRecord[]; bare: boolean; fields?: DraggableFields }) {
+type DataTableProps = { records: readonly DataRecord[]; bare: boolean; nested: boolean; fields?: DraggableFields }
+
+function DataTable({ records, bare, nested: opensNested, fields }: DataTableProps) {
   const columns = [...new Set(records.flatMap((record) => Object.keys(record)))]
   const header = (column: string) => {
     if (!fields) return column
@@ -82,10 +91,14 @@ function DataTable({ records, bare, fields }: { records: readonly DataRecord[]; 
           <tr key={index}>
             {columns.map((column) => {
               const value: unknown = record[column]
-              const nested = fields && (isObject(value) ? Object.keys(value).length > 0 : Array.isArray(value) && value.length > 0)
+              const nested = opensNested && (isObject(value) ? Object.keys(value).length > 0 : Array.isArray(value) && value.length > 0)
               return (
                 <td key={column} data-type={fieldKind(value)} data-nested={nested || undefined}>
-                  {nested ? <ValueTree value={value} path={column} prefix={fields.prefix} onDragChange={fields.onDragChange} /> : displayValue(record[column])}
+                  {nested ? (
+                    <ValueTree value={value} path={column} prefix={fields?.prefix ?? null} draggable={Boolean(fields)} onDragChange={fields?.onDragChange} />
+                  ) : (
+                    displayValue(record[column])
+                  )}
                 </td>
               )
             })}
@@ -103,18 +116,25 @@ function DataTable({ records, bare, fields }: { records: readonly DataRecord[]; 
   )
 }
 
-/** The rows as indented JSON, one line per key, with each key a draggable chip; a row's own fields are `{{field}}`. */
-function JsonTree({ rows, fields }: { rows: readonly DataRecord[]; fields: DraggableFields }) {
+/** The rows as indented JSON, one line per key; with `fields` each key is a draggable chip, a row's own fields `{{field}}`. */
+function JsonTree({ rows, fields }: { rows: readonly DataRecord[]; fields?: DraggableFields }) {
   const lines: ReactNode[] = []
+  const keyOf = (key: { name: string; path: string; value: unknown }) =>
+    fields ? (
+      <>
+        <FieldChip name={key.name} kind={fieldKind(key.value)} token={fieldToken(fields.prefix, key.path)} small onDragChange={fields.onDragChange} />
+        <span className={`${styles.jsonPunct} ${styles.jsonColon}`}>:</span>
+      </>
+    ) : (
+      <>
+        <span className={styles.jsonKey}>{JSON.stringify(key.name)}</span>
+        <span className={`${styles.jsonPunct} ${styles.jsonKeyColon}`}>:</span>
+      </>
+    )
   const line = (id: string, depth: number, content: ReactNode, key?: { name: string; path: string; value: unknown }, comma = false) =>
     lines.push(
       <div key={id} className={styles.jsonLine} style={{ '--depth': depth } as CSSProperties}>
-        {key ? (
-          <>
-            <FieldChip name={key.name} kind={fieldKind(key.value)} token={fieldToken(fields.prefix, key.path)} small onDragChange={fields.onDragChange} />
-            <span className={`${styles.jsonPunct} ${styles.jsonColon}`}>:</span>
-          </>
-        ) : null}
+        {key ? keyOf(key) : null}
         {content}
         {comma ? <span className={styles.jsonPunct}>,</span> : null}
       </div>,
@@ -139,5 +159,9 @@ function JsonTree({ rows, fields }: { rows: readonly DataRecord[]; fields: Dragg
   line('[', 0, <span className={styles.jsonPunct}>[</span>)
   rows.forEach((row, index) => walk(row, `row${index}`, 1, '', undefined, index < rows.length - 1))
   line(']', 0, <span className={styles.jsonPunct}>]</span>)
-  return <div className={styles.jsonTree}>{lines}</div>
+  return (
+    <div className={styles.jsonTree} data-plain={fields ? undefined : true}>
+      {lines}
+    </div>
+  )
 }

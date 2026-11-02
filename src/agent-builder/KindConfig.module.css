@@ -180,7 +180,10 @@ button.modeCard[aria-checked='true'] {
 }
 
 button.joinerToggle {
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-full);
   background: transparent;
@@ -191,7 +194,8 @@ button.joinerToggle {
   cursor: pointer;
 }
 
-button.joinerToggle:hover {
+button.joinerToggle:hover,
+button.joinerToggle[aria-expanded='true'] {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
@@ -305,6 +309,73 @@ button.addButton:disabled {
 
 .itemHead > input {
   flex: 1;
+}
+
+/* Reads as the case's title; the field only shows while hovered or edited. */
+.itemHead > input.caseName {
+  padding: 0 var(--space-sm);
+  border-color: transparent;
+  background: transparent;
+  font-weight: 600;
+}
+
+.itemHead > input.caseName:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.itemHead > input.caseName:focus {
+  border-color: var(--canvas-accent);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* The remove button sits beside the field row, so the value lines up under the operator. */
+.condition {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: var(--space-sm);
+  align-items: start;
+}
+
+.condition > button {
+  margin-top: 4px;
+}
+
+.conditionBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+/* A dropdown in a card's title row, as wide as its value. */
+.headSelect {
+  align-self: center;
+}
+
+/* Field and operator share a line, wrapping apart when the column is narrow. */
+.conditionPair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.conditionPair > :first-child {
+  flex: 3 1 240px;
+  min-width: 0;
+}
+
+.conditionPair > :last-child {
+  flex: 2 1 180px;
+}
+
+.itemTitle {
+  flex: 1;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
 }
 
 .itemIndex {

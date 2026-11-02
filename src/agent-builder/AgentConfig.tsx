@@ -3,7 +3,8 @@ import { Bell, Browsers, Lightbulb, MapTrifold, Robot, Stack, Tag } from '@phosp
 import { evaluateRule, MEASURE_LABEL, ROW_MEASURES, type RuleVerdict } from './alerts'
 import { Card, Field, NumberInput, Select, SwitchRow, type SelectOption } from './ConfigControls'
 import { inputClass } from './configStyles'
-import { OPERATORS, operatorSpec, type Combinator, type Operator } from './conditions'
+import { CombinatorSelect } from './ConditionEditor'
+import { OPERATORS, operatorSpec, type Combinator, type Operator, type OperatorGroup } from './conditions'
 import { columnsOf } from './createAsset'
 import { plural, stepColumns, useFocusItem, type EditorContext, type EditorProps } from './kindEditor'
 import { AddButton, ColumnSelect, Notice, RemoveButton, Segmented, TemplateField, TextAreaField } from './KindControls'
@@ -262,8 +263,17 @@ export function GisConfig({ params, set, ctx }: EditorProps<GisParams>) {
 /* ---------- AI Findings ---------- */
 
 const MEASURE_OPTIONS: readonly SelectOption<AlertMeasure>[] = (Object.keys(MEASURE_LABEL) as AlertMeasure[]).map((id) => ({ id, label: MEASURE_LABEL[id] }))
-const OPERATOR_OPTIONS: readonly SelectOption<Operator>[] = OPERATORS.map((spec) => ({ id: spec.id, label: spec.label, group: spec.group }))
-const NUMBER_OPERATORS: readonly SelectOption<Operator>[] = OPERATOR_OPTIONS.filter((option) => option.group === 'Number')
+const ALERT_GROUPS: readonly OperatorGroup[] = ['String', 'Number', 'Boolean']
+const OPERATOR_OPTIONS: readonly SelectOption<Operator>[] = OPERATORS.filter((spec) => ALERT_GROUPS.includes(spec.group)).map((spec) => ({
+  id: spec.id,
+  label: spec.label,
+  group: spec.group,
+}))
+const NUMBER_OPERATORS: readonly SelectOption<Operator>[] = OPERATORS.filter((spec) => spec.group === 'Number' && !spec.unary).map((spec) => ({
+  id: spec.id,
+  label: spec.label,
+  group: spec.group,
+}))
 const LEVELS = [
   { id: 'critical_alert', label: 'Critical alert' },
   { id: 'alert', label: 'Alert' },
@@ -403,9 +413,7 @@ function AlertRuleEditor({ rule, ctx, verdict, onChange, onRemove }: AlertRuleEd
 function Joiner({ value, onChange }: { value: Combinator; onChange: (value: Combinator) => void }) {
   return (
     <div className={styles.joiner}>
-      <button type="button" className={styles.joinerToggle} onClick={() => onChange(value === 'and' ? 'or' : 'and')}>
-        {value.toUpperCase()}
-      </button>
+      <CombinatorSelect value={value} onChange={onChange} />
     </div>
   )
 }

@@ -16,6 +16,8 @@ import { FindingReport } from './FindingReport'
 import { Tabs } from './NodeConfigWindow'
 import { nodeName, nodeOutputs, type CanvasNode, type DataRecord, type DataValue, type NodeRun, type NodeType } from './nodeCatalog'
 import { APP_NAVIGATION_LABEL, INSIGHT_TYPE_LABEL, isFallbackBranch, paramsFor } from './nodeKinds'
+import type { ProblemAction } from './nodeProblems'
+import { ProblemReport } from './ProblemReport'
 import { displayValue, fieldLabel, filterRecords } from './recordUtils'
 import styles from './NodeDataDialog.module.css'
 import tones from './nodeTones.module.css'
@@ -293,6 +295,9 @@ type NodeDataDialogProps = {
   onViewAll: () => void
   /** Answers a Send and wait step parked on the chat. */
   onReply?: (reply: ChatReply) => void
+  /** The problems the node has now, to mark a failed run's fixed ones. */
+  problemsNow: ReadonlySet<string>
+  onProblemAction: (action: ProblemAction) => void
 }
 
 /** A node's input or output rows, beside the node; the canvas stays usable while it's open. */
@@ -309,6 +314,8 @@ export function NodeDataDialog({
   onClose,
   onViewAll,
   onReply,
+  problemsNow,
+  onProblemAction,
 }: NodeDataDialogProps) {
   const windowRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -413,7 +420,9 @@ export function NodeDataDialog({
     if (mailed) return mailed.sent ? 'Sent' : 'Not sent'
     if (called) return statusLine(called.status)
     if (target === 'output' && type.id === 'createAsset' && rows && run.assetRows) return 'Saved'
-    return rows ? rowCount(rows.length) : 'Failed'
+    if (rows) return rowCount(rows.length)
+    const problems = run.problems?.length ?? 1
+    return run.status === 'error' ? `${problems} ${problems === 1 ? 'problem' : 'problems'}` : 'Failed'
   }
 
   return (
@@ -482,7 +491,7 @@ export function NodeDataDialog({
             <ApiPreview api={api} />
           </div>
         ) : view.error && !view.records ? (
-          <p className={`${styles.empty} ${styles.error}`}>{view.error}</p>
+          <ProblemReport run={run} current={problemsNow} onAction={onProblemAction} />
         ) : chat ? (
           <ChatPreview chat={chat} onReply={onReply} className={styles.made} />
         ) : email ? (

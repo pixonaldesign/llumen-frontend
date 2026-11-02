@@ -10,10 +10,13 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import {
+  ArrowCounterClockwise,
   ArrowLeft,
+  ArrowRight,
   ArrowUUpLeft,
   ArrowUUpRight,
   CaretDown,
+  CaretRight,
   ChatCircle,
   Check,
   CheckCircle,
@@ -22,6 +25,7 @@ import {
   Columns,
   Cursor,
   Flask,
+  FloppyDisk,
   FlowArrow,
   FrameCorners,
   Hand,
@@ -90,7 +94,7 @@ import {
 } from './CanvasItemViews'
 import itemStyles from './CanvasItems.module.css'
 import { CanvasTooltip } from './CanvasTooltip'
-import { annotateTestFlow, buildTestWorkflow } from './testWorkflow'
+import { annotateTestFlow, buildTestWorkflow, type TestFlowKind } from './testWorkflow'
 import { NodeToolbar } from './NodeToolbar'
 import { NodeActionsBar } from './NodeActionsBar'
 import { InsertNodePanel } from './InsertNodePanel'
@@ -129,6 +133,7 @@ import { NodeLibrarySheet } from './NodeLibrarySheet'
 import { buildShowcase, layoutShowcase, type CanvasGroupLabel } from './showcase'
 import { nodeAliases, planRun, runRows, type PlannedStep } from './nodeRuntime'
 import { addBranch, addInput, kindInputLayers, kindWiringIssue, removeBranch, removeInput, type AnyParams, type WiredStep } from './nodeKinds'
+import { currentProblemKeys, needsInput, type ProblemAction } from './nodeProblems'
 import {
   createNode,
   isAnnotation,
@@ -157,6 +162,7 @@ import {
 import { cardLayout, categoryVars, readCardGlow, saveCardGlow, type CardGlowConfig } from './cardGlow'
 import { CardStylePanel } from './CardStylePanel'
 import { RayShader, SmokeShader } from './CanvasShader'
+import { ExecutionsList, type Execution, type ExecutionStatus } from './ExecutionsList'
 import { RunFailureToast, type FailedStep } from './RunFailureToast'
 import styles from './AgentCanvas.module.css'
 
@@ -281,23 +287,52 @@ const ADD_CASCADE = 24
 const DUPLICATE_OFFSET = 40
 const IDLE: NodeRun = { status: 'idle' }
 
-/** Which document the canvas shows: every node type, or a large connected flow for testing runs. */
-type CanvasMode = 'showcase' | 'testFlow'
-/** Everything a mode keeps while the other one is on screen. */
+/** Which document the canvas shows: every node type, or one of the connected test flows for trying runs. */
+type CanvasMode = 'showcase' | TestFlowKind
+/** Everything a mode keeps while another one is on screen. */
 type ModeSnapshot = { doc: CanvasDoc; past: CanvasDoc[]; future: CanvasDoc[]; runs: Record<string, NodeRun> }
 
-function testFlowDoc(): CanvasDoc {
-  const { nodes: built, edges } = buildTestWorkflow()
+function testFlowDoc(kind: TestFlowKind): CanvasDoc {
+  const { nodes: built, edges } = buildTestWorkflow(kind)
   const nodes = withSavedAppearances(built)
   // Rough positions from default card sizes, centred on the origin; the canvas tidies again once the cards are measured.
   const origin = Object.fromEntries(nodes.map((node) => [node.id, { x: 0, y: 0 }]))
   const { positions, groups } = autoLayout(nodes, edges, {}, origin)
-  return withTestAnnotations({ nodes, positions, edges, groups, sections: [], texts: [], comments: [] }, {})
+  return withTestAnnotations(kind, { nodes, positions, edges, groups, sections: [], texts: [], comments: [] }, {})
+}
+
+/** A saved test flow opens instead of the built-in one until it's reset. */
+const testFlowKey = (kind: TestFlowKind) => `llumen.testFlow.${kind}`
+
+function readSavedFlow(kind: TestFlowKind): CanvasDoc | null {
+  try {
+    const saved = JSON.parse(localStorage.getItem(testFlowKey(kind)) ?? 'null') as Partial<CanvasDoc> | null
+    if (!saved || !Array.isArray(saved.nodes) || !Array.isArray(saved.edges) || !saved.positions) return null
+    return {
+      nodes: saved.nodes.filter((node) => NODE_TYPES_BY_ID[node.type]),
+      positions: saved.positions,
+      edges: saved.edges,
+      groups: saved.groups ?? [],
+      sections: saved.sections ?? [],
+      texts: saved.texts ?? [],
+      comments: saved.comments ?? [],
+    }
+  } catch {
+    return null
+  }
+}
+
+function hasSavedFlow(kind: TestFlowKind) {
+  try {
+    return localStorage.getItem(testFlowKey(kind)) !== null
+  } catch {
+    return false
+  }
 }
 
 /** Frames the laid-out test flow with its sections, texts, and comments, and seats its sticky notes beside the flow. */
-function withTestAnnotations(doc: CanvasDoc, layouts: Record<string, Size>): CanvasDoc {
-  const { notes, sections, texts, comments } = annotateTestFlow(doc.positions, (id) => layouts[id] ?? DEFAULT_NODE_SIZE)
+function withTestAnnotations(kind: TestFlowKind, doc: CanvasDoc, layouts: Record<string, Size>): CanvasDoc {
+  const { notes, sections, texts, comments } = annotateTestFlow(kind, doc.positions, (id) => layouts[id] ?? DEFAULT_NODE_SIZE)
   return {
     ...doc,
     positions: { ...doc.positions, ...notes },
@@ -697,6 +732,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     simulate?: RunOutcome
     forcedFailure?: string
     failures: readonly FailedStep[]
+    /** Set when the parked run is an execution of the published agent. */
+    executionId?: string
   } | null>(null)
   const [activeRuns, setActiveRuns] = useState(0)
   /**
@@ -713,6 +750,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   /** Space held: drags pan, like the hand tool, until it's let go. */
   const [spaceHeld, setSpaceHeld] = useState(false)
   const [tab, setTab] = useState<Tab>('builder')
+  /** Runs started from Execute Agent, newest first; each flow keeps its own. */
+  const [executions, setExecutions] = useState<Record<CanvasMode, readonly Execution[]>>({ showcase: [], simple: [], complex: [] })
   const [libraryOpen, setLibraryOpen] = useState(false)
   /** Schedules, webhooks, and chat only start the published Flow; their cards show what publishing assigns. */
   const [publishedAt, setPublishedAt] = useState<number | null>(null)
@@ -761,6 +800,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   }
   /** The branch the configuration window opened on, e.g. a case edited from the card. */
   const [configFocus, setConfigFocus] = useState<string | undefined>(undefined)
+  const [configReveal, setConfigReveal] = useState<ProblemAction | undefined>(undefined)
   /** Hand-written test input per node; replaces the upstream rows until cleared. */
   const [fixtures, setFixtures] = useState<Readonly<Record<string, DataRecord[]>>>({})
   const [canvasLook, setCanvasLook] = useState<CanvasLook>(readCanvasLook)
@@ -811,10 +851,13 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const insertBarRef = useRef<HTMLDivElement>(null)
   useDismiss(barFlyout === 'insert', insertBarRef, closeBarFlyout, insertButtonRef)
   const [mode, setMode] = useState<CanvasMode>('showcase')
-  /** The mode that's off screen; null until the test flow is first opened. */
-  const parkedModeRef = useRef<ModeSnapshot | null>(null)
-  /** After a mode switch, what to do once the new cards are measured. */
-  const pendingLayoutRef = useRef<'arrange' | 'fit' | null>(null)
+  /** The modes that are off screen; a test flow is built the first time it's opened. */
+  const parkedModesRef = useRef<Partial<Record<CanvasMode, ModeSnapshot>>>({})
+  /** After a mode switch, what to do once the new cards are measured: fit the view, or lay out a new test flow. */
+  const pendingLayoutRef = useRef<'fit' | TestFlowKind | null>(null)
+  /** Each test flow as it was last saved or laid out, to tell whether the canvas has unsaved edits. */
+  const [flowBaselines, setFlowBaselines] = useState<Partial<Record<TestFlowKind, string>>>({})
+  const [savedFlows, setSavedFlows] = useState<Record<TestFlowKind, boolean>>(() => ({ simple: hasSavedFlow('simple'), complex: hasSavedFlow('complex') }))
   /** History depth after the last live-edit push, so a run of slider or colour edits is one undo step. */
   const liveEditRef = useRef<{ key: string; depth: number } | null>(null)
   const [selection, setSelection] = useState<Selection>(null)
@@ -1139,9 +1182,10 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       return next
     })
 
-  const openConfig = (id: string, focus?: string) => {
+  const openConfig = (id: string, focus?: string, reveal?: ProblemAction) => {
     setConfiguringId(id)
     setConfigFocus(focus)
+    setConfigReveal(reveal)
     setSelection({ kind: 'node', id })
     setAppearanceFor(null)
     setCanvasLookOpen(false)
@@ -1277,7 +1321,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
    * fail breaks the first node with an issue, or one about two thirds of the way along. A flow run
    * ends with the result glow.
    */
-  const runNodes = (startId: string, scope: RunScope, simulate?: RunOutcome) => {
+  const runNodes = (startId: string, scope: RunScope, simulate?: RunOutcome, live = false) => {
     const current = docRef.current
     const scoped =
       scope === 'node' ? [startId] : scope === 'upstream' ? upstreamOrder(startId, current.edges) : downstreamOrder(startId, current.edges)
@@ -1315,23 +1359,74 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       stepTest: scope !== 'downstream',
       simulate,
       forcedFailure,
+      workflowName: name,
     })
     const parked = steps.some((step) => step.run.status === 'waiting')
     const failures = failedSteps(steps)
+    const executionId = live ? startExecution(startId) : undefined
     parkedRunRef.current = parked
-      ? { pending: order.filter((id) => !steps.some((step) => step.id === id)), triggerId, simulate, forcedFailure, failures }
+      ? { pending: order.filter((id) => !steps.some((step) => step.id === id)), triggerId, simulate, forcedFailure, failures, executionId }
       : null
     playSteps(steps, (outcome) => {
+      if (executionId) recordExecution(executionId, steps, parked ? 'waiting' : failures.length ? 'error' : 'success')
       if (scope !== 'downstream' || parked) return
       setRunResult({ outcome, id: Date.now(), fromRun: true })
       if (failures.length) setRunFailures(failures)
     })
   }
 
+  const startExecution = (triggerId: string) => {
+    const trigger = docRef.current.nodes.find((node) => node.id === triggerId)
+    const execution: Execution = {
+      id: `execution-${Date.now()}`,
+      startedAt: Date.now(),
+      trigger: trigger ? nodeName(trigger, NODE_TYPES_BY_ID[trigger.type]) : 'Trigger',
+      status: 'running',
+      durationMs: 0,
+      runs: {},
+    }
+    setExecutions((all) => ({ ...all, [mode]: [execution, ...all[mode]] }))
+    return execution.id
+  }
+
+  const updateExecutions = (update: (execution: Execution) => Execution) =>
+    setExecutions((all) => ({ showcase: all.showcase.map(update), simple: all.simple.map(update), complex: all.complex.map(update) }))
+
+  /** Adds the played steps to the execution; a run resumed after a chat reply adds to the same one. */
+  const recordExecution = (id: string, steps: readonly PlannedStep[], status: ExecutionStatus) =>
+    updateExecutions((execution) =>
+      execution.id !== id
+        ? execution
+        : {
+            ...execution,
+            status,
+            durationMs: execution.durationMs + steps.reduce((sum, step) => sum + (step.run.status === 'skipped' ? 0 : (step.run.durationMs ?? 0)), 0),
+            runs: { ...execution.runs, ...Object.fromEntries(steps.map((step) => [step.id, step.run])) },
+          },
+    )
+
+  /** Shows the execution's results on the canvas, as a test run would have left them. */
+  const copyExecution = (execution: Execution) => {
+    if (activeRuns) stopRun()
+    setRuns(
+      Object.fromEntries(
+        docRef.current.nodes.map((node) => {
+          const run = execution.runs[node.id]
+          return [node.id, run && run.status !== 'running' && run.status !== 'waiting' ? run : IDLE]
+        }),
+      ),
+    )
+    setRunFailures(null)
+    setRunResult(null)
+    setTab('builder')
+  }
+
   const failedSteps = (steps: readonly PlannedStep[]): FailedStep[] =>
     steps.flatMap(({ id, run }) => {
       const node = docRef.current.nodes.find((candidate) => candidate.id === id)
-      return run.status === 'error' && node ? [{ id, name: nodeName(node, NODE_TYPES_BY_ID[node.type]), message: run.message ?? 'Something went wrong.' }] : []
+      if (run.status !== 'error' || !node) return []
+      const message = (run.problems?.[0]?.title ?? run.message ?? 'Something went wrong').replace(/\.$/, '')
+      return [{ id, name: nodeName(node, NODE_TYPES_BY_ID[node.type]), message, problems: run.problems?.length || 1 }]
     })
 
   /** Centres the step at the current zoom, selects it, and opens its input and output. */
@@ -1363,12 +1458,14 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       simulate: parked.simulate,
       forcedFailure: parked.forcedFailure,
       replies: { [nodeId]: reply },
+      workflowName: name,
     })
     const failures = [...parked.failures, ...failedSteps(steps)]
     const stillWaiting =
       steps.some((step) => step.run.status === 'waiting') || Object.entries(runs).some(([id, run]) => id !== nodeId && run.status === 'waiting')
     parkedRunRef.current = stillWaiting ? { ...parked, pending: order.filter((id) => !steps.some((step) => step.id === id)), failures } : null
     playSteps(steps, (outcome) => {
+      if (parked.executionId) recordExecution(parked.executionId, steps, stillWaiting ? 'waiting' : failures.length ? 'error' : 'success')
       if (stillWaiting) return
       setRunResult({ outcome: failures.length || outcome === 'fail' ? 'fail' : 'pass', id: Date.now(), fromRun: true })
       if (failures.length) setRunFailures(failures)
@@ -1416,24 +1513,29 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     for (const timer of runTimersRef.current.splice(0)) window.clearTimeout(timer)
     setActiveRuns(0)
     parkedRunRef.current = null
+    updateExecutions((execution) => (execution.status === 'running' || execution.status === 'waiting' ? { ...execution, status: 'stopped' } : execution))
     setRuns((current) =>
       Object.fromEntries(Object.entries(current).map(([id, run]) => [id, run.status === 'running' || run.status === 'waiting' ? IDLE : run])),
     )
   }
 
-  /** Swaps between the showcase and the test flow; each keeps its own document, history, and run results. */
-  const toggleTestFlow = () => {
+  /** Swaps the canvas to another mode; each keeps its own document, history, and run results. */
+  const switchMode = (target: CanvasMode) => {
+    if (target === mode) return
+    const parked = parkedModesRef.current[target]
+    const stored = parked || target === 'showcase' ? null : readSavedFlow(target)
+    const next = parked ?? (target === 'showcase' ? null : { doc: stored ?? testFlowDoc(target), past: [], future: [], runs: {} })
+    if (!next) return
+    if (stored && target !== 'showcase') setFlowBaselines((all) => ({ ...all, [target]: JSON.stringify(stored) }))
     stopRun()
     stopArrange()
-    const parked = parkedModeRef.current
-    parkedModeRef.current = {
+    parkedModesRef.current[mode] = {
       doc,
       past,
       future,
       runs: Object.fromEntries(Object.entries(runs).map(([id, run]) => [id, run.status === 'running' || run.status === 'waiting' ? IDLE : run])),
     }
-    const next: ModeSnapshot = parked ?? { doc: testFlowDoc(), past: [], future: [], runs: {} }
-    pendingLayoutRef.current = parked ? 'fit' : 'arrange'
+    pendingLayoutRef.current = parked || stored || target === 'showcase' ? 'fit' : target
     docRef.current = next.doc
     setDoc(next.doc)
     setPast(next.past)
@@ -1442,7 +1544,47 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     setRunFailures(null)
     setSelection(null)
     setAppearanceFor(null)
-    setMode((current) => (current === 'showcase' ? 'testFlow' : 'showcase'))
+    setMode(target)
+  }
+
+  const flowKind = mode === 'showcase' ? null : mode
+  // Only edits count: cards settling as they're measured change the doc too, but never the history.
+  const flowJson = useMemo(() => (flowKind && (past.length > 0 || future.length > 0) ? JSON.stringify(doc) : null), [flowKind, doc, past.length, future.length])
+  const flowUnsaved = Boolean(flowKind && flowJson !== null && flowJson !== flowBaselines[flowKind])
+  const flowCustomised = Boolean(flowKind && (flowUnsaved || savedFlows[flowKind]))
+
+  /** Makes the canvas the test flow's new default, so it opens like this after a reload. */
+  const saveFlow = () => {
+    if (!flowKind) return
+    const json = JSON.stringify(doc)
+    try {
+      localStorage.setItem(testFlowKey(flowKind), json)
+    } catch {
+      return
+    }
+    setFlowBaselines((all) => ({ ...all, [flowKind]: json }))
+    setSavedFlows((all) => ({ ...all, [flowKind]: true }))
+  }
+
+  /** Puts back the built-in test flow and forgets the saved one; undo brings the canvas back to save again. */
+  const resetFlow = () => {
+    if (!flowKind) return
+    try {
+      localStorage.removeItem(testFlowKey(flowKind))
+    } catch {
+      // Storage blocked: the saved flow can't have been written either.
+    }
+    stopRun()
+    stopArrange()
+    const fresh = testFlowDoc(flowKind)
+    pendingLayoutRef.current = flowKind
+    docRef.current = fresh
+    commit(fresh)
+    setRuns({})
+    setRunFailures(null)
+    setSelection(null)
+    setAppearanceFor(null)
+    setSavedFlows((all) => ({ ...all, [flowKind]: false }))
   }
 
   const closeLibrary = useCallback(() => setLibraryOpen(false), [])
@@ -1501,11 +1643,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       if (pending && root && current.nodes.every((node) => next[node.id])) {
         pendingLayoutRef.current = null
         let laidOut = current
-        if (pending === 'arrange') {
+        if (pending !== 'fit') {
           const { positions, groups: labels } = autoLayout(current.nodes, current.edges, next, current.positions)
-          laidOut = withTestAnnotations({ ...current, positions: { ...current.positions, ...positions }, groups: labels }, next)
+          laidOut = withTestAnnotations(pending, { ...current, positions: { ...current.positions, ...positions }, groups: labels }, next)
           docRef.current = laidOut
           setDoc(laidOut)
+          setFlowBaselines((all) => ({ ...all, [pending]: JSON.stringify(laidOut) }))
         }
         const target = fitViewport(laidOut, next, root.clientWidth, root.clientHeight)
         if (target) animateTo(target)
@@ -2389,14 +2532,14 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     return node ? [{ id, typeId: node.type, name: nodeName(node, nodeType(node)) }] : []
   }
   const notTrigger = (step: WiredStep) => NODE_TYPES_BY_ID[step.typeId]?.category !== 'triggers'
-  const wiringIssue = (node: CanvasNode) =>
-    kindWiringIssue(node.type, node.config.params, () => ({
-      wired: doc.edges
-        .filter((edge) => edge.to === node.id)
-        .flatMap((edge) => wiredStep(edge.from))
-        .filter(notTrigger),
-      upstream: ancestorsNearestFirst(node.id, doc.edges).flatMap(wiredStep).filter(notTrigger),
-    }))
+  const wiringGraph = (id: string) => ({
+    wired: doc.edges
+      .filter((edge) => edge.to === id)
+      .flatMap((edge) => wiredStep(edge.from))
+      .filter(notTrigger),
+    upstream: ancestorsNearestFirst(id, doc.edges).flatMap(wiredStep).filter(notTrigger),
+  })
+  const wiringIssue = (node: CanvasNode) => kindWiringIssue(node.type, node.config.params, () => wiringGraph(node.id))
   /** The step an edge comes from, named with its branch when it has several. */
   const sourceName = (edge: WorkflowEdge) => {
     const from = nodesById[edge.from]
@@ -2506,6 +2649,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         onExecutePrevious={() => runNodes(id, 'upstream')}
         onReply={(reply) => replyTo(id, reply)}
         focus={configFocus}
+        reveal={configReveal}
         onNavigate={(nodeId) => openConfig(nodeId)}
         onClose={closeConfig}
       />
@@ -2601,6 +2745,19 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           openConfig(dataDialogNode.id)
         }}
         onReply={(reply) => replyTo(dataDialogNode.id, reply)}
+        problemsNow={currentProblemKeys(
+          dataDialogNode.type,
+          dataDialogNode.config.params,
+          needsInput(dataDialogNode.type, nodeType(dataDialogNode).inputs.length) &&
+            !doc.edges.some((edge) => edge.to === dataDialogNode.id) &&
+            !fixtures[dataDialogNode.id],
+          () => wiringGraph(dataDialogNode.id),
+        )}
+        onProblemAction={(action) => {
+          if (action.kind === 'executePrevious') return runNodes(dataDialogNode.id, 'upstream')
+          closeDataDialog()
+          openConfig(dataDialogNode.id, undefined, action)
+        }}
       />
     ) : null
   const selectedFrame = nodeFrame(selectedNode)
@@ -3076,6 +3233,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 
       {runFailures ? <RunFailureToast steps={runFailures} onShow={showStep} onClose={() => setRunFailures(null)} /> : null}
 
+      {tab === 'executions' ? <ExecutionsList executions={executions[mode]} published={published} onCopy={copyExecution} /> : null}
+
       <div className={styles.headerScrim} aria-hidden />
 
       <header className={styles.header}>
@@ -3116,11 +3275,33 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       ) : null}
 
       <div className={styles.topRight}>
+        {flowKind && flowCustomised ? (
+          <button
+            type="button"
+            className={controls.iconButton}
+            aria-label={`Reset the ${flowKind} flow`}
+            data-tooltip={`Reset to the original ${flowKind} flow`}
+            onClick={resetFlow}
+          >
+            <ArrowCounterClockwise size={20} weight="regular" aria-hidden />
+          </button>
+        ) : null}
+        {flowKind && flowUnsaved ? (
+          <button
+            type="button"
+            className={controls.iconButton}
+            aria-label={`Save the ${flowKind} flow`}
+            data-tooltip={`Save as the default ${flowKind} flow`}
+            onClick={saveFlow}
+          >
+            <FloppyDisk size={20} weight="regular" aria-hidden />
+          </button>
+        ) : null}
         <DevMenu
           canSimulate={Boolean(testTrigger)}
           onSimulate={(outcome) => testTrigger && runNodes(testTrigger.id, 'downstream', outcome)}
-          testFlow={mode === 'testFlow'}
-          onTestFlow={toggleTestFlow}
+          testFlow={mode === 'showcase' ? null : mode}
+          onTestFlow={(kind) => switchMode(kind === mode ? 'showcase' : kind)}
           cardStyleOpen={cardStyleOpen}
           onCardStyle={() => {
             setCardStyleOpen((open) => !open)
@@ -3168,7 +3349,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
               triggers={triggers}
               trigger={triggerFor(executeTriggerId)}
               onTrigger={setExecuteTriggerId}
-              onRun={(triggerId) => runNodes(triggerId, 'downstream')}
+              onRun={(triggerId) => runNodes(triggerId, 'downstream', undefined, true)}
             />
           ) : null}
           <button
@@ -3194,7 +3375,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </div>
       ) : null}
 
-      {toolbarStyle === 'split' ? (
+      {tab === 'executions' ? null : toolbarStyle === 'split' ? (
         <footer className={styles.footer}>
           <div className={`${controls.bar} ${styles.footerBar} ${styles.contentBar}`} role="toolbar" aria-label="Add to canvas">
             {toolButtons(CONTENT_TOOLS, true)}
@@ -3315,8 +3496,10 @@ type DevMenuProps = {
   /** Simulated runs start from the Test Agent trigger, so they need one. */
   canSimulate: boolean
   onSimulate: (outcome: RunOutcome) => void
-  testFlow: boolean
-  onTestFlow: () => void
+  /** The test flow on the canvas, or null for the node showcase. */
+  testFlow: TestFlowKind | null
+  /** Picking the flow that's already on goes back to the showcase. */
+  onTestFlow: (kind: TestFlowKind) => void
   cardStyleOpen: boolean
   onCardStyle: () => void
   canvasLookOpen: boolean
@@ -3353,12 +3536,31 @@ function DevItem({ icon: ItemIcon, label, hint, checked, disabled, onSelect }: D
   )
 }
 
+const TEST_FLOWS: readonly { kind: TestFlowKind; icon: Icon; label: string; hint: string }[] = [
+  { kind: 'simple', icon: ArrowRight, label: 'Simple flow', hint: 'Six steps in a line, with one branch' },
+  { kind: 'complex', icon: TreeStructure, label: 'Complex flow', hint: 'A large flow with sections, notes, and comments' },
+]
+
 /** Every development action in one menu, so they stay off the bar. */
 function DevMenu(props: DevMenuProps) {
   const [open, setOpen] = useState(false)
+  /** Where the test flow submenu sits in the wrapper; null while it's closed. */
+  const [flowsAt, setFlowsAt] = useState<Point | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
-  const close = useCallback(() => setOpen(false), [])
+  const close = useCallback(() => {
+    setOpen(false)
+    setFlowsAt(null)
+  }, [])
   useDismiss(open, wrapRef, close)
+  const activeFlow = TEST_FLOWS.find((flow) => flow.kind === props.testFlow)
+
+  // The menu scrolls, which would clip a submenu inside it, so the submenu is its sibling, lined up with the item.
+  const openFlows = (item: HTMLElement) => {
+    const wrap = wrapRef.current?.getBoundingClientRect()
+    const menu = item.closest('[role="menu"]')?.getBoundingClientRect()
+    if (!wrap || !menu) return
+    setFlowsAt({ x: menu.right - wrap.left + 4, y: item.getBoundingClientRect().top - wrap.top - 6 })
+  }
 
   return (
     <div className={styles.styleMenu} ref={wrapRef}>
@@ -3367,7 +3569,7 @@ function DevMenu(props: DevMenuProps) {
         className={`${styles.publishButton} ${styles.topButton}`}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => (open ? close() : setOpen(true))}
       >
         <Code size={16} weight="regular" aria-hidden />
         Dev
@@ -3379,14 +3581,37 @@ function DevMenu(props: DevMenuProps) {
           role="menu"
           aria-label="Development tools"
           onClick={(event) => {
-            if ((event.target as Element).closest('button')) close()
+            if ((event.target as Element).closest('button:not([aria-haspopup])')) close()
           }}
+          onPointerOver={(event) => {
+            const item = (event.target as Element).closest('button')
+            if (item && !item.hasAttribute('aria-haspopup')) setFlowsAt(null)
+          }}
+          onScroll={() => setFlowsAt(null)}
         >
           <div className={styles.menuLabel}>Simulate a run</div>
           <DevItem icon={CheckCircle} label="Passing run" disabled={!props.canSimulate} onSelect={() => props.onSimulate('pass')} />
           <DevItem icon={XCircle} label="Failing run" disabled={!props.canSimulate} onSelect={() => props.onSimulate('fail')} />
           <div className={styles.menuSeparator} role="separator" />
-          <DevItem icon={FlowArrow} label="Test flow" hint="A sample workflow to try runs on" checked={props.testFlow} onSelect={props.onTestFlow} />
+          <button
+            type="button"
+            role="menuitem"
+            aria-haspopup="menu"
+            aria-expanded={Boolean(flowsAt)}
+            className={`${controls.menuItem} ${styles.styleOption}${flowsAt ? ` ${controls.menuItemActive}` : ''}`}
+            onPointerEnter={(event) => openFlows(event.currentTarget)}
+            onClick={(event) => (flowsAt ? setFlowsAt(null) : openFlows(event.currentTarget))}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowRight') openFlows(event.currentTarget)
+            }}
+          >
+            <FlowArrow size={18} weight="regular" aria-hidden />
+            <span className={styles.styleOptionText}>
+              Test flow
+              <span className={styles.styleOptionHint}>{activeFlow ? `Showing the ${activeFlow.label.toLowerCase()}` : 'A sample workflow to try runs on'}</span>
+            </span>
+            <CaretRight size={14} weight="bold" className={styles.triggerCheck} aria-hidden />
+          </button>
           <div className={styles.menuSeparator} role="separator" />
           <div className={styles.menuLabel}>Look</div>
           <DevItem icon={SlidersHorizontal} label="Card style" hint="Card background, layout and category colours" checked={props.cardStyleOpen} onSelect={props.onCardStyle} />
@@ -3420,6 +3645,31 @@ function DevMenu(props: DevMenuProps) {
             checked={props.toolbarStyle === 'single'}
             onSelect={() => props.onToolbarStyle('single')}
           />
+        </div>
+      ) : null}
+      {open && flowsAt ? (
+        <div
+          className={`${controls.menu} ${styles.subMenu}`}
+          style={{ left: flowsAt.x, top: flowsAt.y }}
+          role="menu"
+          aria-label="Test flows"
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft') setFlowsAt(null)
+          }}
+        >
+          {TEST_FLOWS.map((flow) => (
+            <DevItem
+              key={flow.kind}
+              icon={flow.icon}
+              label={flow.label}
+              hint={flow.hint}
+              checked={props.testFlow === flow.kind}
+              onSelect={() => {
+                props.onTestFlow(flow.kind)
+                close()
+              }}
+            />
+          ))}
         </div>
       ) : null}
     </div>

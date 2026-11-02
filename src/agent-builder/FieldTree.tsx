@@ -1,33 +1,23 @@
 import { useState, type CSSProperties, type DragEvent, type ReactNode } from 'react'
 import { BracketsCurly, BracketsSquare, CaretRight, Circle, Hash, TextT, ToggleLeft, type Icon } from '@phosphor-icons/react'
-import { fieldKind, fieldToken, isObject, type FieldKind } from './fieldPaths'
+import { fieldKind, fieldToken, fieldTree, filterTree, isObject, plural, sampleText, type FieldKind, type FieldNode } from './fieldPaths'
 import type { DataRecord } from './nodeCatalog'
 import tones from './nodeTones.module.css'
 import styles from './FieldTree.module.css'
-
-type FieldNode = {
-  key: string
-  path: string
-  kind: FieldKind
-  sample?: string
-  children: FieldNode[]
-}
 
 /** One top-level entry: an upstream node and what it sent. */
 export type TreeSource = {
   id: string
   name: string
-  icon: Icon
-  tone: string
+  /** Shown on the node row, which a flat tree leaves out. */
+  icon?: Icon
+  tone?: string
   records: readonly DataRecord[] | null
   /** Prepended to a field's path in its token, `{{prefix.path}}`; null for the rows coming straight in. */
   prefix: string | null
   /** Open when the tree first shows. */
   open: boolean
 }
-
-/** Rows read for the field list; later rows only add fields the first ones lacked. */
-const SCAN_ROWS = 50
 
 const KIND_ICONS: Record<FieldKind, Icon> = {
   string: TextT,
@@ -49,8 +39,9 @@ const KIND_LABELS: Record<FieldKind, string> = {
 type FieldChipProps = {
   name: string
   kind: FieldKind
-  token: string
-  /** The tighter chip for JSON lines and table headers. */
+  /** What the chip drags; without one it only labels the field. */
+  token?: string
+  /** The tighter chip for JSON lines and table cells. */
   small?: boolean
   onDragChange?: (dragging: boolean) => void
 }
@@ -59,6 +50,7 @@ type FieldChipProps = {
 export function FieldChip({ name, kind, token, small = false, onDragChange }: FieldChipProps) {
   const KindIcon = KIND_ICONS[kind]
   const onDragStart = (event: DragEvent<HTMLSpanElement>) => {
+    if (!token) return
     event.dataTransfer.setData('text/plain', token)
     event.dataTransfer.effectAllowed = 'copy'
     onDragChange?.(true)
@@ -66,17 +58,34 @@ export function FieldChip({ name, kind, token, small = false, onDragChange }: Fi
   return (
     <span
       className={small ? `${styles.chip} ${styles.chipSmall}` : styles.chip}
-      draggable
-      title={`Drag ${token} into a field`}
-      onDragStart={onDragStart}
-      onDragEnd={() => onDragChange?.(false)}
+      draggable={Boolean(token)}
+      title={token ? `Drag ${token} into a field` : undefined}
+      onDragStart={token ? onDragStart : undefined}
+      onDragEnd={token ? () => onDragChange?.(false) : undefined}
     >
       <KindIcon className={styles.chipIcon} size={small ? 12 : 13} weight="bold" aria-label={KIND_LABELS[kind]} />
       <span className={styles.chipName}>{name}</span>
     </span>
   )
 }
-const plural = (count: number, word: string) => `${count.toLocaleString()} ${count === 1 ? word : `${word}s`}`
+
+/** A field kind's icon, as its chip shows it. */
+export function FieldKindIcon({
+  kind,
+  size = 13,
+  className,
+  decorative = false,
+}: {
+  kind: FieldKind
+  size?: number
+  className?: string
+  decorative?: boolean
+}) {
+  const KindIcon = KIND_ICONS[kind]
+  return (
+    <KindIcon className={className} size={size} weight="bold" aria-label={decorative ? undefined : KIND_LABELS[kind]} aria-hidden={decorative || undefined} />
+  )
+}
 
 const entriesOf = (value: unknown): [string, unknown][] =>
   Array.isArray(value) ? value.map((item, index) => [String(index), item]) : isObject(value) ? Object.entries(value) : []
@@ -87,11 +96,12 @@ type ValueTreeProps = {
   /** Where the value sits in the row, e.g. `address`; its keys extend it. */
   path: string
   prefix: string | null
+  draggable?: boolean
   onDragChange?: (dragging: boolean) => void
 }
 
 /** One row's object or list, its keys as chips beside their values; nested ones open in place. */
-export function ValueTree({ value, path, prefix, onDragChange }: ValueTreeProps) {
+export function ValueTree({ value, path, prefix, draggable = true, onDragChange }: ValueTreeProps) {
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set())
   const toggle = (key: string) =>
     setOpen((current) => {
@@ -115,7 +125,7 @@ export function ValueTree({ value, path, prefix, onDragChange }: ValueTreeProps)
                 <CaretRight size={12} weight="bold" aria-hidden />
               </button>
             ) : null}
-            <FieldChip name={key} kind={kind} token={fieldToken(prefix, childPath)} small onDragChange={onDragChange} />
+            <FieldChip name={key} kind={kind} token={draggable ? fieldToken(prefix, childPath) : undefined} small onDragChange={onDragChange} />
             {kind === 'array' && size ? (
               <span className={styles.value}>{plural(size, 'item')}</span>
             ) : size ? null : (
@@ -130,66 +140,13 @@ export function ValueTree({ value, path, prefix, onDragChange }: ValueTreeProps)
   return <ul className={`${styles.list} ${styles.valueTree}`}>{rows(value, path, 0)}</ul>
 }
 
-function sampleText(value: unknown) {
-  if (typeof value === 'boolean') return value ? 'true' : 'false'
-  if (typeof value === 'string' || typeof value === 'number') return String(value)
-  return undefined
-}
-
-/** Adds a value under `segments`; a dotted key like `workflow.name` nests the same way an object does. */
-function insert(nodes: FieldNode[], segments: readonly string[], parent: string, value: unknown) {
-  const [key, ...rest] = segments
-  const path = parent ? `${parent}.${key}` : key
-  let node = nodes.find((item) => item.key === key)
-  if (!node) {
-    node = { key, path, kind: 'null', children: [] }
-    nodes.push(node)
-  }
-  if (rest.length > 0) {
-    node.kind = 'object'
-    insert(node.children, rest, path, value)
-  } else absorb(node, value)
-}
-
-function absorb(node: FieldNode, value: unknown) {
-  if (isObject(value)) {
-    node.kind = 'object'
-    for (const [key, child] of Object.entries(value)) insert(node.children, key.split('.'), node.path, child)
-  } else if (Array.isArray(value)) {
-    node.kind = 'array'
-    node.sample ??= value.length ? plural(value.length, 'item') : undefined
-    // A list of objects opens onto the first one's fields, addressed as `list.0.field`.
-    const first = value.find(isObject)
-    if (first) for (const [key, child] of Object.entries(first)) insert(node.children, key.split('.'), `${node.path}.0`, child)
-  } else if (value !== null && value !== undefined) {
-    if (node.kind === 'null') node.kind = typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'boolean' : 'string'
-    node.sample ??= sampleText(value)
-  }
-}
-
-function fieldTree(records: readonly DataRecord[]): FieldNode[] {
-  const nodes: FieldNode[] = []
-  for (const record of records.slice(0, SCAN_ROWS)) {
-    for (const [key, value] of Object.entries(record)) insert(nodes, key.split('.'), '', value)
-  }
-  return nodes
-}
-
-/** Keeps fields whose name matches, and the parents of any that do. */
-function filterTree(nodes: readonly FieldNode[], needle: string): FieldNode[] {
-  if (!needle) return [...nodes]
-  return nodes.flatMap((node) => {
-    if (node.key.toLowerCase().includes(needle)) return [node]
-    const children = filterTree(node.children, needle)
-    return children.length ? [{ ...node, children }] : []
-  })
-}
-
 type FieldTreeProps = {
   sources: readonly TreeSource[]
   /** One source's fields without the node row above them. */
   flat?: boolean
   query?: string
+  /** Off for a node's own output, which nothing on its form can reference. */
+  draggable?: boolean
   onDragChange?: (dragging: boolean) => void
 }
 
@@ -197,7 +154,7 @@ type FieldTreeProps = {
  * Upstream fields as chips, nested the way the data is. A chip drags its `{{…}}` token as plain text,
  * so any text field takes it at the caret.
  */
-export function FieldTree({ sources, flat = false, query = '', onDragChange }: FieldTreeProps) {
+export function FieldTree({ sources, flat = false, query = '', draggable = true, onDragChange }: FieldTreeProps) {
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(sources.filter((source) => source.open).map((source) => source.id)))
   const needle = query.trim().toLowerCase()
   const toggle = (key: string) =>
@@ -229,7 +186,7 @@ export function FieldTree({ sources, flat = false, query = '', onDragChange }: F
             ) : spaced ? (
               <span className={styles.caretSpace} aria-hidden />
             ) : null}
-            <FieldChip name={node.key} kind={node.kind} token={fieldToken(source.prefix, node.path)} onDragChange={onDragChange} />
+            <FieldChip name={node.key} kind={node.kind} token={draggable ? fieldToken(source.prefix, node.path) : undefined} onDragChange={onDragChange} />
             {node.sample !== undefined ? (
               <span className={styles.sample} title={node.sample}>
                 {node.sample}
@@ -282,9 +239,11 @@ export function FieldTree({ sources, flat = false, query = '', onDragChange }: F
             <li key={source.id} className={styles.item} role="treeitem" aria-expanded={expanded}>
               <button type="button" className={styles.sourceRow} onClick={() => toggle(source.id)}>
                 <CaretRight className={styles.sourceCaret} size={12} weight="bold" aria-hidden />
-                <span className={`${styles.sourceIcon} ${tones[`tone_${source.tone}`]}`} aria-hidden>
-                  <SourceIcon size={16} weight="duotone" />
-                </span>
+                {SourceIcon ? (
+                  <span className={`${styles.sourceIcon} ${tones[`tone_${source.tone}`]}`} aria-hidden>
+                    <SourceIcon size={16} weight="duotone" />
+                  </span>
+                ) : null}
                 <span className={styles.sourceName}>{source.name}</span>
                 <span className={styles.sourceMeta}>{source.records ? plural(source.records.length, 'item') : 'Not run'}</span>
               </button>

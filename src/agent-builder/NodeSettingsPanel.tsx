@@ -23,10 +23,10 @@ type NodeSettingsPanelProps = {
   onChange: (patch: Partial<NodeSettings>) => void
 }
 
-/** The Settings tab: run policy shared by every node kind. */
+/** The Settings tab: run policy shared by every node kind. Its cards sit in the column's stack, as the configuration's do. */
 export function NodeSettingsPanel({ settings, branching, onChange }: NodeSettingsPanelProps) {
   return (
-    <div className={styles.stack}>
+    <>
       <Card icon={<Timer size={16} aria-hidden />} title="Timeout" description="Stop the step if it runs longer than this.">
         <Field label="Timeout (seconds)" htmlFor="node-timeout" hint="Leave empty for no limit. Up to 86,400 (one day).">
           <NumberInput
@@ -89,7 +89,7 @@ export function NodeSettingsPanel({ settings, branching, onChange }: NodeSetting
           onChange={(alwaysOutputData) => onChange({ alwaysOutputData })}
         />
       </Card>
-    </div>
+    </>
   )
 }
 

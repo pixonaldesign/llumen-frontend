@@ -1,88 +1,145 @@
-import { Select, type SelectOption } from './ConfigControls'
-import { inputClass } from './configStyles'
-import { newCondition, OPERATORS, operatorSpec, type Combinator, type Condition, type ConditionGroup, type Operator } from './conditions'
-import type { Column, ColumnKind } from './createAsset'
-import { AddButton, ColumnSelect, RemoveButton } from './KindControls'
+import { Fragment, useRef, useState } from 'react'
+import { CaretDown, Check } from '@phosphor-icons/react'
+import { Popover } from './ConfigControls'
+import { groupFor, newCondition, operatorIn, operatorSpec, resolver, type Combinator, type Condition, type ConditionGroup, type Operator } from './conditions'
+import { ExpressionEditor, OperatorSelect } from './ExpressionEditor'
+import { singleReference } from './expressions'
+import type { ConditionFields } from './kindEditor'
+import { AddButton, RemoveButton } from './KindControls'
 import { uid } from './nodeKinds'
+import controls from './ConfigControls.module.css'
 import styles from './KindConfig.module.css'
 
-const OPERATOR_OPTIONS: readonly SelectOption<Operator>[] = OPERATORS.map((spec) => ({
-  id: spec.id,
-  label: spec.label,
-  group: spec.group,
-  meta: spec.symbol === spec.label ? undefined : spec.symbol,
-}))
+/** The field a condition reads, when it reads exactly one. */
+const fieldPath = (condition: Pick<Condition, 'field' | 'fieldMode'>) =>
+  condition.fieldMode === 'expression' ? singleReference(condition.field) : condition.field.trim() || undefined
 
-/** The operator a column of this kind starts with; an operator that already fits is kept. */
-function fittingOperator(kind: ColumnKind | undefined, current: Operator): Operator {
-  const group = operatorSpec(current).group
-  if (group === 'Any' || !kind || kind === 'null') return current
-  if (kind === 'number') return group === 'Number' ? current : 'number__greater_than_or_equal'
-  if (kind === 'boolean') return group === 'Boolean' ? current : 'boolean__is_true'
-  return group === 'Text' ? current : 'text__equals'
+/** An operator for the field's type; one that already fits is kept. */
+function fittingOperator({ records, scope }: ConditionFields, path: string, current: Operator): Operator {
+  const sample = records?.map((row) => resolver(row, scope)(path)).find((value) => value !== null && value !== undefined)
+  const group = groupFor(sample)
+  return group ? operatorIn(group, current) : current
+}
+
+const COMBINATORS: readonly { id: Combinator; label: string; description: string }[] = [
+  { id: 'and', label: 'AND', description: 'Every condition must match' },
+  { id: 'or', label: 'OR', description: 'Any condition can match' },
+]
+
+/** AND or OR, picked from a menu; it joins every condition in the group. */
+export function CombinatorSelect({ value, onChange }: { value: Combinator; onChange: (value: Combinator) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLButtonElement>(null)
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        className={styles.joinerToggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Join conditions with ${value.toUpperCase()}`}
+        onClick={() => setOpen((was) => !was)}
+      >
+        {value.toUpperCase()}
+        <CaretDown size={10} weight="bold" aria-hidden />
+      </button>
+      {open ? (
+        <Popover anchorRef={ref} onClose={() => setOpen(false)} label="Join conditions with">
+          <div role="menu" aria-label="Join conditions with">
+            {COMBINATORS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={option.id === value}
+                className={controls.option}
+                autoFocus={option.id === value}
+                onClick={() => {
+                  onChange(option.id)
+                  setOpen(false)
+                  ref.current?.focus()
+                }}
+              >
+                <span className={controls.optionText}>
+                  <span className={controls.optionLabel}>{option.label}</span>
+                  <span className={controls.optionDescription}>{option.description}</span>
+                </span>
+                {option.id === value ? <Check className={controls.optionCheck} size={14} weight="bold" aria-hidden /> : null}
+              </button>
+            ))}
+          </div>
+        </Popover>
+      ) : null}
+    </>
+  )
 }
 
 type ConditionEditorProps = {
   label: string
   group: ConditionGroup
-  columns: readonly Column[]
+  fields: ConditionFields
   onChange: (group: ConditionGroup, key: string) => void
 }
 
-/** Rows of field, operator, value; one AND/OR joins them all. */
-export function ConditionEditor({ label, group, columns, onChange }: ConditionEditorProps) {
+/** Conditions of a field, an operator, and a value; one AND/OR joins them all. */
+export function ConditionEditor({ label, group, fields, onChange }: ConditionEditorProps) {
   const update = (id: string, patch: Partial<Condition>, key: string) =>
     onChange({ ...group, conditions: group.conditions.map((condition) => (condition.id === id ? { ...condition, ...patch } : condition)) }, `${id}:${key}`)
-  const toggle = () => onChange({ ...group, combinator: (group.combinator === 'and' ? 'or' : 'and') satisfies Combinator }, 'combinator')
 
   return (
     <div className={styles.list} role="group" aria-label={label}>
       {group.conditions.map((condition, index) => {
         const spec = operatorSpec(condition.operator)
+        const title = `Condition ${index + 1}`
         return (
-          <div key={condition.id} className={styles.list}>
+          <Fragment key={condition.id}>
             {index > 0 ? (
               <div className={styles.joiner}>
-                <button type="button" className={styles.joinerToggle} title="Switch between AND and OR" onClick={toggle}>
-                  {group.combinator.toUpperCase()}
-                </button>
+                <CombinatorSelect value={group.combinator} onChange={(combinator) => onChange({ ...group, combinator }, 'combinator')} />
               </div>
             ) : null}
-            <div className={spec.unary ? `${styles.conditionRow} ${styles.conditionRowUnary}` : styles.conditionRow}>
-              <ColumnSelect
-                label="Field"
-                value={condition.field}
-                columns={columns}
-                placeholder={columns.length ? 'Field' : 'No columns yet'}
-                invalid={!condition.field}
-                onChange={(field) => {
-                  const kind = columns.find((column) => column.name === field)?.kind
-                  update(condition.id, { field, operator: fittingOperator(kind, condition.operator) }, 'field')
-                }}
-              />
-              <Select
-                label="Operator"
-                value={condition.operator}
-                options={OPERATOR_OPTIONS}
-                onChange={(operator) => update(condition.id, { operator, value: operatorSpec(operator).unary ? '' : condition.value }, 'operator')}
-              />
-              {spec.unary ? null : (
-                <input
-                  className={inputClass}
-                  value={condition.value}
-                  placeholder="Value"
-                  aria-label="Value"
-                  aria-invalid={!condition.value.trim() || undefined}
-                  inputMode={spec.group === 'Number' ? 'decimal' : undefined}
-                  onChange={(event) => update(condition.id, { value: event.target.value }, 'value')}
-                />
-              )}
+            <div className={styles.condition} role="group" aria-label={title}>
+              <div className={styles.conditionBody}>
+                <div className={styles.conditionPair}>
+                  <ExpressionEditor
+                    label="Field"
+                    base="select"
+                    value={condition.field}
+                    expression={condition.fieldMode === 'expression'}
+                    fields={fields}
+                    invalid={!condition.field.trim()}
+                    onChange={(field, expression) => {
+                      const next = { field, fieldMode: expression ? ('expression' as const) : undefined }
+                      const path = fieldPath(next)
+                      const operator = path && path !== fieldPath(condition) ? fittingOperator(fields, path, condition.operator) : condition.operator
+                      update(condition.id, { ...next, operator }, 'field')
+                    }}
+                  />
+                  <OperatorSelect
+                    value={condition.operator}
+                    onChange={(operator) => update(condition.id, operatorSpec(operator).unary ? { operator, value: '', valueMode: undefined } : { operator }, 'operator')}
+                  />
+                </div>
+                {spec.unary ? null : (
+                  <ExpressionEditor
+                    label="Value"
+                    base="value"
+                    valueKind={spec.valueKind}
+                    value={condition.value}
+                    expression={condition.valueMode === 'expression'}
+                    fields={fields}
+                    invalid={!condition.value.trim()}
+                    onChange={(value, expression) => update(condition.id, { value, valueMode: expression ? 'expression' : undefined }, 'value')}
+                  />
+                )}
+              </div>
               <RemoveButton
-                label="Remove condition"
+                label={`Remove ${title.toLowerCase()}`}
                 onClick={() => onChange({ ...group, conditions: group.conditions.filter((item) => item.id !== condition.id) }, `${condition.id}:remove`)}
               />
             </div>
-          </div>
+          </Fragment>
         )
       })}
       <div className={styles.addRow}>

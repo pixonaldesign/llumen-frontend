@@ -5,14 +5,17 @@
 
 /* ---------- Card ---------- */
 
+/* Sections sit flat in the column; a rule with room on both sides splits each from what's above. */
 .card {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  padding: var(--space-lg) var(--space-xl) var(--space-xl);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
+}
+
+.card:not(:first-child) {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-3xl);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .cardHead {

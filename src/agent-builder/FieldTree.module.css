@@ -141,13 +141,17 @@ button.caret:hover {
   padding: 0 8px 0 7px;
 }
 
-.chip:hover {
+.chip[draggable='true']:hover {
   border-color: color-mix(in srgb, var(--canvas-accent) 60%, transparent);
   background: color-mix(in srgb, var(--canvas-accent) 10%, transparent);
 }
 
-.chip:active {
+.chip[draggable='true']:active {
   cursor: grabbing;
+}
+
+.chip[draggable='false'] {
+  cursor: default;
 }
 
 .chipIcon {

@@ -1,5 +1,5 @@
 import { conditionGroup, groupField, groupIssue, partsText, newCondition, type Combinator, type ConditionGroup, type Operator } from './conditions'
-import { DEFAULT_CREATE_ASSET, createAssetFields, createAssetIssue, type CreateAssetSettings } from './createAsset'
+import { DEFAULT_CREATE_ASSET, createAssetFields, missingMapping, type CreateAssetSettings } from './createAsset'
 import { addressSummary } from './emailMessage'
 import { ASSETS_BY_ID, ML_MODELS_BY_ID, SOURCES_BY_ID, measureLimit, previewOf, type SavedAsset, type SourceMode } from './flowData'
 import type { AssetPreview, FieldPart, NodeField, NodePort } from './nodeCatalog'
@@ -493,29 +493,36 @@ function sourceSummary(params: SourceParams): NodeField[] {
   return rows
 }
 
-function sourceIssue(params: SourceParams) {
+/** One thing stopping a node from running: what's wrong, how to fix it, and the field it's in, by its label. */
+export type KindIssue = { problem: string; fix: string; field?: string }
+
+const issue = (problem: string, fix: string, field?: string): KindIssue => ({ problem, fix, field })
+const check = (ok: boolean, problem: string, fix: string, field?: string): KindIssue[] => (ok ? [] : [issue(problem, fix, field)])
+
+function sourceIssues(params: SourceParams): KindIssue[] {
   const source = params.sourceId ? SOURCES_BY_ID[params.sourceId] : undefined
-  if (!source) return 'Select a source'
-  if (source.mode !== params.mode) return 'Select a source for this mode'
+  if (!source) return [issue('No source is selected', 'Select a source', 'Source')]
+  if (source.mode !== params.mode) return [issue('The source doesn’t fit this source type', 'Select a source for this mode', 'Source')]
   switch (params.mode) {
     case 'query':
-      return params.query.trim() ? undefined : 'Write the query to run'
+      return check(Boolean(params.query.trim()), 'The query is empty', 'Write the query to run', 'Query')
     case 'api_request':
-      return params.endpointId ? undefined : 'Choose the request to send'
+      return check(Boolean(params.endpointId), 'No request is chosen', 'Choose the request to send', 'Request')
     case 'file':
-      return params.sheet ? undefined : 'Choose a sheet'
+      return check(Boolean(params.sheet), 'No sheet is chosen', 'Choose a sheet', 'Sheet')
     case 'dataflow':
-      return params.datasetId ? undefined : 'Choose a dataset'
+      return check(Boolean(params.datasetId), 'No dataset is chosen', 'Choose a dataset', 'Dataset')
     default:
-      return params.operationId ? undefined : 'Choose an operation'
+      return check(Boolean(params.operationId), 'No operation is chosen', 'Choose an operation', 'Operation')
   }
 }
 
-function webhookIssue(params: WebhookParams) {
-  if (params.authMode !== 'oauth2') return undefined
-  if (!/^https?:\/\//.test(params.oauth2Issuer.trim())) return 'Enter the OAuth issuer URL'
-  if (!params.oauth2Audience.trim()) return 'Enter the OAuth audience'
-  return undefined
+function webhookIssues(params: WebhookParams): KindIssue[] {
+  if (params.authMode !== 'oauth2') return []
+  return [
+    ...check(/^https?:\/\//.test(params.oauth2Issuer.trim()), 'The OAuth issuer isn’t a URL', 'Enter the OAuth issuer URL', 'Issuer'),
+    ...check(Boolean(params.oauth2Audience.trim()), 'The OAuth audience is empty', 'Enter the OAuth audience', 'Audience'),
+  ]
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -562,48 +569,80 @@ export function apiConnection(params: Pick<ApiRequestParams, 'sourceId' | 'endpo
   return { source, endpoint: source?.endpoints?.find((endpoint) => endpoint.id === params.endpointId) }
 }
 
-function apiIssue(params: ApiRequestParams) {
+function apiIssues(params: ApiRequestParams): KindIssue[] {
   if (params.mode === 'source') {
     const { source, endpoint } = apiConnection(params)
-    return !source ? 'Select the API connection' : !endpoint ? 'Choose the request to make' : undefined
+    return !source
+      ? [issue('No API connection is selected', 'Select the API connection', 'Connection')]
+      : check(Boolean(endpoint), 'No request is chosen on the connection', 'Choose the request to make', 'Request')
   }
   const url = urlIssue(params.url)
-  if (url) return url
   const keys = params.headers.map((header) => header.key.trim().toLowerCase()).filter(Boolean)
-  if (new Set(keys).size !== keys.length) return 'Header names must be unique'
-  if (params.body.trim() && !bodyAllowed(params.method)) return `A ${params.method} request can’t carry a body`
-  if (new Blob([params.body]).size > 1_048_576) return 'The body is over the 1 MiB limit'
-  return undefined
+  return [
+    ...(url ? [issue(params.url.trim() ? 'The URL can’t be called' : 'The URL is empty', url, 'URL')] : []),
+    ...check(new Set(keys).size === keys.length, 'Two headers have the same name', 'Header names must be unique', 'Header name'),
+    ...check(
+      !params.body.trim() || bodyAllowed(params.method),
+      `${params.method} requests have no body`,
+      `A ${params.method} request can’t carry a body`,
+      'Body',
+    ),
+    ...check(new Blob([params.body]).size <= 1_048_576, 'The body is too large', 'The body is over the 1 MiB limit', 'Body'),
+  ]
 }
 
-function categoriesIssue(params: ClassificationParams) {
-  if (!params.instructions.trim()) return 'Enter instructions for the classifier'
-  if (!params.categories.length) return 'Add a category'
+function categoriesIssues(params: ClassificationParams): KindIssue[] {
   const names = params.categories.map((category) => category.name.trim().toLowerCase())
-  if (names.some((name) => !name)) return 'Name every category'
-  if (new Set(names).size !== names.length) return 'Category names must be unique'
-  if (names.some((name) => name === 'default' || name === '_unclassified')) return '“default” and “_unclassified” are reserved'
-  return undefined
+  return [
+    ...check(Boolean(params.instructions.trim()), 'The instructions are empty', 'Enter instructions for the classifier', 'Instructions'),
+    ...(!params.categories.length
+      ? [issue('There are no categories', 'Add a category')]
+      : names.some((name) => !name)
+        ? [issue('A category has no name', 'Name every category', 'Category name')]
+        : new Set(names).size !== names.length
+          ? [issue('Two categories have the same name', 'Category names must be unique', 'Category name')]
+          : check(
+              !names.some((name) => name === 'default' || name === '_unclassified'),
+              'A category uses a reserved name',
+              '“default” and “_unclassified” are reserved',
+              'Category name',
+            )),
+  ]
 }
 
-function insightIssue(params: InsightParams) {
-  if (!params.instructions.trim()) return 'Enter instructions for the insight'
+function insightIssues(params: InsightParams): KindIssue[] {
   const fields = params.fields.map((field) => field.trim())
-  if (!fields.length || fields.some((field) => !field)) return 'Name every output field'
-  if (new Set(fields).size !== fields.length) return 'Output fields must be unique'
-  return undefined
+  return [
+    ...check(Boolean(params.instructions.trim()), 'The instructions are empty', 'Enter instructions for the insight', 'Instructions'),
+    ...(!fields.length || fields.some((field) => !field)
+      ? [issue('An output field has no name', 'Name every output field', 'Output fields')]
+      : check(new Set(fields).size === fields.length, 'Two output fields have the same name', 'Output fields must be unique', 'Output fields')),
+  ]
 }
 
-function alertsIssue(params: AiFindingsParams) {
-  if (params.instructions.length > 1000) return 'The focus note is over 1,000 characters'
+function alertsIssues(params: AiFindingsParams): KindIssue[] {
+  const rule = alertRulesIssue(params)
+  return [
+    ...check(params.instructions.length <= 1000, 'The focus note is too long', 'The focus note is over 1,000 characters', 'What to focus on'),
+    ...check(
+      !params.alerts.enabled || params.alerts.criteria.length <= 500,
+      'The alert criteria are too long',
+      'The alert criteria are over 500 characters',
+      'What counts as an alert',
+    ),
+    ...(rule ? [issue('An alert rule isn’t finished', rule)] : []),
+  ]
+}
+
+function alertRulesIssue(params: AiFindingsParams) {
   if (!params.alerts.enabled) return undefined
-  if (params.alerts.criteria.length > 500) return 'The alert criteria are over 500 characters'
   if (params.alerts.rules.length > ALERT_LIMITS.rules) return `A Flow can have up to ${ALERT_LIMITS.rules} alert rules`
   for (const rule of params.alerts.rules) {
     const name = `“${rule.label || 'Untitled rule'}”`
     if (rule.groups.length > ALERT_LIMITS.groups) return `${name} has more than ${ALERT_LIMITS.groups} groups`
     if (!rule.groups.length || rule.groups.some((group) => !group.conditions.length)) return `Add a condition to every group in ${name}`
-    if (rule.groups.some((group) => group.conditions.length > ALERT_LIMITS.conditions)) return `A group in ${name} has more than ${ALERT_LIMITS.conditions} conditions`
+    if (rule.groups.some((group) => group.conditions.length > ALERT_LIMITS.conditions))
+      return `A group in ${name} has more than ${ALERT_LIMITS.conditions} conditions`
     for (const condition of ruleConditions(rule)) {
       if (condition.type === 'forecast_event') {
         if (condition.withinHours < 1 || condition.withinHours > 72) return 'A coming event must be within 1–72 hours'
@@ -615,119 +654,165 @@ function alertsIssue(params: AiFindingsParams) {
   return undefined
 }
 
-function mlIssue(params: MlModelParams) {
-  return params.modelId && ML_MODELS_BY_ID[params.modelId] ? undefined : 'Select a model'
+function mlIssues(params: MlModelParams): KindIssue[] {
+  return check(Boolean(params.modelId && ML_MODELS_BY_ID[params.modelId]), 'No model is selected', 'Select a model', 'Model')
 }
 
-function forecastIssue(params: ForecastParams) {
-  if (!params.timeColumn) return 'Choose the time column'
-  if (!params.targetColumn) return 'Choose the value to forecast'
+function forecastIssues(params: ForecastParams): KindIssue[] {
   const series = params.seriesIdColumns ?? []
-  if (series.some((column) => column === params.timeColumn || column === params.targetColumn) || new Set(series).size !== series.length) {
-    return 'Series columns can’t repeat or reuse the time or value column'
-  }
-  return undefined
+  return [
+    ...check(Boolean(params.timeColumn), 'No time column is chosen', 'Choose the time column', 'Time column'),
+    ...check(Boolean(params.targetColumn), 'No value to forecast is chosen', 'Choose the value to forecast', 'Value to forecast'),
+    ...check(
+      !series.some((column) => column === params.timeColumn || column === params.targetColumn) && new Set(series).size === series.length,
+      'The series columns overlap',
+      'Series columns can’t repeat or reuse the time or value column',
+      'Series columns',
+    ),
+  ]
 }
 
-function switchIssue(params: SwitchParams) {
-  if (!params.cases.length) return 'Add a case'
-  for (const item of params.cases) {
-    const issue = groupIssue(item.when, `“${item.label}”`)
-    if (issue) return issue
-  }
-  return undefined
+function groupIssues(group: ConditionGroup, what: string, field?: string): KindIssue[] {
+  const fix = groupIssue(group, what)
+  if (!fix) return []
+  const problem = group.conditions.length ? `A condition in ${what} isn’t finished` : `${what.charAt(0).toUpperCase()}${what.slice(1)} has no conditions`
+  return [issue(problem, fix.replace(/\.$/, ''), field)]
 }
 
-function editFieldsIssue(params: EditFieldsParams) {
-  if (!params.assignments.length && !params.remove.length) return 'Set or remove at least one field'
-  if (params.assignments.some((item) => !item.name.trim())) return 'Name every field you set'
-  return undefined
+function switchIssues(params: SwitchParams): KindIssue[] {
+  if (!params.cases.length) return [issue('There are no cases', 'Add a case')]
+  return params.cases.flatMap((item) => groupIssues(item.when, `“${item.label}”`))
 }
 
-function aggregateIssue(params: AggregateParams) {
-  if (!params.metrics.length) return 'Add a metric'
-  if (params.metrics.some((metric) => metric.fn !== 'count' && !metric.field)) return 'Choose the field for every metric'
-  return undefined
+function editFieldsIssues(params: EditFieldsParams): KindIssue[] {
+  return [
+    ...check(Boolean(params.assignments.length || params.remove.length), 'It doesn’t change any field', 'Set or remove at least one field'),
+    ...check(!params.assignments.some((item) => !item.name.trim()), 'A field you set has no name', 'Name every field you set', 'Field name'),
+  ]
 }
 
-const required = (value: string, message: string) => (value.trim() ? undefined : message)
+function aggregateIssues(params: AggregateParams): KindIssue[] {
+  if (!params.metrics.length) return [issue('There are no metrics', 'Add a metric')]
+  return check(!params.metrics.some((metric) => metric.fn !== 'count' && !metric.field), 'A metric has no field', 'Choose the field for every metric', 'Field')
+}
 
-/** Why the node can't run yet, or undefined when it's ready. */
-export function kindIssue(typeId: string, stored: unknown): string | undefined {
-  if (!isKind(typeId)) return undefined
+function createAssetIssues(settings: CreateAssetSettings): KindIssue[] {
+  const missing = missingMapping(settings)
+  return [
+    ...check(Boolean(settings.title?.trim()), 'The asset has no title', 'Give the asset a title before running', 'Title'),
+    ...(missing.length
+      ? [
+          issue(
+            `The chart is missing its ${missing.map((field) => field.label.toLowerCase()).join(' and ')}`,
+            `Choose the ${missing.map((field) => field.label).join(' and ')} before running`,
+          ),
+        ]
+      : []),
+  ]
+}
+
+function scheduleIssues(params: ScheduleParams): KindIssue[] {
+  return [
+    ...check(params.every >= 1 && params.every <= 10_000, 'The interval is out of range', 'Every must be between 1 and 10,000', 'Run every'),
+    ...check(
+      params.ends !== 'after' || (params.endAfter >= 1 && params.endAfter <= SCHEDULE_MAX_SPAN),
+      'The schedule’s length is out of range',
+      `Ends after must be between 1 and ${SCHEDULE_MAX_SPAN}`,
+      'Runs for',
+    ),
+    ...(params.ends !== 'on'
+      ? []
+      : !dayOf(params.endDate)
+        ? [issue('The schedule has no last day', 'Pick the day the schedule ends', 'Last day')]
+        : check(params.endDate >= todayIn(params.timezone), 'The last day is in the past', 'The end day has passed', 'Last day')),
+  ]
+}
+
+function chatIssues(params: ChatMessageParams): KindIssue[] {
+  return [
+    ...check(Boolean(params.message.trim()), 'The message is empty', 'Write the message to send', 'Message'),
+    ...check(
+      params.mode !== 'send_and_wait' || params.responseType !== 'approval' || Boolean(params.approveLabel.trim() && params.rejectLabel.trim()),
+      'An approval button has no label',
+      'Label both approval buttons',
+      params.approveLabel.trim() ? 'Reject button' : 'Approve button',
+    ),
+  ]
+}
+
+function emailIssues(params: EmailParams): KindIssue[] {
+  const invalid = (text: string, label: string) =>
+    check(
+      emailList(text).every((address) => address.includes('{{') || EMAIL.test(address)),
+      `${label} has an address that isn’t valid`,
+      `Check the addresses in ${label}`,
+      label,
+    )
+  return [
+    ...(emailList(params.to).length ? invalid(params.to, 'To') : [issue('There’s no recipient', 'Add a recipient', 'To')]),
+    ...invalid(params.cc, 'Cc'),
+    ...invalid(params.bcc, 'Bcc'),
+    ...check(Boolean(params.subject.trim()), 'The subject is empty', 'Add a subject', 'Subject'),
+    ...check(Boolean(params.body.trim()), 'The body is empty', 'Write the email body', 'Body'),
+  ]
+}
+
+/** Everything stopping the node from running, in the order the panel shows its fields. */
+export function kindIssues(typeId: string, stored: unknown): KindIssue[] {
+  if (!isKind(typeId)) return []
   switch (typeId) {
-    case 'scheduleTrigger': {
-      const params = paramsFor(typeId, stored)
-      if (params.every < 1 || params.every > 10_000) return 'Every must be between 1 and 10,000'
-      if (params.ends === 'after' && (params.endAfter < 1 || params.endAfter > SCHEDULE_MAX_SPAN)) return `Ends after must be between 1 and ${SCHEDULE_MAX_SPAN}`
-      if (params.ends === 'on') {
-        if (!dayOf(params.endDate)) return 'Pick the day the schedule ends'
-        if (params.endDate < todayIn(params.timezone)) return 'The end day has passed'
-      }
-      return undefined
-    }
+    case 'scheduleTrigger':
+      return scheduleIssues(paramsFor(typeId, stored))
     case 'webhook':
-      return webhookIssue(paramsFor(typeId, stored))
+      return webhookIssues(paramsFor(typeId, stored))
     case 'asset': {
       const params = paramsFor(typeId, stored)
-      return params.assetId && ASSETS_BY_ID[params.assetId] ? undefined : 'Choose an asset'
+      return check(Boolean(params.assetId && ASSETS_BY_ID[params.assetId]), 'No asset is chosen', 'Choose an asset', 'Asset')
     }
     case 'source':
-      return sourceIssue(paramsFor(typeId, stored))
+      return sourceIssues(paramsFor(typeId, stored))
     case 'mlModel':
-      return mlIssue(paramsFor(typeId, stored))
+      return mlIssues(paramsFor(typeId, stored))
     case 'forecast':
-      return forecastIssue(paramsFor(typeId, stored))
+      return forecastIssues(paramsFor(typeId, stored))
     case 'createAsset':
-      return createAssetIssue(paramsFor(typeId, stored))
+      return createAssetIssues(paramsFor(typeId, stored))
     case 'filter':
-      return groupIssue(paramsFor(typeId, stored).where, 'the filter')
+      return groupIssues(paramsFor(typeId, stored).where, 'the filter', 'Filter conditions')
     case 'ifElse':
-      return groupIssue(paramsFor(typeId, stored).when, 'the If branch')
+      return groupIssues(paramsFor(typeId, stored).when, 'the If branch', 'If conditions')
     case 'switchCases':
-      return switchIssue(paramsFor(typeId, stored))
+      return switchIssues(paramsFor(typeId, stored))
     case 'editFields':
-      return editFieldsIssue(paramsFor(typeId, stored))
+      return editFieldsIssues(paramsFor(typeId, stored))
     case 'aggregate':
-      return aggregateIssue(paramsFor(typeId, stored))
-    case 'wait': {
-      const params = paramsFor(typeId, stored)
-      return params.waitFor >= 1 ? undefined : 'Wait at least 1 unit'
-    }
+      return aggregateIssues(paramsFor(typeId, stored))
+    case 'wait':
+      return check(paramsFor(typeId, stored).waitFor >= 1, 'The wait is shorter than 1 unit', 'Wait at least 1 unit', 'Wait for')
     case 'generalAgent':
     case 'dataAnalyst':
     case 'createApp':
     case 'gisCorrelationAgent':
-      return required(paramsFor(typeId, stored).instructions, 'Enter instructions for the agent')
+      return check(Boolean(paramsFor(typeId, stored).instructions.trim()), 'The instructions are empty', 'Enter instructions for the agent', 'Instructions')
     case 'dataClassificationAgent':
-      return categoriesIssue(paramsFor(typeId, stored))
+      return categoriesIssues(paramsFor(typeId, stored))
     case 'insightGenerator':
-      return insightIssue(paramsFor(typeId, stored))
+      return insightIssues(paramsFor(typeId, stored))
     case 'aiFindings':
-      return alertsIssue(paramsFor(typeId, stored))
-    case 'sendChatMessage': {
-      const params = paramsFor(typeId, stored)
-      if (!params.message.trim()) return 'Write the message to send'
-      if (params.mode === 'send_and_wait' && params.responseType === 'approval' && (!params.approveLabel.trim() || !params.rejectLabel.trim())) {
-        return 'Label both approval buttons'
-      }
-      return undefined
-    }
-    case 'sendEmail': {
-      const params = paramsFor(typeId, stored)
-      const to = emailList(params.to)
-      if (!to.length) return 'Add a recipient'
-      if ([...to, ...emailList(params.cc), ...emailList(params.bcc)].some((address) => !address.includes('{{') && !EMAIL.test(address))) {
-        return 'Check the email addresses'
-      }
-      return required(params.subject, 'Add a subject') ?? required(params.body, 'Write the email body')
-    }
+      return alertsIssues(paramsFor(typeId, stored))
+    case 'sendChatMessage':
+      return chatIssues(paramsFor(typeId, stored))
+    case 'sendEmail':
+      return emailIssues(paramsFor(typeId, stored))
     case 'sendApiRequest':
-      return apiIssue(paramsFor(typeId, stored))
+      return apiIssues(paramsFor(typeId, stored))
     default:
-      return undefined
+      return []
   }
 }
+
+/** Why the node can't run yet, as its first fix, or undefined when it's ready. */
+export const kindIssue = (typeId: string, stored: unknown): string | undefined => kindIssues(typeId, stored)[0]?.fix
 
 /** Rows on the canvas card; trigger rows depend on the Flow too, see `triggerFields`. */
 export function kindFields(typeId: string, stored: unknown): NodeField[] {
@@ -913,11 +998,24 @@ export function alertSourceIssue(params: AiFindingsParams, upstream: readonly { 
 }
 
 /** Problems only the graph shows, e.g. a GIS node with nothing wired in; the node's own settings can be fine. */
-export function kindWiringIssue(typeId: string, stored: unknown, graph: () => WiringGraph) {
-  if (typeId === 'aiFindings') return alertSourceIssue(paramsFor(typeId, stored), graph().upstream)
-  if (typeId !== 'gisCorrelationAgent') return undefined
+export function kindWiringIssues(typeId: string, stored: unknown, graph: () => WiringGraph): KindIssue[] {
+  if (typeId === 'aiFindings') {
+    const detached = alertSourceIssue(paramsFor(typeId, stored), graph().upstream)
+    return detached ? [issue(detached, 'Point the condition at a step wired in before this one, or wire that step in')] : []
+  }
+  if (typeId !== 'gisCorrelationAgent') return []
   const { wired, upstream } = graph()
-  return gisUpperIssue(wired) ?? gisLandIssue(paramsFor(typeId, stored), upstream, wired[0]?.id)
+  const upper = gisUpperIssue(wired)
+  const land = gisLandIssue(paramsFor(typeId, stored), upstream, wired[0]?.id)
+  return [
+    ...(upper ? [issue('The upper layer isn’t wired in right', upper.replace(/\.$/, ''), 'Upper layer')] : []),
+    ...(land ? [issue('The land layer isn’t set up', land.replace(/\.$/, ''), 'Land layer')] : []),
+  ]
+}
+
+export const kindWiringIssue = (typeId: string, stored: unknown, graph: () => WiringGraph) => {
+  const [first] = kindWiringIssues(typeId, stored, graph)
+  return first && (typeId === 'aiFindings' ? first.problem : `${first.fix}.`)
 }
 
 /** Upstream steps whose asset an app can place: bound Asset nodes and Create Asset steps. */

@@ -4,8 +4,8 @@ import { Card, Field, NumberInput, Select, SwitchRow, type SelectOption } from '
 import { inputClass } from './configStyles'
 import { ConditionEditor } from './ConditionEditor'
 import { matches, type ConditionGroup } from './conditions'
-import { plural, useFocusItem, type EditorProps } from './kindEditor'
-import { AddButton, ColumnChips, ColumnSelect, Notice, RemoveButton, Segmented, TextAreaField } from './KindControls'
+import { conditionFields, plural, useFocusItem, type ConditionFields, type EditorProps } from './kindEditor'
+import { AddButton, ColumnChips, ColumnSelect, Notice, RemoveButton, TextAreaField } from './KindControls'
 import { aggregateSql, metricName } from './nodeRuntime'
 import {
   FN_LABEL,
@@ -26,14 +26,13 @@ import {
   type WaitParams,
   type WaitUnit,
 } from './nodeKinds'
-import type { DataRecord } from './nodeCatalog'
 import styles from './KindConfig.module.css'
 import windowStyles from './NodeConfigWindow.module.css'
 
 /** How many of the last input's rows the conditions keep, or nothing before a run. */
-function MatchCount({ group, records, yes, no }: { group: ConditionGroup; records: readonly DataRecord[] | null; yes: string; no: string }) {
+function MatchCount({ group, fields: { records, scope }, yes, no }: { group: ConditionGroup; fields: ConditionFields; yes: string; no: string }) {
   if (!records) return <p className={styles.count}>Run the step before this one to see how many rows match.</p>
-  const kept = records.filter((row) => matches(group, row)).length
+  const kept = records.filter((row) => matches(group, row, scope)).length
   return (
     <p className={styles.count}>
       On the last input: {plural(kept, 'row')} {yes}, {plural(records.length - kept, 'row')} {no}.
@@ -42,38 +41,41 @@ function MatchCount({ group, records, yes, no }: { group: ConditionGroup; record
 }
 
 export function FilterConfig({ params, set, ctx }: EditorProps<FilterParams>) {
+  const fields = conditionFields(ctx)
   return (
     <Card icon={<Funnel size={16} aria-hidden />} title="Keep rows where" description="Rows that pass go to Kept; the rest go to Discarded. An empty branch sends nothing on.">
-      <ConditionEditor label="Filter conditions" group={params.where} columns={ctx.columns} onChange={(where, key) => set({ where }, `where:${key}`)} />
-      <MatchCount group={params.where} records={ctx.records} yes="kept" no="discarded" />
+      <ConditionEditor label="Filter conditions" group={params.where} fields={fields} onChange={(where, key) => set({ where }, `where:${key}`)} />
+      <MatchCount group={params.where} fields={fields} yes="kept" no="discarded" />
     </Card>
   )
 }
 
 export function IfElseConfig({ params, set, ctx }: EditorProps<IfElseParams>) {
+  const fields = conditionFields(ctx)
   return (
     <Card icon={<GitFork size={16} aria-hidden />} title="If" description="Rows that match go down If; the rest go down Else. Only branches that get rows run.">
-      <ConditionEditor label="If conditions" group={params.when} columns={ctx.columns} onChange={(when, key) => set({ when }, `when:${key}`)} />
-      <MatchCount group={params.when} records={ctx.records} yes="go down If" no="go down Else" />
+      <ConditionEditor label="If conditions" group={params.when} fields={fields} onChange={(when, key) => set({ when }, `when:${key}`)} />
+      <MatchCount group={params.when} fields={fields} yes="go down If" no="go down Else" />
     </Card>
   )
 }
 
-const ROUTING = [
-  { id: 'first', label: 'First matching case' },
-  { id: 'all', label: 'Every matching case' },
-] as const
+const ROUTING: readonly SelectOption<'first' | 'all'>[] = [
+  { id: 'first', label: 'First matching case', description: 'Each row goes to the first case it matches' },
+  { id: 'all', label: 'Every matching case', description: 'A row goes to every case it matches' },
+]
 
 export function SwitchConfig({ params, set, ctx }: EditorProps<SwitchParams>) {
   const updateCase = (id: string, patch: Partial<SwitchCase>, key: string) =>
     set({ cases: params.cases.map((item) => (item.id === id ? { ...item, ...patch } : item)) }, `case:${id}:${key}`)
   const focusProps = useFocusItem(ctx.focus)
+  const fields = conditionFields(ctx)
 
   const counts = ctx.records
     ? (() => {
         const tally: Record<string, number> = { default: 0 }
         for (const row of ctx.records) {
-          const hits = params.cases.filter((item) => matches(item.when, row))
+          const hits = params.cases.filter((item) => matches(item.when, row, fields.scope))
           const targets = params.sendToAllMatching ? hits : hits.slice(0, 1)
           if (!targets.length) tally.default += 1
           for (const item of targets) tally[item.id] = (tally[item.id] ?? 0) + 1
@@ -84,14 +86,21 @@ export function SwitchConfig({ params, set, ctx }: EditorProps<SwitchParams>) {
 
   return (
     <>
-      <Card icon={<GitFork size={16} aria-hidden />} title="Routing" description="Rows no case matches go to Default.">
-        <Segmented
-          label="Routing"
-          value={params.sendToAllMatching ? 'all' : 'first'}
-          options={ROUTING}
-          onChange={(value) => set({ sendToAllMatching: value === 'all' }, 'sendToAllMatching')}
-        />
-      </Card>
+      <Card
+        icon={<GitFork size={16} aria-hidden />}
+        title="Routing"
+        description="Rows no case matches go to Default."
+        action={
+          <div className={styles.headSelect}>
+            <Select
+              label="Routing"
+              value={params.sendToAllMatching ? 'all' : 'first'}
+              options={ROUTING}
+              onChange={(value) => set({ sendToAllMatching: value === 'all' }, 'sendToAllMatching')}
+            />
+          </div>
+        }
+      />
       <Card icon={<Rows size={16} aria-hidden />} title="Cases" description="Each case is its own output. Removing one also removes its edges.">
         <div className={styles.list}>
           {params.cases.map((item, index) => (
@@ -99,7 +108,7 @@ export function SwitchConfig({ params, set, ctx }: EditorProps<SwitchParams>) {
               <div className={styles.itemHead}>
                 <span className={styles.itemIndex}>{index + 1}</span>
                 <input
-                  className={inputClass}
+                  className={`${inputClass} ${styles.caseName}`}
                   value={item.label}
                   maxLength={40}
                   aria-label="Case name"
@@ -109,7 +118,7 @@ export function SwitchConfig({ params, set, ctx }: EditorProps<SwitchParams>) {
                 {counts ? <span className={styles.count}>{plural(counts[item.id] ?? 0, 'row')}</span> : null}
                 <RemoveButton label={`Remove ${item.label || 'case'}`} onClick={() => set({ cases: params.cases.filter((other) => other.id !== item.id) }, `case:${item.id}:remove`)} />
               </div>
-              <ConditionEditor label={`${item.label} conditions`} group={item.when} columns={ctx.columns} onChange={(when, key) => updateCase(item.id, { when }, `when:${key}`)} />
+              <ConditionEditor label={`${item.label} conditions`} group={item.when} fields={fields} onChange={(when, key) => updateCase(item.id, { when }, `when:${key}`)} />
             </div>
           ))}
           <div className={styles.addRow}>

@@ -237,7 +237,11 @@ function ProducedAsset({ settings, records, run }: { settings: CreateAssetSettin
     return (
       <div className={`${styles.assetEmpty} ${styles.assetError}`}>
         <WarningCircle size={20} aria-hidden />
-        <p>{run.message ?? 'The last run failed.'}</p>
+        <p>
+          {run.problems?.length
+            ? `${run.problems[0].title}. ${run.problems.length > 1 ? `Output lists all ${run.problems.length} problems` : 'Output shows how to fix it'}.`
+            : (run.message ?? 'The last run failed.')}
+        </p>
       </div>
     )
   }

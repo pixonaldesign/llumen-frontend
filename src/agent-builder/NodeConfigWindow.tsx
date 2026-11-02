@@ -27,11 +27,14 @@ import { EmailPreview } from './EmailPreview'
 import type { ChatReply } from './chatMessage'
 import { FindingReport } from './FindingReport'
 import { SAMPLE_ROWS } from './flowData'
+import { llumenVars } from './globalVars'
 import { KindConfig } from './KindConfig'
 import { referencesFor, type EditorContext } from './kindEditor'
 import { kindSummary, type AnyParams } from './nodeKinds'
 import { formatBytes } from './recordUtils'
 import { NodeSettingsPanel } from './NodeSettingsPanel'
+import { currentProblemKeys, needsInput, type ProblemAction } from './nodeProblems'
+import { ProblemReport } from './ProblemReport'
 import {
   nodeName,
   nodeOutputs,
@@ -107,16 +110,20 @@ type NodeConfigWindowProps = {
   onReply?: (reply: ChatReply) => void
   /** A branch to open on, e.g. the case edited from the card. */
   focus?: string
+  /** A problem's fix to open on, picked from the canvas: its field, or fixture input. */
+  reveal?: ProblemAction
   onNavigate: (id: string) => void
   onClose: () => void
 }
+
+type ConfigTab = 'configuration' | 'settings'
 
 const mergeRecords = (sources: readonly UpstreamNode[]) =>
   sources.some((source) => source.records) ? sources.flatMap((source) => source.records ?? []) : null
 
 /** The node's configuration window: input on the left, its settings in the middle, output on the right. */
 export function NodeConfigWindow(props: NodeConfigWindowProps) {
-  const { node, type, run, previous, next, upstream, fixture, onClose } = props
+  const { node, type, run, previous, next, upstream, fixture, reveal, onClose } = props
   const [layer, setLayer] = useState<HTMLDivElement | null>(null)
   /** A field chip is being dragged, so the fields it can drop into are marked. */
   const [fieldDrag, setFieldDrag] = useState(false)
@@ -127,12 +134,39 @@ export function NodeConfigWindow(props: NodeConfigWindowProps) {
   const hasInput = type.inputs.length > 0
   const name = nodeName(node, type)
   const summary = kindSummary(type.id, node.config.params) ?? (isTrigger ? undefined : type.title)
+  const [tab, setTab] = useState<ConfigTab>(reveal?.kind === 'field' && reveal.tab ? reveal.tab : 'configuration')
+  const [fixtureOpen, setFixtureOpen] = useState(reveal?.kind === 'fixture')
+  const [shownId, setShownId] = useState(node.id)
+  if (shownId !== node.id) {
+    setShownId(node.id)
+    setTab('configuration')
+    setFixtureOpen(false)
+  }
+  const steps = upstream.filter((step) => step.category !== 'triggers').map(({ id, typeId, name, direct }) => ({ id, typeId, name, direct }))
+  const current = currentProblemKeys(type.id, node.config.params, needsInput(type.id, type.inputs.length) && !previous.length && !fixture, () => ({
+    wired: steps.filter((step) => step.direct),
+    upstream: steps,
+  }))
+
+  const act = (action: ProblemAction) => {
+    if (action.kind === 'fixture') return setFixtureOpen(true)
+    if (action.kind === 'executePrevious') return props.onExecutePrevious()
+    setTab(action.tab ?? 'configuration')
+    requestAnimationFrame(() => revealField(windowRef.current, action.field))
+  }
 
   useEffect(() => {
     const returnFocus = document.activeElement as HTMLElement | null
     windowRef.current?.focus({ preventScroll: true })
     return () => returnFocus?.focus?.({ preventScroll: true })
   }, [])
+
+  const revealed = reveal?.kind === 'field' ? reveal.field : undefined
+  useEffect(() => {
+    if (!revealed) return
+    const frame = requestAnimationFrame(() => revealField(windowRef.current, revealed))
+    return () => cancelAnimationFrame(frame)
+  }, [revealed])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -196,14 +230,44 @@ export function NodeConfigWindow(props: NodeConfigWindowProps) {
               isTrigger={isTrigger}
               hasInput={hasInput}
               connected={connected}
+              tab={tab}
+              onTab={setTab}
+              fixtureOpen={fixtureOpen}
+              onFixtureOpen={setFixtureOpen}
             />
-            <OutputColumn node={node} type={type} run={run} format={type.category === 'dataFlow' ? 'parquet' : 'json'} onReply={props.onReply} />
+            <OutputColumn
+              node={node}
+              type={type}
+              run={run}
+              format={type.category === 'dataFlow' ? 'parquet' : 'json'}
+              current={current}
+              onAction={act}
+              onReply={props.onReply}
+            />
           </div>
           <div ref={setLayer} className={layerClass} />
         </PopoverLayer.Provider>
       </div>
     </div>
   )
+}
+
+/** Brings a configuration field into view, by its label, and focuses its control. */
+function revealField(root: HTMLElement | null, label: string) {
+  const name = CSS.escape(label)
+  const column = '[aria-label="Configuration"]'
+  const field = root?.querySelector<HTMLElement>(`${column} [data-field="${name}"], ${column} [role="group"][aria-label="${name}"]`)
+  const card = [...(root?.querySelectorAll<HTMLElement>(`${column} section[aria-labelledby]`) ?? [])].find(
+    (section) => document.getElementById(section.getAttribute('aria-labelledby') ?? '')?.textContent?.trim() === label,
+  )
+  const target = field ?? card
+  if (!target) return
+  target.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  if (field) (field.querySelector('label')?.control ?? field.querySelector<HTMLElement>('input, textarea, select, button'))?.focus({ preventScroll: true })
+  target.removeAttribute('data-attention')
+  void target.offsetWidth
+  target.setAttribute('data-attention', '')
+  target.addEventListener('animationend', () => target.removeAttribute('data-attention'), { once: true })
 }
 
 /* ---------- Header ---------- */
@@ -281,7 +345,7 @@ export function Tabs<T extends string>({
   onChange,
   trailing,
 }: {
-  tabs: readonly { id: T; label: string }[]
+  tabs: readonly { id: T; label: string; count?: number }[]
   value: T
   label: string
   onChange: (value: T) => void
@@ -300,6 +364,7 @@ export function Tabs<T extends string>({
           onClick={() => onChange(tab.id)}
         >
           {tab.label}
+          {tab.count === undefined ? null : <span className={styles.tabCount}>{tab.count.toLocaleString()}</span>}
         </button>
       ))}
     </div>
@@ -475,18 +540,12 @@ function InputColumn({ upstream, fixture, workflowName, onClearFixture, onExecut
   )
 }
 
-/** Display-only trees, as in the builder; nothing substitutes them at run time. */
+/** The globals as the builder shows them; conditions read them as `{{ $llumen.… }}` and `{{ $vars.… }}`. */
 function GlobalVars({ workflowName }: { workflowName: string }) {
-  const llumen: DataRecord = {
-    'workflow.name': workflowName,
-    'execution.id': 'exec_9b21',
-    'execution.mode': 'builder_debug',
-    now: new Date().toISOString().slice(0, 19) + 'Z',
-  }
   return (
     <div className={styles.vars}>
       <p className={styles.varsGroup}>$llumen</p>
-      <DataViewBody view="schema" records={[llumen]} />
+      <DataViewBody view="schema" records={[llumenVars(workflowName)]} />
       <p className={styles.varsGroup}>$vars</p>
       <p className={styles.noMatch}>No workflow variables yet.</p>
     </div>
@@ -498,6 +557,10 @@ type ConfigColumnProps = NodeConfigWindowProps & {
   isTrigger: boolean
   hasInput: boolean
   connected: DataRecord[] | null
+  tab: ConfigTab
+  onTab: (tab: ConfigTab) => void
+  fixtureOpen: boolean
+  onFixtureOpen: (open: boolean) => void
 }
 
 function ConfigColumn({
@@ -517,9 +580,12 @@ function ConfigColumn({
   onExecute,
   onExecutePrevious,
   focus,
+  workflowName,
+  tab,
+  onTab: setTab,
+  fixtureOpen,
+  onFixtureOpen: setFixtureOpen,
 }: ConfigColumnProps) {
-  const [tab, setTab] = useState<'configuration' | 'settings'>('configuration')
-  const [fixtureOpen, setFixtureOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const fixtureRef = useRef<HTMLButtonElement>(null)
   const executeRef = useRef<HTMLButtonElement>(null)
@@ -537,6 +603,7 @@ function ConfigColumn({
     hasChatTrigger,
     onExecutePrevious,
     focus,
+    workflowName,
   }
 
   return (
@@ -556,7 +623,7 @@ function ConfigColumn({
               type="button"
               className={buttonClass(fixture ? 'active' : undefined)}
               aria-expanded={fixtureOpen}
-              onClick={() => setFixtureOpen((open) => !open)}
+              onClick={() => setFixtureOpen(!fixtureOpen)}
             >
               <TestTube size={14} aria-hidden />
               With fixture input
@@ -705,9 +772,18 @@ function FixtureEditor({
 
 const FINDINGS_NOTE = 'Findings are written for runs of the published Flow, not for test runs from the builder. Run this node to preview the finding a published run would write.'
 
-type OutputColumnProps = { node: CanvasNode; type: NodeType; run: NodeRun; format: string; onReply?: (reply: ChatReply) => void }
+type OutputColumnProps = {
+  node: CanvasNode
+  type: NodeType
+  run: NodeRun
+  format: string
+  /** The problems the node has now, to mark the run's fixed ones. */
+  current: ReadonlySet<string>
+  onAction: (action: ProblemAction) => void
+  onReply?: (reply: ChatReply) => void
+}
 
-function OutputColumn({ node, type, run, format, onReply }: OutputColumnProps) {
+function OutputColumn({ node, type, run, format, current, onAction, onReply }: OutputColumnProps) {
   const previewLabel = PREVIEW_TAB_LABEL[type.id]
   const [tab, setTab] = useState<DataView | 'preview'>(previewLabel ? 'preview' : 'schema')
   const outputs = nodeOutputs(node, type)
@@ -721,6 +797,8 @@ function OutputColumn({ node, type, run, format, onReply }: OutputColumnProps) {
   const email = run.status === 'success' && previewLabel ? run.email : undefined
   const api = (run.status === 'success' || run.status === 'error') && previewLabel ? run.api : undefined
   const previewing = (chat || email || api) && tab === 'preview'
+  const [query, setQuery] = useState('')
+  const searchable = Boolean(records?.length) && !previewing && !finding && run.status !== 'running'
   const status =
     run.status === 'success'
       ? { label: 'Succeeded', icon: <CheckCircle size={12} weight="fill" aria-hidden /> }
@@ -737,20 +815,7 @@ function OutputColumn({ node, type, run, format, onReply }: OutputColumnProps) {
   const body = () => {
     if (run.status === 'running') return <EmptyState icon={<CircleNotch className={styles.spin} size={20} />} title="Executing…" />
     if (api && tab === 'preview') return <ApiPreview api={api} className={styles.finding} />
-    if (run.status === 'error' && !records?.length) {
-      return (
-        <EmptyState icon={<WarningCircle size={20} />} title="Execution failed">
-          {run.message ?? 'The node failed without a message.'}
-          {run.ports ? ' On Error is set to continue, so the steps after it still ran.' : null}
-          {run.code ? (
-            <>
-              {' '}
-              <code className={kindStyles.hintCode}>{run.code}</code>
-            </>
-          ) : null}
-        </EmptyState>
-      )
-    }
+    if (run.status === 'error' && !records?.length) return <ProblemReport run={run} current={current} onAction={onAction} />
     if (run.status === 'skipped') {
       return (
         <EmptyState icon={<MinusCircle size={20} />} title="Skipped">
@@ -782,7 +847,7 @@ function OutputColumn({ node, type, run, format, onReply }: OutputColumnProps) {
         </EmptyState>
       )
     }
-    return <DataViewBody view={tab === 'preview' ? 'schema' : tab} records={records} />
+    return <DataViewBody view={tab === 'preview' ? 'schema' : tab} records={records} query={query} structured />
   }
 
   return (
@@ -797,14 +862,18 @@ function OutputColumn({ node, type, run, format, onReply }: OutputColumnProps) {
             </span>
           ) : null}
         </div>
-        {records?.length ? (
+        {records ? (
           <p className={styles.columnMeta}>
-            {records.length} {records.length === 1 ? 'item' : 'items'} · {format} · {formatBytes(records)}
+            {records.length
+              ? `${records.length} ${records.length === 1 ? 'item' : 'items'} · ${format} · ${formatBytes(records)}`
+              : branching
+                ? 'No items on this branch'
+                : 'No items'}
           </p>
         ) : null}
         {branching && (run.status === 'success' || run.ports) ? (
           <Tabs
-            tabs={outputs.map((port) => ({ id: port.id, label: `${port.label ?? port.id} · ${ports[port.id]?.length ?? 0}` }))}
+            tabs={outputs.map((port) => ({ id: port.id, label: port.label ?? port.id, count: ports[port.id]?.length ?? 0 }))}
             value={portId ?? ''}
             label="Branch"
             onChange={setPicked}
@@ -812,6 +881,20 @@ function OutputColumn({ node, type, run, format, onReply }: OutputColumnProps) {
         ) : null}
         {type.id === 'aiFindings' ? null : <Tabs tabs={previewLabel ? [{ id: 'preview', label: previewLabel }, ...OUTPUT_TABS] : OUTPUT_TABS} value={tab} label="Output format" onChange={setTab} />}
       </div>
+      {searchable ? (
+        <div className={styles.columnTools}>
+          <label className={styles.search}>
+            <MagnifyingGlass size={14} aria-hidden />
+            <input
+              className={styles.searchInput}
+              value={query}
+              placeholder="Search output data…"
+              aria-label="Search output data"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+        </div>
+      ) : null}
       {run.note && (records?.length || finding) && !previewing ? <p className={`${styles.hint} ${styles.outputNote}`}>{run.note}</p> : null}
       {run.status === 'error' && records?.length ? (
         <p className={`${styles.error} ${styles.outputNote}`}>
