@@ -1911,25 +1911,6 @@
   position: relative;
 }
 
-/* Sits on the card's title row; the name leaves room for it. */
-.mapStyleDimension {
-  position: absolute;
-  right: 12px;
-  bottom: 28px;
-  z-index: 3;
-  padding: 2px;
-}
-
-.mapStyleDimension .segmentedBtn {
-  height: 22px;
-  min-width: 32px;
-  padding: 0 var(--space-xs);
-}
-
-.mapStyleCard .mapStyleCardName {
-  padding-right: 84px;
-}
-
 .mapStyleCardName {
   color: #fff;
   font: var(--lc-font-small);

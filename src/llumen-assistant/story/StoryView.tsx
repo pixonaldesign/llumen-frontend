@@ -125,7 +125,12 @@ import {
 import { locationAnnotation, schoolMarkersAnnotation, snapshotRegion, topSchoolsAnnotation } from './storyAnnotations'
 import { basemapComparison, comparisonPhase, type ComparisonMapOption } from './storyComparison'
 import { createCameraLink } from './storyCameraLink'
-import type { BackgroundBasemap, StoryBackground } from './storyBackground'
+import {
+  BASEMAP_DIMENSIONS,
+  type BackgroundBasemap,
+  type BasemapDimension,
+  type StoryBackground,
+} from './storyBackground'
 import { DEFAULT_COMPARISON_SPLIT, type ComparisonSplit } from '../prototypeChrome'
 import { StoryBackgroundLayer } from './StoryBackgroundLayer'
 import { BackgroundSettings } from './StoryBackgroundSettings'
@@ -1031,6 +1036,38 @@ export function StoryView({
     [lowerAnnotationData, lowerAnnotations],
   )
   const lowerMapStyle = comparison.mapStyle ?? mapStyle
+  const setMapDimension = (pane: MapPane, dimension: BasemapDimension) => {
+    if (pane === 'lower') {
+      updateComparison((current) => ({ ...current, mapStyle: { ...(current.mapStyle ?? mapStyle), dimension } }))
+      return
+    }
+    setMapStyle((current) => ({ ...current, dimension }))
+    setBackground((current) => (current.kind === 'basemap' ? { ...current, dimension } : current))
+  }
+  const projectionRow = (pane: MapPane) => {
+    const dimension = (pane === 'upper' ? mapStyle : lowerMapStyle).dimension
+    return (
+      <div className={styles.mapDataProjection}>
+        <span>Projection</span>
+        <div className={styles.mapDataProjectionControl} role="radiogroup" aria-label="Map projection">
+          {BASEMAP_DIMENSIONS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="radio"
+              aria-checked={dimension === item.id}
+              className={`${styles.mapDataProjectionBtn}${
+                dimension === item.id ? ` ${styles.mapDataProjectionBtnActive}` : ''
+              }`}
+              onClick={() => setMapDimension(pane, item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
   const toggleComparisonLayer = (key: MapDataLayerKey) =>
     updateComparison((current) => ({
       ...current,
@@ -2092,6 +2129,7 @@ export function StoryView({
         )}
         {open ? (
           <>
+            {storyMode === 'edit' ? projectionRow(pane) : null}
             {showTabs ? (
               <div className={annotationStyles.tabs} role="tablist" aria-label="Map data">
                 {(['layers', 'annotations'] as const).map((name) => (
@@ -2910,6 +2948,7 @@ export function StoryView({
               />
             ) : legendOpen || storyMode === 'edit' ? (
               <>
+                {storyMode === 'edit' ? projectionRow('upper') : null}
                 {showAnnotationsTab ? (
                   <div className={annotationStyles.tabs} role="tablist" aria-label="Map data">
                     {(['layers', 'annotations'] as const).map((tab) => (

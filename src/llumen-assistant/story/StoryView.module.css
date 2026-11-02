@@ -2173,6 +2173,53 @@ button.summaryStatus:disabled {
   border-bottom: none;
 }
 
+.mapDataProjection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.mapDataProjectionControl {
+  display: grid;
+  grid-auto-columns: minmax(36px, 1fr);
+  grid-auto-flow: column;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(34, 42, 42, 0.5);
+}
+
+.mapDataProjectionBtn {
+  height: 26px;
+  margin: 0;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mapDataProjectionBtn:hover {
+  color: #fff;
+}
+
+.mapDataProjectionBtnActive {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: default;
+}
+
 .mapDataBackgroundBtn {
   display: inline-flex;
   align-items: center;

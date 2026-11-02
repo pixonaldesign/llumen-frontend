@@ -37,6 +37,7 @@ import {
   type StudioPage,
 } from './studioData'
 import { STUDIO_ASSET_CHARTS } from './studioAssetCharts'
+import { pageRow, useDragScroll } from './dragScroll'
 import {
   ASSET_CATEGORIES,
   ASSET_STATUSES,
@@ -904,7 +905,14 @@ function Shelf({
     window.addEventListener('resize', sync)
     return () => window.removeEventListener('resize', sync)
   }, [])
-  const page = (direction: number) => rowRef.current?.scrollBy({ left: direction * rowRef.current.clientWidth * 0.8, behavior: 'smooth' })
+  useDragScroll(rowRef)
+  const page = (direction: 1 | -1) => {
+    const row = rowRef.current
+    const card = row?.firstElementChild
+    if (!row || !(card instanceof HTMLElement)) return
+    const step = card.offsetWidth + (parseFloat(getComputedStyle(row).columnGap) || 0)
+    pageRow(row, direction, Math.max(1, Math.round((row.clientWidth * 0.8) / step)))
+  }
   return (
     <section className={s.shelf} aria-label={name}>
       <div className={s.shelfHead}>

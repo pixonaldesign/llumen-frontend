@@ -5,7 +5,6 @@ import {
   Bell,
   CalendarBlank,
   CaretDown,
-  Check,
   CheckCircle,
   Clock,
   CopySimple,
@@ -145,7 +144,6 @@ function MenuList({
           onClick={() => onPick(option)}
         >
           <span>{option}</span>
-          {option === value ? <Check size={16} weight="bold" aria-hidden /> : null}
         </button>
       ))}
     </div>

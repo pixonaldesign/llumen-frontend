@@ -3,7 +3,6 @@ import {
   AppWindow,
   CaretDown,
   CaretRight,
-  Check,
   GearSix,
   House,
   Kanban,
@@ -243,6 +242,7 @@ export function ScenarioShell({
       return (
         <div className={`${s.shellColumn} ${s.ribbonShell}`}>
           <OverviewRibbon nav={nav} workspace={workspace} onWorkspaceChange={onWorkspaceChange} onSettings={onSettings} />
+          <RibbonSubNav nav={nav} />
           <div ref={setHeadSlot} className={s.headSlot} />
           <PageHeadSlot.Provider value={headSlot}>{main}</PageHeadSlot.Provider>
         </div>
@@ -290,7 +290,6 @@ function GroupMenu({
           }}
         >
           <span className={s.popItemLabel}>{item.label}</span>
-          {page === item.page ? <Check size={14} weight="bold" aria-hidden /> : null}
         </button>
       ))}
     </div>
@@ -355,7 +354,6 @@ function WorkspaceMenu({
               }}
             >
               <span className={s.popItemLabel}>{name}</span>
-              {name === workspace ? <Check size={14} weight="bold" aria-hidden /> : null}
             </button>
           ))}
         </div>
@@ -920,7 +918,21 @@ function OverviewRibbon({
         {pill('home', 'Overview')}
         {pill('assets', 'Assets')}
         {OVERVIEW_LIBRARY.map((entry) =>
-          isGroup(entry) ? <PillGroup key={entry.id} group={entry} nav={nav} /> : pill(entry.page, entry.label),
+          isGroup(entry) ? (
+            <button
+              key={entry.id}
+              type="button"
+              className={s.pill}
+              aria-current={holds(entry, nav.page) ? 'page' : undefined}
+              onClick={() => {
+                if (!holds(entry, nav.page)) nav.go(entry.items[0].page)
+              }}
+            >
+              {entry.label}
+            </button>
+          ) : (
+            pill(entry.page, entry.label)
+          ),
         )}
         {pill('apps', 'Apps')}
         {pill('workflows', 'Flows')}
@@ -931,6 +943,27 @@ function OverviewRibbon({
       </nav>
       <span aria-hidden />
     </div>
+  )
+}
+
+/** A ribbon group's pages as tabs under the ribbon, while one of them is open. */
+function RibbonSubNav({ nav }: { nav: Nav }) {
+  const group = OVERVIEW_LIBRARY.find((entry): entry is NavGroup => isGroup(entry) && holds(entry, nav.page))
+  if (!group) return null
+  return (
+    <nav className={s.subNav} aria-label={group.label}>
+      {group.items.map((item) => (
+        <button
+          key={item.page}
+          type="button"
+          className={s.subNavTab}
+          aria-current={nav.page === item.page ? 'page' : undefined}
+          onClick={() => nav.go(item.page)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </nav>
   )
 }
 
@@ -998,7 +1031,6 @@ function PageMenu({ nav }: { nav: Nav }) {
       onClick={() => pick(page)}
     >
       <span className={s.popItemLabel}>{text}</span>
-      {nav.page === page ? <Check size={14} weight="bold" aria-hidden /> : null}
     </button>
   )
   return (

@@ -147,7 +147,6 @@
   margin: -6px calc(-1 * var(--inset)) 0;
   padding: 6px 0 4px;
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
   scrollbar-width: none;
 }
 
@@ -155,11 +154,14 @@
   display: none;
 }
 
+.shelfRow[data-dragging] {
+  cursor: grabbing;
+  user-select: none;
+}
+
 .shelfRow > * {
   flex: 0 0 calc((100% - var(--inset) - var(--columns) * var(--gap) - var(--peek)) / var(--columns));
   min-width: 0;
-  scroll-snap-align: start;
-  scroll-margin-left: var(--inset);
 }
 
 .shelfRow > :first-child {
@@ -206,6 +208,36 @@
   }
 
   .quick {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Tablet and mobile: shelves stack instead of scrolling, the first few cards with the shelf's link to the rest. */
+@media (max-width: 1024px) {
+  .shelfRow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: -6px 0 0;
+    overflow: visible;
+  }
+
+  .shelfRow > :first-child,
+  .shelfRow > :last-child {
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .shelfRow > :nth-child(n + 5) {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .overview {
+    --inset: 16px;
+  }
+
+  .shelfRow {
     grid-template-columns: minmax(0, 1fr);
   }
 }

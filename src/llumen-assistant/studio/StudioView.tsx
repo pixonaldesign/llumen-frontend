@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Archive, CaretRight, GearSix, Info, ShareFat, UserPlus, UsersThree, X } from '@phosphor-icons/react'
+import { Archive, CaretRight, GearSix, Info, ShareFat, UsersThree, X } from '@phosphor-icons/react'
 import {
   DEFAULT_STUDIO_SHADER,
   DEFAULT_STUDIO_STYLE,
@@ -8,9 +8,11 @@ import {
   type StudioShader,
   type StudioStyle,
 } from '../prototypeChrome'
-import { STUDIO_MEMBERS, STUDIO_WORKSPACE_NAMES, type StudioPage } from './studioData'
+import { STUDIO_WORKSPACE_NAMES, type StudioPage } from './studioData'
 import { PageBody } from './studioNav'
 import { NAV, groupOf, type NavGroup } from './studioNavItems'
+import { PageHeadSlot } from './studioPageHeadSlot'
+import { MembersPage } from './studioPages'
 import { StudioBackdrop } from './studioBackdrop'
 import { ScenarioShell } from './studioScenarios'
 import { Button, Dropdown } from './studioUi'
@@ -162,8 +164,6 @@ const SETTINGS_TABS: { tab: SettingsTab; icon: ReactNode }[] = [
   { tab: 'Sharing', icon: <ShareFat size={16} aria-hidden /> },
 ]
 
-const MEMBER_ROLES = ['Editor', 'Contributor', 'Viewer'] as const
-
 const PERMISSION_CHOICES = ['Admins only', 'Admins and editors', 'Everyone in the workspace'] as const
 const DESCRIPTION_MAX = 2000
 
@@ -193,7 +193,6 @@ function StudioSettings({
   onClose: () => void
 }) {
   const [tab, setTab] = useState<SettingsTab>('General')
-  const [members, setMembers] = useState(STUDIO_MEMBERS)
   const [name, setName] = useState(workspace)
   const [description, setDescription] = useState('sales-team-perf-v2')
   const [permissions, setPermissions] = useState({
@@ -237,8 +236,13 @@ function StudioSettings({
               </button>
             ))}
           </div>
-          <div className={styles.modalPanel} role="tabpanel">
-            <h3 className={styles.panelTitle}>{tab === 'Permission' ? 'Permissions' : tab}</h3>
+          <div
+            className={`${styles.modalPanel}${tab === 'Members' ? ` ${styles.modalPanelPage}` : ''}`}
+            role="tabpanel"
+          >
+            {tab === 'Members' ? null : (
+              <h3 className={styles.panelTitle}>{tab === 'Permission' ? 'Permissions' : tab}</h3>
+            )}
             {tab === 'General' ? (
               <>
                 <div className={styles.field}>
@@ -273,45 +277,9 @@ function StudioSettings({
                 </div>
               </>
             ) : tab === 'Members' ? (
-              <>
-                <div className={`${styles.field} ${styles.fieldSplit}`}>
-                  <span className={styles.fieldLabel}>
-                    {members.length} people in {workspace}
-                  </span>
-                  <Button icon={<UserPlus size={20} aria-hidden />}>Invite</Button>
-                </div>
-                <ul className={styles.memberList}>
-                  {members.map((member) => (
-                    <li key={member.id} className={styles.memberRow}>
-                      <span className={styles.avatar} aria-hidden>
-                        {member.name
-                          .split(' ')
-                          .map((part) => part[0])
-                          .join('')}
-                      </span>
-                      <span className={styles.memberText}>
-                        <span className={styles.memberName}>{member.name}</span>
-                        <span className={styles.memberEmail}>{member.email}</span>
-                      </span>
-                      <span className={styles.memberRole}>
-                        <Dropdown
-                          label={`${member.name} role`}
-                          options={MEMBER_ROLES}
-                          value={member.role}
-                          onChange={(role) =>
-                            setMembers((prev) =>
-                              prev.map((item) =>
-                                item.id === member.id ? { ...item, role: role as (typeof MEMBER_ROLES)[number] } : item,
-                              ),
-                            )
-                          }
-                          full
-                        />
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </>
+              <PageHeadSlot.Provider value={null}>
+                <MembersPage />
+              </PageHeadSlot.Provider>
             ) : tab === 'Permission' ? (
               <>
                 {(

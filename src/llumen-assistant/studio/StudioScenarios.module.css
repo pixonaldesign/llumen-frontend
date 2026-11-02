@@ -333,7 +333,7 @@
   cursor: default;
 }
 
-/* Menus: a frosted list opening beside, below or above its trigger. */
+/* Menus: the Create Asset flow's dropdown, opening beside, below or above its trigger. */
 .menuAnchor,
 .moveWrap {
   position: relative;
@@ -345,14 +345,18 @@
   z-index: 20;
   display: flex;
   flex-direction: column;
+  gap: 4px;
   min-width: 200px;
-  padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  background: rgba(10, 16, 28, 0.94);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  padding: 4px;
+  border: 1px solid #ffffff1a;
+  border-radius: 12px;
+  background: #42424280;
+  box-shadow:
+    0 12px 16px -4px rgba(10, 13, 18, 0.08),
+    0 4px 6px -2px rgba(10, 13, 18, 0.03),
+    0 2px 2px -1px rgba(10, 13, 18, 0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   animation: menu-in 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -406,20 +410,26 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 36px;
   padding: 8px 10px;
   border: 0;
   border-radius: 8px;
   background: transparent;
+  color: #fff;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 20px;
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
+  transition: background 0.12s;
 }
 
 .popItem:hover,
+.popItem:focus-visible,
 .popItem[aria-checked='true'] {
-  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+  background: #ffffff1a;
 }
 
 .popItemLabel {
@@ -1842,6 +1852,7 @@
 .pageMenuGroup {
   display: flex;
   flex-direction: column;
+  gap: 4px;
   margin-top: 4px;
   padding-top: 4px;
   border-top: 1px solid var(--st-border);
@@ -1961,6 +1972,55 @@
 .headSlot > *::before,
 .headSlot > *::after {
   content: none;
+}
+
+/* Second-level navigation: the open ribbon group's pages as underline tabs, above the page's head. */
+.subNav {
+  display: flex;
+  flex: none;
+  gap: 24px;
+  padding: 0 var(--st-gutter);
+  border-bottom: 1px solid var(--st-border);
+}
+
+.subNavTab {
+  position: relative;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--st-text-secondary) !important;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.12s;
+}
+
+.subNavTab:hover {
+  color: var(--st-text) !important;
+}
+
+.subNavTab[aria-current='page'] {
+  color: var(--st-text) !important;
+  cursor: default;
+}
+
+.subNavTab[aria-current='page']::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--st-text);
+  content: '';
+}
+
+.subNavTab:focus-visible {
+  outline: 2px solid var(--st-brand);
+  outline-offset: 2px;
 }
 
 .workspacePill {
@@ -2118,14 +2178,13 @@
   height: 32px;
 }
 
-/* The row scrolls sideways with buttons; the first and last cards keep the page's inset. */
+/* The row drags sideways or pages with buttons; the first and last cards keep the page's inset. */
 .shelfRow {
   display: flex;
   gap: 16px;
   margin-top: -6px;
   padding: 6px 0 4px;
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
   scrollbar-width: none;
 }
 
@@ -2133,10 +2192,13 @@
   display: none;
 }
 
+.shelfRow[data-dragging] {
+  cursor: grabbing;
+  user-select: none;
+}
+
 .shelfRow > .galleryCard {
   flex: 0 0 min(400px, 80%);
-  scroll-snap-align: start;
-  scroll-margin-left: 28px;
 }
 
 .shelfRow > .galleryCard:first-child {
@@ -2147,9 +2209,31 @@
   margin-right: 28px;
 }
 
+/* Tablet and mobile: shelves stack instead of scrolling. */
+@media (max-width: 1024px) {
+  .shelfRow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 6px 28px 4px;
+    overflow: visible;
+  }
+
+  .shelfRow > .galleryCard:first-child,
+  .shelfRow > .galleryCard:last-child {
+    margin-right: 0;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .shelfRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .galleryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: 16px;
   padding: 0 28px;
 }

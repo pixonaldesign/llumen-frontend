@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/react'
 import { STUDIO_APPS, STUDIO_ASSETS, STUDIO_WORKFLOWS, ageMinutes } from './studioData'
 import { byRecent, type Go } from './studioAssetMeta'
+import { pageRow, useDragScroll } from './dragScroll'
 import { GalleryCard, Lightbox } from './studioExperiences'
 import { WorkflowArt } from './studioPages'
 import { StatusChip, Tag } from './studioUi'
@@ -180,9 +181,9 @@ function OpenButton({ label, onClick }: { label: string; onClick: () => void }) 
 }
 
 /**
- * A grid carousel: `columns` whole cards, sized to the row, with the next one peeking in at the edge. The
- * arrows in its head page by all but one card, so the last card of a page leads the next; they hide when
- * everything fits.
+ * A grid carousel: `columns` whole cards, sized to the row, with the next one peeking in at the edge. It
+ * drags freely; the arrows in its head page by all but one card onto a card's edge, so the last card of a
+ * page leads the next. They hide when everything fits.
  */
 function Shelf({
   id,
@@ -215,12 +216,9 @@ function Shelf({
     observer.observe(row)
     return () => observer.disconnect()
   }, [])
-  const page = (direction: number) => {
-    const row = rowRef.current
-    const card = row?.firstElementChild
-    if (!row || !(card instanceof HTMLElement)) return
-    const step = card.offsetWidth + (parseFloat(getComputedStyle(row).columnGap) || 0)
-    row.scrollBy({ left: direction * Math.max(1, columns - 1) * step, behavior: 'smooth' })
+  useDragScroll(rowRef)
+  const page = (direction: 1 | -1) => {
+    if (rowRef.current) pageRow(rowRef.current, direction, Math.max(1, columns - 1))
   }
   return (
     <section className={o.section} aria-labelledby={`overview-${id}`}>
