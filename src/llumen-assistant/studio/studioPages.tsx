@@ -36,6 +36,7 @@ import {
   STUDIO_BRIEFINGS,
   STUDIO_DASHBOARDS,
   STUDIO_DATABASES,
+  STUDIO_EXECUTIONS,
   STUDIO_FILES,
   STUDIO_FILTERS,
   STUDIO_MEMBERS,
@@ -45,13 +46,16 @@ import {
   type ApiRequest,
   type AppKind,
   type FilterKind,
+  type StudioApp,
+  type StudioAsset,
+  type StudioExecution,
   type StudioStory,
   type StudioWorkflow,
 } from './studioData'
 import {
   Button,
-  Dropdown,
   EmptyState,
+  FilterBar,
   KindChip,
   LayoutToggle,
   RowMenu,
@@ -179,6 +183,28 @@ const ASSET_COLUMNS: Column[] = [
   { label: '', width: 32 },
 ]
 
+/** An asset in a grid: its chart over its type, category and status. `index` staggers the chart's entrance. */
+export function AssetCard({ item, index = 0, onOpen }: { item: StudioAsset; index?: number; onOpen?: () => void }) {
+  return (
+    <article className={styles.assetCard} aria-label={item.title} onClick={onOpen}>
+      <div className={styles.assetImage}>
+        {STUDIO_ASSET_CHARTS[item.id] ? (
+          <StudioAssetChart chart={STUDIO_ASSET_CHARTS[item.id]} delay={Math.min(index, 8) * 60} />
+        ) : (
+          <img src={item.image} alt={item.title} loading="lazy" />
+        )}
+      </div>
+      <div className={styles.assetMeta}>
+        <Tag icon={<ChartLine size={16} aria-hidden />}>{item.type}</Tag>
+        <Tag>{item.category}</Tag>
+        <span className={styles.metaEnd}>
+          <StatusChip label={item.status} />
+        </span>
+      </div>
+    </article>
+  )
+}
+
 export function AssetsPage({ onCreate }: { onCreate: () => void }) {
   const [layout, setLayout] = useState<Layout>('grid')
   const list = useRefine(STUDIO_ASSETS, {
@@ -200,15 +226,7 @@ export function AssetsPage({ onCreate }: { onCreate: () => void }) {
         onQuery={list.setQuery}
         action="Create Asset"
         onAction={onCreate}
-        filters={(['Category', 'Type', 'Status'] as const).map((key) => (
-          <Dropdown
-            key={key}
-            label={key}
-            options={list.options[key]}
-            value={list.filter(key)}
-            onChange={(value) => list.setFilter(key, value)}
-          />
-        ))}
+        filters={<FilterBar list={list} keys={['Category', 'Type', 'Status']} />}
         tools={
           <>
             <LayoutToggle value={layout} onChange={setLayout} />
@@ -222,22 +240,7 @@ export function AssetsPage({ onCreate }: { onCreate: () => void }) {
       ) : layout === 'grid' ? (
         <div className={`${styles.grid} ${styles.assetGrid}`}>
           {list.rows.map((item, index) => (
-            <article key={item.id} className={styles.assetCard} aria-label={item.title}>
-              <div className={styles.assetImage}>
-                {STUDIO_ASSET_CHARTS[item.id] ? (
-                  <StudioAssetChart chart={STUDIO_ASSET_CHARTS[item.id]} delay={Math.min(index, 8) * 60} />
-                ) : (
-                  <img src={item.image} alt={item.title} loading="lazy" />
-                )}
-              </div>
-              <div className={styles.assetMeta}>
-                <Tag icon={<ChartLine size={16} aria-hidden />}>{item.type}</Tag>
-                <Tag>{item.category}</Tag>
-                <span className={styles.metaEnd}>
-                  <StatusChip label={item.status} />
-                </span>
-              </div>
-            </article>
+            <AssetCard key={item.id} item={item} index={index} />
           ))}
         </div>
       ) : (
@@ -306,15 +309,7 @@ export function FiltersPage() {
         query={list.query}
         onQuery={list.setQuery}
         action="Create Filter"
-        filters={(['Category', 'Type', 'Status'] as const).map((key) => (
-          <Dropdown
-            key={key}
-            label={key}
-            options={list.options[key]}
-            value={list.filter(key)}
-            onChange={(value) => list.setFilter(key, value)}
-          />
-        ))}
+        filters={<FilterBar list={list} keys={['Category', 'Type', 'Status']} />}
         tools={<SortMenu value={list.sort} onChange={list.setSort} />}
         columns={FILTER_COLUMNS}
       />
@@ -375,15 +370,7 @@ export function DatabasePage() {
         query={list.query}
         onQuery={list.setQuery}
         action="Create Connection"
-        filters={(['Type', 'User Status', 'Agent Status'] as const).map((key) => (
-          <Dropdown
-            key={key}
-            label={key}
-            options={list.options[key]}
-            value={list.filter(key)}
-            onChange={(value) => list.setFilter(key, value)}
-          />
-        ))}
+        filters={<FilterBar list={list} keys={['Type', 'User Status', 'Agent Status']} />}
         tools={<SortMenu value={list.sort} onChange={list.setSort} />}
         columns={DATABASE_COLUMNS}
       />
@@ -441,15 +428,7 @@ export function ApisPage() {
         query={list.query}
         onQuery={list.setQuery}
         action="Create Collection"
-        filters={(['Auth Type', 'Method', 'User Status', 'Agent Status'] as const).map((key) => (
-          <Dropdown
-            key={key}
-            label={key}
-            options={list.options[key]}
-            value={list.filter(key)}
-            onChange={(value) => list.setFilter(key, value)}
-          />
-        ))}
+        filters={<FilterBar list={list} keys={['Auth Type', 'Method', 'User Status', 'Agent Status']} />}
         tools={<SortMenu value={list.sort} onChange={list.setSort} />}
         columns={API_COLUMNS}
       />
@@ -461,7 +440,7 @@ export function ApisPage() {
             const open = !collapsed[collection.id]
             return (
               <div key={collection.id}>
-                <Row columns={API_COLUMNS} onClick={() => setCollapsed((prev) => ({ ...prev, [collection.id]: open }))}>
+                <Row columns={API_COLUMNS}>
                   <span className={styles.lead}>
                     <button
                       type="button"
@@ -469,6 +448,7 @@ export function ApisPage() {
                       data-open={open}
                       aria-expanded={open}
                       aria-label={`${open ? 'Collapse' : 'Expand'} ${collection.name}`}
+                      onClick={() => setCollapsed((prev) => ({ ...prev, [collection.id]: open }))}
                     >
                       <CaretDown size={16} aria-hidden />
                     </button>
@@ -601,15 +581,7 @@ export function FilesPage() {
         onQuery={list.setQuery}
         action="Upload File"
         actionIcon={<UploadSimple size={20} aria-hidden />}
-        filters={(['Type', 'User Status', 'Agent Status'] as const).map((key) => (
-          <Dropdown
-            key={key}
-            label={key}
-            options={list.options[key]}
-            value={list.filter(key)}
-            onChange={(value) => list.setFilter(key, value)}
-          />
-        ))}
+        filters={<FilterBar list={list} keys={['Type', 'User Status', 'Agent Status']} />}
         tools={<SortMenu value={list.sort} onChange={list.setSort} />}
         columns={FILE_COLUMNS}
       />
@@ -673,12 +645,7 @@ export function BriefingsPage() {
               value={scope}
               onChange={setScope}
             />
-            <Dropdown
-              label="Type"
-              options={list.options.Type}
-              value={list.filter('Type')}
-              onChange={(value) => list.setFilter('Type', value)}
-            />
+            <FilterBar list={list} keys={['Type']} />
           </>
         }
         tools={
@@ -787,14 +754,7 @@ function StoryLibrary({
         query={list.query}
         onQuery={list.setQuery}
         action={action}
-        filters={
-          <Dropdown
-            label="Status"
-            options={list.options.Status}
-            value={list.filter('Status')}
-            onChange={(value) => list.setFilter('Status', value)}
-          />
-        }
+        filters={<FilterBar list={list} keys={['Status']} />}
         tools={
           <>
             <LayoutToggle value={layout} onChange={setLayout} />
@@ -862,6 +822,25 @@ const APP_COLUMNS: Column[] = [
   { label: '', width: 32 },
 ]
 
+/** An app in a grid: its cover over its kind, status, title and last update. */
+export function AppCard({ item }: { item: StudioApp }) {
+  return (
+    <article className={styles.storyCard} aria-label={item.title}>
+      <div className={styles.storyCover}>
+        <img src={item.image} alt="" loading="lazy" />
+      </div>
+      <div className={styles.storyBody}>
+        <span className={styles.appChips}>
+          <Tag icon={APP_ICON[item.kind]}>{item.kind}</Tag>
+          <StatusChip label={item.status} />
+        </span>
+        <h3 className={`${styles.cardTitle} ${styles.twoLines}`}>{item.title}</h3>
+        <span className={styles.meta}>{item.updated}</span>
+      </div>
+    </article>
+  )
+}
+
 /** Dashboards, slide decks and command rooms in one library, filtered by kind. */
 export function AppsPage() {
   const [layout, setLayout] = useState<Layout>('grid')
@@ -879,15 +858,7 @@ export function AppsPage() {
         query={list.query}
         onQuery={list.setQuery}
         action="Create App"
-        filters={(['Kind', 'Status'] as const).map((key) => (
-          <Dropdown
-            key={key}
-            label={key}
-            options={list.options[key]}
-            value={list.filter(key)}
-            onChange={(value) => list.setFilter(key, value)}
-          />
-        ))}
+        filters={<FilterBar list={list} keys={['Kind', 'Status']} />}
         tools={
           <>
             <LayoutToggle value={layout} onChange={setLayout} />
@@ -901,19 +872,7 @@ export function AppsPage() {
       ) : layout === 'grid' ? (
         <div className={`${styles.grid} ${styles.storyGrid}`}>
           {list.rows.map((item) => (
-            <article key={item.id} className={styles.storyCard} aria-label={item.title}>
-              <div className={styles.storyCover}>
-                <img src={item.image} alt="" loading="lazy" />
-              </div>
-              <div className={styles.storyBody}>
-                <span className={styles.appChips}>
-                  <Tag icon={APP_ICON[item.kind]}>{item.kind}</Tag>
-                  <StatusChip label={item.status} />
-                </span>
-                <h3 className={`${styles.cardTitle} ${styles.twoLines}`}>{item.title}</h3>
-                <span className={styles.meta}>{item.updated}</span>
-              </div>
-            </article>
+            <AppCard key={item.id} item={item} />
           ))}
         </div>
       ) : (
@@ -992,14 +951,7 @@ export function RoomsPage() {
         query={list.query}
         onQuery={list.setQuery}
         action="Create Command Room"
-        filters={
-          <Dropdown
-            label="Status"
-            options={list.options.Status}
-            value={list.filter('Status')}
-            onChange={(value) => list.setFilter('Status', value)}
-          />
-        }
+        filters={<FilterBar list={list} keys={['Status']} />}
         tools={
           <>
             <LayoutToggle value={layout} onChange={setLayout} />
@@ -1101,8 +1053,99 @@ export function WorkflowArt({ shape, compact = false }: { shape: StudioWorkflow[
 const WORKFLOW_DETAIL_COLUMNS: Column[] = [
   { label: 'Status', width: 160 },
   { label: 'Last Updated', width: 160 },
-  { label: '', width: 64 },
+  { label: '', width: 128 },
 ]
+
+/** A published, hand-triggered workflow that isn't already running. */
+function executable(item: StudioWorkflow) {
+  return item.manual && item.status === 'Published' && !item.running
+}
+
+function ExecuteButton({ title }: { title: string }) {
+  return (
+    <button type="button" className={styles.execute} aria-label={`Execute ${title}`}>
+      <Play size={14} weight="fill" aria-hidden />
+      Execute
+    </button>
+  )
+}
+
+/** A workflow in a grid: its steps over its title, description, agents or last update, status and Execute. */
+export function WorkflowCard({ item }: { item: StudioWorkflow }) {
+  return (
+    <article className={styles.workflowCard} data-running={item.running ? 'true' : undefined} aria-label={item.title}>
+      <WorkflowArt shape={item.shape} />
+      <div className={styles.workflowBody}>
+        {item.running ? (
+          <span className={styles.running}>
+            <Lightning size={14} aria-hidden />
+            Running now
+          </span>
+        ) : null}
+        <h3 className={styles.workflowTitle}>{item.title}</h3>
+        <p className={styles.workflowText}>{item.description}</p>
+        <div className={styles.workflowFoot}>
+          {item.running ? (
+            <Tag icon={<Robot size={16} aria-hidden />}>{item.running} AI agents</Tag>
+          ) : (
+            <span className={styles.meta}>{item.updated}</span>
+          )}
+          <span className={styles.workflowActions}>
+            <StatusChip label={item.status} />
+            {executable(item) ? <ExecuteButton title={item.title} /> : null}
+          </span>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+/** The workflows' runs: when each started, how it ended and how long it took. */
+function ExecutionsTab({ noun, plural, tabs }: { noun: string; plural: string; tabs: ReactNode }) {
+  const columns: Column[] = [
+    { label: 'Date & Time', width: 200 },
+    { label: noun },
+    { label: 'Status', width: 160 },
+    { label: 'Duration', width: 120 },
+  ]
+  const list = useRefine(STUDIO_EXECUTIONS, {
+    text: (item) => item.flow,
+    name: (item) => item.flow,
+    updated: (item) => item.started,
+    fields: { [noun]: (item: StudioExecution) => item.flow, Status: (item) => item.status },
+  })
+  return (
+    <>
+      <PageHead
+        title={plural}
+        titleExtra={tabs}
+        placeholder="Search executions..."
+        query={list.query}
+        onQuery={list.setQuery}
+        action="Create Execution"
+        filters={<FilterBar list={list} keys={[noun, 'Status']} />}
+        tools={<SortMenu value={list.sort} onChange={list.setSort} />}
+        columns={columns}
+      />
+      {list.rows.length === 0 ? (
+        <NoResults />
+      ) : (
+        <div className={styles.table}>
+          {list.rows.map((item) => (
+            <Row key={item.id} columns={columns}>
+              <Cell>{item.started}</Cell>
+              <Cell>{item.flow}</Cell>
+              <Cell>
+                <StatusChip label={item.status} />
+              </Cell>
+              <Cell>{item.duration}</Cell>
+            </Row>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
 
 /** `noun` is what the page calls one of them: Studio UX 9 and 10 say Flow. */
 export function WorkflowsPage({ noun = 'Workflow' }: { noun?: string }) {
@@ -1117,27 +1160,7 @@ export function WorkflowsPage({ noun = 'Workflow' }: { noun?: string }) {
     fields: { Status: (item) => item.status },
   })
   const tabs = <TextSegments label={plural} options={[plural, 'Executions']} value={tab} onChange={setTab} />
-  if (tab === 'Executions') {
-    return (
-      <>
-        <PageHead
-          title={plural}
-          titleExtra={tabs}
-          placeholder="Search executions..."
-          query={list.query}
-          onQuery={list.setQuery}
-          action={`Create ${noun}`}
-        />
-        <EmptyState
-          icon={<Lightning size={32} aria-hidden />}
-          title="No Executions Yet"
-          body={`Runs show up here with their steps, timings and outputs once a published ${noun.toLowerCase()} is triggered.`}
-          action={`Run a ${noun}`}
-          onAction={() => setTab(plural)}
-        />
-      </>
-    )
-  }
+  if (tab === 'Executions') return <ExecutionsTab noun={noun} plural={plural} tabs={tabs} />
   return (
     <>
       <PageHead
@@ -1147,14 +1170,7 @@ export function WorkflowsPage({ noun = 'Workflow' }: { noun?: string }) {
         query={list.query}
         onQuery={list.setQuery}
         action={`Create ${noun}`}
-        filters={
-          <Dropdown
-            label="Status"
-            options={list.options.Status}
-            value={list.filter('Status')}
-            onChange={(value) => list.setFilter('Status', value)}
-          />
-        }
+        filters={<FilterBar list={list} keys={['Status']} />}
         tools={
           <>
             <LayoutToggle value={layout} onChange={setLayout} />
@@ -1168,32 +1184,7 @@ export function WorkflowsPage({ noun = 'Workflow' }: { noun?: string }) {
       ) : layout === 'grid' ? (
         <div className={`${styles.grid} ${styles.storyGrid}`}>
           {list.rows.map((item) => (
-            <article
-              key={item.id}
-              className={styles.workflowCard}
-              data-running={item.running ? 'true' : undefined}
-              aria-label={item.title}
-            >
-              <WorkflowArt shape={item.shape} />
-              <div className={styles.workflowBody}>
-                {item.running ? (
-                  <span className={styles.running}>
-                    <Lightning size={14} aria-hidden />
-                    Running now
-                  </span>
-                ) : null}
-                <h3 className={styles.workflowTitle}>{item.title}</h3>
-                <p className={styles.workflowText}>{item.description}</p>
-                <div className={styles.workflowFoot}>
-                  {item.running ? (
-                    <Tag icon={<Robot size={16} aria-hidden />}>{item.running} AI agents</Tag>
-                  ) : (
-                    <span className={styles.meta}>{item.updated}</span>
-                  )}
-                  <StatusChip label={item.status} />
-                </div>
-              </div>
-            </article>
+            <WorkflowCard key={item.id} item={item} />
           ))}
         </div>
       ) : (
@@ -1211,11 +1202,7 @@ export function WorkflowsPage({ noun = 'Workflow' }: { noun?: string }) {
               </Cell>
               <Cell>{item.updated}</Cell>
               <span className={styles.rowActions}>
-                {item.status === 'Published' ? (
-                  <button type="button" className={styles.kebab} aria-label={`Run ${item.title}`}>
-                    <Play size={16} aria-hidden />
-                  </button>
-                ) : null}
+                {executable(item) ? <ExecuteButton title={item.title} /> : null}
                 <RowMenu label={item.title} />
               </span>
             </Row>
@@ -1246,14 +1233,7 @@ export function MembersPage() {
         query={list.query}
         onQuery={list.setQuery}
         action="Invite Members"
-        filters={
-          <Dropdown
-            label="Role"
-            options={list.options.Role}
-            value={list.filter('Role')}
-            onChange={(value) => list.setFilter('Role', value)}
-          />
-        }
+        filters={<FilterBar list={list} keys={['Role']} />}
         tools={<SortMenu value={list.sort} onChange={list.setSort} />}
         columns={MEMBER_COLUMNS}
       />

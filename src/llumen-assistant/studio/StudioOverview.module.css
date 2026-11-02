@@ -209,36 +209,6 @@
   margin-right: var(--inset);
 }
 
-.shelfRow > .glassCard > :first-child {
-  background: rgba(255, 255, 255, 0.05);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  backdrop-filter: blur(24px) saturate(150%);
-}
-
-.appCard {
-  cursor: default;
-}
-
-.appBody {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 10px;
-  padding: 4px 14px 14px;
-}
-
-.cardFoot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: auto;
-}
-
-.shelfRow > .agentCard > :first-child,
-.shelfRow > .agentCard[data-running] > :first-child {
-  height: 150px;
-}
-
 @media (max-width: 900px) {
   .overview {
     --inset: 24px;

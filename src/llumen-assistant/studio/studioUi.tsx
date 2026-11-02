@@ -5,6 +5,7 @@ import {
   Bell,
   CalendarBlank,
   CaretDown,
+  Check,
   CheckCircle,
   Clock,
   CopySimple,
@@ -19,6 +20,7 @@ import {
   Trash,
   WarningCircle,
   ChatText,
+  X,
 } from '@phosphor-icons/react'
 import { STATUS_TONE, type BriefingKind, type StatusTone } from './studioData'
 import { SORTS, useDismiss, type Sort } from './studioHooks'
@@ -31,6 +33,7 @@ const STATUS_ICON: Record<string, ReactNode> = {
   Unpublished: <EyeSlash size={16} aria-hidden />,
   Inactive: <Prohibit size={16} aria-hidden />,
   Failed: <WarningCircle size={16} aria-hidden />,
+  Succeeded: <CheckCircle size={16} aria-hidden />,
   Draft: <FileText size={16} aria-hidden />,
   Archived: <Archive size={16} aria-hidden />,
   Planned: <CalendarBlank size={16} aria-hidden />,
@@ -106,7 +109,6 @@ export function SearchField({
 }) {
   return (
     <label className={styles.search}>
-      <MagnifyingGlass size={20} aria-hidden />
       <input
         type="search"
         value={value}
@@ -114,6 +116,18 @@ export function SearchField({
         aria-label={placeholder.replace(/\.+$/, '')}
         onChange={(event) => onChange(event.target.value)}
       />
+      {value ? (
+        <button
+          type="button"
+          className={styles.searchClear}
+          aria-label="Clear search"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onChange('')}
+        >
+          <X size={14} aria-hidden />
+        </button>
+      ) : null}
+      <MagnifyingGlass className={styles.searchIcon} size={16} aria-hidden />
     </label>
   )
 }
@@ -200,6 +214,125 @@ export function Dropdown({
         />
       ) : null}
     </div>
+  )
+}
+
+/**
+ * A multi-select filter, as the Figma drop-down's multi-select type: a checkbox menu that stays open,
+ * the first two picks previewed in the trigger with a count of the rest, and an X that clears them.
+ */
+export function FilterMenu({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: readonly string[]
+  value: readonly string[]
+  onChange: (value: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const close = useMemo(() => () => setOpen(false), [])
+  useDismiss(ref, open, close)
+  const picked = options.filter((option) => value.includes(option))
+  const more = picked.length - 2
+  return (
+    <div className={`${styles.dropdownWrap} ${styles.filter}`} ref={ref}>
+      <button
+        type="button"
+        className={styles.dropdown}
+        data-picked={picked.length > 0 || undefined}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((state) => !state)}
+      >
+        <span className={styles.dropdownLabel}>
+          {picked.length ? (
+            <>
+              <span className={styles.filterKey}>{label}: </span>
+              {picked.slice(0, 2).join(', ')}
+            </>
+          ) : (
+            label
+          )}
+        </span>
+        {more > 0 ? <span className={styles.filterMore}>+{more}</span> : null}
+        <CaretDown className={styles.dropdownCaret} size={16} aria-hidden />
+      </button>
+      {picked.length ? (
+        <button
+          type="button"
+          className={styles.filterClear}
+          aria-label={`Clear ${label} filter`}
+          onClick={() => {
+            onChange([])
+            setOpen(false)
+          }}
+        >
+          <X size={14} aria-hidden />
+        </button>
+      ) : null}
+      {open ? (
+        <div className={styles.menu} role="listbox" aria-multiselectable="true" aria-label={label}>
+          {options.map((option) => {
+            const checked = value.includes(option)
+            return (
+              <button
+                key={option}
+                type="button"
+                role="option"
+                aria-selected={checked}
+                className={`${styles.menuItem} ${styles.checkItem}`}
+                onClick={() =>
+                  onChange(checked ? picked.filter((pick) => pick !== option) : [...picked, option])
+                }
+              >
+                <span className={styles.checkbox} aria-hidden>
+                  {checked ? <Check size={12} weight="bold" /> : null}
+                </span>
+                <span>{option}</span>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** A list's filters, and Clear All Filters once any of several is set. */
+export function FilterBar<K extends string>({
+  keys,
+  list,
+}: {
+  keys: readonly K[]
+  list: {
+    options: Record<K, string[]>
+    filter: (key: K) => readonly string[]
+    setFilter: (key: K, values: string[]) => void
+    filtered: boolean
+    clearFilters: () => void
+  }
+}) {
+  return (
+    <>
+      {keys.map((key) => (
+        <FilterMenu
+          key={key}
+          label={key}
+          options={list.options[key]}
+          value={list.filter(key)}
+          onChange={(values) => list.setFilter(key, values)}
+        />
+      ))}
+      {keys.length > 1 && list.filtered ? (
+        <button type="button" className={styles.clearFilters} onClick={list.clearFilters}>
+          Clear All Filters
+        </button>
+      ) : null}
+    </>
   )
 }
 

@@ -533,6 +533,43 @@
   gap: 8px;
 }
 
+/* The design system's outline secondary button, small. */
+.rowActions .execute,
+.workflowActions .execute {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px 0 10px;
+  border: 1px solid #ffffff1a;
+  border-radius: 999px;
+  background: #ffffff1a;
+  color: #d4d5d7;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.rowActions .execute:hover,
+.workflowActions .execute:hover {
+  border-color: transparent;
+  background: #ffffff12;
+  color: #fff;
+}
+
+.rowActions .execute:focus-visible,
+.workflowActions .execute:focus-visible {
+  outline: 2px solid var(--st-brand);
+  outline-offset: 2px;
+}
+
 .avatar {
   display: inline-flex;
   flex: none;
@@ -556,23 +593,29 @@
 
 /* ------------------------------------------------------------ Controls */
 
+/* The Create Asset flow's search field (cp-picker-search): icon at the end, a white clear button before it. */
 .search {
   display: flex;
+  box-sizing: border-box;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 300px;
   height: 36px;
   padding: 0 12px;
-  border: 1px solid var(--st-border);
+  border: 1px solid #ffffff1a;
   border-radius: 12px;
-  background: var(--st-input);
-  color: var(--st-text);
-  backdrop-filter: var(--st-blur);
-  -webkit-backdrop-filter: var(--st-blur);
+  background: #00000052;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  transition: border-color 140ms ease;
 }
 
 .search:focus-within {
-  border-color: rgba(112, 174, 255, 0.6);
+  border-color: #70aeff;
 }
 
 .search input {
@@ -584,15 +627,38 @@
   background: transparent;
   color: inherit;
   font: inherit;
+  appearance: none;
 }
 
 .search input::placeholder {
-  color: var(--st-text-muted);
+  color: #ffffff7a;
 }
 
 .search input::-webkit-search-cancel-button {
-  filter: invert(1);
-  opacity: 0.5;
+  display: none;
+  appearance: none;
+}
+
+.search .searchClear {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.search .searchClear:hover {
+  color: #ffffffb8;
+}
+
+.searchIcon {
+  flex: none;
+  color: #ffffff7a;
 }
 
 .button {
@@ -705,6 +771,97 @@
   transform: rotate(180deg);
 }
 
+/* The Figma drop-down's multi-select type: "Label: First, Second +N", with an X after the caret. */
+.filter {
+  max-width: 360px;
+}
+
+.filter .dropdown {
+  gap: 8px;
+}
+
+.filter .dropdown[data-picked] {
+  padding-right: 36px;
+  border-color: #ffffff3d;
+  font-weight: 500;
+}
+
+.filterKey {
+  color: #ffffffb8;
+  font-weight: 400;
+}
+
+.filterMore {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #fff;
+  color: #0c0e10;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.dropdownWrap .filterClear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #ffffffb8;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.dropdownWrap .filterClear:hover {
+  background: #ffffff1a;
+  color: #fff;
+}
+
+.dropdownWrap .filterClear:focus-visible {
+  outline: 2px solid var(--st-brand);
+  outline-offset: 1px;
+}
+
+.dropdownWrap ~ .clearFilters {
+  flex: none;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #f1747499;
+  border-radius: 999px;
+  background: #be41411f;
+  color: #f17474;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.dropdownWrap ~ .clearFilters:hover {
+  border-color: #f17474;
+  background: #be414140;
+}
+
+.dropdownWrap ~ .clearFilters:focus-visible {
+  outline: 2px solid #f17474;
+  outline-offset: 2px;
+}
+
 .menu {
   position: absolute;
   top: calc(100% + 4px);
@@ -784,6 +941,37 @@
 
 .menuItem[data-danger] {
   color: #f17474 !important;
+}
+
+/* A checked option shows in its box, not as a highlighted row. */
+.menu .checkItem[aria-selected='true'] {
+  background: transparent;
+}
+
+.menu .checkItem:hover,
+.menu .checkItem:focus-visible {
+  background: #ffffff1a;
+}
+
+/* The design system's checkbox: a 16px box that fills with the brand colour when checked. */
+.checkItem > .checkbox {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #ffffff3d;
+  border-radius: 4px;
+  color: #0c0e10;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.checkItem[aria-selected='true'] .checkbox {
+  border-color: #70aeff;
+  background: #70aeff;
 }
 
 .segmented {
@@ -1304,6 +1492,12 @@
 
 .workflowCard[data-running] .workflowFoot {
   justify-content: flex-start;
+}
+
+.workflowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ------------------------------------------------------------ Empty */

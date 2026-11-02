@@ -37,6 +37,7 @@ export const STATUS_TONE: Record<string, StatusTone> = {
   Unpublished: 'warning',
   Inactive: 'negative',
   Failed: 'negative',
+  Succeeded: 'positive',
   Draft: 'neutral',
   Archived: 'muted',
   Planned: 'brand',
@@ -745,6 +746,8 @@ export type StudioWorkflow = {
   shape: WorkflowShape
   /** AI agents working through it right now. */
   running?: number
+  /** Triggered by hand rather than on a schedule or event, so a published one can be executed. */
+  manual?: boolean
 }
 
 export const STUDIO_WORKFLOWS: StudioWorkflow[] = [
@@ -755,6 +758,7 @@ export const STUDIO_WORKFLOWS: StudioWorkflow[] = [
     status: 'Published',
     updated: '6 hours ago',
     shape: 'chain' as const,
+    manual: index % 2 === 0,
   })),
   ...Array.from({ length: 4 }, (_, index) => ({
     id: `wf-running-${index}`,
@@ -772,6 +776,7 @@ export const STUDIO_WORKFLOWS: StudioWorkflow[] = [
     status: 'Published',
     updated: '3 hours ago',
     shape: 'graph',
+    manual: true,
   },
   {
     id: 'wf-audit-2',
@@ -813,6 +818,7 @@ export const STUDIO_WORKFLOWS: StudioWorkflow[] = [
     status: 'Published',
     updated: '8 hours ago',
     shape: 'chain',
+    manual: true,
   },
   {
     id: 'wf-bus-delays',
@@ -838,7 +844,32 @@ export const STUDIO_WORKFLOWS: StudioWorkflow[] = [
     status: 'Published',
     updated: '3 days ago',
     shape: 'chain',
+    manual: true,
   },
+]
+
+export type StudioExecution = {
+  id: string
+  flow: string
+  status: 'Succeeded'
+  started: string
+  duration: string
+}
+
+/** Recent runs of the workflows above, newest first. */
+export const STUDIO_EXECUTIONS: StudioExecution[] = [
+  { id: 'ex-12', flow: 'Permit Renewal Reminders', status: 'Succeeded', started: 'about 1 hour ago', duration: '1m 42s' },
+  { id: 'ex-11', flow: 'Bus Delay Escalation', status: 'Succeeded', started: 'about 8 hours ago', duration: '38s' },
+  { id: 'ex-10', flow: 'User Onboarding Flow', status: 'Succeeded', started: '1 day ago', duration: '2m 31s' },
+  { id: 'ex-9', flow: 'Inventory Restock Trigger', status: 'Succeeded', started: '2 days ago', duration: '3m 12s' },
+  { id: 'ex-8', flow: 'Air Quality Alerting', status: 'Succeeded', started: '3 days ago', duration: '54s' },
+  { id: 'ex-7', flow: 'Compliance Audit Trail', status: 'Succeeded', started: '4 days ago', duration: '4m 09s' },
+  { id: 'ex-6', flow: 'Weekly Board Briefing', status: 'Succeeded', started: '5 days ago', duration: '6m 20s' },
+  { id: 'ex-5', flow: 'Permit Renewal Reminders', status: 'Succeeded', started: '6 days ago', duration: '1m 37s' },
+  { id: 'ex-4', flow: 'Inventory Restock Trigger', status: 'Succeeded', started: '7 days ago', duration: '2m 58s' },
+  { id: 'ex-3', flow: 'Bus Delay Escalation', status: 'Succeeded', started: '8 days ago', duration: '41s' },
+  { id: 'ex-2', flow: 'User Onboarding Flow', status: 'Succeeded', started: '9 days ago', duration: '2m 12s' },
+  { id: 'ex-1', flow: 'Air Quality Alerting', status: 'Succeeded', started: '10 days ago', duration: '49s' },
 ]
 
 export type StudioMember = {

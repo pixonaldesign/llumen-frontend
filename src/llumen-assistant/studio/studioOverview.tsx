@@ -1,24 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import {
-  AppWindow,
-  ArrowRight,
-  ArrowsOutSimple,
-  CaretLeft,
-  CaretRight,
-  Cube,
-  Database,
-  Funnel,
-  Lightning,
-  Robot,
-  Sparkle,
-} from '@phosphor-icons/react'
+import { AppWindow, ArrowRight, CaretLeft, CaretRight, Cube, Database, Funnel, Sparkle } from '@phosphor-icons/react'
 import { STUDIO_APPS, STUDIO_ASSETS, STUDIO_WORKFLOWS, ageMinutes } from './studioData'
 import { byRecent, type Go } from './studioAssetMeta'
 import { pageRow, useDragScroll } from './dragScroll'
-import { GalleryCard, Lightbox } from './studioExperiences'
-import { WorkflowArt } from './studioPages'
-import { StatusChip, Tag } from './studioUi'
-import view from './StudioView.module.css'
+import { Lightbox } from './studioExperiences'
+import { AppCard, AssetCard, WorkflowCard } from './studioPages'
 import s from './StudioScenarios.module.css'
 import o from './StudioOverview.module.css'
 
@@ -102,59 +88,19 @@ export function OverviewHome({ go, onCreate }: { go: Go; onCreate: () => void })
 
       <Shelf id="assets" title="Recent assets" link="All assets" onLink={() => go('assets')} columns={4}>
         {recentAssets.map((asset, index) => (
-          <GalleryCard key={asset.id} className={o.glassCard} asset={asset} delay={index * 80} onOpen={() => setLightbox(index)} />
+          <AssetCard key={asset.id} item={asset} index={index} onOpen={() => setLightbox(index)} />
         ))}
       </Shelf>
 
       <Shelf id="apps" title="Recent apps" link="All apps" onLink={() => go('apps')} columns={5}>
         {recentApps.map((app) => (
-          <article key={app.id} className={`${view.storyCard} ${o.appCard}`} aria-label={app.title}>
-            <div className={view.storyCover}>
-              <img src={app.image} alt="" loading="lazy" />
-            </div>
-            <div className={o.appBody}>
-              <span className={view.appChips}>
-                <Tag>{app.kind}</Tag>
-                <StatusChip label={app.status} />
-              </span>
-              <h3 className={`${view.cardTitle} ${view.twoLines}`}>{app.title}</h3>
-              <div className={o.cardFoot}>
-                <span className={s.muted}>{app.updated}</span>
-                <OpenButton label={app.title} onClick={() => go('apps')} />
-              </div>
-            </div>
-          </article>
+          <AppCard key={app.id} item={app} />
         ))}
       </Shelf>
 
       <Shelf id="workflows" title="Recent flows" link="All flows" onLink={() => go('workflows')} columns={5}>
         {recentWorkflows.map((item) => (
-          <article
-            key={item.id}
-            className={`${view.workflowCard} ${o.agentCard}`}
-            data-running={item.running ? 'true' : undefined}
-            aria-label={item.title}
-          >
-            <WorkflowArt shape={item.shape} />
-            <div className={view.workflowBody}>
-              {item.running ? (
-                <span className={view.running}>
-                  <Lightning size={14} aria-hidden />
-                  Running now
-                </span>
-              ) : null}
-              <h3 className={view.workflowTitle}>{item.title}</h3>
-              <p className={view.workflowText}>{item.description}</p>
-              <div className={view.workflowFoot}>
-                {item.running ? (
-                  <Tag icon={<Robot size={16} aria-hidden />}>{item.running} AI agents</Tag>
-                ) : (
-                  <span className={view.meta}>{item.updated}</span>
-                )}
-                <StatusChip label={item.status} />
-              </div>
-            </div>
-          </article>
+          <WorkflowCard key={item.id} item={item} />
         ))}
       </Shelf>
 
@@ -168,15 +114,6 @@ export function OverviewHome({ go, onCreate }: { go: Go; onCreate: () => void })
         />
       ) : null}
     </div>
-  )
-}
-
-function OpenButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button type="button" className={s.openButton} onClick={onClick} aria-label={`Open ${label}`}>
-      <ArrowsOutSimple size={16} aria-hidden />
-      Open
-    </button>
   )
 }
 

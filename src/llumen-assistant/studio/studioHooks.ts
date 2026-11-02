@@ -27,12 +27,14 @@ export function useDismiss(
   }, [ref, open, close, portal])
 }
 
+const NONE: string[] = []
+
 export const SORTS = ['Default', 'Last Updated', 'Name (A-Z)', 'Name (Z-A)'] as const
 export type Sort = (typeof SORTS)[number]
 
 /**
- * Search, column filters and sort over a list: every filter offers All plus the values its column
- * holds, and Last Updated sorts newest first.
+ * Search, column filters and sort over a list: every filter offers the values its column holds, any
+ * number of which can be picked (none means all), and Last Updated sorts newest first.
  */
 export function useRefine<T, K extends string>(
   items: readonly T[],
@@ -50,15 +52,15 @@ export function useRefine<T, K extends string>(
 ) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<Sort>('Default')
-  const [filters, setFilters] = useState<Partial<Record<K, string>>>({})
+  const [filters, setFilters] = useState<Partial<Record<K, string[]>>>({})
   const keys = Object.keys(fields) as K[]
   const options = {} as Record<K, string[]>
-  for (const key of keys) options[key] = ['All', ...new Set(items.map((item) => fields[key](item)))]
+  for (const key of keys) options[key] = [...new Set(items.map((item) => fields[key](item)))]
   const needle = query.trim().toLowerCase()
   const rows = items.filter(
     (item) =>
       (!needle || text(item).toLowerCase().includes(needle)) &&
-      keys.every((key) => !filters[key] || filters[key] === 'All' || fields[key](item) === filters[key]),
+      keys.every((key) => !filters[key]?.length || filters[key].includes(fields[key](item))),
   )
   if (sort === 'Last Updated') rows.sort((a, b) => ageMinutes(updated(a)) - ageMinutes(updated(b)))
   if (sort === 'Name (A-Z)') rows.sort((a, b) => name(a).localeCompare(name(b)))
@@ -69,8 +71,10 @@ export function useRefine<T, K extends string>(
     sort,
     setSort,
     options,
-    filter: (key: K) => filters[key] ?? 'All',
-    setFilter: (key: K, value: string) => setFilters((prev) => ({ ...prev, [key]: value })),
+    filter: (key: K) => filters[key] ?? NONE,
+    setFilter: (key: K, values: string[]) => setFilters((prev) => ({ ...prev, [key]: values })),
+    filtered: keys.some((key) => filters[key]?.length),
+    clearFilters: () => setFilters({}),
     rows,
   }
 }
