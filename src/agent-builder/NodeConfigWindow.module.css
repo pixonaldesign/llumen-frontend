@@ -927,39 +927,6 @@ button.switcherTab[aria-selected='true'] {
   color: #fca5a5;
 }
 
-.assetPreview {
-  --cell-edge: var(--space-lg);
-
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-lg) 0 var(--space-md);
-  border-radius: var(--radius-lg);
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.assetPreview .dataTable {
-  --cell-edge: var(--space-lg);
-}
-
-.assetTitle {
-  margin: 0;
-  padding: 0 var(--space-lg);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-}
-
-.assetMap {
-  height: 240px;
-  overflow: hidden;
-  border-radius: var(--radius-lg);
-}
-
-.assetMap > * {
-  height: 100%;
-}
-
 .plot {
   height: 200px;
   padding: 0 var(--space-md);

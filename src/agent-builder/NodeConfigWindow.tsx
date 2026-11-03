@@ -17,7 +17,7 @@ import {
   type Icon,
 } from '@phosphor-icons/react'
 import { Field, Menu, Popover, Select } from './ConfigControls'
-import { buttonClass, inputClass, layerClass, PopoverLayer } from './configStyles'
+import { buttonClass, inputClass, layerClass, PopoverLayer, ShowMissing } from './configStyles'
 import { columnsOf } from './createAsset'
 import { DataViewBody, type DataView } from './DataViews'
 import { FieldTree, type TreeSource } from './FieldTree'
@@ -693,7 +693,9 @@ function ConfigColumn({
                   onChange={(event) => onConfig({ name: event.target.value || undefined }, 'name')}
                 />
               </Field>
-              <KindConfig ctx={ctx} onParams={onParams} />
+              <ShowMissing value={run.status === 'error'}>
+                <KindConfig ctx={ctx} onParams={onParams} />
+              </ShowMissing>
             </>
           ) : (
             <NodeSettingsPanel settings={nodeSettings(node)} branching={nodeOutputs(node, type).length > 1} onChange={onSettings} />

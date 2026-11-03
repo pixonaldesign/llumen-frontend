@@ -1,8 +1,8 @@
-import { useId, type ReactNode } from 'react'
+import { useContext, useId, type ReactNode } from 'react'
 import { Bell, Browsers, Lightbulb, MapTrifold, Robot, Stack, Tag } from '@phosphor-icons/react'
 import { evaluateRule, MEASURE_LABEL, ROW_MEASURES, type RuleVerdict } from './alerts'
 import { Card, Field, NumberInput, Select, SwitchRow, type SelectOption } from './ConfigControls'
-import { inputClass } from './configStyles'
+import { inputClass, ShowMissing } from './configStyles'
 import { CombinatorSelect } from './ConditionEditor'
 import { OPERATORS, operatorSpec, type Combinator, type Operator, type OperatorGroup } from './conditions'
 import { columnsOf } from './createAsset'
@@ -98,6 +98,7 @@ export function ClassificationConfig({ params, set, ctx }: EditorProps<Classific
     set({ categories: params.categories.map((item) => (item.id === id ? { ...item, ...patch } : item)) }, `category:${id}:${key}`)
   const names = params.categories.map((item) => item.name.trim().toLowerCase())
   const focusProps = useFocusItem(ctx.focus)
+  const showMissing = useContext(ShowMissing)
   return (
     <>
       <InstructionsCard params={params} set={set} ctx={ctx} placeholder="e.g. Classify each site by the land use around it." />
@@ -106,7 +107,9 @@ export function ClassificationConfig({ params, set, ctx }: EditorProps<Classific
           {params.categories.map((item, index) => {
             const name = item.name.trim().toLowerCase()
             const error = !name
-              ? 'Name the category.'
+              ? showMissing
+                ? 'Name the category.'
+                : undefined
               : RESERVED.includes(name)
                 ? `“${item.name}” is reserved.`
                 : names.indexOf(name) !== index
@@ -160,6 +163,7 @@ const INSIGHT_TYPES: readonly SelectOption<InsightType>[] = [
 ]
 
 export function InsightConfig({ params, set, ctx }: EditorProps<InsightParams>) {
+  const showMissing = useContext(ShowMissing)
   return (
     <>
       <InstructionsCard params={params} set={set} ctx={ctx} />
@@ -176,7 +180,7 @@ export function InsightConfig({ params, set, ctx }: EditorProps<InsightParams>) 
                   value={field}
                   placeholder="field_name"
                   aria-label={`Field ${index + 1}`}
-                  aria-invalid={!field.trim() || undefined}
+                  aria-invalid={(showMissing && !field.trim()) || undefined}
                   onChange={(event) => set({ fields: params.fields.map((item, other) => (other === index ? event.target.value.replace(/\s+/g, '_') : item)) }, `field:${index}`)}
                 />
                 <RemoveButton label="Remove field" disabled={params.fields.length === 1} onClick={() => set({ fields: params.fields.filter((_, other) => other !== index) }, `field:${index}:remove`)} />

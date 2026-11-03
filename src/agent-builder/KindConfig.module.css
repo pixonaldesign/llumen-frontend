@@ -65,44 +65,20 @@ button.segment:focus-visible {
 
 /* ---------- Source modes ---------- */
 
+/* The add-node panel's cards, as a single choice. */
+/* The cards tint their icon with `--node-accent`; here that's the app's blue, not the node's category colour. */
 .modeGrid {
+  --node-accent: var(--canvas-accent);
+
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-md);
 }
 
-button.modeCard {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  min-width: 0;
-  padding: var(--space-md) var(--space-lg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-lg);
-  background: rgba(0, 0, 0, 0.16);
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color var(--lc-duration) var(--lc-ease), background var(--lc-duration) var(--lc-ease);
-}
-
-button.modeCard:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-}
-
-button.modeCard[aria-checked='true'] {
+.modeGrid button[aria-checked='true'],
+.modeGrid button[aria-checked='true']:hover {
   border-color: color-mix(in srgb, var(--canvas-accent) 70%, transparent);
   background: color-mix(in srgb, var(--canvas-accent) 12%, transparent);
-  color: #fff;
-}
-
-.modeIcon {
-  display: flex;
-  color: var(--canvas-accent);
 }
 
 /* ---------- Lists: conditions, cases, fields ---------- */
@@ -507,6 +483,21 @@ button.chipAdd:disabled {
   line-height: 18px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* The Asset node with nothing chosen yet: a call to open the picker. */
+.browse {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 200px;
+  padding: var(--space-2xl) var(--space-xl);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.02);
+  text-align: center;
 }
 
 .readout {

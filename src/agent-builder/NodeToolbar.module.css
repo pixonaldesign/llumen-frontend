@@ -186,7 +186,8 @@
   padding: 0 var(--space-2xl);
 }
 
-.grid .card {
+/* Also the Source node's type picker. */
+button.card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -202,17 +203,17 @@
   cursor: pointer;
 }
 
-.grid .card:hover:not(:disabled),
-.grid .card:focus-visible {
+button.card:hover:not(:disabled),
+button.card:focus-visible {
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.09);
 }
 
-.grid .card:active:not(:disabled) {
+button.card[draggable='true']:active:not(:disabled) {
   cursor: grabbing;
 }
 
-.grid .card:disabled {
+button.card:disabled {
   opacity: 0.45;
   cursor: default;
 }

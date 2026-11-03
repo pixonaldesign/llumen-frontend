@@ -36,8 +36,10 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
+/* Centred on the icon when it's only a title; a title with a description is taller and starts at the icon's top. */
 .cardText {
   flex: 1;
+  align-self: center;
   min-width: 0;
 }
 

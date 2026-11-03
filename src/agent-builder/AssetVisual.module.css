@@ -1,0 +1,69 @@
+/* `min-height: 0` holds the box to its ratio; a chart sizes itself from the box and would otherwise grow it. */
+.visual {
+  display: flex;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.visual[data-preview='chart'] {
+  padding: var(--space-lg) var(--space-lg) var(--space-sm);
+}
+
+/* The chart sizes itself for the config window; here it fills the box, in the window's font. */
+.visual[data-preview='chart'] > div {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+}
+
+.visual text {
+  font-family: inherit;
+}
+
+/* Full-bleed scrollport; the table's edge cells carry the inset. */
+.visual[data-preview='table'] {
+  display: block;
+  max-height: 320px;
+  aspect-ratio: auto;
+  overflow: auto;
+  overflow: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.visual[data-preview='table']::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+  height: var(--lc-scrollbar-size, 4px);
+}
+
+.visual[data-preview='table']::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.visual[data-preview='table']::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* A thumbnail: every kind at one height, cropped rather than grown. */
+.visual[data-size='tile'] {
+  height: 132px;
+  aspect-ratio: auto;
+  overflow: hidden;
+  scrollbar-width: none;
+}
+
+.visual[data-size='tile'][data-preview='chart'] {
+  padding: var(--space-md) var(--space-md) var(--space-xs);
+}
+
+.visual[data-size='tile'] > * {
+  min-height: 0;
+}
+
+/* Too small for axis labels to read; the shape carries the thumbnail. */
+.visual[data-size='tile'][data-preview='chart'] text {
+  display: none;
+}

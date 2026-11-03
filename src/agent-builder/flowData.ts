@@ -1,3 +1,4 @@
+import type { CreateAssetSettings } from './createAsset'
 import type { AssetPreview, DataRecord } from './nodeCatalog'
 
 /*
@@ -136,6 +137,48 @@ const TRAFFIC_SEGMENTS: readonly DataRecord[] = [
   { road: 'E20 Airport Road', current_speed: 88, free_flow_speed: 100, confidence: 0.97 },
 ]
 
+const ROAD_SECTIONS: readonly DataRecord[] = [
+  { section_id: 'RS-101', road: 'E10 Sheikh Zayed Bridge', lanes: 4, speed_limit: 100, length_km: 1.4 },
+  { section_id: 'RS-102', road: 'E11 Mussafah', lanes: 5, speed_limit: 120, length_km: 6.2 },
+  { section_id: 'RS-103', road: 'E20 Airport Road', lanes: 4, speed_limit: 100, length_km: 9.8 },
+]
+
+const TRAFFIC_INCIDENTS: readonly DataRecord[] = [
+  { incident_id: 'TI-5521', section_id: 'RS-102', kind: 'collision', severity: 'high', reported_at: '2026-10-19T07:42:00Z' },
+  { incident_id: 'TI-5524', section_id: 'RS-101', kind: 'breakdown', severity: 'low', reported_at: '2026-10-19T08:15:00Z' },
+  { incident_id: 'TI-5530', section_id: 'RS-103', kind: 'roadworks', severity: 'medium', reported_at: '2026-10-19T09:30:00Z' },
+]
+
+const ORDERS: readonly DataRecord[] = [
+  { order_id: 'ORD-9001', store: 'Yas Mall', status: 'delivered', total_aed: 412.5, ordered_on: '2026-10-18' },
+  { order_id: 'ORD-9002', store: 'Marina Mall', status: 'in_transit', total_aed: 189, ordered_on: '2026-10-19' },
+  { order_id: 'ORD-9003', store: 'Yas Mall', status: 'delayed', total_aed: 76.25, ordered_on: '2026-10-19' },
+]
+
+const WASTE_COLLECTIONS: readonly DataRecord[] = [
+  { district: 'Mussafah', collected_on: '2026-10-19', tonnes: 182.4, recycled_pct: 0.31 },
+  { district: 'Khalifa', collected_on: '2026-10-19', tonnes: 96.1, recycled_pct: 0.42 },
+  { district: 'Shahama', collected_on: '2026-10-19', tonnes: 54.7, recycled_pct: 0.38 },
+]
+
+const SECURITY_INCIDENTS: readonly DataRecord[] = [
+  { case_id: 'SC-3101', district: 'Mussafah', category: 'theft', status: 'open', reported_on: '2026-10-18' },
+  { case_id: 'SC-3102', district: 'ICAD', category: 'trespass', status: 'closed', reported_on: '2026-10-18' },
+  { case_id: 'SC-3107', district: 'Khalifa', category: 'fire hazard', status: 'open', reported_on: '2026-10-19' },
+]
+
+const ENERGY_CONSUMPTION: readonly DataRecord[] = [
+  { facility: 'Mussafah Steel', day: '2026-10-19', mwh: 412.8, solar_share: 0.12 },
+  { facility: 'ICAD Cement', day: '2026-10-19', mwh: 298.3, solar_share: 0.08 },
+  { facility: 'Khalifa Bulk Terminal', day: '2026-10-19', mwh: 133.6, solar_share: 0.27 },
+]
+
+const SCENARIOS: readonly DataRecord[] = [
+  { scenario: 'Baseline', avg_delay_min: 12.4, throughput_vph: 5400, emissions_t: 18.2 },
+  { scenario: 'Bridge lane closure', avg_delay_min: 21.7, throughput_vph: 4300, emissions_t: 22.9 },
+  { scenario: 'Adaptive signals', avg_delay_min: 9.1, throughput_vph: 5900, emissions_t: 16.4 },
+]
+
 /* ---------- Sources ---------- */
 
 /** The five source buckets, one card each in the Source node. */
@@ -148,8 +191,12 @@ export type DataSource = {
   id: string
   name: string
   mode: SourceMode
-  /** Shown under the name, e.g. the database engine. */
+  /** Shown beside the name, e.g. the database engine. */
   detail: string
+  /** What the source holds, or where it lives; shown under the name. */
+  description?: string
+  /** Listed, but can't be picked: its connection is down. */
+  inactive?: boolean
   tables?: Readonly<Record<string, readonly DataRecord[]>>
   endpoints?: readonly ApiEndpoint[]
   sheets?: Readonly<Record<string, readonly DataRecord[]>>
@@ -165,6 +212,37 @@ export const SOURCES: readonly DataSource[] = [
     detail: 'PostgreSQL',
     tables: { sites: SITES, sensor_readings: SENSOR_READINGS, permits: PERMITS },
   },
+  {
+    id: 'src_aimsun',
+    name: 'Aimsun',
+    mode: 'query',
+    detail: 'PostgreSQL',
+    description:
+      'Traffic management data for the road network: road sections, sensors, incidents and events, response plans, and AI and simulation predictions.',
+    tables: { road_sections: ROAD_SECTIONS, incidents: TRAFFIC_INCIDENTS },
+  },
+  {
+    id: 'src_commerce',
+    name: 'Commerce',
+    mode: 'query',
+    detail: 'PostgreSQL',
+    description: 'Sample retail and fulfillment operations data',
+    tables: { orders: ORDERS },
+  },
+  { id: 'src_itc_pg', name: 'ITC PG', mode: 'query', detail: 'PostgreSQL', description: '20.74.132.132', tables: { stations: STATIONS_LATEST } },
+  { id: 'src_itc_pg_old', name: 'ITC PG', mode: 'query', detail: 'PostgreSQL', description: 'Connection inactive', inactive: true },
+  { id: 'src_waste', name: 'Waste', mode: 'query', detail: 'PostgreSQL', description: 'UAE waste data', tables: { collections: WASTE_COLLECTIONS } },
+  { id: 'src_security', name: 'Security', mode: 'query', detail: 'PostgreSQL', description: 'UAE safety and security data', tables: { incidents: SECURITY_INCIDENTS } },
+  {
+    id: 'src_energy',
+    name: 'Energy',
+    mode: 'query',
+    detail: 'PostgreSQL',
+    description: 'UAE energy and sustainability operations',
+    tables: { consumption: ENERGY_CONSUMPTION },
+  },
+  { id: 'src_saudi_police', name: 'Saudi Police Demo DB', mode: 'query', detail: 'SQLite', description: 'Connection inactive', inactive: true },
+  { id: 'src_scenarios', name: 'Scenario summary', mode: 'query', detail: 'PostgreSQL', description: 'Simulation scenario results', tables: { scenarios: SCENARIOS } },
   {
     id: 'src_aq_api',
     name: 'Air quality API',
@@ -257,6 +335,13 @@ export const SAVED_ASSETS: readonly SavedAsset[] = [
 export const previewOf = (chartType: string): AssetPreview => (chartType.startsWith('map:') ? 'map' : chartType === 'table' ? 'table' : 'chart')
 
 export const ASSETS_BY_ID: Readonly<Record<string, SavedAsset>> = Object.fromEntries(SAVED_ASSETS.map((asset) => [asset.id, asset]))
+
+export const assetSettings = (asset: SavedAsset): CreateAssetSettings => ({
+  title: asset.name,
+  chartType: asset.view.chartType,
+  mapping: asset.view.mapping ?? {},
+  refresh: 'update',
+})
 
 /* ---------- Registered ML models ---------- */
 

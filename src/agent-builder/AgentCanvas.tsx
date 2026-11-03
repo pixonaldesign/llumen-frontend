@@ -30,6 +30,7 @@ import {
   FrameCorners,
   Hand,
   type Icon,
+  Lightning,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   NoteBlank,
@@ -44,7 +45,9 @@ import {
   ShareNetwork,
   SlidersHorizontal,
   Stop,
+  Swatches,
   TextT,
+  Toolbox,
   TreeStructure,
   XCircle,
 } from '@phosphor-icons/react'
@@ -3301,7 +3304,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           canSimulate={Boolean(testTrigger)}
           onSimulate={(outcome) => testTrigger && runNodes(testTrigger.id, 'downstream', outcome)}
           testFlow={mode === 'showcase' ? null : mode}
-          onTestFlow={(kind) => switchMode(kind === mode ? 'showcase' : kind)}
+          onTestFlow={(kind) => switchMode(kind ?? 'showcase')}
           cardStyleOpen={cardStyleOpen}
           onCardStyle={() => {
             setCardStyleOpen((open) => !open)
@@ -3498,8 +3501,8 @@ type DevMenuProps = {
   onSimulate: (outcome: RunOutcome) => void
   /** The test flow on the canvas, or null for the node showcase. */
   testFlow: TestFlowKind | null
-  /** Picking the flow that's already on goes back to the showcase. */
-  onTestFlow: (kind: TestFlowKind) => void
+  /** Null goes back to the node showcase. */
+  onTestFlow: (kind: TestFlowKind | null) => void
   cardStyleOpen: boolean
   onCardStyle: () => void
   canvasLookOpen: boolean
@@ -3541,25 +3544,127 @@ const TEST_FLOWS: readonly { kind: TestFlowKind; icon: Icon; label: string; hint
   { kind: 'complex', icon: TreeStructure, label: 'Complex flow', hint: 'A large flow with sections, notes, and comments' },
 ]
 
-/** Every development action in one menu, so they stay off the bar. */
+const DEV_SECTIONS: Record<DevSection, string> = { simulate: 'Simulate a run', workflow: 'Workflow', look: 'Look', toolbar: 'Toolbar' }
+
+type DevSection = 'simulate' | 'workflow' | 'look' | 'toolbar'
+
+type DevSectionItemProps = { icon: Icon; label: string; hint: string; open: boolean; onOpen: (item: HTMLElement) => void; onClose: () => void }
+
+/** A Dev menu entry that opens its section's submenu on hover, click, or the right arrow key. */
+function DevSectionItem({ icon: ItemIcon, label, hint, open, onOpen, onClose }: DevSectionItemProps) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      aria-haspopup="menu"
+      aria-expanded={open}
+      className={`${controls.menuItem} ${styles.styleOption}${open ? ` ${controls.menuItemActive}` : ''}`}
+      onPointerEnter={(event) => onOpen(event.currentTarget)}
+      onClick={(event) => (open ? onClose() : onOpen(event.currentTarget))}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowRight') onOpen(event.currentTarget)
+      }}
+    >
+      <ItemIcon size={18} weight="regular" aria-hidden />
+      <span className={styles.styleOptionText}>
+        {label}
+        <span className={styles.styleOptionHint}>{hint}</span>
+      </span>
+      <CaretRight size={14} weight="bold" className={styles.triggerCheck} aria-hidden />
+    </button>
+  )
+}
+
+/** Every development action in one menu, so they stay off the bar; each section opens beside it. */
 function DevMenu(props: DevMenuProps) {
   const [open, setOpen] = useState(false)
-  /** Where the test flow submenu sits in the wrapper; null while it's closed. */
-  const [flowsAt, setFlowsAt] = useState<Point | null>(null)
+  /** The section whose submenu is open, and where that submenu sits in the wrapper. */
+  const [section, setSection] = useState<{ id: DevSection; at: Point } | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const close = useCallback(() => {
     setOpen(false)
-    setFlowsAt(null)
+    setSection(null)
   }, [])
   useDismiss(open, wrapRef, close)
   const activeFlow = TEST_FLOWS.find((flow) => flow.kind === props.testFlow)
 
-  // The menu scrolls, which would clip a submenu inside it, so the submenu is its sibling, lined up with the item.
-  const openFlows = (item: HTMLElement) => {
+  // The menu can scroll, which would clip a submenu inside it, so the submenu is its sibling, lined up with the item.
+  const openSection = (id: DevSection) => (item: HTMLElement) => {
     const wrap = wrapRef.current?.getBoundingClientRect()
     const menu = item.closest('[role="menu"]')?.getBoundingClientRect()
     if (!wrap || !menu) return
-    setFlowsAt({ x: menu.right - wrap.left + 4, y: item.getBoundingClientRect().top - wrap.top - 6 })
+    setSection({ id, at: { x: menu.right - wrap.left + 4, y: item.getBoundingClientRect().top - wrap.top - 6 } })
+  }
+  const sectionItem = (id: DevSection, icon: Icon, hint: string) => (
+    <DevSectionItem icon={icon} label={DEV_SECTIONS[id]} hint={hint} open={section?.id === id} onOpen={openSection(id)} onClose={() => setSection(null)} />
+  )
+
+  const sectionItems = (id: DevSection) => {
+    switch (id) {
+      case 'simulate':
+        return (
+          <>
+            <DevItem icon={CheckCircle} label="Passing run" disabled={!props.canSimulate} onSelect={() => props.onSimulate('pass')} />
+            <DevItem icon={XCircle} label="Failing run" disabled={!props.canSimulate} onSelect={() => props.onSimulate('fail')} />
+          </>
+        )
+      case 'workflow':
+        return (
+          <>
+            <DevItem icon={Shapes} label="All nodes" hint="One of every node type" checked={props.testFlow === null} onSelect={() => props.onTestFlow(null)} />
+            <div className={styles.menuSeparator} role="separator" />
+            {TEST_FLOWS.map((flow) => (
+              <DevItem
+                key={flow.kind}
+                icon={flow.icon}
+                label={flow.label}
+                hint={flow.hint}
+                checked={props.testFlow === flow.kind}
+                onSelect={() => props.onTestFlow(flow.kind)}
+              />
+            ))}
+          </>
+        )
+      case 'look':
+        return (
+          <>
+            <DevItem icon={SlidersHorizontal} label="Card style" hint="Card background, layout and category colours" checked={props.cardStyleOpen} onSelect={props.onCardStyle} />
+            <DevItem icon={Palette} label="Canvas background" hint="Background colours and dots" checked={props.canvasLookOpen} onSelect={props.onCanvasLook} />
+            <DevItem
+              icon={PaintBrush}
+              label="Node appearance"
+              hint={props.canStyleNode ? 'Style the selected node' : 'Select a node first'}
+              checked={props.nodeStyleOpen}
+              disabled={!props.canStyleNode}
+              onSelect={props.onNodeStyle}
+            />
+            <DevItem
+              icon={props.shaderPaused ? Play : Pause}
+              label={props.shaderPaused ? 'Resume background animation' : 'Pause background animation'}
+              onSelect={props.onShaderPaused}
+            />
+          </>
+        )
+      case 'toolbar':
+        return (
+          <>
+            <DevItem
+              icon={Columns}
+              label="Split toolbars"
+              hint="Insert, nodes and canvas controls apart"
+              checked={props.toolbarStyle === 'split'}
+              onSelect={() => props.onToolbarStyle('split')}
+            />
+            <DevItem
+              icon={Rectangle}
+              label="Single toolbar"
+              hint="Everything in one bar in the centre"
+              checked={props.toolbarStyle === 'single'}
+              onSelect={() => props.onToolbarStyle('single')}
+            />
+          </>
+        )
+    }
   }
 
   return (
@@ -3580,96 +3685,30 @@ function DevMenu(props: DevMenuProps) {
           className={`${controls.menu} ${styles.styleMenuList}`}
           role="menu"
           aria-label="Development tools"
-          onClick={(event) => {
-            if ((event.target as Element).closest('button:not([aria-haspopup])')) close()
-          }}
-          onPointerOver={(event) => {
-            const item = (event.target as Element).closest('button')
-            if (item && !item.hasAttribute('aria-haspopup')) setFlowsAt(null)
-          }}
-          onScroll={() => setFlowsAt(null)}
+          data-native-scroll
+          onScroll={() => setSection(null)}
         >
-          <div className={styles.menuLabel}>Simulate a run</div>
-          <DevItem icon={CheckCircle} label="Passing run" disabled={!props.canSimulate} onSelect={() => props.onSimulate('pass')} />
-          <DevItem icon={XCircle} label="Failing run" disabled={!props.canSimulate} onSelect={() => props.onSimulate('fail')} />
-          <div className={styles.menuSeparator} role="separator" />
-          <button
-            type="button"
-            role="menuitem"
-            aria-haspopup="menu"
-            aria-expanded={Boolean(flowsAt)}
-            className={`${controls.menuItem} ${styles.styleOption}${flowsAt ? ` ${controls.menuItemActive}` : ''}`}
-            onPointerEnter={(event) => openFlows(event.currentTarget)}
-            onClick={(event) => (flowsAt ? setFlowsAt(null) : openFlows(event.currentTarget))}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowRight') openFlows(event.currentTarget)
-            }}
-          >
-            <FlowArrow size={18} weight="regular" aria-hidden />
-            <span className={styles.styleOptionText}>
-              Test flow
-              <span className={styles.styleOptionHint}>{activeFlow ? `Showing the ${activeFlow.label.toLowerCase()}` : 'A sample workflow to try runs on'}</span>
-            </span>
-            <CaretRight size={14} weight="bold" className={styles.triggerCheck} aria-hidden />
-          </button>
-          <div className={styles.menuSeparator} role="separator" />
-          <div className={styles.menuLabel}>Look</div>
-          <DevItem icon={SlidersHorizontal} label="Card style" hint="Card background, layout and category colours" checked={props.cardStyleOpen} onSelect={props.onCardStyle} />
-          <DevItem icon={Palette} label="Canvas background" hint="Background colours and dots" checked={props.canvasLookOpen} onSelect={props.onCanvasLook} />
-          <DevItem
-            icon={PaintBrush}
-            label="Node appearance"
-            hint={props.canStyleNode ? 'Style the selected node' : 'Select a node first'}
-            checked={props.nodeStyleOpen}
-            disabled={!props.canStyleNode}
-            onSelect={props.onNodeStyle}
-          />
-          <DevItem
-            icon={props.shaderPaused ? Play : Pause}
-            label={props.shaderPaused ? 'Resume background animation' : 'Pause background animation'}
-            onSelect={props.onShaderPaused}
-          />
-          <div className={styles.menuSeparator} role="separator" />
-          <div className={styles.menuLabel}>Toolbar</div>
-          <DevItem
-            icon={Columns}
-            label="Split toolbars"
-            hint="Insert, nodes and canvas controls apart"
-            checked={props.toolbarStyle === 'split'}
-            onSelect={() => props.onToolbarStyle('split')}
-          />
-          <DevItem
-            icon={Rectangle}
-            label="Single toolbar"
-            hint="Everything in one bar in the centre"
-            checked={props.toolbarStyle === 'single'}
-            onSelect={() => props.onToolbarStyle('single')}
-          />
+          {sectionItem('simulate', Lightning, props.canSimulate ? 'Passing or failing, from Test Agent' : 'Needs a trigger to start from')}
+          {sectionItem('workflow', FlowArrow, activeFlow ? `Showing the ${activeFlow.label.toLowerCase()}` : 'Showing all nodes')}
+          {sectionItem('look', Swatches, 'Cards, canvas, and node styles')}
+          {sectionItem('toolbar', Toolbox, props.toolbarStyle === 'split' ? 'Split toolbars' : 'Single toolbar')}
         </div>
       ) : null}
-      {open && flowsAt ? (
+      {open && section ? (
         <div
           className={`${controls.menu} ${styles.subMenu}`}
-          style={{ left: flowsAt.x, top: flowsAt.y }}
+          style={{ left: section.at.x, top: section.at.y }}
           role="menu"
-          aria-label="Test flows"
+          aria-label={DEV_SECTIONS[section.id]}
+          data-native-scroll
+          onClick={(event) => {
+            if ((event.target as Element).closest('button')) close()
+          }}
           onKeyDown={(event) => {
-            if (event.key === 'ArrowLeft') setFlowsAt(null)
+            if (event.key === 'ArrowLeft') setSection(null)
           }}
         >
-          {TEST_FLOWS.map((flow) => (
-            <DevItem
-              key={flow.kind}
-              icon={flow.icon}
-              label={flow.label}
-              hint={flow.hint}
-              checked={props.testFlow === flow.kind}
-              onSelect={() => {
-                props.onTestFlow(flow.kind)
-                close()
-              }}
-            />
-          ))}
+          {sectionItems(section.id)}
         </div>
       ) : null}
     </div>

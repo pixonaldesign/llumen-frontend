@@ -1,5 +1,6 @@
 import { COMMENT_AUTHOR, SECTION_DEFAULTS, SECTION_FIT_PADDING, boundsOf, type CanvasComment, type CanvasSection, type CanvasText } from './canvasItems'
 import { conditionGroup } from './conditions'
+import { withSample } from './kindSamples'
 import { NODE_TYPES_BY_ID, createNode, type CanvasNode, type NodeConfig, type Point, type Size, type WorkflowEdge } from './nodeCatalog'
 type TestNode = [id: string, typeId: string, config?: NodeConfig]
 /** `from` and `to` are node ids; ports default to `out` and `in`. */
@@ -473,7 +474,7 @@ export function annotateTestFlow(kind: TestFlowKind, positions: Readonly<Record<
 /** A sample workflow for exercising runs and the run animation: a short chain, or a large branching flow. */
 export function buildTestWorkflow(kind: TestFlowKind): { nodes: CanvasNode[]; edges: WorkflowEdge[] } {
   const flow = FLOWS[kind]
-  const nodes = flow.nodes.map(([id, typeId, config]) => createNode(NODE_TYPES_BY_ID[typeId], id, config))
+  const nodes = flow.nodes.map(([id, typeId, config]) => createNode(NODE_TYPES_BY_ID[typeId], id, { ...config, params: withSample(typeId, config?.params) }))
   const edges = flow.links.map(([from, to, fromPort = 'out', toPort = 'in']) => ({
     id: `test-${from}-${fromPort}-${to}-${toPort}`,
     from,

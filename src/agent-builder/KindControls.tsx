@@ -1,7 +1,8 @@
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { BracketsCurly, CheckCircle, Eye, EyeSlash, Info, Plus, Warning, WarningCircle, X } from '@phosphor-icons/react'
+import { CodeEditor } from './CodeEditor'
 import { Field, Menu, Select, type SelectOption } from './ConfigControls'
-import { inputClass } from './configStyles'
+import { inputClass, useShownError } from './configStyles'
 import type { Column } from './createAsset'
 import { ColumnKindIcon } from './DataViews'
 import type { References } from './kindEditor'
@@ -172,6 +173,8 @@ type TemplateFieldProps = {
   placeholder?: string
   multiline?: boolean
   mono?: boolean
+  /** A multi-line SQL field, drawn as code. */
+  code?: boolean
   rows?: number
   maxLength?: number
   disabled?: boolean
@@ -271,6 +274,7 @@ export function TemplateField(props: TemplateFieldProps) {
   const { label, value, onChange, references, multiline, mono, maxLength } = props
   const id = useId()
   const { inputRef, buttonRef, open, toggle, menu } = useReferenceMenu(value, onChange, references, maxLength)
+  const error = useShownError(props.error, !value.trim())
 
   const className = [inputClass, multiline ? styles.textarea : null, mono ? styles.mono : null].filter(Boolean).join(' ')
   const shared = {
@@ -281,7 +285,7 @@ export function TemplateField(props: TemplateFieldProps) {
     maxLength,
     disabled: props.disabled,
     spellCheck: !mono,
-    'aria-invalid': Boolean(props.error) || undefined,
+    'aria-invalid': Boolean(error) || undefined,
   }
   const meta = (
     <>
@@ -306,8 +310,19 @@ export function TemplateField(props: TemplateFieldProps) {
   )
 
   return (
-    <Field label={label} htmlFor={id} required={props.required} meta={meta} hint={props.hint} error={props.error}>
-      {multiline ? (
+    <Field label={label} htmlFor={id} required={props.required} meta={meta} hint={props.hint} error={error}>
+      {props.code ? (
+        <CodeEditor
+          id={id}
+          ref={inputRef}
+          value={value}
+          rows={props.rows}
+          placeholder={props.placeholder}
+          disabled={props.disabled}
+          invalid={Boolean(error)}
+          onChange={onChange}
+        />
+      ) : multiline ? (
         <textarea ref={inputRef} rows={props.rows ?? 4} {...shared} onChange={(event) => onChange(event.target.value)} />
       ) : (
         <input ref={inputRef} {...shared} onChange={(event) => onChange(event.target.value)} />
@@ -324,13 +339,14 @@ export function TextAreaField({
   onChange,
   required,
   hint,
-  error,
+  error: givenError,
   placeholder,
   mono,
   rows = 4,
   maxLength,
 }: Omit<TemplateFieldProps, 'references' | 'multiline' | 'disabled'>) {
   const id = useId()
+  const error = useShownError(givenError, !value.trim())
   return (
     <Field
       label={label}
@@ -362,12 +378,13 @@ export function TextField({
   onChange,
   required,
   hint,
-  error,
+  error: givenError,
   placeholder,
   mono,
   maxLength,
 }: Omit<TemplateFieldProps, 'references' | 'multiline' | 'disabled' | 'rows'>) {
   const id = useId()
+  const error = useShownError(givenError, !value.trim())
   return (
     <Field label={label} htmlFor={id} required={required} hint={hint} error={error}>
       <input

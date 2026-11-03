@@ -1,0 +1,124 @@
+/*
+ * A textarea over a highlighted copy of its text, in one grid cell: the copy sets the height, so the
+ * field grows with the code and never scrolls. Both layers must share font, padding, and wrapping.
+ */
+
+.editor {
+  --gutter: 40px;
+  --line: 18px;
+
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.32);
+  transition:
+    border-color var(--lc-duration) var(--lc-ease),
+    box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+.editor::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--gutter);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  content: '';
+  pointer-events: none;
+}
+
+.editor:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.editor:focus-within {
+  border-color: var(--canvas-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--canvas-accent) 22%, transparent);
+}
+
+.editor:has(.input[aria-invalid='true']) {
+  border-color: rgba(248, 113, 113, 0.7);
+}
+
+.code,
+.input {
+  grid-area: 1 / 1;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-md) var(--space-lg) var(--space-md) calc(var(--gutter) + var(--space-md));
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  line-height: var(--line);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+.code {
+  min-height: calc(var(--rows) * var(--line) + 2 * var(--space-md));
+  color: rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+}
+
+.line {
+  position: relative;
+  display: block;
+  min-height: var(--line);
+}
+
+.line::before {
+  position: absolute;
+  left: calc(-1 * (var(--gutter) + var(--space-md)));
+  width: calc(var(--gutter) - var(--space-md));
+  color: rgba(255, 255, 255, 0.3);
+  text-align: right;
+  content: attr(data-line);
+}
+
+.input {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: none;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: #fff;
+  outline: none;
+  resize: none;
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.35);
+}
+
+.input::selection {
+  background: color-mix(in srgb, var(--canvas-accent) 35%, transparent);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.code [data-token='keyword'] {
+  color: var(--canvas-accent);
+}
+
+.code [data-token='string'] {
+  color: #86efac;
+}
+
+.code [data-token='number'] {
+  color: #93c5fd;
+}
+
+.code [data-token='template'] {
+  color: #fcd34d;
+}
+
+.code [data-token='comment'] {
+  color: rgba(255, 255, 255, 0.35);
+  font-style: italic;
+}

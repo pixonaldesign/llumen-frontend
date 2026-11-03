@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent
 import { CalendarBlank, CaretDown, CaretRight, Check, Function as FunctionIcon, HandTap, MagnifyingGlass } from '@phosphor-icons/react'
 import { Popover } from './ConfigControls'
 import { OPERATOR_GROUPS, OPERATORS, operatorSpec, resolver, type Operator, type OperatorGroup, type ValueKind } from './conditions'
+import { useInvalid } from './configStyles'
 import { evaluateExpression, expressionParts, referenceToken, singleReference } from './expressions'
 import { fieldKind, fieldTree, flattenTree, prefixTree, type FieldKind, type FieldNode } from './fieldPaths'
 import { FieldKindIcon } from './FieldTree'
@@ -81,7 +82,8 @@ type ExpressionEditorProps = {
  * One side of a condition. Select picks exactly one field, at any depth; Value takes a number, text, or date;
  * Expression takes `{{ field }}` references and operations on them, e.g. `{{ price }} * {{ quantity }}`.
  */
-export function ExpressionEditor({ label, value, expression, onChange, base, valueKind = 'text', fields, placeholder, invalid }: ExpressionEditorProps) {
+export function ExpressionEditor({ label, value, expression, onChange, base, valueKind = 'text', fields, placeholder, invalid: given }: ExpressionEditorProps) {
+  const invalid = useInvalid(given, !value.trim())
   const setMode = (next: boolean) => {
     if (next === expression) return
     if (next) onChange(base === 'select' && value ? referenceToken(value) : value, true)

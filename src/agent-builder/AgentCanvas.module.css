@@ -392,6 +392,12 @@
   font-weight: 500;
 }
 
+/* Matches the floating icon buttons beside it. */
+.topRight .topButton:global(.pg-btn--outline) {
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+}
+
 /* A run action and its trigger caret, joined into one pill. */
 .split {
   display: inline-flex;
@@ -460,13 +466,6 @@
   position: absolute;
   z-index: 6;
   min-width: 260px;
-}
-
-.menuLabel {
-  padding: var(--space-xs) var(--space-md) var(--space-xxs);
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 12px;
-  line-height: 16px;
 }
 
 .menuSeparator {

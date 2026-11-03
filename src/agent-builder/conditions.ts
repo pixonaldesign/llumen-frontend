@@ -321,6 +321,9 @@ export function conditionParts(condition: Condition): FieldPart[] {
   return [field, { text: spec.symbol, role: 'operator' }, { text: value, role: 'value' }]
 }
 
+/** Whether any condition has a field yet; a freshly added one has nothing worth summarising. */
+export const isStarted = (group: ConditionGroup) => group.conditions.some((condition) => condition.field.trim() !== '')
+
 export function groupParts(group: ConditionGroup): FieldPart[] {
   return group.conditions.flatMap((condition, index) => [
     ...(index ? [{ text: group.combinator, role: 'join' } as const] : []),

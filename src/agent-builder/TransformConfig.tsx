@@ -1,7 +1,7 @@
-import { useId } from 'react'
+import { useContext, useId } from 'react'
 import { ArrowsMerge, Clock, Code, Funnel, GitFork, Hand, Minus, PencilSimple, Rows, Sigma, SignOut } from '@phosphor-icons/react'
 import { Card, Field, NumberInput, Select, SwitchRow, type SelectOption } from './ConfigControls'
-import { inputClass } from './configStyles'
+import { inputClass, ShowMissing } from './configStyles'
 import { ConditionEditor } from './ConditionEditor'
 import { matches, type ConditionGroup } from './conditions'
 import { conditionFields, plural, useFocusItem, type ConditionFields, type EditorProps } from './kindEditor'
@@ -148,13 +148,14 @@ const TYPE_OPTIONS: readonly SelectOption<FieldType>[] = [
 export function EditFieldsConfig({ params, set, ctx }: EditorProps<EditFieldsParams>) {
   const update = (id: string, patch: Partial<Assignment>, key: string) =>
     set({ assignments: params.assignments.map((item) => (item.id === id ? { ...item, ...patch } : item)) }, `assignment:${id}:${key}`)
+  const showMissing = useContext(ShowMissing)
   return (
     <>
       <Card icon={<PencilSimple size={16} aria-hidden />} title="Set fields" description="Adds or overwrites a column on every row. Values take {{field}} from the same row.">
         <div className={styles.list}>
           {params.assignments.map((item) => (
             <div key={item.id} className={styles.tripleRow}>
-              <input className={inputClass} value={item.name} placeholder="Field name" aria-label="Field name" aria-invalid={!item.name.trim() || undefined} onChange={(event) => update(item.id, { name: event.target.value }, 'name')} />
+              <input className={inputClass} value={item.name} placeholder="Field name" aria-label="Field name" aria-invalid={(showMissing && !item.name.trim()) || undefined} onChange={(event) => update(item.id, { name: event.target.value }, 'name')} />
               <Select label="Type" value={item.type} options={TYPE_OPTIONS} onChange={(type) => update(item.id, { type }, 'type')} />
               <input
                 className={inputClass}

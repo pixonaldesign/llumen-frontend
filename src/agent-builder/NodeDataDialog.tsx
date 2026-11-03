@@ -7,11 +7,9 @@ import { ApiPreview } from './ApiPreview'
 import { statusLine } from './apiExchange'
 import { EmailPreview } from './EmailPreview'
 import type { ChatReply } from './chatMessage'
-import { AssetPreviewChart } from './AssetPreviewChart'
+import { AssetVisual } from './AssetVisual'
 import { chartName, type CreateAssetSettings } from './createAsset'
 import { DataViewBody } from './DataViews'
-import { previewOf } from './flowData'
-import { NodeAssetPreview } from './NodeAssetPreview'
 import { FindingReport } from './FindingReport'
 import { Tabs } from './NodeConfigWindow'
 import { nodeName, nodeOutputs, type CanvasNode, type DataRecord, type DataValue, type NodeRun, type NodeType } from './nodeCatalog'
@@ -244,20 +242,11 @@ function SavedApp({ record }: { record: DataRecord }) {
 /** The asset a run saved, drawn as it will look, then its title and type; a test run draws the same rows without saving them. */
 function SavedAsset({ settings, rows, saved }: { settings: CreateAssetSettings; rows: readonly DataRecord[]; saved: boolean }) {
   const { chartType } = settings
-  const preview = previewOf(chartType)
   const title = settings.title?.trim() || 'Workflow Asset'
   return (
     <div className={styles.made}>
       <figure className={styles.app}>
-        <div className={styles.assetVisual} data-preview={preview}>
-          {preview === 'map' ? (
-            <NodeAssetPreview kind="map" data={{ view: settings, rows }} interactive bare hint={false} />
-          ) : preview === 'table' ? (
-            <DataViewBody view="table" records={rows.slice(0, MAX_ROWS)} query="" bare />
-          ) : (
-            <AssetPreviewChart settings={settings} records={rows} flush />
-          )}
-        </div>
+        <AssetVisual settings={settings} rows={rows} interactive maxRows={MAX_ROWS} />
         <figcaption className={styles.appCaption}>
           <span className={styles.appText}>
             <span className={styles.appTitle} title={title}>

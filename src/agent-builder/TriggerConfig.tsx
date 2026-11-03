@@ -102,27 +102,29 @@ export function ScheduleConfig({ params, set }: EditorProps<ScheduleParams>) {
           <NumberInput id={dayId} value={params.monthDay} min={1} max={28} onChange={(monthDay) => set({ monthDay: monthDay ?? 1 }, 'monthDay')} />
         </Field>
       ) : null}
-      {showsTime ? (
-        <Field label="At" htmlFor={timeId}>
-          <input
-            id={timeId}
-            type="time"
-            className={`${inputClass} ${styles.timeInput}`}
-            value={clockTime(params.atHour, params.atMinute)}
-            onChange={(event) => {
-              const [hour, minute] = event.target.value.split(':').map(Number)
-              if (Number.isFinite(hour) && Number.isFinite(minute)) set({ atHour: hour, atMinute: minute }, 'at')
-            }}
-          />
+      <div className={windowStyles.fieldRow}>
+        {showsTime ? (
+          <Field label="Runs at" htmlFor={timeId}>
+            <input
+              id={timeId}
+              type="time"
+              className={`${inputClass} ${styles.timeInput}`}
+              value={clockTime(params.atHour, params.atMinute)}
+              onChange={(event) => {
+                const [hour, minute] = event.target.value.split(':').map(Number)
+                if (Number.isFinite(hour) && Number.isFinite(minute)) set({ atHour: hour, atMinute: minute }, 'at')
+              }}
+            />
+          </Field>
+        ) : params.unit === 'hours' ? (
+          <Field label="At minute" htmlFor={timeId}>
+            <NumberInput id={timeId} value={params.atMinute} min={0} max={59} unit="past" onChange={(atMinute) => set({ atMinute: atMinute ?? 0 }, 'atMinute')} />
+          </Field>
+        ) : null}
+        <Field label="Timezone">
+          <Select label="Timezone" value={params.timezone} options={TIMEZONE_OPTIONS} onChange={(timezone) => set({ timezone }, 'timezone')} />
         </Field>
-      ) : params.unit === 'hours' ? (
-        <Field label="At minute" htmlFor={timeId}>
-          <NumberInput id={timeId} value={params.atMinute} min={0} max={59} unit="past" onChange={(atMinute) => set({ atMinute: atMinute ?? 0 }, 'atMinute')} />
-        </Field>
-      ) : null}
-      <Field label="Timezone">
-        <Select label="Timezone" value={params.timezone} options={TIMEZONE_OPTIONS} onChange={(timezone) => set({ timezone }, 'timezone')} />
-      </Field>
+      </div>
       <Field label="Ends">
         <Segmented
           label="Ends"

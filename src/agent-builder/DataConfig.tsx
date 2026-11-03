@@ -1,22 +1,11 @@
-import { useId } from 'react'
-import {
-  Brain,
-  ChartLine,
-  ChartLineUp,
-  Database,
-  FileXls,
-  FlowArrow,
-  Globe,
-  MapTrifold,
-  Storefront,
-  Table,
-  TrendUp,
-  type Icon,
-} from '@phosphor-icons/react'
+import { useId, useState } from 'react'
+import { Brain, ChartLineUp, Database, FileXls, FlowArrow, Globe, MagnifyingGlass, Storefront, Table, TrendUp, type Icon } from '@phosphor-icons/react'
+import { AssetPicker } from './AssetPicker'
+import { AssetVisual } from './AssetVisual'
 import { Card, Field, NumberInput, Select, type SelectOption } from './ConfigControls'
+import { buttonClass } from './configStyles'
 import { columnsOf } from './createAsset'
-import { ML_MODELS, SAVED_ASSETS, SOURCES, SOURCES_BY_ID, previewOf, type SourceMode } from './flowData'
-import type { AssetPreview } from './nodeCatalog'
+import { ASSETS_BY_ID, ML_MODELS, SOURCES, SOURCES_BY_ID, assetSettings, type SourceMode } from './flowData'
 import { plural, stepColumns, type EditorContext, type EditorProps } from './kindEditor'
 import { ColumnChips, ColumnSelect, Notice, Segmented, TemplateField, TextField } from './KindControls'
 import { forecastGate, forecastHistory } from './nodeRuntime'
@@ -31,43 +20,68 @@ import {
   type SourceParams,
 } from './nodeKinds'
 import styles from './KindConfig.module.css'
+import dialogStyles from './NodeDataDialog.module.css'
 import windowStyles from './NodeConfigWindow.module.css'
+import paletteStyles from './NodeToolbar.module.css'
 
 /* ---------- Asset ---------- */
 
-const assetIcon = (preview: AssetPreview) =>
-  preview === 'map' ? <MapTrifold size={14} aria-hidden /> : preview === 'table' ? <Table size={14} aria-hidden /> : <ChartLine size={14} aria-hidden />
 export function AssetConfig({ params, set }: EditorProps<AssetParams>) {
-  const asset = SAVED_ASSETS.find((item) => item.id === params.assetId)
-  const options: SelectOption<string>[] = SAVED_ASSETS.map((item) => ({
-    id: item.id,
-    label: item.name,
-    description: item.detail,
-    meta: item.archived ? 'Archived' : plural(item.rows.length, 'row'),
-    icon: assetIcon(previewOf(item.view.chartType)),
-  }))
-  const columns = asset ? columnsOf(asset.rows) : []
+  const [picking, setPicking] = useState(false)
+  const asset = params.assetId ? ASSETS_BY_ID[params.assetId] : undefined
+  const columns = asset ? columnsOf(asset.rows).map((column) => column.name) : []
   return (
     <Card icon={<ChartLineUp size={16} aria-hidden />} title="Asset" description="The saved chart, table, or map to show on the canvas.">
-      <Field label="Asset" required>
-        <Select label="Asset" value={params.assetId} options={options} placeholder="Choose an asset" invalid={!asset} onChange={(assetId) => set({ assetId }, 'assetId')} />
-      </Field>
+      <div data-field="Asset">
+        {asset ? (
+          <figure className={dialogStyles.app}>
+            <AssetVisual settings={assetSettings(asset)} rows={asset.rows} interactive />
+            <figcaption className={dialogStyles.appCaption}>
+              <span className={dialogStyles.appText}>
+                <span className={dialogStyles.appTitle} title={asset.name}>
+                  {asset.name}
+                </span>
+                <span className={dialogStyles.appMeta}>
+                  {asset.detail} · {plural(asset.rows.length, 'row')}
+                </span>
+              </span>
+              <button type="button" className={dialogStyles.appOpen} onClick={() => setPicking(true)}>
+                Change asset
+              </button>
+            </figcaption>
+          </figure>
+        ) : (
+          <div className={styles.browse}>
+            <span className={windowStyles.emptyIcon} aria-hidden>
+              <ChartLineUp size={20} />
+            </span>
+            <p className={windowStyles.emptyTitle}>No asset selected</p>
+            <p className={windowStyles.emptyText}>Pick a saved chart, table, or map to show on the canvas.</p>
+            <button type="button" className={buttonClass()} onClick={() => setPicking(true)}>
+              <MagnifyingGlass size={14} aria-hidden />
+              Browse assets
+            </button>
+          </div>
+        )}
+      </div>
       {asset?.archived ? <Notice tone="warn">This asset is archived. It still runs, but it’s hidden from the asset library and won’t get new data.</Notice> : null}
       {asset ? (
         <dl className={styles.readout}>
           <div>
-            <dt>Type</dt>
-            <dd>{asset.detail}</dd>
-          </div>
-          <div>
-            <dt>Rows</dt>
-            <dd>{asset.rows.length.toLocaleString()}</dd>
-          </div>
-          <div>
             <dt>Columns</dt>
-            <dd title={columns.map((column) => column.name).join(', ')}>{columns.map((column) => column.name).join(', ')}</dd>
+            <dd title={columns.join(', ')}>{columns.join(', ')}</dd>
           </div>
         </dl>
+      ) : null}
+      {picking ? (
+        <AssetPicker
+          value={params.assetId}
+          onClose={() => setPicking(false)}
+          onPick={(assetId) => {
+            setPicking(false)
+            set({ assetId }, 'assetId')
+          }}
+        />
       ) : null}
     </Card>
   )
@@ -75,12 +89,12 @@ export function AssetConfig({ params, set }: EditorProps<AssetParams>) {
 
 /* ---------- Source ---------- */
 
-const MODES: readonly { id: SourceMode; label: string; icon: Icon }[] = [
-  { id: 'query', label: 'Database', icon: Database },
-  { id: 'api_request', label: 'API request', icon: Globe },
-  { id: 'file', label: 'File', icon: FileXls },
-  { id: 'dataflow', label: 'ETL Flow', icon: FlowArrow },
-  { id: 'marketplace', label: 'Marketplace', icon: Storefront },
+const MODES: readonly { id: SourceMode; label: string; description: string; icon: Icon }[] = [
+  { id: 'query', label: 'Database', description: 'Connect to SQL, PostgreSQL, MySQL, or other databases', icon: Database },
+  { id: 'api_request', label: 'API request', description: 'Connect to REST APIs, GraphQL, or web services', icon: Globe },
+  { id: 'file', label: 'File', description: 'Select from source-backed uploaded files', icon: FileXls },
+  { id: 'dataflow', label: 'ETL Flow', description: 'Use a data flow pipeline with transformations and analytics', icon: FlowArrow },
+  { id: 'marketplace', label: 'Marketplace', description: 'Query an onboarded Data Marketplace provider', icon: Storefront },
 ]
 
 const MODE_HINT: Record<SourceMode, string> = {
@@ -94,7 +108,13 @@ const MODE_HINT: Record<SourceMode, string> = {
 export function SourceConfig({ params, set, ctx }: EditorProps<SourceParams>) {
   const source = params.sourceId ? SOURCES_BY_ID[params.sourceId] : undefined
   const matching = SOURCES.filter((item) => item.mode === params.mode)
-  const sourceOptions: SelectOption<string>[] = matching.map((item) => ({ id: item.id, label: item.name, meta: item.detail }))
+  const sourceOptions: SelectOption<string>[] = matching.map((item) => ({
+    id: item.id,
+    label: item.name,
+    description: item.description,
+    meta: item.inactive ? 'Inactive' : item.detail,
+    disabled: item.inactive,
+  }))
 
   /** Choosing a source also picks its first request, sheet, dataset, or operation. */
   const sourcePatch = (sourceId: string | undefined): Partial<SourceParams> => {
@@ -122,16 +142,17 @@ export function SourceConfig({ params, set, ctx }: EditorProps<SourceParams>) {
                 type="button"
                 role="radio"
                 aria-checked={params.mode === mode.id}
-                className={styles.modeCard}
+                className={paletteStyles.card}
                 onClick={() => {
                   if (mode.id === params.mode) return
                   set({ mode: mode.id, ...sourcePatch(SOURCES.find((item) => item.mode === mode.id)?.id) }, 'mode')
                 }}
               >
-                <span className={styles.modeIcon}>
-                  <ModeIcon size={16} aria-hidden />
+                <span className={paletteStyles.cardIcon} aria-hidden>
+                  <ModeIcon size={20} weight="regular" />
                 </span>
-                {mode.label}
+                <span className={paletteStyles.cardTitle}>{mode.label}</span>
+                <span className={paletteStyles.cardDescription}>{mode.description}</span>
               </button>
             )
           })}
@@ -164,8 +185,7 @@ function SourceDetail({ params, set, ctx }: EditorProps<SourceParams>) {
           <TemplateField
             label="Query"
             required
-            multiline
-            mono
+            code
             rows={6}
             value={params.query}
             references={ctx.references}

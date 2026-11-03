@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useContext, useId, type ReactNode } from 'react'
 import {
   ArrowsClockwise,
   ChartBar,
@@ -19,12 +19,13 @@ import {
   Table,
   WarningCircle,
 } from '@phosphor-icons/react'
-import { AssetPreviewChart } from './AssetPreviewChart'
+import { AssetVisual } from './AssetVisual'
 import { Card, Field, Select, type SelectOption } from './ConfigControls'
-import { buttonClass, inputClass } from './configStyles'
+import { buttonClass, inputClass, ShowMissing } from './configStyles'
 import {
   CHART_CHOICES,
   chartChoice,
+  chartName,
   columnsOf,
   detectGeometry,
   detectsGeometry,
@@ -36,9 +37,9 @@ import {
   type CreateAssetSettings,
 } from './createAsset'
 import { ColumnKindIcon } from './DataViews'
-import { NodeAssetPreview } from './NodeAssetPreview'
 import type { DataRecord, NodeRun } from './nodeCatalog'
 import styles from './NodeConfigWindow.module.css'
+import dialogStyles from './NodeDataDialog.module.css'
 
 const TITLE_MAX = 120
 const CONNECTED_INPUT = 'input'
@@ -91,7 +92,7 @@ type CreateAssetConfigProps = {
 
 export function CreateAssetConfig({ settings, onChange, records, connectedName, ancestors, run, onRunUpstream }: CreateAssetConfigProps) {
   const titleId = useId()
-  const [titleTouched, setTitleTouched] = useState(false)
+  const showMissing = useContext(ShowMissing)
   const choice = chartChoice(settings.chartType)
   const columns = records ? columnsOf(records) : []
   const map = isMapLayer(settings.chartType)
@@ -110,7 +111,6 @@ export function CreateAssetConfig({ settings, onChange, records, connectedName, 
 
   const suggest = () => {
     if (!records) return
-    setTitleTouched(true)
     onChange(suggestAsset(records), 'suggest')
   }
 
@@ -156,7 +156,7 @@ export function CreateAssetConfig({ settings, onChange, records, connectedName, 
           htmlFor={titleId}
           required
           meta={`${settings.title?.length ?? 0}/${TITLE_MAX}`}
-          error={titleTouched && titleMissing ? 'Give the asset a title.' : undefined}
+          error={showMissing && titleMissing ? 'Give the asset a title.' : undefined}
         >
           <input
             id={titleId}
@@ -164,9 +164,8 @@ export function CreateAssetConfig({ settings, onChange, records, connectedName, 
             value={settings.title ?? ''}
             maxLength={TITLE_MAX}
             placeholder="e.g. Anomalies by site"
-            aria-invalid={titleTouched && titleMissing}
+            aria-invalid={showMissing && titleMissing}
             onChange={(event) => onChange({ title: event.target.value || undefined }, 'title')}
-            onBlur={() => setTitleTouched(true)}
           />
         </Field>
 
@@ -253,19 +252,15 @@ function ProducedAsset({ settings, records, run }: { settings: CreateAssetSettin
       </div>
     )
   }
-  if (isMapLayer(settings.chartType)) {
-    return detectGeometry(columnsOf(records)) ? (
-      <div className={styles.assetMap}>
-        <NodeAssetPreview kind="map" interactive bare />
-      </div>
-    ) : (
+  if (isMapLayer(settings.chartType) && !detectGeometry(columnsOf(records))) {
+    return (
       <div className={`${styles.assetEmpty} ${styles.assetError}`}>
         <WarningCircle size={20} aria-hidden />
         <p>No location columns in these rows, so the map has nothing to draw.</p>
       </div>
     )
   }
-  const missing = missingMapping(settings)
+  const missing = isMapLayer(settings.chartType) ? [] : missingMapping(settings)
   if (missing.length) {
     return (
       <div className={styles.assetEmpty}>
@@ -274,11 +269,21 @@ function ProducedAsset({ settings, records, run }: { settings: CreateAssetSettin
       </div>
     )
   }
+  const title = settings.title?.trim() || 'Workflow Asset'
   return (
-    <div className={styles.assetPreview}>
-      {settings.title?.trim() ? <p className={styles.assetTitle}>{settings.title}</p> : null}
-      <AssetPreviewChart settings={settings} records={records} />
-    </div>
+    <figure className={dialogStyles.app}>
+      <AssetVisual settings={settings} rows={records} interactive />
+      <figcaption className={dialogStyles.appCaption}>
+        <span className={dialogStyles.appText}>
+          <span className={dialogStyles.appTitle} title={title}>
+            {title}
+          </span>
+          <span className={dialogStyles.appMeta}>
+            {chartName(settings.chartType)} · {records.length.toLocaleString()} {records.length === 1 ? 'row' : 'rows'}
+          </span>
+        </span>
+      </figcaption>
+    </figure>
   )
 }
 

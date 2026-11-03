@@ -278,6 +278,7 @@ export function NodeCardSections({
           <div className={styles.titleBlock}>
             <div className={styles.contentHead}>
               <TypeIcon size={20} weight="regular" className={styles.headerIcon} aria-hidden />
+              {title !== type.title ? <span className={styles.typeName}>{type.title}</span> : null}
               {actionBar}
             </div>
             <div className={styles.title}>

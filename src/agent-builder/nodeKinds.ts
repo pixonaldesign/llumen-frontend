@@ -1,4 +1,4 @@
-import { conditionGroup, groupField, groupIssue, partsText, newCondition, type Combinator, type ConditionGroup, type Operator } from './conditions'
+import { conditionGroup, groupField, groupIssue, isStarted, partsText, newCondition, type Combinator, type ConditionGroup, type Operator } from './conditions'
 import { DEFAULT_CREATE_ASSET, createAssetFields, missingMapping, type CreateAssetSettings } from './createAsset'
 import { addressSummary } from './emailMessage'
 import { ASSETS_BY_ID, ML_MODELS_BY_ID, SOURCES_BY_ID, measureLimit, previewOf, type SavedAsset, type SourceMode } from './flowData'
@@ -239,6 +239,7 @@ let idCounter = 0
 /** Ids for list items (conditions, cases, headers); unique within a session. */
 export const uid = (prefix: string) => `${prefix}_${(idCounter += 1).toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
+/** What a newly added node starts with: the choices every node needs, and nothing typed in. Examples live in `kindSamples.ts`. */
 export const KIND_DEFAULTS: { readonly [K in KindId]: KindParamsMap[K] } = {
   manualTrigger: {},
   scheduleTrigger: {
@@ -254,7 +255,7 @@ export const KIND_DEFAULTS: { readonly [K in KindId]: KindParamsMap[K] } = {
     endAfterUnit: 'months',
     endDate: '',
   },
-  chatInput: { testMessage: 'Which sites need an inspection this week?' },
+  chatInput: { testMessage: '' },
   webhook: {
     method: 'POST',
     authMode: 'none',
@@ -262,7 +263,7 @@ export const KIND_DEFAULTS: { readonly [K in KindId]: KindParamsMap[K] } = {
     oauth2Audience: '',
     oauth2JwksUri: '',
     oauth2RequiredClaims: '',
-    testBody: '{\n  "site": "Mussafah M-14",\n  "reading": 142\n}',
+    testBody: '',
   },
   asset: {},
   source: { mode: 'query', query: '', queryString: '', operationParams: {} },
@@ -270,44 +271,30 @@ export const KIND_DEFAULTS: { readonly [K in KindId]: KindParamsMap[K] } = {
   forecast: { grain: 'day', horizon: 7, onRefuse: 'fail' },
   createAsset: DEFAULT_CREATE_ASSET,
   noOperation: {},
-  filter: { where: conditionGroup({ id: 'c_risk', field: 'risk', operator: 'number__greater_than_or_equal', value: '0.7' }) },
-  ifElse: { when: conditionGroup({ id: 'c_anomalies', field: 'anomalies', operator: 'number__greater_than', value: '10' }) },
+  filter: { where: conditionGroup(newCondition('c_where')) },
+  ifElse: { when: conditionGroup(newCondition('c_when')) },
   switchCases: {
     cases: [
-      { id: 'case1', label: 'Case 1', when: conditionGroup({ id: 'c_case1', field: 'risk', operator: 'number__greater_than_or_equal', value: '0.8' }) },
+      { id: 'case1', label: 'Case 1', when: conditionGroup(newCondition('c_case1')) },
       { id: 'case2', label: 'Case 2', when: conditionGroup(newCondition('c_case2')) },
     ],
     sendToAllMatching: false,
   },
-  editFields: { assignments: [{ id: 'a_status', name: 'status', type: 'text', value: 'flagged' }], keepOthers: true, remove: [] },
-  aggregate: { groupBy: ['district'], metrics: [{ id: 'm_sum', fn: 'sum', field: 'anomalies', as: 'total_anomalies' }] },
+  editFields: { assignments: [], keepOthers: true, remove: [] },
+  aggregate: { groupBy: [], metrics: [] },
   merge: { dedupe: false, inputs: 2 },
   wait: { waitFor: 5, waitUnit: 'minutes' },
-  stopAndError: { stopMessage: 'Workflow halted.' },
-  generalAgent: { instructions: 'Review the flagged sites and explain which ones need a field inspection this week, and why.' },
-  dataClassificationAgent: {
-    instructions: '',
-    categories: [
-      { id: 'industrial', name: 'Industrial', example: 'Mussafah, ICAD, port yards' },
-      { id: 'residential', name: 'Residential', example: 'Mafraq, Shahama' },
-    ],
-  },
-  insightGenerator: {
-    instructions: 'Summarise the three biggest changes since last month.',
-    fields: ['headline', 'evidence', 'recommended_action'],
-    insightType: 'summary',
-  },
-  dataAnalyst: { instructions: 'Find outliers against the 12-month baseline per district.' },
-  gisCorrelationAgent: {
-    instructions: 'Correlate contamination hotspots with industrial land use.',
-    upper: { kind: 'events' },
-    bottom: { kind: 'land_type' },
-  },
-  createApp: { instructions: 'Build an app on this month’s contamination hotspots.', navigation: 'tabs' },
+  stopAndError: { stopMessage: '' },
+  generalAgent: { instructions: '' },
+  dataClassificationAgent: { instructions: '', categories: [] },
+  insightGenerator: { instructions: '', fields: [], insightType: 'summary' },
+  dataAnalyst: { instructions: '' },
+  gisCorrelationAgent: { instructions: '', upper: { kind: 'events' }, bottom: { kind: 'land_type' } },
+  createApp: { instructions: '', navigation: 'tabs' },
   aiFindings: { instructions: '', alerts: { enabled: false, criteria: '', rules: [] } },
   sendChatMessage: { mode: 'send_message', responseType: 'free_text', message: '', approveLabel: 'Approve', rejectLabel: 'Reject' },
-  sendEmail: { to: 'ops@llumen.ai', cc: '', bcc: '', subject: 'Daily anomaly brief', body: 'Today’s run flagged {{rows.count}} items.' },
-  sendApiRequest: { mode: 'direct', method: 'POST', url: 'https://api.example.com/alerts', headers: [], body: '{"site": "{{site}}"}' },
+  sendEmail: { to: '', cc: '', bcc: '', subject: '', body: '' },
+  sendApiRequest: { mode: 'direct', method: 'POST', url: '', headers: [], body: '' },
   stickyNote: {},
 }
 
@@ -837,11 +824,11 @@ export function kindFields(typeId: string, stored: unknown): NodeField[] {
       return createAssetFields(paramsFor(typeId, stored))
     case 'filter': {
       const where = paramsFor(typeId, stored).where
-      return where.conditions.length ? [groupField('Where', where)] : []
+      return isStarted(where) ? [groupField('Where', where)] : []
     }
     case 'ifElse': {
       const when = paramsFor(typeId, stored).when
-      return when.conditions.length ? [groupField('If', when)] : []
+      return isStarted(when) ? [groupField('If', when)] : []
     }
     case 'switchCases':
       return paramsFor(typeId, stored).sendToAllMatching ? [{ label: 'Routing', value: 'Every matching case' }] : []

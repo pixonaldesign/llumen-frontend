@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { CaretDown, Check } from '@phosphor-icons/react'
-import { PopoverLayer } from './configStyles'
+import { PopoverLayer, useInvalid } from './configStyles'
 import styles from './ConfigControls.module.css'
 
 const POPOVER_GAP = 4
@@ -179,6 +179,7 @@ export function Select<T extends string>({ id, value, options, onChange, placeho
   const listRef = useRef<HTMLDivElement>(null)
   const selected = options.find((option) => option.id === value)
   const groups = [...new Set(options.map((option) => option.group ?? ''))]
+  const shownInvalid = useInvalid(invalid, !value)
 
   useEffect(() => {
     if (!open) return
@@ -206,7 +207,7 @@ export function Select<T extends string>({ id, value, options, onChange, placeho
         className={styles.selectTrigger}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-invalid={invalid || undefined}
+        aria-invalid={shownInvalid || undefined}
         aria-label={selected ? undefined : label}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}

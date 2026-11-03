@@ -1,6 +1,20 @@
 import { conditionGroup } from './conditions'
 import { SENSOR_READINGS, SITES } from './flowData'
-import { NODE_CATEGORIES, NODE_DEFAULT_WIDTH, NODE_TYPES, NODE_TYPES_BY_ID, createNode, type CanvasNode, type DataRecord, type NodeConfig, type NodeRun, type Point, type Size } from './nodeCatalog'
+import { withSample } from './kindSamples'
+import {
+  NODE_CATEGORIES,
+  NODE_DEFAULT_WIDTH,
+  NODE_TYPES,
+  NODE_TYPES_BY_ID,
+  createNode,
+  type CanvasNode,
+  type DataRecord,
+  type NodeConfig,
+  type NodeRun,
+  type NodeType,
+  type Point,
+  type Size,
+} from './nodeCatalog'
 import { planRun } from './nodeRuntime'
 
 /** Showcase columns wrap after this many cards so tall categories stay on screen. */
@@ -38,6 +52,11 @@ const SHOWCASE_RUNS = ['manualTrigger-1', 'asset-1', 'asset-2', 'mlModel-1', 'fo
 /** Shown as a workflow run rather than a step test, so the card shows what the run saved. */
 const SHOWCASE_SAVES: ReadonlySet<string> = new Set(['createAsset-1'])
 
+const sampleNode = (type: NodeType, id: string) => {
+  const config = SHOWCASE_CONFIG[id]
+  return createNode(type, id, { ...config, params: withSample(type.id, config?.params) })
+}
+
 /** Every node type, one column per category; positions are laid out once the cards are measured. */
 export function buildShowcase() {
   const nodes: CanvasNode[] = []
@@ -47,10 +66,10 @@ export function buildShowcase() {
     const ids: string[] = []
     for (const type of NODE_TYPES.filter((item) => item.category === category.id)) {
       const id = `${type.id}-1`
-      nodes.push(createNode(type, id, SHOWCASE_CONFIG[id]))
+      nodes.push(sampleNode(type, id))
       ids.push(id)
       if (type.id === 'asset') {
-        nodes.push(createNode(type, 'asset-2', SHOWCASE_CONFIG['asset-2']))
+        nodes.push(sampleNode(type, 'asset-2'))
         ids.push('asset-2')
       }
     }
