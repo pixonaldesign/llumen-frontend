@@ -40,6 +40,8 @@ export type StoryAiSnapshot = {
   annotation?: { slide: number; location?: StoryLocation; kind?: 'markers' }
   /** A landing finding's own map (a Briefing place id): its columns replace the story's, with its areas outlined. */
   findingPlace?: string
+  /** The finding's own names for its outlined areas, heaviest first; the place's defaults when unset. */
+  findingAreas?: { name: string; text: string }[]
   /** Raw map camera to fly back to (zoom includes the map's zoom offset). */
   camera?: StorySceneCamera
 }

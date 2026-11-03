@@ -313,8 +313,11 @@ export function LandingAskMap({ snapshot, capture, onCapture, preview = false }:
     return snapshot?.region ? snapshotRegion(snapshot) : null
   }, [place, snapshot])
   const annotations = useMemo<StoryMapAnnotationLayer | null>(
-    () => (place ? { items: findingAreas(place), validity: {}, selectedId: null, drawing: null } : null),
-    [place],
+    () =>
+      place
+        ? { items: findingAreas(place, snapshot?.findingAreas), validity: {}, selectedId: null, drawing: null }
+        : null,
+    [place, snapshot?.findingAreas],
   )
   const annotation = useMemo(() => {
     const request = snapshot?.annotation

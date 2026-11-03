@@ -398,7 +398,8 @@ export type ChatComposerProps = {
   questionSlot?: ReactNode
   /** Aurora border shimmer while the first finding reveal is on screen. */
   findingCue?: boolean
-  findingCueColors?: { stop1: string; stop2: string; stop3: string }
+  /** `stop4` sits between `stop1` and the `stop3` highlight; unset, it blends the two. */
+  findingCueColors?: { stop1: string; stop2: string; stop3: string; stop4?: string }
   /** Typed into the empty editor when it's clicked. */
   suggestedPrompt?: string
   /** Sending an unedited suggested prompt (even mid-typing) calls this instead of `onSend`. */
@@ -1002,6 +1003,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(fu
                 ['--orb-shimmer-1' as string]: findingCueColors?.stop1,
                 ['--orb-shimmer-2' as string]: findingCueColors?.stop2,
                 ['--orb-shimmer-3' as string]: findingCueColors?.stop3,
+                ['--orb-shimmer-4' as string]: findingCueColors?.stop4,
               }
             : undefined
         }

@@ -19,7 +19,14 @@ const KM_PER_DEG_LNG = 101.3
 const KM_PER_DEG_LAT = 110.8
 const OUTLINE_PADDING_M = 140
 
-export type FindingMap = { place: BriefingPlaceId; title: string; tag: string; meta: string }
+export type FindingMap = {
+  place: BriefingPlaceId
+  title: string
+  tag: string
+  meta: string
+  /** Names for the outlined areas, heaviest first; the place's own when unset. */
+  areas?: AreaSpec[]
+}
 
 export type FindingExperience = {
   reply: AssistantReplyPayload
@@ -115,14 +122,15 @@ function distanceKm(a: [number, number, number], b: [number, number, number]) {
   return Math.hypot((a[0] - b[0]) * KM_PER_DEG_LNG, (a[1] - b[1]) * KM_PER_DEG_LAT)
 }
 
-const outlines = new Map<BriefingPlaceId, MapAnnotationItem[]>()
+const outlines = new Map<string, MapAnnotationItem[]>()
 
 /** Polygons around the place's heaviest column clusters, one per area, heaviest first. */
-export function findingAreas(place: BriefingPlaceId): MapAnnotationItem[] {
-  const cached = outlines.get(place)
+export function findingAreas(place: BriefingPlaceId, areas: AreaSpec[] = PLACE_OUTLINES[place].areas): MapAnnotationItem[] {
+  const key = `${place}|${areas.map((area) => area.name).join('|')}`
+  const cached = outlines.get(key)
   if (cached) return cached
   const { columns } = BRIEFING_PLACES[place]
-  const { label, color, radiusKm, areas } = PLACE_OUTLINES[place]
+  const { label, color, radiusKm } = PLACE_OUTLINES[place]
   const mass = columns.map((column) =>
     columns.reduce((total, other) => (distanceKm(column, other) <= radiusKm ? total + other[2] : total), 0),
   )
@@ -150,7 +158,7 @@ export function findingAreas(place: BriefingPlaceId): MapAnnotationItem[] {
       context: { anchor: 'geometry', slideIndex: 0, dataLabel: label, features: [] },
     }
   })
-  outlines.set(place, items)
+  outlines.set(key, items)
   return items
 }
 
@@ -915,6 +923,77 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
         },
       ],
       map: null,
+    }),
+
+  'env-dumping-alert': () =>
+    experience({
+      id: 'finding-dumping',
+      read: 'Reading the Illegal dumping surge alert and the incident reports behind it…',
+      search: 'Pulling dumping reports, site inspections and the week-ago baseline for the Mussafah industrial belt…',
+      reason: 'Outlining the sites over the emergency threshold and the lots dumped on again on the Mussafah map…',
+      headline: 'Outlined where illegal dumping has spiked in Al Mussafah.',
+      headlineDetail: 'Drew a polygon around the three threshold sites and the re-dumped lots on the Mussafah map.',
+      intro:
+        'Illegal dumping along the Mussafah industrial belt spiked 35% in six hours, and three sites are now above the emergency threshold. I outlined the sites and the lots that were dumped on again on the Mussafah map.',
+      sections: [
+        {
+          heading: 'On the map',
+          text: 'The cyan outline over the tallest columns holds the three sites above the threshold, on the belt’s main industrial axis. The second outline covers vacant lots cleared earlier this month that have new deposits since Sunday.',
+        },
+        {
+          heading: 'Six-hour spike',
+          text: 'Reports climbed after 20:00, when most yards close and trucks leave the belt.',
+          chart: chartComponent(
+            'finding-dumping-trend',
+            {
+              type: 'trend',
+              title: 'Dumping reports, last 6 hours',
+              value: '+35%',
+              unit: 'on the same window last week',
+              color: '#7fe3ff',
+              yLabels: ['60', '30', '0'],
+              xLabels: ['18:00', '20:00', '22:00', '00:00'],
+              line: trendLine([18, 20, 26, 34, 41, 47, 52], 0, 60),
+            },
+            'Dumping reports per hour along the Mussafah industrial belt.',
+          ),
+        },
+        {
+          heading: 'What is being dumped',
+          text: 'Construction waste makes up most of the new deposits, then mixed industrial refuse.',
+          chart: chartComponent(
+            'finding-dumping-waste',
+            {
+              type: 'bars',
+              title: 'New deposits by waste type',
+              value: '3',
+              unit: 'sites over threshold',
+              color: '#7fe3ff',
+              rows: barRows([
+                ['Construction waste', 46, '46%'],
+                ['Industrial refuse', 31, '31%'],
+                ['Tyres', 14, '14%'],
+                ['Household', 9, '9%'],
+              ]),
+            },
+            'Share of deposits reported since 18:00.',
+          ),
+        },
+        {
+          heading: 'Recommended action',
+          text: 'Send inspection teams to the three threshold sites first, keep the cleared lots under camera watch through the night, and open enforcement cases for repeat dumping at those locations.',
+        },
+      ],
+      map: {
+        place: 'mussafah',
+        title: 'Illegal dumping in Al Mussafah · on the map',
+        tag: 'Al Mussafah',
+        meta: '2 areas outlined',
+        areas: [
+          { name: 'Sites over threshold', text: '3 sites · +35% in 6 h' },
+          { name: 'Cleared lots', text: 'Dumped on again since Sunday' },
+        ],
+      },
     }),
 }
 

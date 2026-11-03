@@ -151,7 +151,7 @@ import {
   type ColumnGlyphColors,
   type StoryScene,
 } from './storyDemoScenes'
-import { StoryTimeSeries } from './StoryTimeSeries'
+import { StoryTimeSeries, type StoryTimeSeriesProps } from './StoryTimeSeries'
 import type { TimelineChartSeries } from './storyTimelineCharts'
 import {
   DEFAULT_SLIDE_TIMELINE,
@@ -235,6 +235,16 @@ function relabelFilterMap(
   )
 }
 
+/** "2025–2026" → "2024–2025": the compared map opens on the period before the story's. */
+function priorPeriod(label: string) {
+  return label.replace(/\d{4}/g, (year) => String(Number(year) - 1))
+}
+
+/** First year in the list's period filter, or NaN without one. */
+function periodYear(list: StoryFilter[]) {
+  return Number(list.find((filter) => filter.id === 'year')?.label.match(/\d{4}/)?.[0])
+}
+
 function changedFilterIds(from: Record<string, StoryFilter[]>, to: Record<string, StoryFilter[]>): string[] {
   const changed = new Set<string>()
   for (const [slideId, list] of Object.entries(to)) {
@@ -297,6 +307,11 @@ type ComparisonChoice = {
 type MapPane = 'upper' | 'lower'
 
 const NO_TIMELINE_CHARTS: TimelineChartSeries[] = []
+
+type TimeSeriesPlayback = Omit<
+  StoryTimeSeriesProps,
+  'chartScene' | 'chartPhaseOffset' | 'charts' | 'onChartsChange' | 'editable' | 'yearOffset'
+>
 type MapDataLayerKey = keyof StoryMapLayerVisibility
 /** Map Data's layers, top first; a deleted layer leaves the list and its map. */
 const MAP_DATA_LAYERS: MapDataLayerKey[] = ['junctions', 'distribution']
@@ -970,8 +985,9 @@ export function StoryView({
   const lowerFiltersFor = (option: ComparisonMapOption) =>
     filters
       .filter((filter) => option.source !== 'filters' || option.id !== `filter-${filter.id}`)
-      .map((filter) => ({ ...filter }))
+      .map((filter) => (filter.id === 'year' ? { ...filter, label: priorPeriod(filter.label) } : { ...filter }))
   const lowerFilters = comparison.filters ?? lowerFiltersFor(comparison.option)
+  const lowerYearOffset = periodYear(lowerFilters) - periodYear(filters) || 0
   const lowerTimeline = (!mapsLinked && comparison.timeline) || timeline
   const lowerRange = timelineRangeById(lowerTimeline.rangeId)
   const lowerGranularity = timelineGranularityById(lowerTimeline.granularityId)
@@ -1753,22 +1769,25 @@ export function StoryView({
   )
   const backgroundButton = backgroundButtonFor('upper')
 
+  const playback: TimeSeriesPlayback = {
+    range: timelineRange,
+    granularity: timelineGranularity,
+    frameCount,
+    frame: timeline.frame,
+    playing: timelinePlaying,
+    speed: playbackSpeed,
+    stepMs: frameStepMs,
+    onFrameChange: (frame) => updateTimeline(slide.id, (current) => ({ ...current, frame })),
+    onPlayingChange: setTimelinePlaying,
+    onSpeedChange: setPlaybackSpeed,
+    onGranularityChange: (granularityId) =>
+      updateTimeline(slide.id, (current) => withGranularity(current, granularityId)),
+    onRangeChange: (rangeId) => updateTimeline(slide.id, (current) => withRange(current, rangeId)),
+  }
+
   const timeSeries = (
     <StoryTimeSeries
-      range={timelineRange}
-      granularity={timelineGranularity}
-      frameCount={frameCount}
-      frame={timeline.frame}
-      playing={timelinePlaying}
-      speed={playbackSpeed}
-      stepMs={frameStepMs}
-      onFrameChange={(frame) => updateTimeline(slide.id, (current) => ({ ...current, frame }))}
-      onPlayingChange={setTimelinePlaying}
-      onSpeedChange={setPlaybackSpeed}
-      onGranularityChange={(granularityId) =>
-        updateTimeline(slide.id, (current) => withGranularity(current, granularityId))
-      }
-      onRangeChange={(rangeId) => updateTimeline(slide.id, (current) => withRange(current, rangeId))}
+      {...playback}
       chartScene={baseScene}
       charts={chartsBySlide[slide.id] ?? NO_TIMELINE_CHARTS}
       onChartsChange={(charts) => setChartsBySlide((current) => ({ ...current, [slide.id]: charts }))}
@@ -1779,25 +1798,32 @@ export function StoryView({
   const updateLowerTimeline = (update: (current: SlideTimeline) => SlideTimeline) =>
     updateComparison((current) => ({ ...current, timeline: update(current.timeline ?? lowerTimeline) }))
 
+  // Linked maps share one playback, so either time series plays, scrubs or retimes both.
+  const lowerPlayback: TimeSeriesPlayback = mapsLinked
+    ? playback
+    : {
+        range: lowerRange,
+        granularity: lowerGranularity,
+        frameCount: lowerFrameCount,
+        frame: lowerTimeline.frame,
+        playing: lowerPlaying,
+        speed: lowerSpeed,
+        stepMs: lowerStepMs,
+        onFrameChange: (frame) => updateLowerTimeline((current) => ({ ...current, frame })),
+        onPlayingChange: (playing) => {
+          updateLowerTimeline((current) => current)
+          setLowerPlaying(playing)
+        },
+        onSpeedChange: setLowerSpeed,
+        onGranularityChange: (granularityId) =>
+          updateLowerTimeline((current) => withGranularity(current, granularityId)),
+        onRangeChange: (rangeId) => updateLowerTimeline((current) => withRange(current, rangeId)),
+      }
+
   const lowerTimeSeries = (
     <StoryTimeSeries
-      range={lowerRange}
-      granularity={lowerGranularity}
-      frameCount={lowerFrameCount}
-      frame={lowerTimeline.frame}
-      playing={lowerPlaying}
-      speed={lowerSpeed}
-      stepMs={lowerStepMs}
-      onFrameChange={(frame) => updateLowerTimeline((current) => ({ ...current, frame }))}
-      onPlayingChange={(playing) => {
-        updateLowerTimeline((current) => current)
-        setLowerPlaying(playing)
-      }}
-      onSpeedChange={setLowerSpeed}
-      onGranularityChange={(granularityId) =>
-        updateLowerTimeline((current) => withGranularity(current, granularityId))
-      }
-      onRangeChange={(rangeId) => updateLowerTimeline((current) => withRange(current, rangeId))}
+      {...lowerPlayback}
+      yearOffset={lowerYearOffset}
       chartScene={comparisonBaseScene}
       chartPhaseOffset={comparison.option.phaseOffset}
       charts={comparison.charts ?? NO_TIMELINE_CHARTS}
@@ -2506,7 +2532,6 @@ export function StoryView({
             styleUrl={lowerMapStyle.url}
             flat={lowerMapStyle.dimension === '2d' || (annotationPane === 'lower' && annotating)}
             controlsClassName={styles.comparisonControls}
-            controls={!mapsLinked}
             cameraLink={mapsLinked ? cameraLink : undefined}
             flyToScene={false}
             annotations={{
@@ -2957,7 +2982,7 @@ export function StoryView({
               {comparisonMapData('upper', mainLegend, layers, toggleLayer, legendPlace)}
             </div>
             <div className={`${styles.mapStack} ${styles.mapStackCompared}`}>
-              {mapsLinked ? null : lowerTimeSeries}
+              {lowerTimeSeries}
               {comparisonMapData('lower', comparisonScene.legend, comparison.layers, toggleComparisonLayer, 'Abu Dhabi')}
             </div>
           </>

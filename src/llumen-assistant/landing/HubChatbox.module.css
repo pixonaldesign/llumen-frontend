@@ -88,7 +88,17 @@
     from var(--orb-shimmer-angle, 0deg),
     var(--orb-shimmer-2, #2a4098) 0deg,
     var(--orb-shimmer-1, #3c78ff) 70deg,
+    var(
+        --orb-shimmer-4,
+        color-mix(in srgb, var(--orb-shimmer-1, #3c78ff), var(--orb-shimmer-3, #6beeff))
+      )
+      95deg,
     var(--orb-shimmer-3, #6beeff) 120deg,
+    var(
+        --orb-shimmer-4,
+        color-mix(in srgb, var(--orb-shimmer-1, #3c78ff), var(--orb-shimmer-3, #6beeff))
+      )
+      145deg,
     var(--orb-shimmer-1, #3c78ff) 170deg,
     var(--orb-shimmer-2, #2a4098) 240deg,
     var(--orb-shimmer-2, #2a4098) 360deg

@@ -529,10 +529,10 @@
   text-align: center;
 }
 
-/* One toolbar, centred along the bottom of the lower map; Assets and Tools float over each assets column. */
+/* One toolbar, centred along the bottom of the view; Assets and Tools float over each assets column. */
 .root[data-comparison='blocks'] .lowerNavUpper {
   bottom: var(--blocks-inset);
-  left: calc((100% + var(--blocks-column)) / 2);
+  left: 50%;
 }
 
 .root[data-comparison='blocks'] .lowerNavCompared,

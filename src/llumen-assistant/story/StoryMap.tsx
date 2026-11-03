@@ -174,8 +174,6 @@ function captureMapView(map: mapboxgl.Map): StoryMapCapture {
 export type StoryMapProps = {
   className?: string
   controlsClassName?: string
-  /** Shows the select and zoom controls (default true). */
-  controls?: boolean
   layers?: StoryMapLayerVisibility
   layerOpacity?: StoryMapLayerOpacity
   /** Index of the demo scene (camera, columns, disks) to show. */
@@ -1025,7 +1023,6 @@ function scaleDelays(
 export function StoryMap({
   className,
   controlsClassName,
-  controls = true,
   layers = DEFAULT_LAYERS,
   layerOpacity,
   sceneIndex = 0,
@@ -1681,7 +1678,7 @@ export function StoryMap({
   return (
     <div ref={rootRef} className={[styles.root, className].filter(Boolean).join(' ')}>
       <div ref={containerRef} className={styles.canvas} />
-      {interactive && controls ? (
+      {interactive ? (
         <MapControls
           className={[styles.controls, controlsClassName].filter(Boolean).join(' ')}
           disabled={!ready}
