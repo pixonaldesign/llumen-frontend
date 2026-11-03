@@ -1,5 +1,5 @@
 import { useContext, useId } from 'react'
-import { ArrowsMerge, Clock, Code, Funnel, GitFork, Hand, Minus, PencilSimple, Rows, Sigma, SignOut } from '@phosphor-icons/react'
+import { ArrowsMerge, Clock, Code, DotsSixVertical, Funnel, GitFork, Hand, Minus, PencilSimple, Rows, Sigma, SignOut } from '@phosphor-icons/react'
 import { Card, Field, NumberInput, Select, SwitchRow, type SelectOption } from './ConfigControls'
 import { inputClass, ShowMissing } from './configStyles'
 import { ConditionEditor } from './ConditionEditor'
@@ -7,6 +7,7 @@ import { matches, type ConditionGroup } from './conditions'
 import { conditionFields, plural, useFocusItem, type ConditionFields, type EditorProps } from './kindEditor'
 import { AddButton, ColumnChips, ColumnSelect, Notice, RemoveButton, TextAreaField } from './KindControls'
 import { aggregateSql, metricName } from './nodeRuntime'
+import { useSortable } from './useSortable'
 import {
   FN_LABEL,
   uid,
@@ -70,6 +71,14 @@ export function SwitchConfig({ params, set, ctx }: EditorProps<SwitchParams>) {
     set({ cases: params.cases.map((item) => (item.id === id ? { ...item, ...patch } : item)) }, `case:${id}:${key}`)
   const focusProps = useFocusItem(ctx.focus)
   const fields = conditionFields(ctx)
+  const sortable = useSortable(
+    params.cases.map((item) => item.id),
+    (from, to) => {
+      const cases = [...params.cases]
+      cases.splice(to, 0, ...cases.splice(from, 1))
+      set({ cases }, 'reorderCases')
+    },
+  )
 
   const counts = ctx.records
     ? (() => {
@@ -104,23 +113,50 @@ export function SwitchConfig({ params, set, ctx }: EditorProps<SwitchParams>) {
       <Card icon={<Rows size={16} aria-hidden />} title="Cases" description="Each case is its own output. Removing one also removes its edges.">
         <div className={styles.list}>
           {params.cases.map((item, index) => (
-            <div key={item.id} className={styles.item} {...focusProps(item.id)}>
-              <div className={styles.itemHead}>
-                <span className={styles.itemIndex}>{index + 1}</span>
-                <input
-                  className={`${inputClass} ${styles.caseName}`}
-                  value={item.label}
-                  maxLength={40}
-                  aria-label="Case name"
-                  placeholder={`Case ${index + 1}`}
-                  onChange={(event) => updateCase(item.id, { label: event.target.value }, 'label')}
+            <div key={item.id} className={styles.sortItem} {...sortable.itemProps(item.id)}>
+              <div className={styles.item} {...focusProps(item.id)}>
+                <div className={styles.itemHead}>
+                  <button
+                    type="button"
+                    className={`${styles.itemIndex} ${styles.dragHandle}`}
+                    aria-label={`Move ${item.label || `case ${index + 1}`}`}
+                    title="Drag to reorder"
+                    disabled={params.cases.length < 2}
+                    {...sortable.handleProps(item.id)}
+                  >
+                    <span className={styles.handleNumber}>{index + 1}</span>
+                    <DotsSixVertical className={styles.handleIcon} size={14} weight="bold" aria-hidden />
+                  </button>
+                  <input
+                    className={`${inputClass} ${styles.caseName}`}
+                    value={item.label}
+                    maxLength={40}
+                    aria-label="Case name"
+                    placeholder={`Case ${index + 1}`}
+                    onChange={(event) => updateCase(item.id, { label: event.target.value }, 'label')}
+                  />
+                  {counts ? <span className={styles.count}>{plural(counts[item.id] ?? 0, 'row')}</span> : null}
+                  <RemoveButton
+                    label={`Remove ${item.label || 'case'}`}
+                    onClick={() => set({ cases: params.cases.filter((other) => other.id !== item.id) }, `case:${item.id}:remove`)}
+                  />
+                </div>
+                <ConditionEditor
+                  label={`${item.label} conditions`}
+                  group={item.when}
+                  fields={fields}
+                  onChange={(when, key) => updateCase(item.id, { when }, `when:${key}`)}
                 />
-                {counts ? <span className={styles.count}>{plural(counts[item.id] ?? 0, 'row')}</span> : null}
-                <RemoveButton label={`Remove ${item.label || 'case'}`} onClick={() => set({ cases: params.cases.filter((other) => other.id !== item.id) }, `case:${item.id}:remove`)} />
               </div>
-              <ConditionEditor label={`${item.label} conditions`} group={item.when} fields={fields} onChange={(when, key) => updateCase(item.id, { when }, `when:${key}`)} />
             </div>
           ))}
+          <div className={`${styles.item} ${styles.defaultCase}`}>
+            <div className={styles.itemHead}>
+              <span className={styles.itemIndex}>–</span>
+              <span className={styles.caseTitle}>Default</span>
+              {counts ? <span className={styles.count}>{plural(counts.default, 'row')}</span> : null}
+            </div>
+          </div>
           <div className={styles.addRow}>
             <AddButton
               onClick={() => {
@@ -131,7 +167,6 @@ export function SwitchConfig({ params, set, ctx }: EditorProps<SwitchParams>) {
             >
               Add case
             </AddButton>
-            {counts ? <span className={styles.count}>Default: {plural(counts.default, 'row')}</span> : null}
           </div>
         </div>
       </Card>

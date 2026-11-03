@@ -281,17 +281,88 @@ button.addButton:disabled {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  min-height: 36px;
 }
 
 .itemHead > input {
   flex: 1;
 }
 
-/* Reads as the case's title; the field only shows while hovered or edited. */
+/* Reads as the case's title; the field only shows while hovered or edited. The margin pulls its text in beside the index. */
 .itemHead > input.caseName {
+  margin-inline-start: calc(-1 * var(--space-xs));
   padding: 0 var(--space-sm);
   border-color: transparent;
   background: transparent;
+  font-weight: 600;
+}
+
+.defaultCase {
+  padding-block: var(--space-md);
+}
+
+/* ---------- Reordering (see `useSortable`) ---------- */
+
+.sortItem {
+  position: relative;
+}
+
+.sortItem[data-dragging] {
+  z-index: 1;
+}
+
+.sortItem[data-dragging] > .item {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, #ffffff 4%, rgba(18, 18, 20, 0.92));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Under `.itemHead` to outrank the canvas's `button { font: inherit }` reset. */
+.itemHead > button.dragHandle {
+  padding: 0;
+  border: 0;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: grab;
+  touch-action: none;
+  transition: background var(--lc-duration) var(--lc-ease), color var(--lc-duration) var(--lc-ease);
+}
+
+.itemHead > button.dragHandle:disabled {
+  cursor: default;
+}
+
+.sortItem[data-dragging] .dragHandle {
+  cursor: grabbing;
+}
+
+.handleIcon {
+  display: none;
+}
+
+.sortItem:is(:hover, [data-dragging]) .dragHandle:not(:disabled),
+.dragHandle:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.sortItem:is(:hover, [data-dragging]) .dragHandle:not(:disabled) .handleNumber,
+.dragHandle:focus-visible .handleNumber {
+  display: none;
+}
+
+.sortItem:is(:hover, [data-dragging]) .dragHandle:not(:disabled) .handleIcon,
+.dragHandle:focus-visible .handleIcon {
+  display: block;
+}
+
+/* Default's name, which can't be edited; lines up with the case names' text. */
+.caseTitle {
+  flex: 1;
+  min-width: 0;
+  padding-inline-start: 3px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -355,11 +426,18 @@ button.addButton:disabled {
 }
 
 .itemIndex {
+  display: inline-flex;
   flex-shrink: 0;
-  min-width: 18px;
-  color: rgba(255, 255, 255, 0.4);
-  font-family: var(--lc-font-data);
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Chips ---------- */
