@@ -28,31 +28,29 @@ const GROUPS: readonly { kind: ResultKind; name: string; icon: ReactNode }[] = [
 ]
 
 const ITEMS: readonly SearchItem[] = [
-  { id: 'f-bus', kind: 'finding', label: 'Island Bus Reliability Brief', hint: 'Operations' },
-  { id: 'f-risk', kind: 'finding', label: 'Proactive Risk Digest', hint: 'Customer Success' },
-  { id: 'f-mussafah', kind: 'finding', label: 'Industrial growth in Al Mussafah', hint: 'Planning' },
-  { id: 'f-land', kind: 'finding', label: 'Land use mix', hint: 'Planning' },
-  { id: 'f-population', kind: 'finding', label: 'Population composition across the capital', hint: 'Operations' },
-  { id: 'f-air', kind: 'finding', label: 'Coastal corridor air quality', hint: 'Operations' },
-  { id: 'f-heat', kind: 'finding', label: 'Coastal Heat Stress Advisory', hint: 'Operations' },
-  { id: 'f-al-ain', kind: 'finding', label: 'Al Ain station cluster', hint: 'Environment' },
-  { id: 'f-water', kind: 'finding', label: 'Water Network Pressure Review', hint: 'Engineering' },
-  { id: 'a-permit', kind: 'asset', label: 'Permit limit deviation', hint: 'Compliance' },
-  { id: 'a-land', kind: 'asset', label: 'Al Mussafah land use', hint: 'Planning' },
-  { id: 'a-population', kind: 'asset', label: 'Population composition', hint: 'Demographics' },
-  { id: 'a-pressure', kind: 'asset', label: 'Network pressure', hint: 'Engineering' },
-  { id: 'p-groundwater', kind: 'app', label: 'Groundwater Monitoring Network', hint: 'App' },
-  { id: 'p-policies', kind: 'app', label: 'Policies & Regulations Dashboard', hint: 'App' },
-  { id: 'p-mangrove', kind: 'app', label: 'Mangrove Ecosystem Health Monitoring', hint: 'App' },
-  { id: 'p-plastics', kind: 'app', label: 'Single Use Plastics Dashboard', hint: 'App' },
-  { id: 'w-finance', kind: 'workspace', label: 'Finance', hint: 'Private workspace' },
-  { id: 'w-operations', kind: 'workspace', label: 'Operations', hint: 'Shared workspace' },
-  { id: 'w-engineering', kind: 'workspace', label: 'Engineering', hint: 'Shared workspace' },
-  { id: 'w-hr', kind: 'workspace', label: 'HR', hint: 'Private workspace' },
+  { id: 'f-overview', kind: 'finding', label: 'GAMI 2026 national performance', hint: 'Performance' },
+  { id: 'f-poland', kind: 'finding', label: 'Poland supply disruption', hint: 'Supply Chain' },
+  { id: 'f-localization', kind: 'finding', label: 'Localization opportunities in Jubail', hint: 'Localization' },
+  { id: 'f-wds', kind: 'finding', label: 'WDS 2028 exhibitor pipeline', hint: 'World Defense Show' },
+  { id: 'f-talent', kind: 'finding', label: 'Defence skills gap in the Western Region', hint: 'Human Capital' },
+  { id: 'f-licences', kind: 'finding', label: 'Export licence queue', hint: 'Licensing' },
+  { id: 'f-investment', kind: 'finding', label: '2026 investment pipeline', hint: 'Investment' },
+  { id: 'a-saudi-made', kind: 'asset', label: 'Saudi Made vs 2030 goal', hint: 'Performance' },
+  { id: 'a-plan', kind: 'asset', label: '2026 plan progress', hint: 'Performance' },
+  { id: 'a-imports', kind: 'asset', label: '20 affected imports', hint: 'Supply Chain' },
+  { id: 'a-licences', kind: 'asset', label: '2026 license status', hint: 'Licensing' },
+  { id: 'p-alert', kind: 'app', label: 'Drone Supply: Bridge Through Türkiye', hint: 'App' },
+  { id: 'p-overview', kind: 'app', label: 'GAMI National Performance', hint: 'App' },
+  { id: 'p-localization', kind: 'app', label: 'GAMI Localization Opportunities', hint: 'App' },
+  { id: 'p-wds', kind: 'app', label: 'World Defense Show 2028', hint: 'App' },
+  { id: 'w-industries', kind: 'workspace', label: 'Military Industries', hint: 'Shared workspace' },
+  { id: 'w-supply', kind: 'workspace', label: 'Supply Chain', hint: 'Shared workspace' },
+  { id: 'w-licensing', kind: 'workspace', label: 'Licensing', hint: 'Shared workspace' },
+  { id: 'w-talent', kind: 'workspace', label: 'Human Capital', hint: 'Private workspace' },
 ]
 
-const RECENT = ['Air quality', 'Al Mussafah', 'Water pressure'] as const
-const SUGGESTED = ['f-water', 'a-permit', 'p-groundwater']
+const RECENT = ['Poland disruption', 'Saudi Made', 'WDS 2028'] as const
+const SUGGESTED = ['f-poland', 'a-saudi-made', 'p-alert']
 const PER_GROUP = 4
 const EXIT_MS = 180
 

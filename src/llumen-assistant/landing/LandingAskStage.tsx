@@ -23,10 +23,11 @@ import {
   topSchoolsAnnotation,
 } from '../story/storyAnnotations'
 import type { StoryAiSnapshot, StoryMapCapture } from '../story/storyAiScenarios'
-import { StoryMap, type StoryMapAnnotationLayer, type StoryMapHandle } from '../story/StoryMap'
+import { StoryMap, type StoryMapHandle } from '../story/StoryMap'
 import mapStyles from '../story/StoryMap.module.css'
 import styles from './LandingAskStage.module.css'
-import { findingAreas, findingRegion, findingSceneIndex, isFindingPlace } from './landingFindingExperiences'
+import { findingStage, isFindingPlace, type FindingStageId } from './landingFindingExperiences'
+import { GamiMap, type GamiMapHandle } from '../gami/GamiMap'
 
 /** Loads the asset builder's styles only once Data or Source is opened. */
 const LandingAssetPanels = lazy(() => import('./LandingAssetPanels'))
@@ -301,21 +302,58 @@ const PREVIEW_PADDING = { top: 44, right: 8, bottom: 8, left: 8 }
 /** Pulls the camera out so a ~180px-tall preview frames what the full stage shows. */
 const PREVIEW_ZOOM_OFFSET = -1.7
 
+const NO_HIDDEN: ReadonlySet<string> = new Set()
+
+/** A GAMI finding's place, zoomed into the area its story's second page outlines. */
+function FindingPlaceMap({
+  place,
+  capture,
+  onCapture,
+  preview,
+}: Omit<LandingAskMapProps, 'snapshot'> & { place: FindingStageId }) {
+  const handleRef = useRef<GamiMapHandle>(null)
+  const stage = findingStage(place)
+  const camera = useMemo(
+    () => (preview ? { ...stage.camera, zoom: stage.camera.zoom + PREVIEW_ZOOM_OFFSET } : stage.camera),
+    [preview, stage],
+  )
+  useEffect(() => {
+    if (!capture) return
+    const timer = window.setTimeout(() => {
+      void handleRef.current?.capture().then((shot) => {
+        if (shot) onCapture(capture.stateId, shot)
+      })
+    }, capture.delay)
+    return () => window.clearTimeout(timer)
+  }, [capture, onCapture])
+  return (
+    <GamiMap
+      camera={camera}
+      scene={stage.scene}
+      areas={stage.polygons}
+      hidden={NO_HIDDEN}
+      padding={preview ? PREVIEW_PADDING : MAP_PADDING}
+      controls={!preview}
+      interactive={!preview}
+      controlsClassName={styles.mapControls}
+      handleRef={handleRef}
+    />
+  )
+}
+
 /** The story map with whatever the reply annotated on it. */
-export function LandingAskMap({ snapshot, capture, onCapture, preview = false }: LandingAskMapProps) {
+export function LandingAskMap({ snapshot, ...rest }: LandingAskMapProps) {
+  const place = isFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
+  if (place) return <FindingPlaceMap place={place} {...rest} />
+  return <ReplyMap snapshot={snapshot} {...rest} />
+}
+
+function ReplyMap({ snapshot, capture, onCapture, preview = false }: LandingAskMapProps) {
   const handleRef = useRef<StoryMapHandle | null>(null)
   const onHandle = useCallback((handle: StoryMapHandle | null) => {
     handleRef.current = handle
   }, [])
-  const place = isFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
-  const region = useMemo(() => {
-    if (place) return findingRegion(place)
-    return snapshot?.region ? snapshotRegion(snapshot) : null
-  }, [place, snapshot])
-  const annotations = useMemo<StoryMapAnnotationLayer | null>(
-    () => (place ? { items: findingAreas(place), validity: {}, selectedId: null, drawing: null } : null),
-    [place],
-  )
+  const region = useMemo(() => (snapshot?.region ? snapshotRegion(snapshot) : null), [snapshot])
   const annotation = useMemo(() => {
     const request = snapshot?.annotation
     if (!request) return null
@@ -334,7 +372,7 @@ export function LandingAskMap({ snapshot, capture, onCapture, preview = false }:
 
   return (
     <StoryMap
-      sceneIndex={place ? findingSceneIndex(place) : 0}
+      sceneIndex={0}
       framePhase={0}
       flyToScene={false}
       cameraPadding={preview ? PREVIEW_PADDING : MAP_PADDING}
@@ -344,7 +382,6 @@ export function LandingAskMap({ snapshot, capture, onCapture, preview = false }:
       controlsClassName={styles.mapControls}
       region={region}
       annotation={annotation}
-      annotations={annotations}
       cameraRequest={cameraRequest}
       onHandle={onHandle}
     />

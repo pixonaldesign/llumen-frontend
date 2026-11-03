@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
-import { BRIEFING_ASSETS, type AssetSlice, type BriefingAsset } from './briefingAssetData'
+import { BRIEFING_ASSETS, type AssetBar, type AssetSlice, type BriefingAsset } from './briefingAssetData'
 import styles from './BriefingAssets.module.css'
 
 /** Charts play card by card, each starting a beat after the previous one. */
@@ -153,16 +153,14 @@ function AssetVisual({
               className={styles.hbar}
               style={{ ['--i' as string]: i }}
               onPointerMove={(event) =>
-                showTip({ x: event.clientX, y: event.clientY, label: bar.label, value: `+${bar.value} ${asset.unit}` })
+                showTip({ x: event.clientX, y: event.clientY, label: bar.label, value: hbarText(bar, asset.unit) })
               }
             >
               <span className={styles.hbarLabel}>{bar.label}</span>
               <span className={styles.track}>
-                <span className={styles.fill} style={{ width: `${(bar.value / asset.bars[0].value) * 100}%` }} />
+                <span className={styles.fill} style={{ width: `${(bar.value / hbarMax(asset.bars)) * 100}%` }} />
               </span>
-              <span className={styles.hbarValue}>
-                +{bar.value} {asset.unit}
-              </span>
+              <span className={styles.hbarValue}>{hbarText(bar, asset.unit)}</span>
             </li>
           ))}
         </ul>
@@ -274,7 +272,12 @@ function AssetVisual({
                 pathLength={100}
                 style={{ ['--len' as string]: asset.value }}
                 onPointerMove={(event) =>
-                  showTip({ x: event.clientX, y: event.clientY, label: 'Pressure', value: `${asset.value}% of target` })
+                  showTip({
+                    x: event.clientX,
+                    y: event.clientY,
+                    label: asset.tipLabel ?? 'Pressure',
+                    value: `${asset.value}% of target`,
+                  })
                 }
               />
               <text className={styles.gaugeText} x="60" y="60" textAnchor="middle">
@@ -631,7 +634,16 @@ function Sparkline({
   )
 }
 
+function hbarMax(bars: AssetBar[]) {
+  return Math.max(...bars.map((bar) => bar.value))
+}
+
+function hbarText(bar: AssetBar, unit: string) {
+  return bar.display ?? `+${bar.value} ${unit}`
+}
+
 function CountUp({ value, play, delay }: Play & { value: number }) {
+  const decimals = (String(value).split('.')[1] ?? '').length
   const [shown, setShown] = useState(0)
   useEffect(() => {
     if (!play) return
@@ -643,13 +655,17 @@ function CountUp({ value, play, delay }: Play & { value: number }) {
     let frame = 0
     const tick = (now: number) => {
       const t = Math.min(1, Math.max(0, (now - start) / COUNT_MS))
-      setShown(Math.round(value * (1 - (1 - t) ** 3)))
+      setShown(Number((value * (1 - (1 - t) ** 3)).toFixed(decimals)))
       if (t < 1) frame = window.requestAnimationFrame(tick)
     }
     frame = window.requestAnimationFrame(tick)
     return () => window.cancelAnimationFrame(frame)
-  }, [play, delay, value])
-  return <>{(play ? shown : 0).toLocaleString('en-US')}</>
+  }, [play, delay, value, decimals])
+  return (
+    <>
+      {(play ? shown : 0).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
+    </>
+  )
 }
 
 /** Catmull-Rom through the points, as cubic Béziers. */

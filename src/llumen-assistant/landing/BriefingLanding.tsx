@@ -41,7 +41,7 @@ import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
 import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
 import { BRIEFING_PLACES } from './briefingMapPlaces'
 import { STORY_CAMERA_PADDING } from '../story/StoryMap'
-import { storySceneAt } from '../story/storyDemoScenes'
+import { GAMI_STORIES } from '../gami/gamiScenario'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
 import { VoteButton } from './VoteButton'
@@ -67,45 +67,43 @@ type SummaryPart = { text: string; highlight?: boolean }
 
 /** What is happening now, in two lines at most. */
 const ASSETS_STATEMENT: SummaryPart[] = [
-  { text: 'Coastal air quality crossed the sensitive\u2011groups line overnight, ' },
-  { text: 'up 18% to 142', highlight: true },
+  { text: 'Military industries are at ' },
+  { text: '94.8% of the 2026 plan', highlight: true },
+  { text: ', but Poland’s export freeze leaves ' },
+  { text: '41 days of UAV motor stock', highlight: true },
   { text: '.' },
 ]
 
 /** What the assets below say about it. */
 const ASSETS_DETAIL: SummaryPart[] = [
-  { text: 'AQI has stayed above the line since 09:00. Heat-related clinic visits reached ' },
-  { text: '1,284 this week', highlight: true },
-  { text: ', 22% higher and peaking at 244 on Sunday, while bus delays sit on ' },
-  { text: 'Routes 54 and 65', highlight: true },
-  {
-    text: ' at 18 and 14 minutes late. Non-compliant facilities run 14% over their permit limits, Al Mussafah is now 31% industrial and adults make up 68% of residents. Network pressure in Al Ain holds at ',
-  },
-  { text: '62% of target', highlight: true },
-  { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
+  { text: 'Saudi Made reached 29.4%, 59% of the 2030 goal, across 602 licensed companies. SAR 32.0bn a year can be localized, led by UAV airframes and propulsion. WDS 2028 has ' },
+  { text: '1,940 exhibitor applications', highlight: true },
+  { text: ', 32% ahead of 2026, while the skills gap of 6,350 grows to ' },
+  { text: '10,600 by 2030', highlight: true },
+  { text: ', widest in the Western Region.' },
 ]
 
 /** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
 const ASSETS_INSIGHTS: SummaryPart[][] = [
   [
-    { text: 'Heat-related clinic visits reached ' },
-    { text: '1,284 this week', highlight: true },
-    { text: ', 22% higher and peaking at 244 on Sunday.' },
+    { text: 'Saudi Made reached ' },
+    { text: '29.4%', highlight: true },
+    { text: ', 59% of the 2030 goal, with 602 licensed companies.' },
   ],
   [
-    { text: 'Bus delays sit on ' },
-    { text: 'Routes 54 and 65', highlight: true },
-    { text: ' at 18 and 14 minutes late.' },
+    { text: 'SAR 32.0bn a year can be localized, and ' },
+    { text: 'Jubail can take SAR 10.6bn', highlight: true },
+    { text: ' of it now.' },
   ],
   [
-    {
-      text: 'Non-compliant facilities run 14% over their permit limits, and Al Mussafah is now 31% industrial.',
-    },
+    { text: 'WDS 2028 has ' },
+    { text: '1,940 applications', highlight: true },
+    { text: ' from 94 countries, 32% ahead of 2026.' },
   ],
   [
-    { text: 'Network pressure in Al Ain holds at ' },
-    { text: '62% of target', highlight: true },
-    { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
+    { text: 'The skills gap grows from 6,350 to ' },
+    { text: '10,600 by 2030', highlight: true },
+    { text: ', with 2,140 unfilled roles in the Western Region.' },
   ],
 ]
 
@@ -128,9 +126,23 @@ const ASSETS_SPLIT_MS = 1700
 const ASSETS_OPEN_PX = 8
 
 /** Findings style 6's slide between the findings and Assets and Apps; keep in step with --side-slide. */
-/** A story opens on its first scene, framed clear of its insight column. */
-const STORY_OPENING_PLACE = BRIEFING_PLACES['abu-dhabi']
-const STORY_ENTER: BriefingMapEnter = { camera: storySceneAt(0).camera, padding: STORY_CAMERA_PADDING }
+/** A story opens on its first page's camera, framed clear of its insight column. */
+const storyEnters = new Map<string, BriefingMapEnter>()
+
+function storyEnter(storyId: string): BriefingMapEnter {
+  let enter = storyEnters.get(storyId)
+  if (!enter) {
+    const page = GAMI_STORIES[storyId]?.pages[0]
+    enter = { camera: page?.camera ?? BRIEFING_PLACES.kingdom.camera, padding: STORY_CAMERA_PADDING }
+    storyEnters.set(storyId, enter)
+  }
+  return enter
+}
+
+function storyPlace(storyId: string | null) {
+  const story = storyId ? GAMI_STORIES[storyId] : undefined
+  return BRIEFING_PLACES[story?.place ?? 'kingdom']
+}
 /** BriefingMap's flight (2200ms) plus slack. */
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
@@ -349,14 +361,17 @@ export function BriefingLanding({
   const returnHeld = storyReturn?.phase === 'hold'
   /** The map is flying into the story, or holding that view underneath it. */
   const opening = storyFlight !== null && !storyRelease && !returnHeld
+  /** The story last flown into, so the map holds its place while the story closes over it. */
+  const [lastStory, setLastStory] = useState<string | null>(null)
+  if (storyFlight && storyFlight !== lastStory) setLastStory(storyFlight)
   const mapPlace = useMemo(() => {
-    if (opening || returnHeld) return STORY_OPENING_PLACE
+    if (opening || returnHeld) return storyPlace(storyFlight ?? lastStory)
     for (let index = active; index >= 0; index -= 1) {
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
-    return BRIEFING_PLACES['abu-dhabi']
-  }, [active, opening, returnHeld])
+    return BRIEFING_PLACES.kingdom
+  }, [active, opening, returnHeld, storyFlight, lastStory])
 
   const enterStory = useCallback(
     (storyId: string) => {
@@ -832,7 +847,7 @@ export function BriefingLanding({
               blank={mapBlurred}
               focusRight={findingsStyle === 2 || findingsStyle === 5}
               focusLow={findingsStyle === 8}
-              enter={opening ? STORY_ENTER : null}
+              enter={opening && storyFlight ? storyEnter(storyFlight) : null}
               onArrive={arriveAtStory}
               align={storyRelease && storyRelease !== 'home' ? storyRelease : null}
               start={returnHeld ? storyReturn.from : null}
@@ -916,6 +931,10 @@ export function BriefingLanding({
               edge={peekEdge}
               onReorder={setBoardOrder}
               onBack={() => flyAssets(false)}
+              onOpenApp={(storyId) => {
+                flyAssets(false)
+                enterStory(storyId)
+              }}
               tools={floating ? { onAddAssets: () => setAddingAsset(true) } : undefined}
             />
             {addingAsset ? (
@@ -962,7 +981,7 @@ export function BriefingLanding({
   )
 }
 
-const ASSET_LOCATIONS = ['Abu Dhabi Emirate', 'Abu Dhabi City', 'Al Ain', 'Al Dhafra'] as const
+const ASSET_LOCATIONS = ['Kingdom-wide', 'Riyadh Region', 'Eastern Province', 'Western Region'] as const
 const ASSET_PERIODS = ['Today', 'Last 7 days', 'Last 30 days', 'This year'] as const
 
 /**
@@ -1055,7 +1074,7 @@ function FilterSelect<T extends string>({
 
 /** Global filters for the Assets section: location and time. */
 function AssetsFilters() {
-  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Abu Dhabi Emirate')
+  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Kingdom-wide')
   const [period, setPeriod] = useState<(typeof ASSET_PERIODS)[number]>('Last 7 days')
   return (
     <div className={styles.assetsFilters} role="group" aria-label="Filters">
@@ -1234,6 +1253,7 @@ function AssetsAppsView({
   edge,
   onReorder,
   onBack,
+  onOpenApp,
   tools,
 }: {
   shown: boolean
@@ -1248,6 +1268,7 @@ function AssetsAppsView({
   edge: { room: number; min: number; partial?: number }
   onReorder: (order: string[]) => void
   onBack: () => void
+  onOpenApp?: (storyId: string) => void
   /** Findings style 8's modal. */
   tools?: { onAddAssets: () => void }
 }) {
@@ -1306,7 +1327,14 @@ function AssetsAppsView({
           </div>
         ) : null}
         <div ref={setGrid} className={styles.sideGrid}>
-          <BriefingAssetBoard order={order} columns={columns} roomy={roomy} edge={edge} onReorder={onReorder} />
+          <BriefingAssetBoard
+            order={order}
+            columns={columns}
+            roomy={roomy}
+            edge={edge}
+            onReorder={onReorder}
+            onOpenApp={onOpenApp}
+          />
         </div>
       </div>
     </section>

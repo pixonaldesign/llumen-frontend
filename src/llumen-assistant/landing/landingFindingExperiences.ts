@@ -1,6 +1,6 @@
 /**
- * Tell Me More for each Briefing finding. Findings shown on a map open that map in the ask stage with their
- * hotspots outlined as polygon annotations; the others answer with charts only.
+ * Tell Me More for each Briefing finding. Each GAMI finding opens its place in the ask stage, zoomed into
+ * the area its story's second page outlines, with the charts that explain it.
  */
 import type {
   AgentResponseBlock,
@@ -10,16 +10,14 @@ import type {
   ThinkingStep,
   TimelineStep,
 } from '../assistantReplyTypes'
-import type { StoryMapRegion } from '../story/storyAiScenarios'
-import { paddedOutline } from '../story/storyAnnotations'
-import type { MapAnnotationItem } from '../story/storyMapAnnotations'
+import { GAMI_STORIES } from '../gami/gamiScenario'
+import type { GamiPage } from '../gami/gamiTypes'
 import { BRIEFING_PLACES, type BriefingPlaceId } from './briefingMapPlaces'
 
-const KM_PER_DEG_LNG = 101.3
-const KM_PER_DEG_LAT = 110.8
-const OUTLINE_PADDING_M = 140
+/** A Briefing place, or the Poland alert's Türkiye bridge. */
+export type FindingStageId = BriefingPlaceId | 'alert'
 
-export type FindingMap = { place: BriefingPlaceId; title: string; tag: string; meta: string }
+export type FindingMap = { place: FindingStageId; title: string; tag: string; meta: string }
 
 export type FindingExperience = {
   reply: AssistantReplyPayload
@@ -27,131 +25,15 @@ export type FindingExperience = {
   map: FindingMap | null
 }
 
-type AreaSpec = { name: string; text: string }
-
-type PlaceOutline = {
-  label: string
-  /** Story scene whose disk palette matches the place. */
-  sceneIndex: number
-  color: string
-  /** Each area outlines every column this close to its centre, the spot with the most column height around it. */
-  radiusKm: number
-  areas: AreaSpec[]
+export function isFindingPlace(id: string | undefined): id is FindingStageId {
+  return id === 'alert' || (id !== undefined && id in BRIEFING_PLACES)
 }
 
-const PLACE_OUTLINES: Record<BriefingPlaceId, PlaceOutline> = {
-  'abu-dhabi': {
-    label: 'Abu Dhabi Island',
-    sceneIndex: 0,
-    color: '#ffb547',
-    radiusKm: 0.85,
-    areas: [
-      { name: 'Al Salam Street roadworks', text: 'Routes 54 & 65 · +18 min' },
-      { name: 'Corniche approach', text: 'Spillover · +9 min' },
-    ],
-  },
-  mussafah: {
-    label: 'Al Mussafah',
-    sceneIndex: 1,
-    color: '#7fe3ff',
-    radiusKm: 0.65,
-    areas: [
-      { name: 'New warehouse permits', text: '14 new warehouse permits' },
-      { name: 'Southern approach roads', text: 'Trucks · 120 m from homes' },
-    ],
-  },
-  dubai: {
-    label: 'Coastal corridor',
-    sceneIndex: 2,
-    color: '#ffd166',
-    radiusKm: 0.7,
-    areas: [
-      { name: 'Port district', text: 'Port district · PM2.5 48' },
-      { name: 'Harbour front', text: 'Harbour front · PM2.5 44' },
-      { name: 'Marina edge', text: 'Marina edge · PM2.5 41' },
-    ],
-  },
-  'al-ain': {
-    label: 'Al Ain',
-    sceneIndex: 0,
-    color: '#ff8ab3',
-    radiusKm: 0.7,
-    areas: [
-      { name: 'Al Khatm access road', text: 'Al Khatm road · cameras · −18%' },
-      { name: 'Remah access road', text: 'Remah road · patrols · −11%' },
-      { name: 'Sweihan access road', text: 'Sweihan road · patrols · −7%' },
-    ],
-  },
-}
-
-export function isFindingPlace(id: string | undefined): id is BriefingPlaceId {
-  return id !== undefined && id in BRIEFING_PLACES
-}
-
-export function findingSceneIndex(place: BriefingPlaceId) {
-  return PLACE_OUTLINES[place].sceneIndex
-}
-
-const regions = new Map<BriefingPlaceId, StoryMapRegion>()
-
-/** The place's Briefing columns as a stage region; cached so the map sees one region per place. */
-export function findingRegion(place: BriefingPlaceId): StoryMapRegion {
-  const cached = regions.get(place)
-  if (cached) return cached
-  const { camera, ramp, columns, junctions } = BRIEFING_PLACES[place]
-  const region: StoryMapRegion = {
-    id: `finding-${place}`,
-    label: PLACE_OUTLINES[place].label,
-    camera,
-    columnRamp: ramp,
-    columns,
-    junctions,
-  }
-  regions.set(place, region)
-  return region
-}
-
-function distanceKm(a: [number, number, number], b: [number, number, number]) {
-  return Math.hypot((a[0] - b[0]) * KM_PER_DEG_LNG, (a[1] - b[1]) * KM_PER_DEG_LAT)
-}
-
-const outlines = new Map<BriefingPlaceId, MapAnnotationItem[]>()
-
-/** Polygons around the place's heaviest column clusters, one per area, heaviest first. */
-export function findingAreas(place: BriefingPlaceId): MapAnnotationItem[] {
-  const cached = outlines.get(place)
-  if (cached) return cached
-  const { columns } = BRIEFING_PLACES[place]
-  const { label, color, radiusKm, areas } = PLACE_OUTLINES[place]
-  const mass = columns.map((column) =>
-    columns.reduce((total, other) => (distanceKm(column, other) <= radiusKm ? total + other[2] : total), 0),
-  )
-  const heaviest = columns.map((_, index) => index).sort((a, b) => mass[b] - mass[a])
-  const seeds: number[] = []
-  for (const index of heaviest) {
-    if (seeds.length === areas.length) break
-    if (seeds.every((seed) => distanceKm(columns[seed], columns[index]) > radiusKm * 2 + 0.25)) seeds.push(index)
-  }
-  const items = seeds.map((seed, order): MapAnnotationItem => {
-    const members = columns.filter((column) => distanceKm(column, columns[seed]) <= radiusKm)
-    const ring = paddedOutline(
-      members.map(([lng, lat]): [number, number] => [lng, lat]),
-      OUTLINE_PADDING_M,
-    )
-    const area = areas[order]
-    return {
-      id: `finding-${place}-${order + 1}`,
-      tool: 'polygon',
-      name: area.name,
-      geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] },
-      style: { color, text: area.text },
-      visible: true,
-      opacity: 1,
-      context: { anchor: 'geometry', slideIndex: 0, dataLabel: label, features: [] },
-    }
-  })
-  outlines.set(place, items)
-  return items
+/** The map Tell Me More opens for a place: its story's second page, with that page's outlined area. */
+export function findingStage(place: FindingStageId): GamiPage {
+  if (place === 'alert') return GAMI_STORIES['gami-alert'].pages[1]
+  const story = Object.values(GAMI_STORIES).find((item) => item.place === place && item.id !== 'gami-alert')
+  return (story ?? GAMI_STORIES['gami-overview']).pages[1]
 }
 
 function timeline(steps: ThinkingStep[]): TimelineStep[] {
@@ -258,663 +140,266 @@ function experience(spec: ExperienceSpec): FindingExperience {
   }
 }
 
+
+/** Every Poland alert answers with the same brief: the disruption, then the Türkiye bridge on the map. */
+const polandAlert = () =>
+  experience({
+    id: 'finding-gami-alert',
+    read: 'Reading the export-permit suspension notices and Poland supplier contracts…',
+    search: 'Matching the 20 suspended items to stock, UAV programmes and alternative suppliers…',
+    reason: 'Outlining the suppliers that can bridge the 3 critical items…',
+    headline: 'Switch the 3 critical UAV parts to Türkiye: first deliveries in 30 days, at 8% extra cost.',
+    headlineDetail: 'Drew the Ankara–Eskişehir–Konya supplier belt on the map, with the bridge routes to Riyadh and Al-Kharj.',
+    intro:
+      'The Poland–Russia conflict suspended export permits for 20 components Saudi military industries import from Poland. Three of them, propulsion motors, EO/IR gimbals and navigation units, feed every national UAV programme, and motor stock runs out in 41 days.',
+    sections: [
+      {
+        heading: 'What is at risk',
+        text: '3 critical items, 8 moderate and 9 mild. Najm, Sahm and Rimah would miss 2,160 deliveries in 2027 if the motors run out.',
+        chart: chartComponent(
+          'finding-gami-alert-stock',
+          {
+            type: 'bars',
+            title: 'Days of stock left',
+            value: '41 days',
+            unit: 'propulsion motors',
+            color: '#ee3f39',
+            rows: barRows([
+              ['Propulsion motors', 41, '41 days'],
+              ['EO/IR gimbals', 47, '47 days'],
+              ['Navigation units', 58, '58 days'],
+            ]),
+          },
+          'Stock left for each critical item at the current build rate.',
+        ),
+      },
+      {
+        heading: 'On the map',
+        text: 'Ankara, Eskişehir and Konya each have a qualified supplier with capacity above the monthly need. Their routes into Riyadh and Al-Kharj are drawn in green; the suspended Polish routes are faded red.',
+      },
+      {
+        heading: 'Recommended action',
+        text: 'Place bridge orders this week. Türkiye lands first deliveries 11 days before motor stock runs out and covers supply for 3 years, until local production starts in 2029.',
+        chart: chartComponent(
+          'finding-gami-alert-capacity',
+          {
+            type: 'bars',
+            title: 'Türkiye capacity vs monthly need',
+            value: '111%',
+            unit: 'motors, Ankara',
+            color: '#1fce7a',
+            rows: barRows([
+              ['Motors · Ankara', 111, '111%'],
+              ['Gimbals · Eskişehir', 108, '108%'],
+              ['Nav units · Konya', 107, '107%'],
+            ]),
+          },
+          'Each supplier’s monthly capacity as a share of the Kingdom’s need.',
+        ),
+      },
+    ],
+    map: { place: 'alert', title: 'Drone Supply: Bridge Through Türkiye · on the map', tag: 'Anatolia', meta: '1 area outlined' },
+  })
+
 const EXPERIENCES: Record<string, () => FindingExperience> = {
-  'abu-dhabi': () =>
+  'poland-motor-alert': polandAlert,
+  'poland-gimbal-alert': polandAlert,
+  'poland-inu-alert': polandAlert,
+  'gami-overview': () =>
     experience({
-      id: 'finding-bus',
-      read: 'Reading the Island Bus Reliability Brief from Mobility and the arrivals data behind it…',
-      search: 'Matching late arrivals on island routes to roadworks and peak-hour traffic, this week…',
-      reason: 'Outlining the stretches where the delay concentrates on the island map…',
-      headline: 'Outlined the two stretches behind the island bus delays.',
-      headlineDetail:
-        'Drew a polygon around each stretch on the island map, labelled with the routes and the minutes lost.',
+      id: 'finding-gami-overview',
+      read: 'Reading the 2026 plan scorecard and the Saudi Made trajectory…',
+      search: 'Matching licensed companies, investment and licences to the Kingdom’s industrial sites…',
+      reason: 'Outlining where the sector concentrates on the map…',
+      headline: 'The sector is on track for 2026, and the Riyadh–Al Kharj corridor carries it.',
+      headlineDetail: 'Drew the corridor on the map: 248 of the 602 licensed companies and SAR 7.9bn of this year’s investment.',
       intro:
-        'Morning arrivals on island bus routes are running 12 minutes late on average this week. Routes 54 and 65 carry most of it, because the roadworks on Al Salam Street slow the 7–9 am peak. I outlined where the delay builds up on the island map.',
+        'Saudi Made reached 29.4% this year, 94.8% of the 2026 plan, with the military market at SAR 46.5bn and 66.4k jobs. The corridor between Riyadh and Al Kharj is where most of it happens, so I outlined it on the map.',
       sections: [
         {
           heading: 'On the map',
-          text: 'The amber outline over Al Salam Street covers the junctions where Routes 54 and 65 queue behind the lane closures, adding up to 18 minutes per trip. The second outline, on the Corniche approach, is spillover: buses rerouted around the works add about 9 minutes there.',
+          text: 'The outline runs from the Riyadh Defense Electronics Park to the Al-Kharj Armament Complex. It holds 41% of licensed companies, and both UAV sites at risk from the Poland supply alert.',
         },
         {
-          heading: 'Delay by route',
-          text: 'Routes 54 and 65 lose the most time because both run the full length of Al Salam Street; the other routes only cross it.',
+          heading: '2026 plan progress',
+          text: 'All three headline numbers are above 90% of plan with ten weeks of the year left. Jobs is the furthest behind, at 90.3%.',
           chart: chartComponent(
-            'finding-bus-routes',
+            'finding-gami-plan',
             {
               type: 'bars',
-              title: 'Average delay by route, 7–9 am',
-              value: '12',
-              unit: 'min late on average',
-              color: '#ffb547',
-              rows: barRows([
-                ['Route 54', 18, '+18 min'],
-                ['Route 65', 14, '+14 min'],
-                ['Route 32', 11, '+11 min'],
-                ['Route 9', 8, '+8 min'],
-                ['Route 101', 6, '+6 min'],
-              ]),
-            },
-            'Average minutes late at the final stop, weekday mornings this week.',
-          ),
-        },
-        {
-          heading: 'Through the week',
-          text: 'The delay grew from 6 to 14 minutes as the works moved onto the inner lanes on Tuesday, and has held since.',
-          chart: chartComponent(
-            'finding-bus-week',
-            {
-              type: 'trend',
-              title: 'Average lateness, island routes',
-              value: '14',
-              unit: 'min on Wednesday',
-              color: '#70aeff',
-              yLabels: ['20 min', '10 min', '0'],
-              xLabels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'],
-              line: trendLine([6, 9, 12, 14, 13], 0, 20),
-            },
-            'Average minutes late per morning trip, all island routes.',
-          ),
-        },
-        {
-          heading: 'Recommended action',
-          text: 'Move Routes 54 and 65 onto Al Khaleej Al Arabi Street until the Al Salam Street works finish, and add two buses to each route between 7 and 9 am. That recovers about 9 of the 12 minutes.',
-        },
-      ],
-      map: {
-        place: 'abu-dhabi',
-        title: 'Island Bus Reliability Brief · on the map',
-        tag: 'Abu Dhabi',
-        meta: '2 areas outlined',
-      },
-    }),
-
-  'proactive-ai': () =>
-    experience({
-      id: 'finding-digest',
-      read: 'Reading the Proactive Risk Digest from Proactive AI and the complaints behind it…',
-      search:
-        'Counting billing and connection complaints in MBZ City since Sunday, and staffing at its service center…',
-      reason: 'Projecting wait times at the MBZ City service center with and without extra weekend agents…',
-      headline: 'Complaints in MBZ City are building faster than the service center can absorb them.',
-      headlineDetail: 'Charted the complaint build-up, what it is about, and the effect of adding weekend agents.',
-      intro:
-        'Llumen flagged 38 billing and connection complaints from MBZ City since Sunday. At this rate, the weekend shift at the MBZ City service center would face 40-minute delays within 72 hours.',
-      sections: [
-        {
-          heading: 'How the cluster built up',
-          text: 'Complaints were at their usual 2–4 a day until Sunday, then rose each day: 9, 12 and 17. Almost all of them come from the newer blocks connected last month.',
-          chart: chartComponent(
-            'finding-digest-trend',
-            {
-              type: 'trend',
-              title: 'Billing and connection complaints, MBZ City',
-              value: '38',
-              unit: 'since Sunday',
-              color: '#ff8a65',
-              yLabels: ['20', '10', '0'],
-              xLabels: ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue'],
-              line: trendLine([3, 2, 4, 9, 12, 17], 0, 20),
-            },
-            'Complaints logged per day from MBZ City addresses.',
-          ),
-        },
-        {
-          heading: "What it's about",
-          text: 'Billing disputes lead, mostly first bills estimated before a meter reading. Connection drops are second and concentrated in two buildings.',
-          chart: chartComponent(
-            'finding-digest-types',
-            {
-              type: 'bars',
-              title: 'Complaints by type since Sunday',
-              color: '#ff8a65',
-              rows: barRows([
-                ['Billing disputes', 17, '17'],
-                ['Connection drops', 12, '12'],
-                ['Meter readings', 6, '6'],
-                ['Other', 3, '3'],
-              ]),
-            },
-            'All 38 complaints from MBZ City since Sunday, by category.',
-          ),
-        },
-        {
-          heading: 'Recommended action',
-          text: 'Add three agents to the weekend shift at the MBZ City service center and send a short notice to the new blocks about estimated first bills. That keeps the expected wait near 12 minutes.',
-          chart: chartComponent(
-            'finding-digest-staffing',
-            {
-              type: 'compare',
-              title: 'Weekend shift, MBZ City service center',
-              legend: ['As scheduled', 'With 3 extra agents'],
+              title: '2026 plan progress',
+              value: '94.8%',
+              unit: 'Saudi Made, of plan',
+              color: '#2de8c8',
               rows: [
-                { label: 'Expected wait', before: 40, after: 12, beforeDisplay: '40 min', afterDisplay: '12 min' },
-                { label: 'Agents on shift', before: 6, after: 9, beforeDisplay: '6', afterDisplay: '9' },
-                {
-                  label: 'Resolved the same day',
-                  before: 54,
-                  after: 81,
-                  beforeDisplay: '54%',
-                  afterDisplay: '81%',
-                },
+                { label: 'Saudi Made · 29.4% of 31.0%', value: 94.8, display: '94.8%' },
+                { label: 'Military market · SAR 46.5bn of 50bn', value: 93, display: '93.0%' },
+                { label: 'Jobs · 66.4k of 73.5k', value: 90.3, display: '90.3%' },
               ],
             },
-            'Projected for the coming weekend at the current complaint rate.',
+            'Share of the 2026 plan reached so far.',
           ),
         },
+        {
+          heading: 'Toward 2030',
+          text: 'Saudi Made is 59% of the way to the 50% goal. Next year’s plan is 34.0%, with the military market at 1.10% of GDP.',
+          chart: chartComponent(
+            'finding-gami-trajectory',
+            {
+              type: 'trend',
+              title: 'Saudi Made share',
+              value: '29.4%',
+              unit: 'in 2026',
+              color: '#2de8c8',
+              yLabels: ['50%', '35%', '20%'],
+              xLabels: ['2023', '2024', '2025', '2026'],
+              line: trendLine([19.4, 22.5, 26, 29.4], 20, 50),
+            },
+            'Locally made share of military spending.',
+          ),
+        },
+        {
+          heading: 'Recommended action',
+          text: 'Prioritize the export licence queue: it has the highest blocked share of the 11 e-services, at 9%, and it slows the companies the corridor’s growth depends on.',
+        },
       ],
-      map: null,
+      map: { place: 'kingdom', title: 'GAMI 2026 Performance · on the map', tag: 'Riyadh–Al Kharj', meta: '1 area outlined' },
     }),
 
-  'land-use': () =>
+  'gami-localization': () =>
     experience({
-      id: 'finding-industrial',
-      read: 'Reading the Industrial growth in Al Mussafah finding from Land Use and the permits behind it…',
-      search: 'Pulling warehouse permits and land-use parcels in Al Mussafah for 2023–2025…',
-      reason: 'Outlining where the new permits and heavy-vehicle routes meet homes on the Mussafah map…',
-      headline: 'Outlined where industrial growth is pressing on homes in Al Mussafah.',
-      headlineDetail:
-        'Drew a polygon around the new permit cluster and the southern approach roads on the Mussafah map.',
+      id: 'finding-gami-localization',
+      read: 'Reading the localization opportunity register and import data…',
+      search: 'Matching each product to supplier capability and industrial land in the Eastern Province…',
+      reason: 'Outlining the city that can take the most of it now…',
+      headline: 'Jubail can take SAR 10.6bn of the SAR 32.0bn localization opportunity now.',
+      headlineDetail: 'Outlined Jubail Industrial City, with its 37 qualified suppliers and two of the six opportunities.',
       intro:
-        'Al Mussafah added 14 new warehouse permits this year, so industrial use is outpacing open space. Heavy vehicles now pass within 120 m of homes on the southern approach roads. I outlined both areas on the Mussafah map.',
+        'Six products worth SAR 32.0bn a year can be made on capability already in the Kingdom. UAV airframes and propulsion are the largest, at SAR 6.8bn. Jubail is ready for two of them today, so I outlined it on the map.',
       sections: [
         {
           heading: 'On the map',
-          text: 'The cyan outline over the tallest columns is the cluster where the 14 permits were issued, along the main industrial axis. The second outline covers the southern approach roads, where truck traffic to those warehouses runs beside the residential blocks.',
+          text: 'The outline covers Jubail Industrial City. Its armor steel and machining suppliers are ready for ammunition and energetics (SAR 5.9bn) and armored vehicle subsystems (SAR 4.7bn).',
         },
         {
-          heading: 'How the land use shifted',
-          text: 'Industrial land grew from 24% to 31% of the monitored belt in two years, almost entirely taken from open space.',
+          heading: 'Opportunities by product',
+          text: 'Three products make up more than half of the value: UAV airframes, ammunition and armored vehicle subsystems.',
           chart: chartComponent(
-            'finding-industrial-mix',
-            {
-              type: 'compare',
-              title: 'Share of the monitored belt',
-              legend: ['2023', '2025'],
-              rows: [
-                { label: 'Industrial', before: 24, after: 31, beforeDisplay: '24%', afterDisplay: '31%' },
-                { label: 'Open space', before: 33, after: 27, beforeDisplay: '33%', afterDisplay: '27%' },
-                { label: 'Residential', before: 43, after: 42, beforeDisplay: '43%', afterDisplay: '42%' },
-              ],
-            },
-            'Land-use parcels in the Al Mussafah monitoring belt.',
-          ),
-        },
-        {
-          heading: 'Permits this year',
-          text: 'Permits peaked in the third quarter, when the logistics zone extension opened.',
-          chart: chartComponent(
-            'finding-industrial-permits',
+            'finding-gami-opportunities',
             {
               type: 'bars',
-              title: 'Warehouse permits by quarter, 2025',
-              value: '14',
-              unit: 'permits this year',
-              color: '#7fe3ff',
+              title: 'Localization opportunities',
+              value: '32.0',
+              unit: 'SAR bn a year',
+              color: '#ffc401',
               rows: barRows([
-                ['Q1', 2, '2'],
-                ['Q2', 4, '4'],
-                ['Q3', 5, '5'],
-                ['Q4', 3, '3'],
+                ['UAV airframes & propulsion', 6.8, 'SAR 6.8bn'],
+                ['Ammunition & energetics', 5.9, 'SAR 5.9bn'],
+                ['Armored vehicle subsystems', 4.7, 'SAR 4.7bn'],
+                ['Radar & comms modules', 4.2, 'SAR 4.2bn'],
+                ['Aircraft MRO & spares', 3.9, 'SAR 3.9bn'],
+                ['Naval vessel outfitting', 2.6, 'SAR 2.6bn'],
               ]),
             },
-            'New warehouse permits issued in Al Mussafah.',
+            'Annual import-substitution value by product.',
           ),
         },
         {
           heading: 'Recommended action',
-          text: 'Hold new warehouse permits near the southern approach until a truck route on the industrial side opens, and keep the remaining open strip as a buffer between the warehouses and homes.',
+          text: 'Fast-track the propellant plant’s licence review in Jubail and allocate land for the shell forging works. Closing the composites gap next opens UAV airframes, which also ends the Poland exposure.',
         },
       ],
-      map: {
-        place: 'mussafah',
-        title: 'Industrial growth in Al Mussafah · on the map',
-        tag: 'Al Mussafah',
-        meta: '2 areas outlined',
-      },
+      map: { place: 'eastern', title: 'Localization Opportunities · on the map', tag: 'Jubail', meta: '1 area outlined' },
     }),
 
-  'land-use-mix': () =>
+  'gami-wds': () =>
     experience({
-      id: 'finding-mix',
-      read: 'Reading the Land use mix finding from Land Use and the parcel data behind it…',
-      search: 'Comparing land-use parcels in Al Mussafah between 2016 and 2025…',
-      reason: 'Measuring the buffer between industrial plots and homes, block by block…',
-      headline: 'Industry has taken a third of the open space it now borders.',
-      headlineDetail: 'Charted the land-use shift since 2016, the open-space decline and the remaining buffers.',
+      id: 'finding-gami-wds',
+      read: 'Reading the World Defense Show 2028 exhibitor pipeline…',
+      search: 'Grouping applications by region and checking venue readiness in Malham…',
+      reason: 'Outlining the venue and its weakest link…',
+      headline: 'WDS 2028 is 32% ahead of 2026; roads and shuttles are the link to fix.',
+      headlineDetail: 'Outlined the Malham venue: halls are 82% ready, road and shuttle capacity 64%.',
       intro:
-        'Residential land still leads in Al Mussafah at 42%, but industrial land at 31% now outweighs open space at 27%. The buffers between factories and homes are getting thin.',
+        '1,940 exhibitors from 94 countries have applied, 15 months before the show opens. Europe and the GCC lead. The venue is ahead on halls but behind on getting 41,000 visitors a day there, so I outlined it on the map.',
       sections: [
         {
-          heading: 'Since 2016',
-          text: 'Industrial land grew by 9 points. Most of it came out of open space; residential land barely moved.',
-          chart: chartComponent(
-            'finding-mix-compare',
-            {
-              type: 'compare',
-              title: 'Land use in Al Mussafah',
-              legend: ['2016', '2025'],
-              rows: [
-                { label: 'Residential', before: 45, after: 42, beforeDisplay: '45%', afterDisplay: '42%' },
-                { label: 'Industrial', before: 22, after: 31, beforeDisplay: '22%', afterDisplay: '31%' },
-                { label: 'Open space', before: 33, after: 27, beforeDisplay: '33%', afterDisplay: '27%' },
-              ],
-            },
-            'Share of the Al Mussafah land area by use.',
-          ),
+          heading: 'On the map',
+          text: 'The outline covers the Malham venue: five halls by domain, the outdoor display and the flying display zone. The four shuttle routes from the airport, the city and KAFD all arrive at one gate.',
         },
         {
-          heading: 'Open space, year by year',
-          text: 'The decline sped up after 2022 with the logistics zone extension.',
+          heading: 'Applications by region',
+          text: 'Europe sends the most exhibitors, then the GCC and Middle East, then Asia.',
           chart: chartComponent(
-            'finding-mix-open',
-            {
-              type: 'trend',
-              title: 'Open space share, Al Mussafah',
-              value: '27',
-              unit: '% in 2025',
-              color: '#9bd17a',
-              yLabels: ['40%', '30%', '20%'],
-              xLabels: ['2016', '2019', '2022', '2025'],
-              line: trendLine([33, 32.6, 32, 31.4, 31, 30.6, 30.2, 29.1, 28, 27], 20, 40),
-            },
-            'Open space as a share of the Al Mussafah land area.',
-          ),
-        },
-        {
-          heading: 'Where the buffer is thinnest',
-          text: 'In the southern blocks, factories sit 140 m from homes. On the east edge it is only 90 m, below the 150 m planning guideline.',
-          chart: chartComponent(
-            'finding-mix-buffer',
+            'finding-gami-regions',
             {
               type: 'bars',
-              title: 'Distance between industrial plots and homes',
-              value: '90',
-              unit: 'm at the narrowest',
-              color: '#c9a36a',
+              title: 'Exhibitor applications by region',
+              value: '1,940',
+              unit: 'applications',
+              color: '#7b68ee',
               rows: barRows([
-                ['North blocks', 420, '420 m'],
-                ['Central blocks', 260, '260 m'],
-                ['Southern blocks', 140, '140 m'],
-                ['East edge', 90, '90 m'],
+                ['Europe', 612, '612'],
+                ['GCC & Middle East', 498, '498'],
+                ['Asia', 404, '404'],
+                ['North America', 236, '236'],
+                ['Africa', 118, '118'],
+                ['Latin America', 72, '72'],
               ]),
             },
-            'Shortest distance from an industrial plot to a residential plot, by block.',
+            'Applications received so far for WDS 2028.',
           ),
         },
         {
           heading: 'Recommended action',
-          text: 'Protect the remaining 27% open space in the local plan, and require a 150 m planted buffer for any new industrial plot that borders homes.',
+          text: 'Open a second venue gate and add two shuttle routes before the exhibitor move-in window. That lifts road and shuttle capacity from 64% to about 85% of the day-2 peak.',
         },
       ],
-      map: null,
+      map: { place: 'wds', title: 'WDS 2028 Exhibitor Pipeline · on the map', tag: 'Malham', meta: '1 area outlined' },
     }),
 
-  population: () =>
+  'gami-talent': () =>
     experience({
-      id: 'finding-population',
-      read: 'Reading the Population composition finding from Demographics and the census series behind it…',
-      search: 'Pulling residents by age group across the capital, 2016–2025, and by suburb for 2025…',
-      reason: 'Separating growth in working-age adults from the youth share…',
-      headline: 'Working-age adults drive the growth while the youth share holds steady.',
-      headlineDetail:
-        'Charted the youth share over time, the 2025 age mix and the suburbs with the most young residents.',
+      id: 'finding-gami-talent',
+      read: 'Reading the skills gap forecast and the internship and academy funnels…',
+      search: 'Matching unfilled roles to employers and institutes in the Western Region…',
+      reason: 'Outlining the cluster where the gap is closest to closing…',
+      headline: 'The skills gap grows to 10,600 by 2030; KAEC is where a second intake closes it fastest.',
+      headlineDetail: 'Outlined the KAEC industrial cluster: 640 unfilled roles against 180 graduates a year.',
       intro:
-        'Working-age adults account for most of the population growth across the capital since 2016. The youth share has held near 27%, so demand for school places keeps rising in step with the population.',
+        'The sector is 6,350 skilled people short today, and the gap grows to 10,600 by 2030. The Western Region has the most unfilled roles, 2,140. In KAEC, eight employers share one institute, so I outlined the cluster on the map.',
       sections: [
         {
-          heading: 'Youth share over time',
-          text: 'The capital added about 455,000 residents since 2016, and the youth share barely moved.',
-          chart: chartComponent(
-            'finding-population-youth',
-            {
-              type: 'trend',
-              title: 'Youth share of residents',
-              value: '27',
-              unit: '% in 2025',
-              color: '#a78bfa',
-              yLabels: ['35%', '25%', '15%'],
-              xLabels: ['2016', '2019', '2022', '2025'],
-              line: trendLine([27.7, 27.6, 27.6, 27.5, 27.4, 27.3, 27.3, 27.2, 27.2, 27.3], 15, 35),
-            },
-            'Residents under 20 as a share of the capital population.',
-          ),
+          heading: 'On the map',
+          text: 'The outline covers KAEC’s industrial cluster. The KAEC Land Systems Plant has the most open roles, 214, and applicants live mostly to its south-west.',
         },
         {
-          heading: 'Age mix in 2025',
-          text: 'Adults aged 20–59 make up about two-thirds of residents; seniors remain a small but growing group.',
+          heading: 'Gap by skill',
+          text: 'UAV systems integration is the smallest gap today but the fastest-growing one, +76% by 2030.',
           chart: chartComponent(
-            'finding-population-mix',
+            'finding-gami-skills',
             {
               type: 'bars',
-              title: 'Residents by age group, 2025',
-              color: '#a78bfa',
-              rows: barRows([
-                ['Adults 20–59', 1675, '1.68M'],
-                ['Youth under 20', 675, '675K'],
-                ['Seniors 60+', 125, '125K'],
-              ]),
-            },
-            'Capital residents by age group, 2025 estimate.',
-          ),
-        },
-        {
-          heading: 'Where young residents live',
-          text: 'The newer suburbs carry the highest youth share, well above the island core.',
-          chart: chartComponent(
-            'finding-population-suburbs',
-            {
-              type: 'bars',
-              title: 'Youth share by suburb, 2025',
+              title: 'Skills gap by 2030',
+              value: '10,600',
+              unit: 'people short by 2030',
               color: '#70aeff',
               rows: barRows([
-                ['Al Shamkha', 36, '36%'],
-                ['Khalifa City', 34, '34%'],
-                ['MBZ City', 33, '33%'],
-                ['Island core', 21, '21%'],
-                ['Al Reem', 18, '18%'],
+                ['Avionics', 2900, '2,900'],
+                ['Precision machining', 2800, '2,800'],
+                ['Cyber & EW', 2700, '2,700'],
+                ['UAV systems integration', 2200, '2,200'],
               ]),
             },
-            'Residents under 20 as a share of each suburb.',
+            'Shortfall in the top four skills, 2030 forecast.',
           ),
         },
         {
           heading: 'Recommended action',
-          text: 'Plan new school places and family services in Al Shamkha and Khalifa City first, where the youth share is highest and housing is still being added.',
+          text: 'Add a second intake at the KAEC Technical Institute focused on machining and UAV integration. With 120 more graduates a year, the cluster’s gap closes in 2028.',
         },
       ],
-      map: null,
-    }),
-
-  dubai: () =>
-    experience({
-      id: 'finding-air',
-      read: 'Reading the Coastal corridor air quality finding from Environment and the sensor readings behind it…',
-      search: 'Pulling overnight PM2.5 from the coastal corridor sensors and matching it to port and traffic activity…',
-      reason: 'Outlining the three districts over the sensitive-group threshold on the corridor map…',
-      headline: 'Outlined the three districts over the sensitive-group threshold.',
-      headlineDetail: 'Drew a polygon around each district on the corridor map, labelled with its overnight PM2.5.',
-      intro:
-        'Particulate matter along the coastal corridor rose 18% overnight, pushing 3 districts over the sensitive-group threshold. Port and traffic emissions are driving it. I outlined the three districts on the corridor map.',
-      sections: [
-        {
-          heading: 'On the map',
-          text: 'The yellow outlines mark the port district, the harbour front and the marina edge. All three sit downwind of the port gates, where idling trucks and the evening traffic peak overlap.',
-        },
-        {
-          heading: 'Overnight build-up',
-          text: 'PM2.5 climbed steadily after 22:00 as the wind dropped, and peaked around 06:00.',
-          chart: chartComponent(
-            'finding-air-trend',
-            {
-              type: 'trend',
-              title: 'PM2.5 overnight, coastal corridor',
-              value: '47',
-              unit: 'µg/m³ at peak',
-              color: '#c084fc',
-              yLabels: ['60', '30', '0'],
-              xLabels: ['18:00', '22:00', '02:00', '06:00', '10:00'],
-              line: trendLine([28, 30, 31, 35, 38, 42, 44, 47, 46, 41], 0, 60),
-            },
-            'Corridor average PM2.5, µg/m³, last night.',
-          ),
-        },
-        {
-          heading: 'District readings',
-          text: 'Three districts are above the 35 µg/m³ sensitive-group threshold; the beach road and old town are still below it.',
-          chart: chartComponent(
-            'finding-air-districts',
-            {
-              type: 'bars',
-              title: 'Peak PM2.5 by district',
-              value: '3',
-              unit: 'districts over threshold',
-              color: '#ffd166',
-              rows: barRows([
-                ['Port district', 48, '48 µg/m³'],
-                ['Harbour front', 44, '44 µg/m³'],
-                ['Marina edge', 41, '41 µg/m³'],
-                ['Beach road', 33, '33 µg/m³'],
-                ['Old town', 29, '29 µg/m³'],
-              ]),
-            },
-            'Highest hourly PM2.5 per district, last night.',
-          ),
-        },
-        {
-          heading: 'Recommended action',
-          text: 'Issue a sensitive-groups advisory for the three outlined districts until the wind picks up, and ask the port to hold idling trucks off the corridor between 22:00 and 06:00.',
-        },
-      ],
-      map: {
-        place: 'dubai',
-        title: 'Coastal corridor air quality · on the map',
-        tag: 'Coastal corridor',
-        meta: '3 districts outlined',
-      },
-    }),
-
-  'heat-stress': () =>
-    experience({
-      id: 'finding-heat',
-      read: 'Reading the Coastal Heat Stress Advisory from Health and the readings behind it…',
-      search: 'Pulling night-time temperatures along the corniche and heat-related clinic visits for the last 3 weeks…',
-      reason: 'Comparing clinic visits with the seasonal baseline, by group and by neighbourhood…',
-      headline: 'Hot nights are sending more outdoor workers and older residents to clinics.',
-      headlineDetail:
-        'Charted night-time temperatures, clinic visits against the baseline and the neighbourhoods most affected.',
-      intro:
-        'Night-time temperatures along the corniche have stayed above 32°C for three weeks, and heat-related clinic visits are up 22% on the seasonal baseline. The rise is among outdoor workers and residents of older housing blocks.',
-      sections: [
-        {
-          heading: 'Night-time temperatures',
-          text: 'Nights have not dropped below 32°C since the start of the month, so bodies get no chance to recover between hot days.',
-          chart: chartComponent(
-            'finding-heat-nights',
-            {
-              type: 'trend',
-              title: 'Night-time minimum, corniche',
-              value: '32.8',
-              unit: '°C average minimum',
-              color: '#ff7a59',
-              yLabels: ['36°C', '32°C', '28°C'],
-              xLabels: ['Week 1', 'Week 2', 'Week 3'],
-              line: trendLine([32.2, 32.5, 32.4, 32.9, 33.1, 32.7, 33.4, 33.2, 32.8, 33.6], 28, 36),
-            },
-            'Lowest overnight temperature at the corniche stations.',
-          ),
-        },
-        {
-          heading: 'Clinic visits',
-          text: 'Visits are up across the board, and most of all among outdoor workers.',
-          chart: chartComponent(
-            'finding-heat-visits',
-            {
-              type: 'compare',
-              title: 'Heat-related clinic visits per week',
-              legend: ['Seasonal baseline', 'This week'],
-              rows: [
-                { label: 'All visits', before: 1052, after: 1284, beforeDisplay: '1,052', afterDisplay: '1,284' },
-                { label: 'Outdoor workers', before: 410, after: 540, beforeDisplay: '410', afterDisplay: '540' },
-                { label: 'Residents over 60', before: 290, after: 372, beforeDisplay: '290', afterDisplay: '372' },
-              ],
-            },
-            'Heat-related visits at coastal clinics.',
-          ),
-        },
-        {
-          heading: 'Most affected neighbourhoods',
-          text: 'Older housing blocks without central cooling account for most of the visits from residents.',
-          chart: chartComponent(
-            'finding-heat-areas',
-            {
-              type: 'bars',
-              title: 'Resident visits by neighbourhood, this week',
-              color: '#ff7a59',
-              rows: barRows([
-                ['Al Bateen', 86, '86'],
-                ['Al Khalidiyah', 74, '74'],
-                ['Al Manhal', 61, '61'],
-                ['Tourist Club', 55, '55'],
-              ]),
-            },
-            'Heat-related clinic visits from residents, by home neighbourhood.',
-          ),
-        },
-        {
-          heading: 'Recommended action',
-          text: 'Extend the midday break for outdoor work to 11:00–16:00, open cooling rooms overnight in the older housing blocks, and send heat alerts to residents over 60 in the four neighbourhoods above.',
-        },
-      ],
-      map: null,
-    }),
-
-  'al-ain': () =>
-    experience({
-      id: 'finding-dumping',
-      read: 'Reading the Al Ain station cluster finding from Waste Management and the reports behind it…',
-      search:
-        'Pulling illegal dumping reports around Al Ain for the last 8 weeks and matching them to the access roads…',
-      reason: 'Outlining the three desert access roads where patrols and cameras are active on the Al Ain map…',
-      headline: 'Outlined the three desert access roads behind the drop in dumping.',
-      headlineDetail:
-        'Drew a polygon around each access road on the Al Ain map, labelled with what is deployed and the change.',
-      intro:
-        'Illegal dumping reports around Al Ain are down 12% week over week, after new patrols and cameras went live on 3 desert access roads. I outlined those roads on the Al Ain map.',
-      sections: [
-        {
-          heading: 'On the map',
-          text: 'The pink outlines mark the Al Khatm, Remah and Sweihan access roads. Al Khatm has cameras and shows the biggest drop; Remah and Sweihan have patrols only.',
-        },
-        {
-          heading: 'Reports over time',
-          text: 'Reports held around 50–55 a week until the patrols started, then fell to 44 this week.',
-          chart: chartComponent(
-            'finding-dumping-trend',
-            {
-              type: 'trend',
-              title: 'Illegal dumping reports, Al Ain',
-              value: '44',
-              unit: 'reports this week',
-              color: '#5fe3a1',
-              yLabels: ['60', '40', '20'],
-              xLabels: ['Week 1', 'Week 4', 'Week 8'],
-              line: trendLine([52, 55, 51, 54, 53, 50, 47, 44], 20, 60),
-            },
-            'Weekly illegal dumping reports around Al Ain.',
-          ),
-        },
-        {
-          heading: 'By access road',
-          text: 'The road with cameras dropped fastest, which points to cameras as the bigger deterrent.',
-          chart: chartComponent(
-            'finding-dumping-roads',
-            {
-              type: 'compare',
-              title: 'Reports by access road',
-              legend: ['Last week', 'This week'],
-              rows: [
-                { label: 'Al Khatm · cameras', before: 17, after: 14, beforeDisplay: '17', afterDisplay: '14' },
-                { label: 'Remah · patrols', before: 18, after: 16, beforeDisplay: '18', afterDisplay: '16' },
-                { label: 'Sweihan · patrols', before: 15, after: 14, beforeDisplay: '15', afterDisplay: '14' },
-              ],
-            },
-            'Dumping reports within 2 km of each access road.',
-          ),
-        },
-        {
-          heading: 'Recommended action',
-          text: 'Keep the patrol schedule, and extend camera coverage to the Remah and Sweihan roads, where reports are falling slowest.',
-        },
-      ],
-      map: { place: 'al-ain', title: 'Al Ain station cluster · on the map', tag: 'Al Ain', meta: '3 roads outlined' },
-    }),
-
-  'water-network': () =>
-    experience({
-      id: 'finding-water',
-      read: 'Reading the Water Network Pressure Review from Infrastructure and the pressure logs behind it…',
-      search: 'Pulling overnight pressure for the zones on the eastern trunk main, last 7 nights…',
-      reason: 'Estimating supply interruptions if the valve inspection keeps its current date…',
-      headline: 'Four zones on the eastern trunk main are below the 2 bar threshold.',
-      headlineDetail:
-        'Charted pressure by zone, the decline at the weakest zone and the effect of inspecting the valve sooner.',
-      intro:
-        'Pressure on the eastern trunk main dropped below the 2 bar threshold overnight. Moving the valve inspection forward would prevent supply interruptions for about 18,000 households in four zones.',
-      sections: [
-        {
-          heading: 'Pressure by zone',
-          text: 'Al Muwaiji, Al Towayya, Al Jimi and Falaj Hazza are all under 2 bar; the zones further up the main are still within range.',
-          chart: chartComponent(
-            'finding-water-zones',
-            {
-              type: 'bars',
-              title: 'Lowest overnight pressure by zone',
-              value: '1.6',
-              unit: 'bar lowest, Al Muwaiji',
-              color: '#4fb3ff',
-              rows: barRows([
-                ['Al Muwaiji', 1.6, '1.6 bar'],
-                ['Al Towayya', 1.7, '1.7 bar'],
-                ['Al Jimi', 1.8, '1.8 bar'],
-                ['Falaj Hazza', 1.9, '1.9 bar'],
-                ['Zakher', 2.4, '2.4 bar'],
-                ['Hili', 2.6, '2.6 bar'],
-                ['Al Mutaredh', 2.7, '2.7 bar'],
-                ['Al Khabisi', 2.9, '2.9 bar'],
-              ]),
-            },
-            'Lowest pressure logged overnight in each zone on the eastern trunk main.',
-          ),
-        },
-        {
-          heading: 'Decline at Al Muwaiji',
-          text: 'Pressure has slipped every night for a week, which points to the valve rather than demand.',
-          chart: chartComponent(
-            'finding-water-trend',
-            {
-              type: 'trend',
-              title: 'Overnight pressure, Al Muwaiji',
-              value: '1.6',
-              unit: 'bar last night',
-              color: '#4fb3ff',
-              yLabels: ['3 bar', '2 bar', '1 bar'],
-              xLabels: ['7 nights ago', 'Last night'],
-              line: trendLine([2.4, 2.3, 2.2, 2.0, 1.9, 1.7, 1.6], 1, 3),
-            },
-            'Lowest overnight pressure in Al Muwaiji, last 7 nights.',
-          ),
-        },
-        {
-          heading: 'Recommended action',
-          text: 'Move the valve inspection on the eastern trunk main forward to this week. If pressure keeps falling at this rate, the four zones drop below the supply minimum within 5 days.',
-          chart: chartComponent(
-            'finding-water-inspection',
-            {
-              type: 'compare',
-              title: 'Valve inspection timing',
-              legend: ['As planned', 'Moved forward'],
-              rows: [
-                {
-                  label: 'Households at risk',
-                  before: 18400,
-                  after: 2100,
-                  beforeDisplay: '18,400',
-                  afterDisplay: '2,100',
-                },
-                {
-                  label: 'Expected interruption',
-                  before: 5,
-                  after: 0.5,
-                  beforeDisplay: '5 h',
-                  afterDisplay: '30 min',
-                },
-              ],
-            },
-            'Projected for the four zones under 2 bar.',
-          ),
-        },
-      ],
-      map: null,
+      map: { place: 'western', title: 'Defence Skills Gap · on the map', tag: 'KAEC', meta: '1 area outlined' },
     }),
 }
 

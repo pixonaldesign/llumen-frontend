@@ -96,6 +96,8 @@ import {
   type ChatInteractionModel,
 } from './interactionModel'
 import { StoryView } from './story/StoryView'
+import { GamiStoryView, type GamiAskContext } from './gami/GamiStoryView'
+import { isGamiStory } from './gami/gamiScenario'
 import type { StoryMapView } from './story/StoryMap'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
 import { StoryMapStatesContext, type StoryMapStates } from './story/storyMapStates'
@@ -2791,10 +2793,34 @@ export function CompactAssistantDemo() {
     return grouped
   }, [messages])
 
+  const openGamiAsk = useCallback(
+    ({ storyId, title, pageTitle, sourceRect }: GamiAskContext) => {
+      if (isHub) {
+        setLandingChips([{ id: `story-${storyId}`, label: title, categoryId: 'slides' }])
+        setHubMorphFrom(sourceRect)
+        setHubStoryOpen(true)
+        setLandingFocusToken((n) => n + 1)
+        return
+      }
+      setDraft((prev) => {
+        const mention = `@${pageTitle}`
+        if (!prev.trim()) return `Tell me more about ${mention}`
+        if (prev.includes(mention)) return prev
+        return `${prev.trim()} ${mention}`
+      })
+      setOpen(true)
+      setExpanded(false)
+    },
+    [isHub],
+  )
+
   const openRelatedFinding = useCallback((item: FindingToastInstance) => {
     const storyId = relatedStoryId(item)
-    if (storyId) setActiveStoryId(storyId)
-  }, [])
+    if (!storyId) return
+    setActiveStoryId(storyId)
+    // The alert story's part cards sit where the aurora's copy would cover them.
+    if (isAlertFinding(item)) closeAlert()
+  }, [closeAlert])
 
   const storyActive = activeStoryId != null
   const ownsActiveStory = storyAi.storyId === null || storyAi.storyId === activeStoryId
@@ -3052,7 +3078,20 @@ export function CompactAssistantDemo() {
           ref={(node) => setLandingScrollEl((current) => (current === node ? current : node))}
         >
           {!storyActive || storyHandoff || storyRelease ? landingHome : null}
-          {storyActive ? (
+          {storyActive && isGamiStory(activeStoryId) ? (
+            <GamiStoryView
+              key={activeStoryId}
+              storyId={activeStoryId}
+              entrance={storyEntrance}
+              mapHidden={storyHandoff === 'cover' || storyRelease !== null}
+              onMapReady={passStoryGate}
+              onBack={leaveStory}
+              onAsk={openGamiAsk}
+              agentOpen={open || hubStoryOpen}
+              onCloseAsk={hubStoryOpen ? () => setCompactRestoreToken((n) => n + 1) : undefined}
+              onSlideIndexChange={setStorySlideIndex}
+            />
+          ) : storyActive ? (
             <StoryView
               storyId={activeStoryId}
               entrance={storyEntrance}
@@ -3323,7 +3362,7 @@ export function CompactAssistantDemo() {
               <LandingAskAsset
                 stateId={landingAskAsset?.stateId ?? null}
                 title={landingAskAsset?.title ?? chatTitle}
-                place={landingAskAsset?.place ?? 'Abu Dhabi'}
+                place={landingAskAsset?.place ?? 'Saudi Arabia'}
                 caption={landingAskAsset?.caption}
                 analysis={landingAskAsset?.analysis}
                 onShowInConversation={
