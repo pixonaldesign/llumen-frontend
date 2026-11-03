@@ -151,6 +151,7 @@ import {
   type ColumnGlyphColors,
   type StoryScene,
 } from './storyDemoScenes'
+import { StorySummaryText } from './StorySummaryText'
 import { StoryTimeSeries, type StoryTimeSeriesProps } from './StoryTimeSeries'
 import type { TimelineChartSeries } from './storyTimelineCharts'
 import {
@@ -257,7 +258,7 @@ function changedFilterIds(from: Record<string, StoryFilter[]>, to: Record<string
 }
 
 const INSIGHT_CARD_LABELS: Record<InsightCardId, string> = {
-  summary: 'Executive Summary',
+  summary: 'Llumen AI Summary',
   emissions: 'Traffic Volume vs Typical Pattern',
   groundwater: 'Average Junction Load',
   biodiversity: 'Junction Traffic Status',
@@ -2241,48 +2242,42 @@ export function StoryView({
     <>
       {insightCard(
         'summary',
-        [
-          styles.summaryCard,
-          gradientStyles.gradientBorder,
-          regeneratingSlideId === slide.id ? styles.summaryRegenerating : '',
-        ]
-          .filter(Boolean)
-          .join(' '),
-        'Executive Summary',
+        `${styles.summaryCard} ${gradientStyles.gradientBorder}`,
+        'Llumen AI Summary',
         <>
-          <h2 className={styles.summaryTitle}>Executive Summary</h2>
+          <h2 className={styles.summaryTitle}>Llumen AI Summary</h2>
           {summaryUpdated}
-          {aiRegion && regionInsight ? (
-            <p className={styles.summaryBody}>
-              {aiRegion.label}&apos;s traffic volume rose{' '}
-              <em className={styles.summaryEmphasis}>14% year over year</em> in {MUSSAFAH_PERIOD}, peaking at
-              11.8k vehicles per hour on the E30 approach. Average junction load climbed to{' '}
-              <em className={styles.summaryEmphasis}>
-                <AnimatedNumber value={regionInsight.load} format={formatCount} />%
-              </em>
-              , with{' '}
-              <em className={styles.summaryEmphasis}>
-                {regionBusyJunctions(aiRegion)} of {aiRegion.junctions.length} junctions
-              </em>{' '}
-              over capacity during the 06:00–09:00 shift change.
-            </p>
-          ) : (
-          <p className={styles.summaryBody}>
-            Abu Dhabi&apos;s traffic operations view combines monitored-junction activity and
-            value-distribution signals across{' '}
-            <em className={styles.summaryEmphasis}>
-              <AnimatedNumber value={scene.legend.junctionCount} format={formatCount} /> junctions
-            </em>
-            . Currently,{' '}
-            <em className={styles.summaryEmphasis}>
-              <AnimatedNumber value={insight.online} format={formatCount} /> junctions are reporting
-            </em>{' '}
-            at <AnimatedNumber value={insight.uptime} format={formatCount} />% data coverage, while{' '}
-            <AnimatedNumber value={insight.marine} format={formatCount} /> show congested conditions.
-            Hourly traffic volume and junction-load trends identify the busiest corridors so
-            operations teams can prioritize signal timing and field response.
-          </p>
-          )}
+          <StorySummaryText
+            parts={
+              aiRegion && regionInsight
+                ? [
+                    `${aiRegion.label}'s traffic volume rose `,
+                    { em: ['14% year over year'] },
+                    ` in ${MUSSAFAH_PERIOD}, peaking at 11.8k vehicles per hour on the E30 approach. Average junction load climbed to `,
+                    { em: [regionInsight.load, '%'] },
+                    ', with ',
+                    { em: [`${regionBusyJunctions(aiRegion)} of ${aiRegion.junctions.length} junctions`] },
+                    ' over capacity during the 06:00–09:00 shift change.',
+                  ]
+                : [
+                    "Abu Dhabi's traffic operations view combines monitored-junction activity and value-distribution signals across ",
+                    { em: [scene.legend.junctionCount, ' junctions'] },
+                    '. Currently, ',
+                    { em: [insight.online, ' junctions are reporting'] },
+                    ' at ',
+                    insight.uptime,
+                    '% data coverage, while ',
+                    insight.marine,
+                    ' show congested conditions. Hourly traffic volume and junction-load trends identify the busiest corridors so operations teams can prioritize signal timing and field response.',
+                  ]
+            }
+            typing={summaryRegenerating}
+            durationMs={SUMMARY_REGENERATE_MS}
+            format={formatCount}
+            className={styles.summaryBody}
+            emphasisClassName={styles.summaryEmphasis}
+            typingClassName={styles.summaryTyping}
+          />
         </>,
         {
           ...gradientVars(summaryConfig.gradient),
