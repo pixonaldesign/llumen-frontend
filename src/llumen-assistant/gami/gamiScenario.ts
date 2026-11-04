@@ -955,6 +955,7 @@ const ALERT: GamiStory = {
     'The Poland–Russia conflict suspended export permits for 20 components Saudi military industries import from Poland. Three are critical to the national UAV programmes; Türkiye can bridge supply until local production starts.',
   place: 'kingdom',
   intro: ALERT_INTRO_CAMERA,
+  columns: 3,
   pages: [
     {
       id: 'disruption',

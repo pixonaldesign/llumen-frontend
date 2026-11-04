@@ -164,6 +164,8 @@ export type GamiStory = {
   place: GamiPlaceId
   /** Opens on this camera (the whole planet) and dives into the first page before drawing it. */
   intro?: GamiCamera
+  /** Sidebar width in 184px cells on every page (2 unless set). */
+  columns?: 2 | 3 | 4
   pages: [GamiPage, GamiPage]
 }
 

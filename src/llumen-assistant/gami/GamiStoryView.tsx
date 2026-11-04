@@ -383,7 +383,7 @@ export function GamiStoryView({
   const slide = slides[activeSlideIndex]
   const page = pageOf[slide.id]
   const filters = filtersBySlide[slide.id] ?? []
-  const columns = columnsBySlide[slide.id] ?? 2
+  const columns = columnsBySlide[slide.id] ?? story.columns ?? 2
   const editing = storyMode === 'edit'
   const removed = removedCards[slide.id]
   const added = addedCards[slide.id]
