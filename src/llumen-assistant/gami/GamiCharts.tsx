@@ -371,36 +371,40 @@ function Donut({ card }: { card: CardOf<'donut'> }) {
   )
 }
 
+/** The column titles stay put and only the rows scroll; both share the table's columns. */
 function Table({ card }: { card: CardOf<'table'> }) {
   return (
-    <div className={css.tableScroll}>
-      <table className={css.table}>
-        <thead>
-          <tr>
-            {card.columns.map((column) => (
-              <th key={column}>{column}</th>
+    <div
+      className={css.table}
+      role="table"
+      aria-label={card.title}
+      style={{ gridTemplateColumns: `minmax(0, 1fr) repeat(${card.columns.length - 1}, auto) 4px` }}
+    >
+      <div className={css.tableHead} role="row">
+        {card.columns.map((column) => (
+          <span key={column} role="columnheader">
+            {column}
+          </span>
+        ))}
+      </div>
+      <div className={css.tableScroll} role="rowgroup">
+        {card.rows.map((row) => (
+          <div key={row.cells[0]} className={css.tableRow} role="row">
+            {row.cells.map((cell, c) => (
+              <span key={c} role="cell">
+                {c === card.statusColumn ? (
+                  <span className={css.status}>
+                    <i style={{ background: statusColor(row.status, 'rgba(255,255,255,0.48)') }} />
+                    {cell}
+                  </span>
+                ) : (
+                  cell
+                )}
+              </span>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {card.rows.map((row) => (
-            <tr key={row.cells[0]}>
-              {row.cells.map((cell, c) => (
-                <td key={c}>
-                  {c === card.statusColumn ? (
-                    <span className={css.status}>
-                      <i style={{ background: statusColor(row.status, 'rgba(255,255,255,0.48)') }} />
-                      {cell}
-                    </span>
-                  ) : (
-                    cell
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

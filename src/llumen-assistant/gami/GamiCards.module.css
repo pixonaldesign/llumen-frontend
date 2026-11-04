@@ -20,6 +20,7 @@ aside.grid {
   height: auto;
   min-width: 0;
   min-height: 0;
+  align-self: stretch;
   overflow: hidden;
 }
 
@@ -302,16 +303,70 @@ aside.grid {
   min-width: 0;
 }
 
-/* The table scrolls inside the card; the scroller is full-bleed so the thumb sits on the card edge. */
-.tableScroll {
+/*
+ * The table: a fixed row of column titles over a scrolling body, both on the table's columns. It runs to
+ * the card's edge so the thumb sits there; its last 4px track and the gap inset the cells.
+ */
+.table {
+  display: grid;
   flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: 8px;
   min-height: 0;
   margin-right: -12px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.tableHead,
+.tableRow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.tableHead {
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.48);
+  white-space: nowrap;
+}
+
+.tableRow {
+  padding: 7px 0;
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+}
+
+.tableRow + .tableRow {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tableRow > :first-child {
+  color: #fff;
+  white-space: normal;
+}
+
+.tableScroll {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-content: start;
+  min-height: 0;
   padding-right: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overflow-y: overlay;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+/* Chromium drops ::-webkit-scrollbar sizing when scrollbar-width is set; the 4px thumb takes the last track. */
+@supports selector(::-webkit-scrollbar) {
+  .tableScroll {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
 }
 
 .tableScroll::-webkit-scrollbar {
@@ -325,36 +380,6 @@ aside.grid {
 .tableScroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.24);
-}
-
-.table {
-  width: calc(100% - 12px);
-  border-collapse: collapse;
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.table th {
-  position: sticky;
-  top: 0;
-  padding: 0 8px 6px 0;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.48);
-  font-weight: 400;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.table td {
-  padding: 7px 8px 7px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.88);
-  white-space: nowrap;
-}
-
-.table td:first-child {
-  color: #fff;
-  white-space: normal;
 }
 
 .status {
