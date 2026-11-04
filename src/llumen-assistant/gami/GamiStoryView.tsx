@@ -103,6 +103,7 @@ const NO_GROUPS: ReadonlySet<string> = new Set()
 /** The Assets picker's categories for each chart kind. */
 const CHART_CATEGORY: Record<GamiCard['kind'], string> = {
   summary: 'Trends',
+  section: 'Distribution',
   part: 'Distribution',
   line: 'Trends',
   range: 'Trends',
@@ -605,6 +606,12 @@ export function GamiStoryView({
   )
 
   const insightCard = (card: GamiCard) => {
+    if (card.kind === 'section')
+      return (
+        <header key={card.id} className={cardClass(card)}>
+          <GamiCardBody card={card} />
+        </header>
+      )
     const summary = card.kind === 'summary'
     const menuOpen = cardMenu?.card.id === card.id
     const style = summary

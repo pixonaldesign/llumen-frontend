@@ -112,6 +112,8 @@ type CardBase = {
 export type GamiCard = CardBase &
   (
     | { kind: 'summary'; parts: SummaryPart[] }
+    /** A separator across the row that heads the cards after it: a rule, the title and a short paragraph. */
+    | { kind: 'section'; text: string }
     | { kind: 'kpis'; tiles: { label: string; value: string; unit?: string; note?: string }[] }
     | {
         kind: 'cell'

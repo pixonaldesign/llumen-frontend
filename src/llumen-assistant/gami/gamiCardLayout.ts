@@ -13,6 +13,7 @@ export function cardFootprint(card: GamiCard, columns: number) {
 
 /** The card's shell among the story card classes, and its place on the 184px grid. */
 export function cardClass(card: GamiCard) {
+  if (card.kind === 'section') return `${css.section} ${css.full}`
   const shell = card.kind === 'summary' ? styles.summaryCard : card.kind === 'cell' ? styles.kpiCellCard : styles.visualCard
   return [
     shell,

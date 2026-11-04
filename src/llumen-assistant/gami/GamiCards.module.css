@@ -4,14 +4,56 @@
  * cards don't have, in the same neutral strokes.
  */
 
-/* The sidebar: 184px cells in `--sidebar-columns` columns; full cards span the row. */
+/*
+ * The sidebar: 184px cells in `--sidebar-columns` columns; full cards span the row. Rows size to their
+ * content so a section header takes only its text's height; every card is held to whole cells.
+ */
 aside.grid {
   display: grid;
   grid-template-columns: repeat(var(--sidebar-columns, 2), 184px);
-  grid-auto-rows: 184px;
+  grid-auto-rows: auto;
   grid-auto-flow: row dense;
   align-content: start;
   padding-bottom: 112px;
+}
+
+aside.grid > *,
+aside.grid > .card.card {
+  height: 184px;
+}
+
+aside.grid > .card.card.tall {
+  height: calc(184px * 2 + 12px);
+}
+
+aside.grid > .section {
+  height: auto;
+}
+
+/* Heads the cards after it: a rule across the row, a title and a short paragraph. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 16px 0 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.sectionText {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 13px;
+  line-height: 18px;
+  text-wrap: pretty;
 }
 
 .card.card {
