@@ -1112,7 +1112,7 @@ export function GamiStoryView({
   return (
     <div
       className={styles.root}
-      style={{ '--sidebar-columns': columns, '--sidebar-tracks': columns * 2 } as CSSProperties}
+      style={{ '--sidebar-columns': columns } as CSSProperties}
       aria-label={`${storyTitle} story`}
       data-entrance={entrance}
       data-map-hidden={mapHidden || undefined}

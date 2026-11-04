@@ -99,8 +99,8 @@ export type LocalPartId = PartId | TankPartId
 type CardBase = {
   id: string
   title: string
-  /** `cell` is one 184px square; `half` takes half the row; `full` spans it. */
-  span?: 'full' | 'half' | 'cell'
+  /** `cell` is one 184px square; `full` spans the row. */
+  span?: 'full' | 'cell'
   /** Height in 184px rows. */
   height?: 1 | 2
   /** The headline number over a chart, as the story's chart cards show it. */
