@@ -1,10 +1,11 @@
 /**
  * The GAMI demo's map layers, shared by the Briefing backdrop, the stories and Tell Me More, drawn like
- * the story map's: value columns, flat disks, ground-level lines, heat, outlined areas and text labels.
+ * the story map's: value columns, flat disks, routes arcing through the sky, heat, outlined areas and text labels.
  * Every element belongs to a `group`, which the Map Data panel can hide.
  */
 import mapboxgl from 'mapbox-gl'
-import { circle, greatCircle, type LngLat } from './gamiGeo'
+import { SkyArcLayer } from './gamiArcLayer'
+import { circle, type LngLat } from './gamiGeo'
 import './gamiMap.css'
 
 /** What a column or disk's hover tooltip reads. */
@@ -74,13 +75,28 @@ export function gamiTipLayers(prefix: string) {
 
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
+const arcLayers = new WeakMap<mapboxgl.Map, Map<string, SkyArcLayer>>()
+
+function arcLayer(map: mapboxgl.Map, id: string) {
+  let layers = arcLayers.get(map)
+  if (!layers) {
+    layers = new Map()
+    arcLayers.set(map, layers)
+  }
+  let layer = layers.get(id)
+  if (!layer) {
+    layer = new SkyArcLayer(id)
+    layers.set(id, layer)
+  }
+  return layer
+}
+
 export function mountGamiLayers(map: mapboxgl.Map, prefix: string) {
   const id = ids(prefix)
   if (map.getSource(id.columns)) return
   map.addSource(id.heat, { type: 'geojson', data: EMPTY })
   map.addSource(id.disks, { type: 'geojson', data: EMPTY })
   map.addSource(id.columns, { type: 'geojson', data: EMPTY })
-  map.addSource(id.arcs, { type: 'geojson', data: EMPTY })
 
   map.addLayer({
     id: id.heat,
@@ -94,18 +110,7 @@ export function mountGamiLayers(map: mapboxgl.Map, prefix: string) {
       'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 1, '#fff'],
     },
   })
-  map.addLayer({
-    id: id.arcs,
-    type: 'line',
-    source: id.arcs,
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: {
-      'line-color': ['get', 'color'],
-      'line-width': ['get', 'width'],
-      'line-opacity': ['get', 'opacity'],
-      'line-emissive-strength': 1,
-    },
-  })
+  map.addLayer(arcLayer(map, id.arcs))
   map.addLayer({
     id: id.disks,
     type: 'circle',
@@ -144,18 +149,6 @@ function heatColor(ramp: string[]): mapboxgl.ExpressionSpecification {
     stops.push(0.12 + (0.88 * index) / Math.max(1, ramp.length - 1), color)
   })
   return ['interpolate', ['linear'], ['heatmap-density'], ...stops] as mapboxgl.ExpressionSpecification
-}
-
-const ARC_STEPS = 96
-const arcCache = new WeakMap<GamiArc, LngLat[]>()
-
-function arcPath(arc: GamiArc) {
-  let coords = arcCache.get(arc)
-  if (!coords) {
-    coords = greatCircle(arc.from, arc.to, ARC_STEPS)
-    arcCache.set(arc, coords)
-  }
-  return coords
 }
 
 const ringCache = new WeakMap<object, LngLat[]>()
@@ -215,23 +208,7 @@ export function drawGamiScene(
     })),
   })
   map.setPaintProperty(id.heat, 'heatmap-color', heatColor(scene.heatRamp))
-  setData(map, id.arcs, {
-    type: 'FeatureCollection',
-    features:
-      grow < 0.02
-        ? []
-        : shown(scene.arcs).map((arc) => {
-            const coords = arcPath(arc)
-            return {
-              type: 'Feature' as const,
-              properties: { color: arc.color, width: arc.width ?? 2, opacity: (arc.opacity ?? 0.9) * Math.min(1, grow) },
-              geometry: {
-                type: 'LineString' as const,
-                coordinates: coords.slice(0, Math.max(2, Math.round(coords.length * Math.min(1, grow)))),
-              },
-            }
-          }),
-  })
+  arcLayer(map, id.arcs).setArcs(grow < 0.02 ? [] : shown(scene.arcs), grow, lift)
 }
 
 function escapeHtml(text: string) {
