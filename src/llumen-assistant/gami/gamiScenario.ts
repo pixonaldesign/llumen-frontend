@@ -1416,17 +1416,6 @@ const ALERT: GamiStory = {
           color: { items: [{ label: 'Pads · glass · seals · arms', color: LOCAL_COLOR.abrams, count: '4' }] },
         },
         {
-          group: 'local-routes',
-          title: 'Local Supply Routes',
-          mark: 'line',
-          color: {
-            items: [
-              { label: 'To the UAV lines', color: LOCAL_COLOR.uav, count: '3' },
-              { label: 'To the Abrams depot', color: LOCAL_COLOR.abrams, count: '4' },
-            ],
-          },
-        },
-        {
           group: 'lines',
           title: 'Receiving Sites',
           mark: 'disk',

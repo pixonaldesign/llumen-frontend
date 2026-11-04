@@ -690,21 +690,19 @@ export type LocalMaker = {
   makes: string
   months: number
   ready: string
-  /** The line the parts go to. */
-  to: LngLat
   side: GamiLabel['side']
 }
 
 const maker = (id: string) => ({ facility: site(id).name, city: site(id).city, at: site(id).at })
 
 export const LOCAL_MAKERS: LocalMaker[] = [
-  { part: 'motor', platform: 'uav', ...maker('riyadh-electronics'), makes: 'Propulsion motors', months: 28, ready: 'Q1 2029', to: site('riyadh-uav').at, side: 'top' },
-  { part: 'gimbal', platform: 'uav', ...maker('ahsa-electronics'), makes: 'EO/IR gimbals', months: 22, ready: 'Q3 2028', to: site('alkharj-uav').at, side: 'east' },
-  { part: 'inu', platform: 'uav', ...maker('taif-air'), makes: 'Navigation units', months: 25, ready: 'Q4 2028', to: site('riyadh-uav').at, side: 'east' },
-  { part: 'trackPad', platform: 'abrams', ...maker('jubail-land'), makes: 'Track pads', months: 7, ready: 'Q2 2027', to: ABRAMS_DEPOT.at, side: 'east' },
-  { part: 'visionBlock', platform: 'abrams', ...maker('kaec-land'), city: 'KAEC', makes: 'Vision blocks', months: 10, ready: 'Q3 2027', to: ABRAMS_DEPOT.at, side: 'west' },
-  { part: 'seal', platform: 'abrams', facility: 'Yanbu Elastomer Works', city: 'Yanbu', at: [38.12, 24.12], makes: 'Hydraulic seals', months: 4, ready: 'Q1 2027', to: ABRAMS_DEPOT.at, side: 'west' },
-  { part: 'forging', platform: 'abrams', ...maker('alkharj-armament'), makes: 'Road-wheel arms', months: 7, ready: 'Q2 2027', to: ABRAMS_DEPOT.at, side: 'west' },
+  { part: 'motor', platform: 'uav', ...maker('riyadh-electronics'), makes: 'Propulsion motors', months: 28, ready: 'Q1 2029', side: 'top' },
+  { part: 'gimbal', platform: 'uav', ...maker('ahsa-electronics'), makes: 'EO/IR gimbals', months: 22, ready: 'Q3 2028', side: 'east' },
+  { part: 'inu', platform: 'uav', ...maker('taif-air'), makes: 'Navigation units', months: 25, ready: 'Q4 2028', side: 'east' },
+  { part: 'trackPad', platform: 'abrams', ...maker('jubail-land'), makes: 'Track pads', months: 7, ready: 'Q2 2027', side: 'east' },
+  { part: 'visionBlock', platform: 'abrams', ...maker('kaec-land'), city: 'KAEC', makes: 'Vision blocks', months: 10, ready: 'Q3 2027', side: 'west' },
+  { part: 'seal', platform: 'abrams', facility: 'Yanbu Elastomer Works', city: 'Yanbu', at: [38.12, 24.12], makes: 'Hydraulic seals', months: 4, ready: 'Q1 2027', side: 'west' },
+  { part: 'forging', platform: 'abrams', ...maker('alkharj-armament'), makes: 'Road-wheel arms', months: 7, ready: 'Q2 2027', side: 'west' },
 ]
 
 /** Tabuk to Al-Ahsa, beside the 3-cell sidebar. */
@@ -713,7 +711,6 @@ export const LOCAL_CAMERA: GamiCamera = { center: [43.61, 25.29], zoom: 5.74, pi
 const makerGroup = (item: LocalMaker) => (item.platform === 'uav' ? 'makers-uav' : 'makers-abrams')
 
 export const LOCAL_SCENE = scene({
-  arcs: LOCAL_MAKERS.map((item) => route(item.at, item.to, LOCAL_COLOR[item.platform], 'local-routes')),
   disks: [
     ...LOCAL_MAKERS.map((item) => ({
       at: item.at,
