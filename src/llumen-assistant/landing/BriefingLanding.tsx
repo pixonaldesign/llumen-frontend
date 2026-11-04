@@ -44,6 +44,7 @@ import { STORY_CAMERA_PADDING } from '../story/StoryMap'
 import { GAMI_STORIES } from '../gami/gamiScenario'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
+import { landingAssets } from './landingAssets'
 import { VoteButton } from './VoteButton'
 import {
   DEFAULT_FINDINGS_STYLE,
@@ -144,6 +145,8 @@ function storyPlace(storyId: string | null) {
   const story = storyId ? GAMI_STORIES[storyId] : undefined
   return BRIEFING_PLACES[story?.place ?? 'kingdom']
 }
+const GAMI_LOGO = { src: landingAssets.gamiLogo, alt: 'General Authority for Military Industries' }
+
 /** BriefingMap's flight (2200ms) plus slack. */
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
@@ -783,7 +786,9 @@ export function BriefingLanding({
   }, [floating, sideAssets, addingAsset, flyAssets])
 
   const blurred = !stop.place || !!findingToast
-  const mapBlurred = blurred && !opening && !returnHeld
+  /** A grid story has no map of its own: the map stays blurred on the way in and back. */
+  const gridStory = GAMI_STORIES[storyFlight ?? lastStory ?? '']?.layout === 'grid'
+  const mapBlurred = blurred && (gridStory || (!opening && !returnHeld))
   const storyState = storyRelease
     ? 'back'
     : storyFlight
@@ -820,6 +825,7 @@ export function BriefingLanding({
           briefingTab
           view={view}
           onViewChange={changeView}
+          partnerLogo={GAMI_LOGO}
         />
       </header>
       {inStudio ? (

@@ -32,7 +32,9 @@ export function isFindingPlace(id: string | undefined): id is FindingStageId {
 /** The map Tell Me More opens for a place: its story's second page, with that page's outlined area. */
 export function findingStage(place: FindingStageId): GamiPage {
   if (place === 'alert') return GAMI_STORIES['gami-alert'].pages[1]
-  const story = Object.values(GAMI_STORIES).find((item) => item.place === place && item.id !== 'gami-alert')
+  const story = Object.values(GAMI_STORIES).find(
+    (item) => item.place === place && item.id !== 'gami-alert' && item.layout !== 'grid',
+  )
   return (story ?? GAMI_STORIES['gami-overview']).pages[1]
 }
 
@@ -264,6 +266,69 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
         },
       ],
       map: { place: 'kingdom', title: 'GAMI 2026 Performance · on the map', tag: 'Riyadh–Al Kharj', meta: '1 area outlined' },
+    }),
+
+  'gami-inventory': () =>
+    experience({
+      id: 'finding-gami-inventory',
+      read: 'Reading stock levels for the 4,280 imported line items…',
+      search: 'Matching each item to its supplier country, open orders and delivery history…',
+      reason: 'Ranking the items closest to running out…',
+      headline: 'Stock is 24 days short of target, and Poland’s cut-off decides where it runs out first.',
+      headlineDetail: 'Inventory is not on the map: the answer is in its stock, by the country it comes from.',
+      intro:
+        'GAMI holds SAR 18.4bn of imported parts and weapons across 4,280 line items. Cover averages 96 days against a 120-day target, and 214 items are below safety stock.',
+      sections: [
+        {
+          heading: 'Where the stock comes from',
+          text: 'The USA supplies 44% of it, with 118 days of cover and every route open. Poland is 4%, but all 20 of its routes are suspended and its cover has fallen to 63 days.',
+          chart: chartComponent(
+            'finding-gami-inventory-countries',
+            {
+              type: 'bars',
+              title: 'Inventory by country',
+              value: 'SAR 18.4bn',
+              unit: 'in stock',
+              color: PALETTE.blue[3],
+              rows: barRows([
+                ['USA', 8.1, 'SAR 8.1bn'],
+                ['UK', 2.3, 'SAR 2.3bn'],
+                ['France', 2.0, 'SAR 2.0bn'],
+                ['Germany', 1.6, 'SAR 1.6bn'],
+                ['Spain', 1.1, 'SAR 1.1bn'],
+                ['Poland', 0.7, 'SAR 0.7bn'],
+              ]),
+            },
+            'Value of imported stock by supplier country.',
+          ),
+        },
+        {
+          heading: 'Lowest stock',
+          text: 'The three lowest items are the UAV parts from Poland: propulsion motors run out in 41 days, EO/IR gimbals in 47 and navigation units in 58.',
+          chart: chartComponent(
+            'finding-gami-inventory-lowest',
+            {
+              type: 'bars',
+              title: 'Days of stock left',
+              value: '41 days',
+              unit: 'propulsion motors',
+              color: STATUS.critical,
+              rows: barRows([
+                ['Propulsion motors · Poland', 41, '41 days'],
+                ['EO/IR gimbals · Poland', 47, '47 days'],
+                ['Navigation units · Poland', 58, '58 days'],
+                ['Carbon-fibre prepreg · Poland', 64, '64 days'],
+              ]),
+            },
+            'Days of stock left at the current build rate.',
+          ),
+        },
+        {
+          heading: 'Recommended action',
+          text: 'Place the Türkiye bridge orders for the three UAV parts this week, and reorder Abrams spares from the USA now: their lead time has grown to 14 months.',
+        },
+      ],
+      map: null,
     }),
 
   'gami-localization': () =>

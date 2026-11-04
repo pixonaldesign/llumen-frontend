@@ -103,6 +103,8 @@ type CardBase = {
   span?: 'full' | 'cell'
   /** Height in 184px rows. */
   height?: 1 | 2
+  /** Grid layout only: width in cells (one for `cell` cards, two otherwise). */
+  cols?: number
   /** The headline number over a chart, as the story's chart cards show it. */
   kpi?: { value: string; unit?: string }
   /** The chart's colour family; stories assign one per card in turn. */
@@ -135,7 +137,13 @@ export type GamiCard = CardBase &
     | { kind: 'vbars'; bars: { label: string; value: number; display?: string; status?: Status }[] }
     | { kind: 'hbars'; bars: { label: string; value: number; display: string; status?: Status }[] }
     | { kind: 'split'; total: string; unit: string; parts: { name: string; value: number; display: string }[] }
-    | { kind: 'stacked'; legend: string[]; bars: { label: string; parts: number[] }[] }
+    | {
+        kind: 'stacked'
+        legend: string[]
+        /** Each series' status, coloured along the diverging palette instead of by category. */
+        status?: Status[]
+        bars: { label: string; parts: number[] }[]
+      }
     | {
         kind: 'grouped'
         legend: string[]
@@ -160,6 +168,18 @@ export type GamiCard = CardBase &
         /** `stock` reads the Poland import's stock (UAV parts only); `local` its local maker. */
         facet?: 'stock' | 'local'
       }
+    /** A part in stock: the part itself, or the UAV or Abrams that carries it; two rows tall shows `stats`. */
+    | {
+        kind: 'stock'
+        model: LocalPartId | 'drone' | 'tank'
+        /** The part the details open on, and the one a vehicle lights up when it is missing. */
+        part?: LocalPartId
+        /** Cut off from its supplier: drawn in red. */
+        missing?: boolean
+        value: string
+        unit: string
+        stats?: [string, string][]
+      }
   )
 
 export type GamiPage = {
@@ -173,6 +193,11 @@ export type GamiPage = {
   filters: string[]
   cards: GamiCard[]
   layers: MapDataLayer[]
+  /**
+   * The first filter picks the source country: the first option is `cards`, options with their own
+   * cards switch to them, and options without are listed but not yet connected.
+   */
+  countries?: { id: string; label: string; cards?: GamiCard[] }[]
 }
 
 export type GamiStory = {
@@ -185,7 +210,9 @@ export type GamiStory = {
   intro?: GamiCamera
   /** Sidebar width in 184px cells on every page (2 unless set). */
   columns?: 2 | 3 | 4
-  pages: [GamiPage, GamiPage, ...GamiPage[]]
+  /** `grid` lays the cards in square cells across the page, over the map blurred. */
+  layout?: 'sidebar' | 'grid'
+  pages: [GamiPage, ...GamiPage[]]
 }
 
 export type GamiPlaceId = 'kingdom' | 'eastern' | 'wds' | 'western'

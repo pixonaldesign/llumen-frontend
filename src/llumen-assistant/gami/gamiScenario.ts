@@ -1,7 +1,8 @@
 /**
- * The GAMI demo's apps (stories): the four Briefing findings and the Poland supply alert, two pages
- * each. Page 1 frames the insight; page 2 outlines one area on the map and reads the panel for it.
- * The alert has a third page: the cut-off parts the Kingdom can make itself, and where.
+ * The GAMI demo's apps (stories): the Briefing findings and the Poland supply alert. The map apps have
+ * two pages: page 1 frames the insight; page 2 outlines one area on the map and reads the panel for it.
+ * The alert has a third page: the cut-off parts the Kingdom can make itself, and where. Inventory is a
+ * one-page grid app with no map, filtered by the country the stock comes from.
  */
 import {
   ALERT_CAMERA,
@@ -15,6 +16,7 @@ import {
   CORRIDOR_SCENE,
   EASTERN_STORY_CAMERA,
   EASTERN_STORY_SCENE,
+  GAMI_PLACES,
   JUBAIL_AREA,
   JUBAIL_CAMERA,
   JUBAIL_SCENE,
@@ -40,6 +42,7 @@ import {
   WESTERN_STORY_CAMERA,
   WESTERN_STORY_SCENE,
 } from './gamiPlaces'
+import { EMPTY_SCENE } from './gamiMapLayers'
 import {
   PALETTE,
   TONES,
@@ -1525,23 +1528,466 @@ const ALERT: GamiStory = {
   ],
 }
 
+/* —— Inventory: a grid app, filtered by the country GAMI imports from —— */
+
+const MONTHS = ['Nov', 'Jan', 'Mar', 'May', 'Jul', 'Sep']
+const COVER_TARGET = Array.from({ length: 12 }, () => 120)
+const STOCK_HEALTH = ['Healthy', 'Watch', 'Below safety']
+const DOMAINS = ['Air', 'Land', 'Electronics', 'Armament', 'Naval']
+
+type InventoryView = {
+  key: string
+  summary: GamiCard
+  value: [string, string, number[]]
+  cover: [string, string, number[], Status]
+  belowSafety: [string, string, number[], Status]
+  cutOff: [string, string, number[], Status]
+  partsTitle: string
+  parts: GamiCard[]
+  coverLine: number[]
+  coverKpi: string
+  breakdown: GamiCard
+  domains: { total: string; values: number[] }
+  health: number[][]
+  lowest: { columns: string[]; rows: { cells: string[]; status: Status }[] }
+  onTime: { kpi: string; values: number[] }
+  performance: { label: string; value: string; target: string; pct: number }[]
+}
+
+const HEALTH_STATUS: Record<string, Status> = { Critical: 'critical', Watch: 'moderate', Healthy: 'good' }
+const lowRow = (item: string, origin: string, days: number, state: 'Critical' | 'Watch' | 'Healthy') => ({
+  cells: [item, origin, `${days} d`, state],
+  status: HEALTH_STATUS[state],
+})
+
+/** The 7 parts cut off from Poland: the UAV with its motor and the Abrams with its seals lit up, the rest on their own. */
+const POLAND_PARTS: GamiCard[] = [
+  {
+    id: 'stock-drone-motor',
+    kind: 'stock',
+    title: 'Propulsion Motor · in the UAV',
+    cols: 2,
+    height: 2,
+    model: 'drone',
+    part: 'motor',
+    missing: true,
+    value: '41',
+    unit: 'days of stock',
+    stats: [
+      ['From', 'Rzeszów, PL'],
+      ['Need', '1,800 / mo'],
+      ['Bridge', 'Ankara · day 30'],
+    ],
+  },
+  { id: 'stock-gimbal', kind: 'stock', span: 'cell', title: 'EO/IR Gimbal', model: 'gimbal', part: 'gimbal', missing: true, value: '47', unit: 'days' },
+  { id: 'stock-inu', kind: 'stock', span: 'cell', title: 'Navigation Unit', model: 'inu', part: 'inu', missing: true, value: '58', unit: 'days' },
+  {
+    id: 'stock-tank-seal',
+    kind: 'stock',
+    title: 'Hydraulic Seals · in the Abrams',
+    cols: 2,
+    height: 2,
+    model: 'tank',
+    part: 'seal',
+    missing: true,
+    value: '104',
+    unit: 'days of stock',
+    stats: [
+      ['From', 'Poland'],
+      ['Fleet', '373 tanks'],
+      ['Local', 'Yanbu · Q1 2027'],
+    ],
+  },
+  { id: 'stock-vision', kind: 'stock', span: 'cell', title: 'Vision Block', model: 'visionBlock', part: 'visionBlock', missing: true, value: '92', unit: 'days' },
+  { id: 'stock-track', kind: 'stock', span: 'cell', title: 'Track Pad', model: 'trackPad', part: 'trackPad', missing: true, value: '180', unit: 'days' },
+  {
+    id: 'poland-deliveries',
+    kind: 'cell',
+    title: 'Poland deliveries',
+    value: '0 / wk',
+    note: 'Down from 2,480 a week',
+    status: 'critical',
+    spark: [2480, 2510, 2460, 2490, 2400, 1150, 0, 0, 0],
+  },
+  { id: 'turkiye-bridge', kind: 'cell', title: 'Türkiye bridge', value: 'Day 30', note: 'First UAV parts land', status: 'good' },
+  { id: 'stock-forging', kind: 'stock', span: 'cell', title: 'Road-Wheel Arm', model: 'forging', part: 'forging', missing: true, value: '140', unit: 'days' },
+  { id: 'made-locally', kind: 'cell', title: 'Made in the Kingdom', value: '2029', note: 'All 7 parts made locally' },
+]
+
+/** USA, the Abrams maker: no part is cut off, but the spares wait longer for every order. */
+const USA_PARTS: GamiCard[] = [
+  {
+    id: 'stock-tank-usa',
+    kind: 'stock',
+    title: 'M1A2 Abrams Spares',
+    cols: 2,
+    height: 2,
+    model: 'tank',
+    value: '118',
+    unit: 'days of stock',
+    stats: [
+      ['Fleet', '373 tanks'],
+      ['Lead time', '14 months'],
+      ['Ready', '86%'],
+    ],
+  },
+  { id: 'usa-seal', kind: 'stock', span: 'cell', title: 'Hydraulic Seals', model: 'seal', part: 'seal', value: '96', unit: 'days' },
+  { id: 'usa-vision', kind: 'stock', span: 'cell', title: 'Vision Block', model: 'visionBlock', part: 'visionBlock', value: '88', unit: 'days' },
+  {
+    id: 'usa-lead-time',
+    kind: 'line',
+    title: 'Abrams Spares Lead Time',
+    cols: 2,
+    height: 2,
+    kpi: { value: '14', unit: 'months, from 6 in 2024' },
+    x: ['2024', '2025', '2026'],
+    yLabels: ['16 mo', '8 mo', '0'],
+    yMax: 16,
+    series: [
+      { name: 'Abrams spares', points: [6, 6, 7, 8, 9, 10, 11, 12, 13, 14], status: 'critical' },
+      { name: 'Contract', points: Array.from({ length: 10 }, () => 6), dashed: true },
+    ],
+  },
+  { id: 'usa-track', kind: 'stock', span: 'cell', title: 'Track Pad', model: 'trackPad', part: 'trackPad', value: '132', unit: 'days' },
+  { id: 'usa-forging', kind: 'stock', span: 'cell', title: 'Road-Wheel Arm', model: 'forging', part: 'forging', value: '150', unit: 'days' },
+  {
+    id: 'usa-readiness',
+    kind: 'cell',
+    title: 'Abrams readiness',
+    value: '86%',
+    note: '321 of 373 mission-capable',
+    status: 'moderate',
+    spark: [92, 91, 91, 90, 89, 89, 88, 87, 86],
+  },
+  { id: 'usa-orders', kind: 'cell', title: 'Open US orders', value: 'SAR 3.4bn', note: '412 purchase orders' },
+  { id: 'usa-fms', kind: 'cell', title: 'FMS cases', value: '27', note: 'Open with the US government' },
+  { id: 'usa-next', kind: 'cell', title: 'Next delivery', value: 'Nov 18', note: 'Abrams seals, 2,400 units', status: 'good' },
+]
+
+const INVENTORY_VIEWS: Record<'all' | 'usa' | 'poland', InventoryView> = {
+  all: {
+    key: 'all',
+    summary: {
+      id: 'summary',
+      kind: 'summary',
+      title: 'Llumen AI Summary',
+      parts: [
+        'GAMI holds SAR 18.4bn of imported stock with ',
+        { em: ['96 days of cover'] },
+        ' against a 120-day target. 20 imports from Poland are cut off; ',
+        { em: ['3 are critical'] },
+        ' to UAV production, and motor stock runs out in 41 days.',
+      ],
+    },
+    value: ['SAR 18.4bn', '4,280 line items', [16.2, 16.6, 16.9, 17.3, 17.8, 18.1, 18.4]],
+    cover: ['96 days', 'Target 120 days', [112, 110, 114, 108, 105, 109, 104, 98, 96], 'moderate'],
+    belowSafety: ['214', '5.0% of line items', [88, 92, 96, 104, 118, 141, 176, 214], 'moderate'],
+    cutOff: ['20', '3 critical · all from Poland', [0, 0, 0, 0, 0, 0, 20, 20], 'critical'],
+    partsTitle: 'Critical Missing Parts · 7',
+    parts: POLAND_PARTS,
+    coverLine: [112, 110, 114, 108, 105, 109, 111, 107, 104, 101, 98, 96],
+    coverKpi: '96',
+    breakdown: {
+      id: 'by-country',
+      kind: 'hbars',
+      title: 'Inventory by Country',
+      height: 2,
+      bars: [
+        { label: 'USA', value: 8.1, display: 'SAR 8.1bn' },
+        { label: 'UK', value: 2.3, display: 'SAR 2.3bn' },
+        { label: 'France', value: 2.0, display: 'SAR 2.0bn' },
+        { label: 'Germany', value: 1.6, display: 'SAR 1.6bn' },
+        { label: 'Spain', value: 1.1, display: 'SAR 1.1bn' },
+        { label: 'South Korea', value: 0.9, display: 'SAR 0.9bn' },
+        { label: 'Italy', value: 0.8, display: 'SAR 0.8bn' },
+        { label: 'Poland', value: 0.7, display: 'SAR 0.7bn', status: 'critical' },
+        { label: 'Türkiye', value: 0.5, display: 'SAR 0.5bn' },
+      ],
+    },
+    domains: { total: '18.4bn', values: [6.3, 5.0, 3.5, 2.6, 1.0] },
+    health: [
+      [76, 17, 7],
+      [84, 12, 4],
+      [74, 18, 8],
+      [88, 9, 3],
+      [90, 8, 2],
+    ],
+    lowest: {
+      columns: ['Item', 'Origin', 'Stock', 'Status'],
+      rows: [
+        lowRow('Propulsion motors', 'Poland', 41, 'Critical'),
+        lowRow('EO/IR gimbals', 'Poland', 47, 'Critical'),
+        lowRow('Navigation units', 'Poland', 58, 'Critical'),
+        lowRow('Carbon-fibre prepreg', 'Poland', 64, 'Watch'),
+        lowRow('Li-ion battery packs', 'Poland', 72, 'Watch'),
+        lowRow('Apache rotor dampers', 'USA', 86, 'Watch'),
+        lowRow('Abrams vision blocks', 'USA', 88, 'Watch'),
+        lowRow('Radar T/R modules', 'France', 97, 'Healthy'),
+      ],
+    },
+    onTime: { kpi: '87', values: [91, 89, 84, 72] },
+    performance: [
+      { label: 'On-time delivery', value: '87%', target: 'of 95%', pct: 91.6 },
+      { label: 'Fill rate', value: '94%', target: 'of 98%', pct: 95.9 },
+      { label: 'Stock accuracy', value: '99.1%', target: 'of 99.5%', pct: 99.6 },
+    ],
+  },
+  usa: {
+    key: 'usa',
+    summary: {
+      id: 'summary',
+      kind: 'summary',
+      title: 'Llumen AI Summary',
+      parts: [
+        'The USA supplies ',
+        { em: ['44% of the stock'] },
+        ', SAR 8.1bn across 1,860 line items, with 118 days of cover. No US route is cut off, but Abrams spares now take ',
+        { em: ['14 months'] },
+        ' to arrive, up from 6.',
+      ],
+    },
+    value: ['SAR 8.1bn', '1,860 line items', [7.4, 7.5, 7.6, 7.8, 7.9, 8.0, 8.1]],
+    cover: ['118 days', 'Target 120 days', [116, 118, 117, 119, 120, 118, 121, 119, 118], 'good'],
+    belowSafety: ['38', '2.0% of line items', [31, 30, 33, 32, 34, 35, 37, 38], 'mild'],
+    cutOff: ['0', 'Every US route open', [0, 0, 0, 0, 0, 0, 0, 0], 'good'],
+    partsTitle: 'Abrams Spares from USA · 4',
+    parts: USA_PARTS,
+    coverLine: [116, 118, 117, 119, 120, 118, 121, 119, 118, 117, 118, 118],
+    coverKpi: '118',
+    breakdown: {
+      id: 'by-platform',
+      kind: 'hbars',
+      title: 'US Inventory by Platform',
+      height: 2,
+      bars: [
+        { label: 'Air defence', value: 2.4, display: 'SAR 2.4bn' },
+        { label: 'F-15SA', value: 1.9, display: 'SAR 1.9bn' },
+        { label: 'M1A2 Abrams', value: 1.3, display: 'SAR 1.3bn' },
+        { label: 'AH-64 Apache', value: 1.0, display: 'SAR 1.0bn' },
+        { label: 'Black Hawk', value: 0.8, display: 'SAR 0.8bn' },
+        { label: 'Munitions', value: 0.7, display: 'SAR 0.7bn' },
+      ],
+    },
+    domains: { total: '8.1bn', values: [3.6, 1.6, 1.1, 1.4, 0.4] },
+    health: [
+      [86, 12, 2],
+      [79, 16, 5],
+      [90, 8, 2],
+      [93, 6, 1],
+      [94, 5, 1],
+    ],
+    lowest: {
+      columns: ['Item', 'Platform', 'Stock', 'Status'],
+      rows: [
+        lowRow('Rotor dampers', 'Apache', 86, 'Watch'),
+        lowRow('Vision blocks', 'Abrams', 88, 'Watch'),
+        lowRow('Brake assemblies', 'F-15SA', 94, 'Watch'),
+        lowRow('Hydraulic seals', 'Abrams', 96, 'Watch'),
+        lowRow('Seeker spares', 'Patriot', 104, 'Healthy'),
+        lowRow('Tail rotor blades', 'Black Hawk', 112, 'Healthy'),
+        lowRow('Track pads', 'Abrams', 132, 'Healthy'),
+        lowRow('Road-wheel arms', 'Abrams', 150, 'Healthy'),
+      ],
+    },
+    onTime: { kpi: '91', values: [92, 91, 90, 91] },
+    performance: [
+      { label: 'On-time delivery', value: '91%', target: 'of 95%', pct: 95.8 },
+      { label: 'Fill rate', value: '97%', target: 'of 98%', pct: 99 },
+      { label: 'Stock accuracy', value: '99.3%', target: 'of 99.5%', pct: 99.8 },
+    ],
+  },
+  poland: {
+    key: 'poland',
+    summary: {
+      id: 'summary',
+      kind: 'summary',
+      title: 'Llumen AI Summary',
+      parts: [
+        'Every route from Poland is suspended. Its SAR 0.7bn of stock covers ',
+        { em: ['63 days'] },
+        ', down from 110 in May, and ',
+        { em: ['3 of the 20 cut-off imports'] },
+        ' are critical to UAV production.',
+      ],
+    },
+    value: ['SAR 0.7bn', '310 line items', [0.82, 0.81, 0.8, 0.79, 0.78, 0.74, 0.7]],
+    cover: ['63 days', 'Down from 110 in May', [110, 108, 109, 104, 99, 94, 78, 70, 63], 'critical'],
+    belowSafety: ['27', '8.7% of line items', [4, 5, 5, 6, 8, 12, 19, 27], 'critical'],
+    cutOff: ['20', '3 critical to UAV production', [0, 0, 0, 0, 0, 0, 20, 20], 'critical'],
+    partsTitle: 'Critical Missing Parts · 7',
+    parts: POLAND_PARTS,
+    coverLine: [110, 108, 112, 109, 104, 106, 103, 99, 94, 78, 70, 63],
+    coverKpi: '63',
+    breakdown: {
+      id: 'cut-off-domains',
+      kind: 'hbars',
+      title: 'Cut-off Imports by Domain',
+      height: 2,
+      bars: [
+        { label: 'Air', value: 6, display: '6 items', status: 'critical' },
+        { label: 'Electronics', value: 6, display: '6 items', status: 'critical' },
+        { label: 'Land', value: 4, display: '4 items' },
+        { label: 'Armament', value: 3, display: '3 items' },
+        { label: 'Naval', value: 1, display: '1 item' },
+      ],
+    },
+    domains: { total: '0.7bn', values: [0.26, 0.14, 0.22, 0.06, 0.02] },
+    health: [
+      [41, 33, 26],
+      [58, 30, 12],
+      [38, 35, 27],
+      [62, 28, 10],
+      [70, 22, 8],
+    ],
+    lowest: {
+      columns: ['Item', 'Domain', 'Stock', 'Severity'],
+      rows: AFFECTED_IMPORTS.slice(0, 8).map((entry) => ({
+        cells: [entry.item, entry.domain, `${entry.days} d`, entry.level],
+        status: LEVEL_STATUS[entry.level],
+      })),
+    },
+    onTime: { kpi: '64', values: [93, 90, 61, 0] },
+    performance: [
+      { label: 'On-time delivery', value: '64%', target: 'of 95%', pct: 67.4 },
+      { label: 'Fill rate', value: '71%', target: 'of 98%', pct: 72.4 },
+      { label: 'Stock accuracy', value: '99.0%', target: 'of 99.5%', pct: 99.5 },
+    ],
+  },
+}
+
+/** One country's dashboard on the 8-cell grid: headline cells, the parts at risk in 3D, then performance. */
+function inventoryCards(view: InventoryView): GamiCard[] {
+  const id = (name: string) => `${view.key}-${name}`
+  const cell = (name: string, title: string, [value, note, spark, status]: [string, string, number[], Status?]): GamiCard => ({
+    id: id(name),
+    kind: 'cell',
+    title,
+    value,
+    note,
+    spark,
+    status,
+  })
+  return [
+    { ...view.summary, cols: 4 },
+    cell('value', 'Inventory value', view.value),
+    cell('cover', 'Stock cover', view.cover),
+    cell('below-safety', 'Below safety stock', view.belowSafety),
+    cell('cut-off', 'Cut-off imports', view.cutOff),
+    { id: id('parts'), kind: 'section', title: view.partsTitle },
+    ...view.parts,
+    { id: id('performance'), kind: 'section', title: 'Inventory Performance' },
+    {
+      id: id('cover-line'),
+      kind: 'line',
+      title: 'Stock Cover vs Target',
+      cols: 4,
+      height: 2,
+      kpi: { value: view.coverKpi, unit: 'days of cover' },
+      x: MONTHS,
+      yLabels: ['150 d', '75 d', '0'],
+      yMax: 150,
+      series: [
+        { name: 'Stock cover', points: view.coverLine },
+        { name: 'Target', points: COVER_TARGET, dashed: true },
+      ],
+    },
+    { ...view.breakdown, id: id(view.breakdown.id) },
+    {
+      id: id('domains'),
+      kind: 'donut',
+      title: 'Inventory by Domain',
+      height: 2,
+      total: view.domains.total,
+      totalLabel: 'SAR in stock',
+      slices: DOMAINS.map((name, index) => ({ name, value: view.domains.values[index] })),
+    },
+    {
+      id: id('health'),
+      kind: 'stacked',
+      title: 'Stock Health by Domain',
+      cols: 3,
+      height: 2,
+      legend: STOCK_HEALTH,
+      status: ['good', 'moderate', 'critical'],
+      bars: DOMAINS.map((label, index) => ({ label, parts: view.health[index] })),
+    },
+    {
+      id: id('lowest'),
+      kind: 'table',
+      title: 'Lowest Stock Items',
+      cols: 3,
+      height: 2,
+      columns: view.lowest.columns,
+      statusColumn: 3,
+      rows: view.lowest.rows,
+    },
+    {
+      id: id('on-time'),
+      kind: 'vbars',
+      title: 'On-time Delivery, 2026',
+      kpi: { value: view.onTime.kpi, unit: '% YTD' },
+      bars: ['Q1', 'Q2', 'Q3', 'Oct'].map((label, index) => {
+        const value = view.onTime.values[index]
+        return { label, value, display: `${value}%`, status: value < 75 ? ('critical' as const) : undefined }
+      }),
+    },
+    { id: id('performance-rows'), kind: 'progress', title: 'Supply Performance', rows: view.performance },
+  ]
+}
+
+const INVENTORY_COUNTRIES = ['UK', 'France', 'Germany', 'Spain', 'South Korea', 'Italy', 'Türkiye', 'China']
+
+const INVENTORY: GamiStory = {
+  id: 'gami-inventory',
+  title: 'GAMI Inventory & Supply Performance',
+  description:
+    'The imported parts and weapons GAMI holds in stock, by the country they come from: value, days of cover, stock health and delivery performance, with the parts cut off from their supplier in 3D.',
+  place: 'kingdom',
+  layout: 'grid',
+  pages: [
+    {
+      id: 'inventory',
+      title: 'Imported inventory',
+      finding: 'Imported stock covers 96 days against a 120-day target; 20 imports from Poland are cut off, 3 of them critical.',
+      camera: GAMI_PLACES.kingdom.camera,
+      scene: EMPTY_SCENE,
+      polygons: [],
+      filters: ['All countries', '2026 YTD', 'All domains'],
+      layers: [],
+      cards: inventoryCards(INVENTORY_VIEWS.all),
+      countries: [
+        { id: 'all', label: 'All countries' },
+        { id: 'usa', label: 'USA', cards: inventoryCards(INVENTORY_VIEWS.usa) },
+        { id: 'poland', label: 'Poland', cards: inventoryCards(INVENTORY_VIEWS.poland) },
+        ...INVENTORY_COUNTRIES.map((label) => ({ id: label.toLowerCase().replace(/\s+/g, '-'), label })),
+      ],
+    },
+  ],
+}
+
 const TONED_KINDS = new Set<GamiCard['kind']>(['progress', 'line', 'vbars', 'hbars', 'split', 'stacked', 'grouped', 'donut', 'range'])
 
 /** Gives each charted card the next tone in turn, so neighbouring cards differ; a card's own tone stays. */
 function withTones(story: GamiStory): GamiStory {
   let turn = 0
-  const tone = (page: GamiPage): GamiPage => ({
-    ...page,
-    cards: page.cards.map((card) =>
-      card.tone || !TONED_KINDS.has(card.kind) ? card : { ...card, tone: TONES[turn++ % TONES.length] },
-    ),
-  })
-  const [first, second, ...rest] = story.pages
-  return { ...story, pages: [tone(first), tone(second), ...rest.map(tone)] }
+  const tones = (cards: GamiCard[]) =>
+    cards.map((card) => (card.tone || !TONED_KINDS.has(card.kind) ? card : { ...card, tone: TONES[turn++ % TONES.length] }))
+  const tone = (page: GamiPage): GamiPage => {
+    const start = turn
+    const cards = tones(page.cards)
+    const countries = page.countries?.map((country) => {
+      if (!country.cards) return country
+      turn = start
+      return { ...country, cards: tones(country.cards) }
+    })
+    return { ...page, cards, countries }
+  }
+  const [first, ...rest] = story.pages
+  return { ...story, pages: [tone(first), ...rest.map(tone)] }
 }
 
 export const GAMI_STORIES: Record<string, GamiStory> = Object.fromEntries(
-  [OVERVIEW, LOCALIZATION, WDS, TALENT, ALERT].map((story) => [story.id, withTones(story)]),
+  [OVERVIEW, INVENTORY, LOCALIZATION, WDS, TALENT, ALERT].map((story) => [story.id, withTones(story)]),
 )
 
 export function isGamiStory(id: string | null | undefined): id is string {

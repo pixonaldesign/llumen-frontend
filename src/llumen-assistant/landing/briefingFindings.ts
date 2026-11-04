@@ -1,3 +1,4 @@
+import { PALETTE } from '../gami/gamiTypes'
 import type { BriefingPlaceId } from './briefingMapPlaces'
 
 type ChartSeries = { name: string; value: string; pct: number; color: string }
@@ -36,7 +37,22 @@ export type FeedStop = {
   chart?: FeedChart
 }
 
-/** The Briefing findings: four GAMI insights, each on its own place on the map. */
+/** Imported line items by stock health; matches the inventory app's Stock Health card. */
+const STOCK_HEALTH: FeedChart = {
+  kind: 'bar',
+  label: 'Imported stock health · 4,280 line items',
+  value: '96 days of cover',
+  series: [
+    { name: 'Healthy', value: '81%', pct: 81, color: PALETTE.diverging[5] },
+    { name: 'Watch', value: '14%', pct: 14, color: PALETTE.diverging[2] },
+    { name: 'Below safety', value: '5%', pct: 5, color: PALETTE.diverging[1] },
+  ],
+}
+
+/**
+ * The Briefing findings: GAMI insights, each on its own place on the map. Inventory has no place, so it
+ * shows over the last place's map, blurred.
+ */
 export const FEED_STOPS: FeedStop[] = [
   {
     id: 'gami-overview',
@@ -47,6 +63,16 @@ export const FEED_STOPS: FeedStop[] = [
     highlight: '94.8% of the 2026 plan',
     after: ', with SAR 46.5bn of military market and 66.4k jobs across 602 licensed companies.',
     storyId: 'gami-overview',
+  },
+  {
+    id: 'gami-inventory',
+    domain: 'Inventory',
+    title: 'Imported Inventory Health',
+    before: 'Imported stock covers 96 days against a 120-day target, and ',
+    highlight: '3 critical UAV parts are cut off',
+    after: ' with Poland’s 20 suspended imports.',
+    storyId: 'gami-inventory',
+    chart: STOCK_HEALTH,
   },
   {
     id: 'gami-localization',

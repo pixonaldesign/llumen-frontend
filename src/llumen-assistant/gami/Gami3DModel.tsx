@@ -830,7 +830,8 @@ export function Gami3DModel({ model, accent, className, spin = 0.5, interactive 
     camera.lookAt(0, 0, 0)
 
     const resize = () => {
-      const { width, height } = host.getBoundingClientRect()
+      // Layout size, not the bounding rect: a card scaling in would pin the canvas to its scaled-down size.
+      const { clientWidth: width, clientHeight: height } = host
       if (!width || !height) return
       renderer.setSize(width, height, false)
       renderer.domElement.style.width = `${width}px`

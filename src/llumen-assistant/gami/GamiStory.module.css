@@ -60,6 +60,98 @@
   border-radius: 999px;
 }
 
+/* The grid layout's map: blurred as the Briefing blurs it for a finding without one, so the handoff matches. */
+.mapPaneBlur {
+  filter: blur(28px) saturate(1.15);
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
+.mapTint {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 12, 18, 0.3);
+}
+
+.dashBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.dashLayoutBar {
+  margin: 16px 20px 0;
+}
+
+/* The grid scrolls full-bleed so its thumb runs down the page's edge; the grid itself is inset (`.dash`). */
+.dashScroll {
+  align-self: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+@supports selector(::-webkit-scrollbar) {
+  .dashScroll {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.dashScroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.dashScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dashScroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* A filter pill that opens its options in view mode. */
+.filterButton {
+  margin: 0;
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.filterButton:hover,
+.filterButtonOpen {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(56, 66, 66, 0.6);
+}
+
+.filterButton:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+.filterButtonCaret {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.7);
+  transition: transform 160ms ease;
+}
+
+.filterButtonOpen .filterButtonCaret {
+  transform: rotate(180deg);
+}
+
 .legendLabel {
   min-width: 0;
   overflow: hidden;

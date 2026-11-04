@@ -4,6 +4,8 @@ const b = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/landing`
 export const landingAssets = {
   logoMark: `${b}/llumen-logo.png`,
   wordmark: `${b}/llumen-wordmark.svg`,
+  /** GAMI's white lockup for dark backgrounds, from gami.gov.sa/en/visual-branding. */
+  gamiLogo: `${b}/gami-logo.svg`,
   userBtn: `${b}/user-btn.png`,
   slideMap: `${b}/slide-map.png`,
   recMapA: `${b}/rec-map-a.png`,

@@ -30,6 +30,7 @@ import {
   Eye,
   EyeSlash,
   GearSix,
+  GlobeHemisphereEast,
   GridFour,
   Info,
   Layout,
@@ -70,9 +71,10 @@ import { SUMMARY_REGENERATE_MS, defaultSummaryConfig, gradientVars, type Summary
 import gradientStyles from '../story/storyGradientBorder.module.css'
 import styles from '../story/StoryView.module.css'
 import { GamiCardBody } from './GamiCharts'
+import { GamiFillDelay } from './gamiFill'
 import { GamiMap, type GamiMapHandle } from './GamiMap'
 import { GamiLocalPartModal, GamiPartModal } from './GamiPartModal'
-import { cardClass, cardFootprint } from './gamiCardLayout'
+import { cardClass, cardFootprint, gridSpan, gridVars } from './gamiCardLayout'
 import { GAMI_STORIES } from './gamiScenario'
 import type { GamiCard, GamiPage, LocalPartId, MapDataLayer, PartId } from './gamiTypes'
 import cardCss from './GamiCards.module.css'
@@ -105,6 +107,7 @@ const CHART_CATEGORY: Record<GamiCard['kind'], string> = {
   summary: 'Trends',
   section: 'Distribution',
   part: 'Distribution',
+  stock: 'Distribution',
   line: 'Trends',
   range: 'Trends',
   countdown: 'Trends',
@@ -123,6 +126,13 @@ const CHAPTER = 'gami'
 const FILTER_IDS = ['loc', 'year', 'domain']
 const SIDEBAR_COLUMN_OPTIONS = [2, 3, 4] as const
 type SidebarColumns = (typeof SIDEBAR_COLUMN_OPTIONS)[number]
+/** The grid layout's widths in cells, as the story's Grid width offers them. */
+const GRID_COLUMN_OPTIONS = [4, 6, 8, 12] as const
+type GridColumns = (typeof GRID_COLUMN_OPTIONS)[number]
+const DEFAULT_GRID_COLUMNS: GridColumns = 8
+/** The grid's cards fill in one after another, this far apart, once the story's header has landed. */
+const FILL_START_MS = 260
+const FILL_STEP_MS = 55
 const EMPTY_GRID_ROWS = 3
 const MENU_WIDTH = 200
 const CARD_MENU_HEIGHT = 136
@@ -151,11 +161,14 @@ function toSlide(page: GamiPage): StorySlide {
   }
 }
 
-function toFilters(labels: string[]): StoryFilter[] {
-  return labels.map((label, index) => ({ id: FILTER_IDS[index] ?? `filter-${index}`, label }))
+/** A page with countries leads with the country filter in place of the location. */
+function toFilters(page: GamiPage): StoryFilter[] {
+  const ids = page.countries ? ['country', ...FILTER_IDS.slice(1)] : FILTER_IDS
+  return page.filters.map((label, index) => ({ id: ids[index] ?? `filter-${index}`, label }))
 }
 
 function filterIcon(id: string) {
+  if (id === 'country') return <GlobeHemisphereEast size={18} weight="regular" aria-hidden />
   if (id === 'loc') return <MapPin size={18} weight="regular" aria-hidden />
   if (id === 'year') return <CalendarBlank size={18} weight="regular" aria-hidden />
   return <SquaresFour size={18} weight="regular" aria-hidden />
@@ -226,11 +239,21 @@ function CardActionButton({
   )
 }
 
-function ColumnsControl({ value, onChange }: { value: SidebarColumns; onChange: (columns: SidebarColumns) => void }) {
+function ColumnsControl<T extends number>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string
+  options: readonly T[]
+  value: T
+  onChange: (columns: T) => void
+}) {
   return (
-    <div className={styles.gridColumnsControl} role="radiogroup" aria-label="Sidebar width">
+    <div className={styles.gridColumnsControl} role="radiogroup" aria-label={label}>
       <GridFour className={styles.gridColumnsIcon} size={18} weight="regular" aria-hidden />
-      {SIDEBAR_COLUMN_OPTIONS.map((columns) => (
+      {options.map((columns) => (
         <button
           key={columns}
           type="button"
@@ -336,8 +359,11 @@ export function GamiStoryView({
     Object.fromEntries(story.pages.map((page) => [page.id, page])),
   )
   const [filtersBySlide, setFiltersBySlide] = useState<Record<string, StoryFilter[]>>(() =>
-    Object.fromEntries(story.pages.map((page) => [page.id, toFilters(page.filters)])),
+    Object.fromEntries(story.pages.map((page) => [page.id, toFilters(page)])),
   )
+  /** The country each slide's country filter has picked; the page's first option until one is. */
+  const [countryBySlide, setCountryBySlide] = useState<Record<string, string>>({})
+  const [gridColumnsBySlide, setGridColumnsBySlide] = useState<Record<string, GridColumns>>({})
   const [slideIndex, setSlideIndex] = useState(0)
   const [storyMode, setStoryMode] = useState<'view' | 'edit'>('view')
   const [editSection, setEditSection] = useState<StoryEditSection | null>(null)
@@ -375,6 +401,7 @@ export function GamiStoryView({
   const [layoutMenu, setLayoutMenu] = useState<MenuAt | null>(null)
   const [cardMenu, setCardMenu] = useState<(MenuAt & { card: GamiCard }) | null>(null)
   const [filterMenu, setFilterMenu] = useState<(MenuAt & { filter: StoryFilter }) | null>(null)
+  const [countryMenu, setCountryMenu] = useState<MenuAt | null>(null)
   const [layerMenu, setLayerMenu] = useState<(MenuAt & { group: string; title: string }) | null>(null)
 
   const mapRef = useRef<GamiMapHandle>(null)
@@ -385,18 +412,22 @@ export function GamiStoryView({
   const page = pageOf[slide.id]
   const filters = filtersBySlide[slide.id] ?? []
   const columns = columnsBySlide[slide.id] ?? story.columns ?? 2
+  const grid = story.layout === 'grid'
+  const gridColumns = gridColumnsBySlide[slide.id] ?? DEFAULT_GRID_COLUMNS
   const editing = storyMode === 'edit'
   const removed = removedCards[slide.id]
   const added = addedCards[slide.id]
+  const country = page.countries?.find((item) => item.id === countryBySlide[slide.id]) ?? page.countries?.[0]
+  const pageCards = country?.cards ?? page.cards
   const cards = useMemo(
-    () => [...page.cards, ...(added ?? [])].filter((card) => !removed?.includes(card.id)),
-    [added, page, removed],
+    () => [...pageCards, ...(added ?? [])].filter((card) => !removed?.includes(card.id)),
+    [added, pageCards, removed],
   )
   const pickerCharts = useMemo<StoryEditChart[]>(
     () =>
       story.pages.flatMap((source) =>
         source.cards
-          .filter((card) => card.kind !== 'summary' && card.kind !== 'part')
+          .filter((card) => card.kind !== 'summary' && card.kind !== 'part' && card.kind !== 'stock')
           .map((card) => ({
             id: `${source.id}:${card.id}`,
             title: card.title,
@@ -466,6 +497,7 @@ export function GamiStoryView({
   useDismiss(Boolean(layoutMenu), '#gami-layout-menu, [data-layout-menu-trigger]', () => setLayoutMenu(null))
   useDismiss(Boolean(cardMenu), '#gami-card-menu, [data-card-menu-trigger]', () => setCardMenu(null))
   useDismiss(Boolean(filterMenu), '#gami-filter-menu, [data-filter-menu-trigger]', () => setFilterMenu(null))
+  useDismiss(Boolean(countryMenu), '#gami-country-menu, [data-country-menu-trigger]', () => setCountryMenu(null))
   useDismiss(Boolean(layerMenu), '#gami-layer-menu, [data-layer-menu-trigger]', () => setLayerMenu(null))
 
   const closeMenus = () => {
@@ -474,7 +506,22 @@ export function GamiStoryView({
     setLayoutMenu(null)
     setCardMenu(null)
     setFilterMenu(null)
+    setCountryMenu(null)
     setLayerMenu(null)
+  }
+
+  /** The cards switch to the country's, filling in again, and the summary rewrites itself for it. */
+  const pickCountry = (id: string) => {
+    setCountryMenu(null)
+    if (id === country?.id) return
+    setCountryBySlide((current) => ({ ...current, [slide.id]: id }))
+    setFiltersBySlide((current) => ({
+      ...current,
+      [slide.id]: (current[slide.id] ?? filters).map((filter) =>
+        filter.id === 'country' ? { ...filter, label: page.countries?.find((item) => item.id === id)?.label ?? filter.label } : filter,
+      ),
+    }))
+    setRegeneratingSlideId(slide.id)
   }
 
   const goTo = (index: number) => {
@@ -605,10 +652,15 @@ export function GamiStoryView({
     </span>
   )
 
-  const insightCard = (card: GamiCard) => {
+  const fillDelay = (index: number) => FILL_START_MS + index * FILL_STEP_MS
+  /** In the grid: where the card sits and when it fills in. */
+  const gridStyle = (card: GamiCard, index: number) =>
+    grid ? ({ ...gridVars(card, gridColumns), '--fill-d': `${fillDelay(index)}ms` } as CSSProperties) : undefined
+
+  const insightCard = (card: GamiCard, index: number) => {
     if (card.kind === 'section')
       return (
-        <header key={card.id} className={cardClass(card)}>
+        <header key={card.id} className={cardClass(card)} style={gridStyle(card, index)}>
           <GamiCardBody card={card} />
         </header>
       )
@@ -617,18 +669,25 @@ export function GamiStoryView({
     const style = summary
       ? ({ ...gradientVars(summaryConfig.gradient), '--summary-accent': summaryConfig.accent } as CSSProperties)
       : undefined
+    const body = (
+      <GamiCardBody
+        card={card}
+        onPartInfo={(id, facet) => setPart({ id, facet })}
+        summaryStatus={summary ? summaryUpdated : undefined}
+        summaryTyping={summary && summaryRegenerating}
+      />
+    )
     return (
       <section
         key={card.id}
         className={[cardClass(card), summary ? gradientStyles.gradientBorder : '', styles.insightCard].filter(Boolean).join(' ')}
-        style={style}
+        style={{ ...style, ...gridStyle(card, index) }}
       >
-        <GamiCardBody
-          card={card}
-          onPartInfo={(id, facet) => setPart({ id, facet })}
-          summaryStatus={summary ? summaryUpdated : undefined}
-          summaryTyping={summary && summaryRegenerating}
-        />
+        {grid ? (
+          <GamiFillDelay.Provider value={entrance === 'wait' ? -1 : fillDelay(index) + FILL_START_MS}>{body}</GamiFillDelay.Provider>
+        ) : (
+          body
+        )}
         {summary && editing ? (
           <button
             type="button"
@@ -692,8 +751,14 @@ export function GamiStoryView({
     )
   }
 
-  const usedCells = cards.reduce((sum, card) => sum + cardFootprint(card, columns), 0)
-  const emptyCells = editing ? (Math.ceil(usedCells / columns) + EMPTY_GRID_ROWS) * columns - usedCells : 0
+  const usedCells = grid
+    ? cards.reduce((sum, card) => {
+        const span = gridSpan(card, gridColumns)
+        return sum + span.cols * span.rows
+      }, 0)
+    : cards.reduce((sum, card) => sum + cardFootprint(card, columns), 0)
+  const rowCells = grid ? gridColumns : columns
+  const emptyCells = editing ? (Math.ceil(usedCells / rowCells) + EMPTY_GRID_ROWS) * rowCells - usedCells : 0
 
   /* —— Header —— */
 
@@ -789,7 +854,28 @@ export function GamiStoryView({
           {filters.length > 0 ? <span className={styles.filterDivider} aria-hidden /> : null}
         </>
       ) : null}
-      {filters.map((filter) => (
+      {filters.map((filter) =>
+        filter.id === 'country' && page.countries && !editing ? (
+          <button
+            key={filter.id}
+            type="button"
+            className={`${styles.filterPill} ${css.filterButton}${countryMenu ? ` ${css.filterButtonOpen}` : ''}`}
+            aria-label={`Country: ${filter.label}`}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(countryMenu)}
+            aria-controls={countryMenu ? 'gami-country-menu' : undefined}
+            data-country-menu-trigger
+            onClick={(event) => {
+              if (countryMenu) return setCountryMenu(null)
+              closeMenus()
+              setCountryMenu(menuAt(event.currentTarget, 44 * page.countries!.length + 8))
+            }}
+          >
+            {filterIcon(filter.id)}
+            <span>{filter.label}</span>
+            <CaretDown className={css.filterButtonCaret} size={14} weight="bold" aria-hidden />
+          </button>
+        ) : (
         <span key={filter.id} className={`${styles.filterPill}${editing ? ` ${styles.filterPillEditing}` : ''}`}>
           {filterIcon(filter.id)}
           <span>{filter.label}</span>
@@ -814,7 +900,8 @@ export function GamiStoryView({
             </>
           ) : null}
         </span>
-      ))}
+        ),
+      )}
     </div>
   )
 
@@ -1118,7 +1205,7 @@ export function GamiStoryView({
       data-map-hidden={mapHidden || undefined}
       inert={entrance === 'leave' || entrance === 'gone'}
     >
-      <div className={styles.mapPane}>
+      <div className={`${styles.mapPane}${grid ? ` ${css.mapPaneBlur}` : ''}`}>
         <GamiMap
           camera={page.camera}
           intro={story.intro}
@@ -1132,6 +1219,7 @@ export function GamiStoryView({
           onReady={onMapReady}
           handleRef={mapRef}
         />
+        {grid ? <div className={css.mapTint} aria-hidden /> : null}
       </div>
       {background.kind !== 'basemap' ? (
         <StoryBackgroundLayer
@@ -1242,9 +1330,9 @@ export function GamiStoryView({
           <div className={styles.headerRule} aria-hidden />
         </header>
 
-        <div className={styles.body} dir={presentationSettings.textDirection}>
+        <div className={grid ? css.dashBody : styles.body} dir={presentationSettings.textDirection}>
           {editing ? (
-            <div className={styles.layoutBar}>
+            <div className={`${styles.layoutBar}${grid ? ` ${css.dashLayoutBar}` : ''}`}>
               <button
                 type="button"
                 className={`${styles.layoutBtn}${layoutMenu ? ` ${styles.layoutBtnOpen}` : ''}`}
@@ -1262,18 +1350,46 @@ export function GamiStoryView({
                 Layout
                 <CaretDown className={styles.layoutBtnCaret} size={14} weight="bold" aria-hidden />
               </button>
-              <ColumnsControl
-                value={columns}
-                onChange={(next) => setColumnsBySlide((current) => ({ ...current, [slide.id]: next }))}
-              />
+              {grid ? (
+                <ColumnsControl
+                  label="Grid width"
+                  options={GRID_COLUMN_OPTIONS}
+                  value={gridColumns}
+                  onChange={(next) => setGridColumnsBySlide((current) => ({ ...current, [slide.id]: next }))}
+                />
+              ) : (
+                <ColumnsControl
+                  label="Sidebar width"
+                  options={SIDEBAR_COLUMN_OPTIONS}
+                  value={columns}
+                  onChange={(next) => setColumnsBySlide((current) => ({ ...current, [slide.id]: next }))}
+                />
+              )}
             </div>
           ) : null}
-          <aside key={slide.id} className={`${styles.insight} ${cardCss.grid}`} aria-label="Story insight">
-            {cards.map(insightCard)}
-            {Array.from({ length: emptyCells }, (_, index) => (
-              <div key={`cell-${index}`} className={styles.gridCell} aria-hidden />
-            ))}
-          </aside>
+          {grid ? (
+            <div className={css.dashScroll}>
+              <aside
+                key={slide.id}
+                className={cardCss.dash}
+                style={{ '--grid-columns': gridColumns } as CSSProperties}
+                data-fill={entrance === 'wait' ? 'wait' : entrance === 'leave' || entrance === 'gone' ? 'leave' : 'play'}
+                aria-label="Story insight"
+              >
+                {cards.map(insightCard)}
+                {Array.from({ length: emptyCells }, (_, index) => (
+                  <div key={`cell-${index}`} className={cardCss.gridCell} aria-hidden />
+                ))}
+              </aside>
+            </div>
+          ) : (
+            <aside key={slide.id} className={`${styles.insight} ${cardCss.grid}`} aria-label="Story insight">
+              {cards.map(insightCard)}
+              {Array.from({ length: emptyCells }, (_, index) => (
+                <div key={`cell-${index}`} className={styles.gridCell} aria-hidden />
+              ))}
+            </aside>
+          )}
         </div>
 
         {editSection ? (
@@ -1319,7 +1435,7 @@ export function GamiStoryView({
           />
         ) : null}
 
-        <div className={styles.mapStack}>{mapData}</div>
+        {grid ? null : <div className={styles.mapStack}>{mapData}</div>}
 
         <div className={styles.lowerNav} aria-label="Story navigation">
           {askButton}
@@ -1502,10 +1618,41 @@ export function GamiStoryView({
                 className={styles.storyMenuSelected}
                 onClick={() => setLayoutMenu(null)}
               >
-                <Sidebar size={16} weight="regular" aria-hidden />
-                Sidebar
+                {grid ? <GridFour size={16} weight="regular" aria-hidden /> : <Sidebar size={16} weight="regular" aria-hidden />}
+                {grid ? 'Grid' : 'Sidebar'}
                 <Check className={styles.storyMenuCheck} size={14} weight="bold" aria-hidden />
               </button>
+            </div>,
+            document.body,
+          )
+        : null}
+      {countryMenu && page.countries
+        ? createPortal(
+            <div
+              id="gami-country-menu"
+              className={`${styles.storyMenu} ${styles.layoutMenu}`}
+              role="menu"
+              aria-label="Country"
+              style={countryMenu}
+            >
+              {page.countries.map((item, index) => {
+                const selected = item.id === country?.id
+                const connected = index === 0 || Boolean(item.cards)
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={selected}
+                    className={selected ? styles.storyMenuSelected : undefined}
+                    disabled={!connected}
+                    onClick={() => pickCountry(item.id)}
+                  >
+                    {item.label}
+                    {selected ? <Check className={styles.storyMenuCheck} size={14} weight="bold" aria-hidden /> : null}
+                  </button>
+                )
+              })}
             </div>,
             document.body,
           )

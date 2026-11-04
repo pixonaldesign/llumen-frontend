@@ -3,13 +3,14 @@
  * `GamiCard` kind, coloured from the Create Asset palettes. The card shell and its hover actions are
  * the story view's.
  */
-import { useEffect, useId, useState, type CSSProperties, type ReactNode } from 'react'
+import { useContext, useEffect, useId, useState, type CSSProperties, type ReactNode } from 'react'
 import { Info } from '@phosphor-icons/react'
 import styles from '../story/StoryView.module.css'
 import { formatCount } from '../story/StoryCharts'
 import { StorySummaryText } from '../story/StorySummaryText'
 import { SUMMARY_REGENERATE_MS } from '../story/storySummary'
 import { Gami3DModel } from './Gami3DModel'
+import { GamiFillDelay } from './gamiFill'
 import { LOCAL_COLOR } from './gamiPlaces'
 import { GAMI_PARTS, LOCAL_PARTS } from './gamiScenario'
 import {
@@ -34,17 +35,58 @@ const toneOf = (card: GamiCard): Tone => card.tone ?? 'blue'
 /** The trim on the 3D parts: the palette's light blue, not a status colour. */
 const PART_TRIM = PALETTE.blue[4]
 
+const COUNT_MS = 1100
+
+/** The first number in `text`, unless it is a year (which shouldn't count up from 0). */
+function countable(text: string) {
+  const match = /\d[\d,]*(\.\d+)?/.exec(text)
+  return match && !/^(19|20)\d\d$/.test(match[0]) ? match : null
+}
+
+/** `text` with its first number counting up from zero after the card's fill delay. */
+function useCountUp(text: string) {
+  const delay = useContext(GamiFillDelay)
+  const match = countable(text)
+  const [t, setT] = useState(delay === null || !match ? 1 : 0)
+  useEffect(() => {
+    if (delay === null || delay < 0 || !countable(text)) return
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let frame = window.requestAnimationFrame((start) => {
+      const tick = (now: number) => {
+        const p = still ? 1 : Math.min(1, Math.max(0, now - start - delay) / COUNT_MS)
+        setT(p)
+        if (p < 1) frame = window.requestAnimationFrame(tick)
+      }
+      tick(start)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [delay, text])
+  if (!match || t >= 1) return text
+  const target = Number(match[0].replace(/,/g, ''))
+  const decimals = match[1] ? match[1].length - 1 : 0
+  const shown = (target * (1 - (1 - t) ** 3)).toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping: match[0].includes(','),
+  })
+  return text.slice(0, match.index) + shown + text.slice(match.index + match[0].length)
+}
+
 function Title({ card }: { card: GamiCard }) {
   return <p className={styles.visualTitle}>{card.title}</p>
 }
 
 function Kpi({ value, unit }: { value: string; unit?: string }) {
   return (
-    <p className={styles.visualValue}>
-      <strong>{value}</strong>
+    <p className={`${styles.visualValue} ${css.figure}`}>
+      <strong>{useCountUp(value)}</strong>
       {unit ? <span>{unit}</span> : null}
     </p>
   )
+}
+
+function CellValue({ value }: { value: string }) {
+  return <p className={`${styles.kpiCellValue} ${css.figureCell}`}>{useCountUp(value)}</p>
 }
 
 function Legend({ items }: { items: { name: string; color: string; dashed?: boolean }[] }) {
@@ -306,9 +348,10 @@ function Split({ card }: { card: CardOf<'split'> }) {
 
 function Stacked({ card }: { card: CardOf<'stacked'> }) {
   const tone = toneOf(card)
+  const color = (index: number) => (card.status ? STATUS[card.status[index]] : category(index, tone))
   return (
     <>
-      <Legend items={card.legend.map((name, index) => ({ name, color: category(index, tone) }))} />
+      <Legend items={card.legend.map((name, index) => ({ name, color: color(index) }))} />
       <div className={css.stacked}>
         {card.bars.map((bar) => {
           const total = bar.parts.reduce((sum, part) => sum + part, 0)
@@ -320,7 +363,7 @@ function Stacked({ card }: { card: CardOf<'stacked'> }) {
                   <span
                     key={card.legend[i]}
                     className={css.stackPart}
-                    style={{ flexGrow: part / total, background: category(i, tone) }}
+                    style={{ flexGrow: part / total, background: color(i) }}
                     title={`${card.legend[i]}: ${Math.round((part / total) * 100)}%`}
                   />
                 ))}
@@ -541,6 +584,53 @@ function LocalPartBody({ card, onInfo }: { card: CardOf<'part'>; onInfo?: PartIn
   )
 }
 
+const UAV_PARTS: ReadonlySet<LocalPartId> = new Set(['motor', 'gimbal', 'inu'])
+
+/** A part in stock: missing parts, and the part a vehicle carries when it is missing, in red. */
+function StockPart({ card, onInfo }: { card: CardOf<'stock'>; onInfo?: PartInfo }) {
+  const large = card.height === 2
+  const vehicle = card.model === 'drone' || card.model === 'tank'
+  const part = card.part
+  return (
+    <>
+      <Gami3DModel
+        model={card.model}
+        accent={card.missing ? STATUS.critical : PART_TRIM}
+        highlight={vehicle && card.missing ? part : undefined}
+        className={css.partModel}
+        spin={vehicle ? 0.3 : 0.5}
+        distance={vehicle ? 0.78 : 1}
+      />
+      <div className={css.partFoot}>
+        <div className={css.partRow}>
+          <Kpi value={card.value} unit={card.unit} />
+          {part ? (
+            <button
+              type="button"
+              className={css.partInfo}
+              aria-label={`About the ${card.title}`}
+              onClick={() => onInfo?.(part, UAV_PARTS.has(part) ? 'stock' : 'local')}
+            >
+              <Info size={16} weight="regular" aria-hidden />
+              {large ? 'Details' : null}
+            </button>
+          ) : null}
+        </div>
+        {large && card.stats ? (
+          <dl className={css.partStats}>
+            {card.stats.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </div>
+    </>
+  )
+}
+
 function Part({ card, onInfo }: { card: CardOf<'part'>; onInfo?: PartInfo }) {
   if (card.facet === 'local') return <LocalPartBody card={card} onInfo={onInfo} />
   const part = GAMI_PARTS[card.part as PartId]
@@ -613,7 +703,7 @@ export function GamiCardBody({
       return (
         <>
           <p className={styles.kpiCellLabel}>{card.title}</p>
-          <p className={styles.kpiCellValue}>{card.value}</p>
+          <CellValue value={card.value} />
           <p className={styles.kpiCellNote}>{card.note}</p>
           {card.spark ? <Sparkline points={card.spark} color={statusColor(card.status, TONE_ACCENT[toneOf(card)])} /> : null}
         </>
@@ -625,10 +715,17 @@ export function GamiCardBody({
           <Part card={card} onInfo={onPartInfo} />
         </>
       )
+    case 'stock':
+      return (
+        <>
+          <Title card={card} />
+          <StockPart card={card} onInfo={onPartInfo} />
+        </>
+      )
     case 'section':
       return <h3 className={css.sectionTitle}>{card.title}</h3>
   }
-  const body: Record<Exclude<GamiCard['kind'], 'summary' | 'cell' | 'part' | 'section'>, () => ReactNode> = {
+  const body: Record<Exclude<GamiCard['kind'], 'summary' | 'cell' | 'part' | 'stock' | 'section'>, () => ReactNode> = {
     kpis: () => <Kpis card={card as CardOf<'kpis'>} />,
     progress: () => <Progress card={card as CardOf<'progress'>} />,
     line: () => <LineChart card={card as CardOf<'line'>} flat={flat} />,

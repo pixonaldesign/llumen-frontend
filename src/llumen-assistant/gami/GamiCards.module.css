@@ -588,3 +588,229 @@ aside.grid > .section {
   outline: 2px solid #70aeff;
   outline-offset: 2px;
 }
+
+/*
+ * The grid layout: `--grid-columns` square cells across the page. Each card spans `--cols` × `--rows`
+ * cells (set from the card); a section takes the row at its text's height.
+ */
+.dash {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns, 8), minmax(0, 1fr));
+  grid-auto-rows: auto;
+  grid-auto-flow: row dense;
+  align-content: start;
+  gap: 12px;
+  margin: 0 20px;
+  padding: 20px 0 96px;
+}
+
+.dash > * {
+  --cell: calc((100cqw - (var(--grid-columns, 8) - 1) * 12px) / var(--grid-columns, 8));
+  /* Figures keep the story's 32px on wide screens and shrink with the cell so they fit it on a laptop. */
+  --figure: clamp(18px, calc(var(--cell) * 0.125), 32px);
+}
+
+.dash .figure > strong,
+.dash .figureCell {
+  font-size: var(--figure);
+  line-height: 1.25;
+}
+
+.dash .figure > span {
+  font-size: clamp(12px, calc(var(--cell) * 0.065), 16px);
+}
+
+.dash > .card.card,
+.dash > .gridCell {
+  grid-column: span var(--cols, 1);
+  grid-row: span var(--rows, 1);
+  width: auto;
+  height: calc(var(--rows, 1) * var(--cell) + (var(--rows, 1) - 1) * 12px);
+}
+
+.dash > .section {
+  grid-column: 1 / -1;
+}
+
+/* Edit mode's empty cells, as the story's grid draws them. */
+.gridCell {
+  box-sizing: border-box;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  pointer-events: none;
+}
+
+/* Waiting for the story to come in: the cards hold back until the fill plays. */
+.dash[data-fill='wait'] > * {
+  opacity: 0;
+}
+
+.dash[data-fill='leave'] > * {
+  animation: dashOut 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/*
+ * The fill: each card rises in after `--fill-d`, then its model, bars, lines, ring and rows fill in
+ * from empty while its figures count up (GamiCharts).
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .dash[data-fill='play'] > * {
+    animation: dashIn 760ms cubic-bezier(0.16, 1, 0.3, 1) var(--fill-d, 0ms) backwards;
+  }
+
+  .dash[data-fill='play'] .partModel {
+    animation: modelIn 1100ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--fill-d, 0ms) + 180ms) backwards;
+  }
+
+  .dash[data-fill='play'] .fill,
+  .dash[data-fill='play'] .splitPart,
+  .dash[data-fill='play'] .stackPart,
+  .dash[data-fill='play'] .rangeBar {
+    transform-origin: left center;
+    animation: fillX 1100ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--fill-d, 0ms) + 260ms) backwards;
+  }
+
+  .dash[data-fill='play'] .stackRow:nth-child(2) .stackPart,
+  .dash[data-fill='play'] .hbar:nth-child(2) .fill,
+  .dash[data-fill='play'] .progressRow:nth-child(2) .fill {
+    animation-delay: calc(var(--fill-d, 0ms) + 330ms);
+  }
+
+  .dash[data-fill='play'] .stackRow:nth-child(3) .stackPart,
+  .dash[data-fill='play'] .hbar:nth-child(3) .fill,
+  .dash[data-fill='play'] .progressRow:nth-child(3) .fill {
+    animation-delay: calc(var(--fill-d, 0ms) + 400ms);
+  }
+
+  .dash[data-fill='play'] .stackRow:nth-child(n + 4) .stackPart,
+  .dash[data-fill='play'] .hbar:nth-child(n + 4) .fill {
+    animation-delay: calc(var(--fill-d, 0ms) + 470ms);
+  }
+
+  .dash[data-fill='play'] .vbarFill,
+  .dash[data-fill='play'] .groupFill {
+    transform-origin: center bottom;
+    animation: fillY 1100ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--fill-d, 0ms) + 260ms) backwards;
+  }
+
+  .dash[data-fill='play'] .vbar:nth-child(2) .vbarFill {
+    animation-delay: calc(var(--fill-d, 0ms) + 340ms);
+  }
+
+  .dash[data-fill='play'] .vbar:nth-child(3) .vbarFill {
+    animation-delay: calc(var(--fill-d, 0ms) + 420ms);
+  }
+
+  .dash[data-fill='play'] .vbar:nth-child(n + 4) .vbarFill {
+    animation-delay: calc(var(--fill-d, 0ms) + 500ms);
+  }
+
+  /* Line charts and sparklines (both drawn in a 0–100 box) draw in from the left. */
+  .dash[data-fill='play'] svg[viewBox='0 0 100 100'] {
+    animation: wipe 1400ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--fill-d, 0ms) + 260ms) backwards;
+  }
+
+  .dash[data-fill='play'] .donutRing svg {
+    -webkit-mask-image: conic-gradient(#000 var(--sweep), transparent 0);
+    mask-image: conic-gradient(#000 var(--sweep), transparent 0);
+    animation: sweep 1200ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--fill-d, 0ms) + 260ms) backwards;
+  }
+
+  .dash[data-fill='play'] .tableRow {
+    animation: rowIn 520ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--fill-d, 0ms) + 300ms + var(--row-d, 0ms)) backwards;
+  }
+
+  .tableRow:nth-child(2) {
+    --row-d: 50ms;
+  }
+
+  .tableRow:nth-child(3) {
+    --row-d: 100ms;
+  }
+
+  .tableRow:nth-child(4) {
+    --row-d: 150ms;
+  }
+
+  .tableRow:nth-child(5) {
+    --row-d: 200ms;
+  }
+
+  .tableRow:nth-child(6) {
+    --row-d: 250ms;
+  }
+
+  .tableRow:nth-child(n + 7) {
+    --row-d: 300ms;
+  }
+}
+
+@property --sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 360deg;
+}
+
+@keyframes dashIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+}
+
+@keyframes dashOut {
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+@keyframes modelIn {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+}
+
+@keyframes fillX {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes fillY {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes sweep {
+  from {
+    --sweep: 0deg;
+  }
+
+  to {
+    --sweep: 360deg;
+  }
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
