@@ -3,10 +3,11 @@ import type { GamiCard } from './gamiTypes'
 import css from './GamiCards.module.css'
 
 const isLarge = (card: GamiCard) => card.kind === 'part' && card.size === 'large'
+const isCell = (card: GamiCard) => card.span === 'cell' || card.kind === 'cell'
 
-/** Cells a card covers in a `columns`-wide sidebar: one cell, a 2×2 block, or the full row. */
+/** Cells a card covers in a `columns`-wide sidebar: one cell, half the row, a 2×2 block, or the full row. */
 export function cardFootprint(card: GamiCard, columns: number) {
-  const wide = isLarge(card) ? Math.min(2, columns) : card.span === 'cell' || card.kind === 'cell' ? 1 : columns
+  const wide = isLarge(card) ? Math.min(2, columns) : isCell(card) ? 1 : card.span === 'half' ? columns / 2 : columns
   const tall = card.height === 2 || isLarge(card) ? 2 : 1
   return wide * tall
 }
@@ -18,7 +19,7 @@ export function cardClass(card: GamiCard) {
   return [
     shell,
     css.card,
-    isLarge(card) ? css.block : card.span === 'cell' || card.kind === 'cell' ? css.cell : css.full,
+    isLarge(card) ? css.block : isCell(card) ? css.cell : card.span === 'half' ? css.half : css.full,
     card.height === 2 || isLarge(card) ? css.tall : '',
     card.kind === 'part' ? css.partCard : '',
     card.kind === 'summary' ? css.summary : '',

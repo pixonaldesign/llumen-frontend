@@ -508,54 +508,34 @@ export type PartInfo = (part: LocalPartId, facet: 'stock' | 'local') => void
 
 function LocalPartBody({ card, onInfo }: { card: CardOf<'part'>; onInfo?: PartInfo }) {
   const part = LOCAL_PARTS[card.part]
-  const size = card.size ?? 'cell'
-  const stats = (
-    <>
-      <div>
-        <dt>Made in</dt>
-        <dd>{part.city}</dd>
-      </div>
-      <div>
-        <dt>Capacity</dt>
-        <dd>
-          {part.capacity.toLocaleString('en-US')}
-          {size === 'wide' ? ` ${part.unit}` : ''} / mo
-        </dd>
-      </div>
-      <div>
-        <dt>First unit</dt>
-        <dd>{part.ready}</dd>
-      </div>
-    </>
-  )
-  const model = (
-    <Gami3DModel model={part.id} accent={LOCAL_COLOR[part.platform]} className={css.partModel} spin={size === 'cell' ? 0.5 : 0.4} />
-  )
-  const head = (
-    <div className={css.partRow}>
-      <Kpi value={String(part.months)} unit={size === 'cell' ? 'months' : 'months to first unit'} />
-      <button type="button" className={css.partInfo} aria-label={`About the local ${part.name}`} onClick={() => onInfo?.(part.id, 'local')}>
-        <Info size={16} weight="regular" aria-hidden />
-        {size === 'cell' ? null : 'Details'}
-      </button>
-    </div>
-  )
-  if (size === 'wide')
-    return (
-      <div className={css.partWide}>
-        {model}
-        <div className={css.partFoot}>
-          {head}
-          <dl className={css.partStatsList}>{stats}</dl>
-        </div>
-      </div>
-    )
+  const large = card.size === 'large'
   return (
     <>
-      {model}
+      <Gami3DModel model={part.id} accent={LOCAL_COLOR[part.platform]} className={css.partModel} spin={large ? 0.4 : 0.5} />
       <div className={css.partFoot}>
-        {head}
-        {size === 'large' ? <dl className={css.partStats}>{stats}</dl> : null}
+        <div className={css.partRow}>
+          <Kpi value={String(part.months)} unit={large ? 'months to first unit' : 'months'} />
+          <button type="button" className={css.partInfo} aria-label={`About the local ${part.name}`} onClick={() => onInfo?.(part.id, 'local')}>
+            <Info size={16} weight="regular" aria-hidden />
+            {large ? 'Details' : null}
+          </button>
+        </div>
+        {large ? (
+          <dl className={css.partStats}>
+            <div>
+              <dt>Made in</dt>
+              <dd>{part.city}</dd>
+            </div>
+            <div>
+              <dt>Capacity</dt>
+              <dd>{part.capacity.toLocaleString('en-US')} / mo</dd>
+            </div>
+            <div>
+              <dt>First unit</dt>
+              <dd>{part.ready}</dd>
+            </div>
+          </dl>
+        ) : null}
       </div>
     </>
   )

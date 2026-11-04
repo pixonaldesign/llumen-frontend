@@ -5,12 +5,13 @@
  */
 
 /*
- * The sidebar: 184px cells in `--sidebar-columns` columns; full cards span the row. Rows size to their
- * content so a section header takes only its text's height; every card is held to whole cells.
+ * The sidebar: 184px cells in `--sidebar-columns` columns; full cards span the row. Each cell is two
+ * 86px tracks so a card can take half the row at any column count. Rows size to their content so a
+ * section header takes only its text's height; every card is held to whole cells.
  */
 aside.grid {
   display: grid;
-  grid-template-columns: repeat(var(--sidebar-columns, 2), 184px);
+  grid-template-columns: repeat(var(--sidebar-tracks, 4), 86px);
   grid-auto-rows: auto;
   grid-auto-flow: row dense;
   align-content: start;
@@ -75,13 +76,19 @@ aside.grid > .section {
   grid-column: 1 / -1;
 }
 
+/* Edit mode's empty cells. */
+aside.grid > div,
 .cell {
-  grid-column: span 1;
+  grid-column: span 2;
+}
+
+.half {
+  grid-column: span var(--sidebar-columns, 2);
 }
 
 /* Two cells wide at any column count; with `.tall`, a 2×2 block. */
 .block {
-  grid-column: span 2;
+  grid-column: span 4;
 }
 
 .tall {
@@ -536,57 +543,6 @@ aside.grid > .section {
 
 .partStats dd {
   margin: 2px 0 0;
-  overflow: hidden;
-  color: #fff;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 12px;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* A full-row part: the model on the left half, its numbers stacked on the right. */
-.partWide {
-  display: grid;
-  flex: 1;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
-  min-height: 0;
-}
-
-.partWide .partModel {
-  margin: -8px 0 -12px -12px;
-}
-
-.partWide .partFoot {
-  justify-content: flex-end;
-}
-
-.partStatsList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.partStatsList div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-}
-
-.partStatsList dt {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 11px;
-  line-height: 14px;
-}
-
-.partStatsList dd {
-  margin: 0;
   overflow: hidden;
   color: #fff;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;

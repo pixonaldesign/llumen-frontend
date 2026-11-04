@@ -99,8 +99,8 @@ export type LocalPartId = PartId | TankPartId
 type CardBase = {
   id: string
   title: string
-  /** `cell` is one 184px square; `full` spans the sidebar's two cells. */
-  span?: 'full' | 'cell'
+  /** `cell` is one 184px square; `half` takes half the row; `full` spans it. */
+  span?: 'full' | 'half' | 'cell'
   /** Height in 184px rows. */
   height?: 1 | 2
   /** The headline number over a chart, as the story's chart cards show it. */
@@ -156,8 +156,7 @@ export type GamiCard = CardBase &
     | {
         kind: 'part'
         part: LocalPartId
-        /** `wide` lays the model beside its numbers across a full row. */
-        size?: 'cell' | 'large' | 'wide'
+        size?: 'cell' | 'large'
         /** `stock` reads the Poland import's stock (UAV parts only); `local` its local maker. */
         facet?: 'stock' | 'local'
       }
