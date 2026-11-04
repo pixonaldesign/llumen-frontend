@@ -1,0 +1,286 @@
+.chart {
+  --d: 0ms;
+  position: absolute;
+  inset: 0;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  user-select: none;
+}
+
+/* ── Type ── */
+
+.title {
+  fill: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+}
+
+.value {
+  fill: #fff;
+  font-family: var(--lc-font-mono);
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.valueSans {
+  font-family: inherit;
+  font-size: 33px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.unit {
+  fill: rgba(255, 255, 255, 0.7);
+  font-size: 19px;
+}
+
+.legendLabel {
+  fill: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+}
+
+.figure {
+  fill: rgba(255, 255, 255, 0.92);
+  font-family: var(--lc-font-mono);
+  font-size: 12px;
+}
+
+.tick {
+  fill: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
+.caption {
+  fill: rgba(255, 255, 255, 0.75);
+  font-size: 12.5px;
+}
+
+.pillLabel {
+  fill: rgba(255, 255, 255, 0.94);
+  font-size: 12.5px;
+}
+
+.rowLabel {
+  fill: rgba(255, 255, 255, 0.92);
+  font-size: 15px;
+}
+
+.rowFigure {
+  fill: rgba(255, 255, 255, 0.92);
+  font-family: var(--lc-font-mono);
+  font-size: 14px;
+}
+
+/* ── Marks ── */
+
+.grid {
+  stroke: rgba(255, 255, 255, 0.07);
+  stroke-width: 1;
+}
+
+.line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.legendRing {
+  fill: none;
+  stroke-width: 1.2;
+  stroke-dasharray: 2 1.6;
+}
+
+.track {
+  fill: rgba(255, 255, 255, 0.07);
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+
+.marks {
+  pointer-events: none;
+}
+
+.guide {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+.hoverDot {
+  fill: #0d1015;
+  stroke-width: 2;
+}
+
+.hit {
+  fill: transparent;
+}
+
+/* ── Hover ── */
+
+.lit,
+.dim {
+  transition: opacity 160ms ease;
+}
+
+.dim {
+  opacity: 0.38;
+}
+
+.slice {
+  transform-box: view-box;
+  transition:
+    transform 200ms ease,
+    opacity 160ms ease;
+}
+
+.slice[data-active='true'] {
+  transform: scale(1.05);
+}
+
+.handle {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 160ms ease;
+}
+
+.handle[data-active='true'] {
+  transform: scale(1.12);
+}
+
+.tip {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(16, 19, 25, 0.92);
+  color: #fff;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.tipLabel {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+}
+
+.tipRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tipDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.tipName {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.tipValue {
+  margin-left: auto;
+  padding-left: 12px;
+  font-family: var(--lc-font-mono);
+}
+/* ── Entrance ── */
+
+.growY {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.growX,
+.reveal {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+}
+
+.chart:not([data-play='true']) :is(.growY, .growX, .reveal, .fadeIn, .slice, .handle) {
+  visibility: hidden;
+}
+
+.chart[data-play='true'] .growY {
+  animation: grow-y 800ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--d) + 200ms + var(--i, 0ms));
+}
+
+.chart[data-play='true'] .growX {
+  animation: grow-x 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--d) + 200ms + var(--i, 0ms));
+}
+
+.chart[data-play='true'] .reveal {
+  animation: grow-x 1400ms cubic-bezier(0.65, 0, 0.35, 1) backwards;
+  animation-delay: calc(var(--d) + 200ms);
+}
+
+.chart[data-play='true'] .fadeIn {
+  animation: fade-in 500ms ease backwards;
+  animation-delay: calc(var(--d) + 300ms + var(--i, 0ms));
+}
+
+.chart[data-play='true'] .slice {
+  animation: pop 700ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--d) + 200ms + var(--i, 0ms));
+}
+
+.chart[data-play='true'] .handle {
+  animation: slide 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--d) + 200ms);
+}
+
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: rotate(-28deg) scale(0.9);
+  }
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(var(--from));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart * {
+    animation: none !important;
+  }
+}

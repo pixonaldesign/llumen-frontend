@@ -82,6 +82,8 @@ export type StoryTimeSeriesProps = {
   charts?: TimelineChartSeries[]
   onChartsChange?: (charts: TimelineChartSeries[]) => void
   editable: boolean
+  /** Moves the dates shown by whole years, for a compared map on another period. */
+  yearOffset?: number
 }
 
 const NO_CHARTS: TimelineChartSeries[] = []
@@ -104,6 +106,7 @@ export function StoryTimeSeries({
   charts = NO_CHARTS,
   onChartsChange,
   editable,
+  yearOffset = 0,
 }: StoryTimeSeriesProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
@@ -144,7 +147,7 @@ export function StoryTimeSeries({
 
   const lastFrame = frameCount - 1
   const progress = lastFrame > 0 ? frame / lastFrame : 0
-  const dateText = formatFrameDate(timelineFrameDate(granularity, frameCount, frame))
+  const dateText = formatFrameDate(timelineFrameDate(granularity, frameCount, frame, yearOffset))
   const [dateLabel, timeLabel] = dateText.split(', ')
 
   useEffect(() => {
@@ -412,7 +415,7 @@ export function StoryTimeSeries({
                   role="status"
                 >
                   <span className={styles.chartTooltipDate}>
-                    {formatFrameDate(timelineFrameDate(granularity, frameCount, hoverFrame))}
+                    {formatFrameDate(timelineFrameDate(granularity, frameCount, hoverFrame, yearOffset))}
                   </span>
                   {chartLines.map((line) => (
                     <span key={line.series.id} className={styles.chartTooltipRow}>
@@ -673,7 +676,7 @@ export function StoryTimeSeries({
                         >
                           <span className={styles.setupText}>
                             <span className={styles.setupLabel}>{option.label}</span>
-                            <span className={styles.setupDetail}>{describeTimelineRange(option, stepFor)}</span>
+                            <span className={styles.setupDetail}>{describeTimelineRange(option, stepFor, yearOffset)}</span>
                           </span>
                           {selected ? <Check size={16} weight="bold" aria-hidden /> : null}
                         </button>

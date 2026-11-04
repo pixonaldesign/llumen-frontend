@@ -111,6 +111,13 @@ export const VISUAL_TYPES: VisualType[] = [
     category: "chart",
   },
   {
+    id: "funnel-chart",
+    label: "Funnel Chart",
+    description: "Show how volume narrows across sequential stages.",
+    chartId: "funnel",
+    category: "chart",
+  },
+  {
     id: "kpi-card",
     label: "KPI Card",
     description: "Surface a single key metric with optional trend.",
