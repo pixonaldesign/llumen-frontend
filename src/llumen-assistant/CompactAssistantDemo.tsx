@@ -26,8 +26,16 @@ import { HubChatbox } from './landing/HubChatbox'
 import { FindingReveal } from './landing/FindingReveal'
 import { FindingToastStack } from './landing/FindingToastStack'
 import { FindingAuroraPanel } from './landing/FindingAuroraPanel'
-import { DEFAULT_FINDING_AURORA, OCEAN_AURORA_STOPS, STAGED_AURORA_PHASE1_MS, type FindingAuroraSettings } from './landing/findingAuroraSettings'
 import {
+  ALERT_BAR_CUE_STOPS,
+  DEFAULT_FINDING_AURORA,
+  OCEAN_AURORA_STOPS,
+  STAGED_AURORA_PHASE1_MS,
+  type FindingAuroraSettings,
+} from './landing/findingAuroraSettings'
+import {
+  ALERT_FINDING_POOL,
+  ENVIRONMENT_ALERT_POOL,
   FINDING_TOAST_SEED_COUNT,
   isAlertFinding,
   isFindingSlashCommand,
@@ -410,7 +418,13 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
   const stateId = `map-state-${Date.now()}`
   if (experience) {
     const snapshot: StoryAiSnapshot | null = experience.map
-      ? { cards: null, region: false, areaEffect: null, filterLabels: {}, findingPlace: experience.map.place }
+      ? {
+          cards: null,
+          region: false,
+          areaEffect: null,
+          filterLabels: {},
+          findingPlace: experience.map.place,
+        }
       : null
     return {
       stateId,
@@ -540,6 +554,8 @@ export function CompactAssistantDemo() {
   const [findingAurora, setFindingAurora] = useState<FindingAuroraSettings>(DEFAULT_FINDING_AURORA)
   const [auroraPanelOpen, setAuroraPanelOpen] = useState(false)
   const [auroraReplayKey, setAuroraReplayKey] = useState(0)
+  /** Whether the next alert opens from the middle of the Briefing's findings (`alertCentre`). */
+  const alertCentreRef = useRef(false)
   const [landingVariant, setLandingVariant] = useState<LandingVariant>(() => readLandingVariant())
   const [topBar, setTopBar] = useState<TopBarVariant>(() => readTopBarVariant())
   const [findingsStyle, setFindingsStyle] = useState<FindingsStyle>(() => readFindingsStyle())
@@ -1005,7 +1021,10 @@ export function CompactAssistantDemo() {
   }, [])
 
   const pushAlert = useCallback(() => {
-    const template = nextAlertFromPool(alertPoolIndexRef.current)
+    const template = nextAlertFromPool(
+      alertPoolIndexRef.current,
+      alertCentreRef.current ? ENVIRONMENT_ALERT_POOL : ALERT_FINDING_POOL,
+    )
     alertPoolIndexRef.current += 1
     const instance: FindingToastInstance = { ...template, severity: 'alert', instanceId: uid() }
     const alertCount = findingToastsRef.current.filter((item) => isAlertFinding(item)).length
@@ -1211,7 +1230,10 @@ export function CompactAssistantDemo() {
   }, [activeStoryId, hubStoryOpen, launchAlert])
 
   const launchCurrentAurora = useCallback(() => {
-    const template = nextAlertFromPool(alertPoolIndexRef.current)
+    const template = nextAlertFromPool(
+      alertPoolIndexRef.current,
+      alertCentreRef.current ? ENVIRONMENT_ALERT_POOL : ALERT_FINDING_POOL,
+    )
     alertPoolIndexRef.current += 1
     const alert: FindingToastInstance = { ...template, severity: 'alert', instanceId: uid() }
     const show = (borderCue = true) => {
@@ -1348,14 +1370,17 @@ export function CompactAssistantDemo() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.code !== 'KeyF' || !event.metaKey || !event.altKey || !event.shiftKey) return
+      if (!event.metaKey || !event.altKey || !event.shiftKey) return
+      const launch =
+        event.code === 'KeyF' ? launchFindingShortcut : event.code === 'KeyA' ? launchCurrentAurora : null
+      if (!launch) return
       event.preventDefault()
       event.stopPropagation()
-      launchFindingShortcut()
+      launch()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [launchFindingShortcut])
+  }, [launchCurrentAurora, launchFindingShortcut])
 
   useEffect(() => {
     if (findingToasts.length === 0) return
@@ -2671,7 +2696,7 @@ export function CompactAssistantDemo() {
       const userText = detail
         ? `Tell me more about ${item.title}. ${detail}`
         : `Tell me more about ${item.title}`
-      const dumpingBriefing = item.id === 'dumping-alert'
+      const dumpingBriefing = item.id === 'dumping-alert' || item.id === 'env-dumping-alert'
       clearStream()
       setMessages([
         { id: uid(), role: 'user', text: userText },
@@ -2950,11 +2975,7 @@ export function CompactAssistantDemo() {
         onAttachClick={() => {}}
         findingSlot={toastOverRail ? noticeToast(true) : null}
         findingCue={findingBorderCue && !showHub}
-        findingCueColors={{
-          stop1: findingAurora.colorStop1,
-          stop2: findingAurora.colorStop2,
-          stop3: findingAurora.colorStop3,
-        }}
+        findingCueColors={ALERT_BAR_CUE_STOPS}
         questionSlot={
           composerQuestion ? (
             <AgentQuestionPrompt
@@ -2995,6 +3016,9 @@ export function CompactAssistantDemo() {
     landingVariant === 'briefing' &&
     (findingsStyle === 5 || findingsStyle === 6 || findingsStyle === 8) &&
     briefingAtFindings
+  useEffect(() => {
+    alertCentreRef.current = alertCentre
+  }, [alertCentre])
   /** The composer's border cue has played, so the composer and findings give the middle to the alert. */
   const alertTakesCentre = alertCentre && alertItems.length > 0 && !findingBorderCue
   /** Styles 5 and 6 on the findings: a toast takes the finding's place instead of floating over the composer. */
@@ -3289,11 +3313,7 @@ export function CompactAssistantDemo() {
                 shimmerExit={toastShimmerExit && toastBoxCue && !findingBorderCue}
                 findingCueColors={
                   findingBorderCue
-                    ? {
-                        stop1: findingAurora.colorStop1,
-                        stop2: findingAurora.colorStop2,
-                        stop3: findingAurora.colorStop3,
-                      }
+                    ? ALERT_BAR_CUE_STOPS
                     : {
                         stop1: OCEAN_AURORA_STOPS[0],
                         stop2: OCEAN_AURORA_STOPS[1],

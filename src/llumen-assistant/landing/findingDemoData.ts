@@ -154,8 +154,23 @@ export const ALERT_FINDING_POOL: FindingToastItem[] = [
   },
 ]
 
-export function nextAlertFromPool(index: number): FindingToastItem {
-  return ALERT_FINDING_POOL[index % ALERT_FINDING_POOL.length]
+/** The alert for the Briefing's findings, where the aurora opens from the middle of the section. Always the same one. */
+export const ENVIRONMENT_ALERT_POOL: FindingToastItem[] = [
+  {
+    id: 'env-dumping-alert',
+    type: 'ai',
+    severity: 'alert',
+    title: 'Illegal dumping surge',
+    domain: 'Environment',
+    before: 'Illegal dumping along the Mussafah industrial belt has ',
+    highlight: 'spiked 35% in six hours',
+    after: ', and three sites are now above the emergency threshold',
+    storyId: 'r1',
+  },
+]
+
+export function nextAlertFromPool(index: number, pool: FindingToastItem[] = ALERT_FINDING_POOL): FindingToastItem {
+  return pool[index % pool.length]
 }
 
 export function isAlertFinding(item: { severity?: FindingSeverity }): boolean {

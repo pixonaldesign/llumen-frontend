@@ -22,6 +22,8 @@ type Command = {
   label: string
   hint: string
   active?: boolean
+  /** Keyboard shortcut that runs the command outside the palette. */
+  shortcut?: string
   run: () => void
 }
 
@@ -219,6 +221,7 @@ export function CommandPalette({
         group: 'Aurora',
         label: 'Alert Aurora',
         hint: 'Intrusive alert, bottom third of the screen',
+        shortcut: '⌘⌥⇧A',
         run: () => {
           onOpenChange(false)
           onCurrentAurora()
@@ -395,6 +398,11 @@ export function CommandPalette({
                     <span className={styles.itemLabel}>{command.label}</span>
                     <span className={styles.itemHint}>{command.hint}</span>
                   </span>
+                  {command.shortcut ? (
+                    <kbd className={styles.kbd} aria-label={`Shortcut ${command.shortcut}`}>
+                      {command.shortcut}
+                    </kbd>
+                  ) : null}
                   {command.active ? <Check size={16} weight="bold" aria-label="Selected" /> : null}
                 </button>
               ))}

@@ -56,7 +56,7 @@ export const STUDIO_SHADER_OPTIONS: readonly { shader: StudioShader; label: stri
  */
 export type ComparisonSplit = 'horizontal' | 'vertical' | 'blocks'
 
-export const DEFAULT_COMPARISON_SPLIT: ComparisonSplit = 'horizontal'
+export const DEFAULT_COMPARISON_SPLIT: ComparisonSplit = 'blocks'
 
 export const COMPARISON_SPLIT_OPTIONS: readonly { split: ComparisonSplit; label: string; hint: string }[] = [
   { split: 'horizontal', label: 'Horizontal comparison', hint: 'Story map on top, compared map below' },

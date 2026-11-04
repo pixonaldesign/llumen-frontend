@@ -932,7 +932,7 @@ const TOOL_TABS: { id: ToolTab; label: string }[] = [
 ]
 
 const STORY_TOOLS: { id: string; label: string; group: ToolGroup; icon: ToolIcon }[] = [
-  { id: 'executive-summary', label: 'Executive Summary', group: 'text', icon: Circle },
+  { id: 'executive-summary', label: 'Llumen AI Summary', group: 'text', icon: Circle },
   { id: 'image', label: 'Image', group: 'media', icon: ImageIcon },
   { id: 'kpi', label: 'KPI', group: 'text', icon: ChartLine },
   { id: 'link-button', label: 'Link Button', group: 'media', icon: Globe },

@@ -151,7 +151,8 @@ import {
   type ColumnGlyphColors,
   type StoryScene,
 } from './storyDemoScenes'
-import { StoryTimeSeries } from './StoryTimeSeries'
+import { StorySummaryText } from './StorySummaryText'
+import { StoryTimeSeries, type StoryTimeSeriesProps } from './StoryTimeSeries'
 import type { TimelineChartSeries } from './storyTimelineCharts'
 import {
   DEFAULT_SLIDE_TIMELINE,
@@ -235,6 +236,16 @@ function relabelFilterMap(
   )
 }
 
+/** "2025–2026" → "2024–2025": the compared map opens on the period before the story's. */
+function priorPeriod(label: string) {
+  return label.replace(/\d{4}/g, (year) => String(Number(year) - 1))
+}
+
+/** First year in the list's period filter, or NaN without one. */
+function periodYear(list: StoryFilter[]) {
+  return Number(list.find((filter) => filter.id === 'year')?.label.match(/\d{4}/)?.[0])
+}
+
 function changedFilterIds(from: Record<string, StoryFilter[]>, to: Record<string, StoryFilter[]>): string[] {
   const changed = new Set<string>()
   for (const [slideId, list] of Object.entries(to)) {
@@ -247,7 +258,7 @@ function changedFilterIds(from: Record<string, StoryFilter[]>, to: Record<string
 }
 
 const INSIGHT_CARD_LABELS: Record<InsightCardId, string> = {
-  summary: 'Executive Summary',
+  summary: 'Llumen AI Summary',
   emissions: 'Traffic Volume vs Typical Pattern',
   groundwater: 'Average Junction Load',
   biodiversity: 'Junction Traffic Status',
@@ -297,6 +308,11 @@ type ComparisonChoice = {
 type MapPane = 'upper' | 'lower'
 
 const NO_TIMELINE_CHARTS: TimelineChartSeries[] = []
+
+type TimeSeriesPlayback = Omit<
+  StoryTimeSeriesProps,
+  'chartScene' | 'chartPhaseOffset' | 'charts' | 'onChartsChange' | 'editable' | 'yearOffset'
+>
 type MapDataLayerKey = keyof StoryMapLayerVisibility
 /** Map Data's layers, top first; a deleted layer leaves the list and its map. */
 const MAP_DATA_LAYERS: MapDataLayerKey[] = ['junctions', 'distribution']
@@ -970,8 +986,9 @@ export function StoryView({
   const lowerFiltersFor = (option: ComparisonMapOption) =>
     filters
       .filter((filter) => option.source !== 'filters' || option.id !== `filter-${filter.id}`)
-      .map((filter) => ({ ...filter }))
+      .map((filter) => (filter.id === 'year' ? { ...filter, label: priorPeriod(filter.label) } : { ...filter }))
   const lowerFilters = comparison.filters ?? lowerFiltersFor(comparison.option)
+  const lowerYearOffset = periodYear(lowerFilters) - periodYear(filters) || 0
   const lowerTimeline = (!mapsLinked && comparison.timeline) || timeline
   const lowerRange = timelineRangeById(lowerTimeline.rangeId)
   const lowerGranularity = timelineGranularityById(lowerTimeline.granularityId)
@@ -1753,22 +1770,25 @@ export function StoryView({
   )
   const backgroundButton = backgroundButtonFor('upper')
 
+  const playback: TimeSeriesPlayback = {
+    range: timelineRange,
+    granularity: timelineGranularity,
+    frameCount,
+    frame: timeline.frame,
+    playing: timelinePlaying,
+    speed: playbackSpeed,
+    stepMs: frameStepMs,
+    onFrameChange: (frame) => updateTimeline(slide.id, (current) => ({ ...current, frame })),
+    onPlayingChange: setTimelinePlaying,
+    onSpeedChange: setPlaybackSpeed,
+    onGranularityChange: (granularityId) =>
+      updateTimeline(slide.id, (current) => withGranularity(current, granularityId)),
+    onRangeChange: (rangeId) => updateTimeline(slide.id, (current) => withRange(current, rangeId)),
+  }
+
   const timeSeries = (
     <StoryTimeSeries
-      range={timelineRange}
-      granularity={timelineGranularity}
-      frameCount={frameCount}
-      frame={timeline.frame}
-      playing={timelinePlaying}
-      speed={playbackSpeed}
-      stepMs={frameStepMs}
-      onFrameChange={(frame) => updateTimeline(slide.id, (current) => ({ ...current, frame }))}
-      onPlayingChange={setTimelinePlaying}
-      onSpeedChange={setPlaybackSpeed}
-      onGranularityChange={(granularityId) =>
-        updateTimeline(slide.id, (current) => withGranularity(current, granularityId))
-      }
-      onRangeChange={(rangeId) => updateTimeline(slide.id, (current) => withRange(current, rangeId))}
+      {...playback}
       chartScene={baseScene}
       charts={chartsBySlide[slide.id] ?? NO_TIMELINE_CHARTS}
       onChartsChange={(charts) => setChartsBySlide((current) => ({ ...current, [slide.id]: charts }))}
@@ -1779,25 +1799,32 @@ export function StoryView({
   const updateLowerTimeline = (update: (current: SlideTimeline) => SlideTimeline) =>
     updateComparison((current) => ({ ...current, timeline: update(current.timeline ?? lowerTimeline) }))
 
+  // Linked maps share one playback, so either time series plays, scrubs or retimes both.
+  const lowerPlayback: TimeSeriesPlayback = mapsLinked
+    ? playback
+    : {
+        range: lowerRange,
+        granularity: lowerGranularity,
+        frameCount: lowerFrameCount,
+        frame: lowerTimeline.frame,
+        playing: lowerPlaying,
+        speed: lowerSpeed,
+        stepMs: lowerStepMs,
+        onFrameChange: (frame) => updateLowerTimeline((current) => ({ ...current, frame })),
+        onPlayingChange: (playing) => {
+          updateLowerTimeline((current) => current)
+          setLowerPlaying(playing)
+        },
+        onSpeedChange: setLowerSpeed,
+        onGranularityChange: (granularityId) =>
+          updateLowerTimeline((current) => withGranularity(current, granularityId)),
+        onRangeChange: (rangeId) => updateLowerTimeline((current) => withRange(current, rangeId)),
+      }
+
   const lowerTimeSeries = (
     <StoryTimeSeries
-      range={lowerRange}
-      granularity={lowerGranularity}
-      frameCount={lowerFrameCount}
-      frame={lowerTimeline.frame}
-      playing={lowerPlaying}
-      speed={lowerSpeed}
-      stepMs={lowerStepMs}
-      onFrameChange={(frame) => updateLowerTimeline((current) => ({ ...current, frame }))}
-      onPlayingChange={(playing) => {
-        updateLowerTimeline((current) => current)
-        setLowerPlaying(playing)
-      }}
-      onSpeedChange={setLowerSpeed}
-      onGranularityChange={(granularityId) =>
-        updateLowerTimeline((current) => withGranularity(current, granularityId))
-      }
-      onRangeChange={(rangeId) => updateLowerTimeline((current) => withRange(current, rangeId))}
+      {...lowerPlayback}
+      yearOffset={lowerYearOffset}
       chartScene={comparisonBaseScene}
       chartPhaseOffset={comparison.option.phaseOffset}
       charts={comparison.charts ?? NO_TIMELINE_CHARTS}
@@ -2215,48 +2242,42 @@ export function StoryView({
     <>
       {insightCard(
         'summary',
-        [
-          styles.summaryCard,
-          gradientStyles.gradientBorder,
-          regeneratingSlideId === slide.id ? styles.summaryRegenerating : '',
-        ]
-          .filter(Boolean)
-          .join(' '),
-        'Executive Summary',
+        `${styles.summaryCard} ${gradientStyles.gradientBorder}`,
+        'Llumen AI Summary',
         <>
-          <h2 className={styles.summaryTitle}>Executive Summary</h2>
+          <h2 className={styles.summaryTitle}>Llumen AI Summary</h2>
           {summaryUpdated}
-          {aiRegion && regionInsight ? (
-            <p className={styles.summaryBody}>
-              {aiRegion.label}&apos;s traffic volume rose{' '}
-              <em className={styles.summaryEmphasis}>14% year over year</em> in {MUSSAFAH_PERIOD}, peaking at
-              11.8k vehicles per hour on the E30 approach. Average junction load climbed to{' '}
-              <em className={styles.summaryEmphasis}>
-                <AnimatedNumber value={regionInsight.load} format={formatCount} />%
-              </em>
-              , with{' '}
-              <em className={styles.summaryEmphasis}>
-                {regionBusyJunctions(aiRegion)} of {aiRegion.junctions.length} junctions
-              </em>{' '}
-              over capacity during the 06:00–09:00 shift change.
-            </p>
-          ) : (
-          <p className={styles.summaryBody}>
-            Abu Dhabi&apos;s traffic operations view combines monitored-junction activity and
-            value-distribution signals across{' '}
-            <em className={styles.summaryEmphasis}>
-              <AnimatedNumber value={scene.legend.junctionCount} format={formatCount} /> junctions
-            </em>
-            . Currently,{' '}
-            <em className={styles.summaryEmphasis}>
-              <AnimatedNumber value={insight.online} format={formatCount} /> junctions are reporting
-            </em>{' '}
-            at <AnimatedNumber value={insight.uptime} format={formatCount} />% data coverage, while{' '}
-            <AnimatedNumber value={insight.marine} format={formatCount} /> show congested conditions.
-            Hourly traffic volume and junction-load trends identify the busiest corridors so
-            operations teams can prioritize signal timing and field response.
-          </p>
-          )}
+          <StorySummaryText
+            parts={
+              aiRegion && regionInsight
+                ? [
+                    `${aiRegion.label}'s traffic volume rose `,
+                    { em: ['14% year over year'] },
+                    ` in ${MUSSAFAH_PERIOD}, peaking at 11.8k vehicles per hour on the E30 approach. Average junction load climbed to `,
+                    { em: [regionInsight.load, '%'] },
+                    ', with ',
+                    { em: [`${regionBusyJunctions(aiRegion)} of ${aiRegion.junctions.length} junctions`] },
+                    ' over capacity during the 06:00–09:00 shift change.',
+                  ]
+                : [
+                    "Abu Dhabi's traffic operations view combines monitored-junction activity and value-distribution signals across ",
+                    { em: [scene.legend.junctionCount, ' junctions'] },
+                    '. Currently, ',
+                    { em: [insight.online, ' junctions are reporting'] },
+                    ' at ',
+                    insight.uptime,
+                    '% data coverage, while ',
+                    insight.marine,
+                    ' show congested conditions. Hourly traffic volume and junction-load trends identify the busiest corridors so operations teams can prioritize signal timing and field response.',
+                  ]
+            }
+            typing={summaryRegenerating}
+            durationMs={SUMMARY_REGENERATE_MS}
+            format={formatCount}
+            className={styles.summaryBody}
+            emphasisClassName={styles.summaryEmphasis}
+            typingClassName={styles.summaryTyping}
+          />
         </>,
         {
           ...gradientVars(summaryConfig.gradient),
@@ -2506,7 +2527,6 @@ export function StoryView({
             styleUrl={lowerMapStyle.url}
             flat={lowerMapStyle.dimension === '2d' || (annotationPane === 'lower' && annotating)}
             controlsClassName={styles.comparisonControls}
-            controls={!mapsLinked}
             cameraLink={mapsLinked ? cameraLink : undefined}
             flyToScene={false}
             annotations={{
@@ -2957,7 +2977,7 @@ export function StoryView({
               {comparisonMapData('upper', mainLegend, layers, toggleLayer, legendPlace)}
             </div>
             <div className={`${styles.mapStack} ${styles.mapStackCompared}`}>
-              {mapsLinked ? null : lowerTimeSeries}
+              {lowerTimeSeries}
               {comparisonMapData('lower', comparisonScene.legend, comparison.layers, toggleComparisonLayer, 'Abu Dhabi')}
             </div>
           </>

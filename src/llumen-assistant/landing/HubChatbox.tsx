@@ -226,7 +226,8 @@ export type HubChatboxProps = {
   orbCue?: boolean
   /** Fade the toast ring out at the end of its second. Alert cue does not set this. */
   shimmerExit?: boolean
-  findingCueColors?: { stop1: string; stop2: string; stop3: string }
+  /** `stop4` sits between `stop1` and the `stop3` highlight on the box; unset, it blends the two. */
+  findingCueColors?: { stop1: string; stop2: string; stop3: string; stop4?: string }
   /** Story components attached via "Add to chat"; sending routes to `onSubmitComponents`. */
   components?: HubChatComponent[]
   onRemoveComponent?: (id: string) => void
@@ -787,6 +788,7 @@ export function HubChatbox({
                 ['--orb-shimmer-1' as string]: findingCueColors?.stop1,
                 ['--orb-shimmer-2' as string]: findingCueColors?.stop2,
                 ['--orb-shimmer-3' as string]: findingCueColors?.stop3,
+                ['--orb-shimmer-4' as string]: findingCueColors?.stop4,
               }
             : undefined
         }
