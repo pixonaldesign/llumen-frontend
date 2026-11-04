@@ -46,6 +46,15 @@ aside.grid {
   grid-row: span 2;
 }
 
+/* A cell card's sparkline takes the room under its note; the line may run over the box's bottom edge. */
+.spark {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 24px;
+  overflow: visible;
+}
+
 .legend {
   flex-wrap: wrap;
   row-gap: 4px;

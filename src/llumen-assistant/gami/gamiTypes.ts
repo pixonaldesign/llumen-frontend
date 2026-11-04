@@ -109,7 +109,14 @@ export type GamiCard = CardBase &
   (
     | { kind: 'summary'; parts: SummaryPart[] }
     | { kind: 'kpis'; tiles: { label: string; value: string; unit?: string; note?: string }[] }
-    | { kind: 'cell'; value: string; note: string }
+    | {
+        kind: 'cell'
+        value: string
+        note: string
+        /** A sparkline under the note, oldest first, in the status colour. */
+        spark?: number[]
+        status?: Status
+      }
     | { kind: 'progress'; rows: { label: string; value: string; target: string; pct: number }[] }
     | {
         kind: 'line'

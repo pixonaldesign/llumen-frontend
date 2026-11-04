@@ -195,6 +195,33 @@ function LineChart({ card, flat = false }: { card: CardOf<'line'>; flat?: boolea
   )
 }
 
+/** A cell's trend: the line over a faint fill, filling the room left under the note. */
+function Sparkline({ points, color }: { points: number[]; color: string }) {
+  const gradientId = useId()
+  const run = linePath(points, Math.max(...points, 1) * 1.15)[0]
+  if (!run) return null
+  return (
+    <svg className={css.spark} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.32" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${run.d} L${run.last} 100 L${run.first} 100 Z`} fill={`url(#${gradientId})`} />
+      <path
+        d={run.d}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.75}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  )
+}
+
 function VBars({ card }: { card: CardOf<'vbars'> }) {
   const accent = TONE_ACCENT[toneOf(card)]
   const max = Math.max(...card.bars.map((bar) => bar.value))
@@ -539,6 +566,7 @@ export function GamiCardBody({
           <p className={styles.kpiCellLabel}>{card.title}</p>
           <p className={styles.kpiCellValue}>{card.value}</p>
           <p className={styles.kpiCellNote}>{card.note}</p>
+          {card.spark ? <Sparkline points={card.spark} color={statusColor(card.status, TONE_ACCENT[toneOf(card)])} /> : null}
         </>
       )
     case 'part':

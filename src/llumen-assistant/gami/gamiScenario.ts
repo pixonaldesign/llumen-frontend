@@ -1014,6 +1014,16 @@ const ALERT: GamiStory = {
           note: '3 critical · 8 moderate · 9 mild',
         },
         {
+          id: 'deliveries',
+          kind: 'cell',
+          span: 'cell',
+          title: 'Motor deliveries',
+          value: '0 / wk',
+          note: 'Down from 450 a week',
+          status: 'critical',
+          spark: [450, 465, 440, 455, 430, 210, 0, 0, 0],
+        },
+        {
           id: 'imports',
           kind: 'table',
           title: 'Affected Imports',
