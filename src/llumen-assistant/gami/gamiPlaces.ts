@@ -4,7 +4,17 @@
  */
 import { blob, hash, offsetKm, scatter, type LngLat } from './gamiGeo'
 import { scene, type GamiArc, type GamiColumn, type GamiDisk, type GamiLabel } from './gamiMapLayers'
-import { PALETTE, STATUS, category, ramp, rampAt, type GamiCamera, type GamiPlaceId, type GamiPolygon } from './gamiTypes'
+import {
+  PALETTE,
+  STATUS,
+  category,
+  ramp,
+  rampAt,
+  type GamiCamera,
+  type GamiPlaceId,
+  type GamiPolygon,
+  type LocalPartId,
+} from './gamiTypes'
 
 export type Domain = 'air' | 'armament' | 'land' | 'naval' | 'electronics'
 
@@ -662,6 +672,82 @@ export const ANATOLIA_AREA: GamiPolygon = {
   wallM: 18000,
   labelSide: 'west',
 }
+
+/* ---------- The alert, page 3: the parts the Kingdom can make itself ---------- */
+
+/** UAV parts in teal, Abrams parts in purple, on the map and in the panel. */
+export const LOCAL_COLOR = { uav: PALETTE.teal[2], abrams: PALETTE.purple[3] } as const
+
+const ABRAMS_DEPOT = site('tabuk-land')
+
+export type LocalMaker = {
+  part: LocalPartId
+  platform: 'uav' | 'abrams'
+  facility: string
+  city: string
+  at: LngLat
+  /** What the line makes, as the map label reads it. */
+  makes: string
+  months: number
+  ready: string
+  /** The line the parts go to. */
+  to: LngLat
+  side: GamiLabel['side']
+}
+
+const maker = (id: string) => ({ facility: site(id).name, city: site(id).city, at: site(id).at })
+
+export const LOCAL_MAKERS: LocalMaker[] = [
+  { part: 'motor', platform: 'uav', ...maker('riyadh-electronics'), makes: 'Propulsion motors', months: 28, ready: 'Q1 2029', to: site('riyadh-uav').at, side: 'top' },
+  { part: 'gimbal', platform: 'uav', ...maker('ahsa-electronics'), makes: 'EO/IR gimbals', months: 22, ready: 'Q3 2028', to: site('alkharj-uav').at, side: 'east' },
+  { part: 'inu', platform: 'uav', ...maker('taif-air'), makes: 'Navigation units', months: 25, ready: 'Q4 2028', to: site('riyadh-uav').at, side: 'east' },
+  { part: 'trackPad', platform: 'abrams', ...maker('jubail-land'), makes: 'Track pads', months: 7, ready: 'Q2 2027', to: ABRAMS_DEPOT.at, side: 'east' },
+  { part: 'visionBlock', platform: 'abrams', ...maker('kaec-land'), city: 'KAEC', makes: 'Vision blocks', months: 10, ready: 'Q3 2027', to: ABRAMS_DEPOT.at, side: 'west' },
+  { part: 'seal', platform: 'abrams', facility: 'Yanbu Elastomer Works', city: 'Yanbu', at: [38.12, 24.12], makes: 'Hydraulic seals', months: 4, ready: 'Q1 2027', to: ABRAMS_DEPOT.at, side: 'west' },
+  { part: 'forging', platform: 'abrams', ...maker('alkharj-armament'), makes: 'Road-wheel arms', months: 7, ready: 'Q2 2027', to: ABRAMS_DEPOT.at, side: 'west' },
+]
+
+/** Tabuk to Al-Ahsa, beside the 3-cell sidebar. */
+export const LOCAL_CAMERA: GamiCamera = { center: [43.61, 25.29], zoom: 5.74, pitch: 28, bearing: -6 }
+
+const makerGroup = (item: LocalMaker) => (item.platform === 'uav' ? 'makers-uav' : 'makers-abrams')
+
+export const LOCAL_SCENE = scene({
+  arcs: LOCAL_MAKERS.map((item) => route(item.at, item.to, LOCAL_COLOR[item.platform], 'local-routes')),
+  disks: [
+    ...LOCAL_MAKERS.map((item) => ({
+      at: item.at,
+      radiusM: 30000,
+      color: LOCAL_COLOR[item.platform],
+      group: makerGroup(item),
+      tip: { title: item.facility, rows: [['City', item.city], ['Makes', item.makes], ['First local unit', item.ready]] as [string, string][] },
+    })),
+    ...RECEIVERS.map((item) => ({
+      at: item.at,
+      radiusM: 22000,
+      color: MAP.area,
+      group: 'lines',
+      tip: { title: item.name, rows: [['City', item.city], ['Receives', 'UAV parts']] as [string, string][] },
+    })),
+    {
+      at: ABRAMS_DEPOT.at,
+      radiusM: 26000,
+      color: MAP.area,
+      group: 'lines',
+      tip: { title: ABRAMS_DEPOT.name, rows: [['City', ABRAMS_DEPOT.city], ['Receives', 'Abrams parts']] },
+    },
+  ],
+  labels: [
+    ...LOCAL_MAKERS.map((item) => ({
+      at: item.at,
+      title: item.facility,
+      text: `${item.makes} · ${item.ready}`,
+      side: item.side,
+      group: makerGroup(item),
+    })),
+    { at: ABRAMS_DEPOT.at, title: 'Abrams depot · Tabuk', text: 'Receives the 4 Abrams parts', side: 'top', group: 'lines' },
+  ],
+})
 
 /* ---------- Briefing places ---------- */
 

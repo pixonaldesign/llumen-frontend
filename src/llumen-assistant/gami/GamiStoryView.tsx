@@ -71,10 +71,10 @@ import gradientStyles from '../story/storyGradientBorder.module.css'
 import styles from '../story/StoryView.module.css'
 import { GamiCardBody } from './GamiCharts'
 import { GamiMap, type GamiMapHandle } from './GamiMap'
-import { GamiPartModal } from './GamiPartModal'
+import { GamiLocalPartModal, GamiPartModal } from './GamiPartModal'
 import { cardClass, cardFootprint } from './gamiCardLayout'
 import { GAMI_STORIES } from './gamiScenario'
-import type { GamiCard, GamiPage, MapDataLayer, PartId } from './gamiTypes'
+import type { GamiCard, GamiPage, LocalPartId, MapDataLayer, PartId } from './gamiTypes'
 import cardCss from './GamiCards.module.css'
 import css from './GamiStory.module.css'
 
@@ -344,7 +344,7 @@ export function GamiStoryView({
   const [info, setInfo] = useState<{ kind: 'story' | 'slide'; left: number; top: number } | null>(null)
   const [legendOpen, setLegendOpen] = useState(true)
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NO_GROUPS)
-  const [part, setPart] = useState<PartId | null>(null)
+  const [part, setPart] = useState<{ id: LocalPartId; facet: 'stock' | 'local' } | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [pageRename, setPageRename] = useState<{ slideId: string; title: string } | null>(null)
   const [columnsBySlide, setColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
@@ -618,7 +618,7 @@ export function GamiStoryView({
       >
         <GamiCardBody
           card={card}
-          onPartInfo={setPart}
+          onPartInfo={(id, facet) => setPart({ id, facet })}
           summaryStatus={summary ? summaryUpdated : undefined}
           summaryTyping={summary && summaryRegenerating}
         />
@@ -1524,7 +1524,7 @@ export function GamiStoryView({
                 onClick={() => {
                   const card = cardMenu.card
                   setCardMenu(null)
-                  if (card.kind === 'part') setPart(card.part)
+                  if (card.kind === 'part') setPart({ id: card.part, facet: card.facet ?? 'stock' })
                 }}
               >
                 <Compass size={16} weight="regular" aria-hidden />
@@ -1656,9 +1656,10 @@ export function GamiStoryView({
           onClose={() => setMonitorCard(null)}
         />
       ) : null}
-      {part ? (
+      {part?.facet === 'local' ? <GamiLocalPartModal part={part.id} onClose={() => setPart(null)} /> : null}
+      {part?.facet === 'stock' ? (
         <GamiPartModal
-          part={part}
+          part={part.id as PartId}
           onClose={() => setPart(null)}
           onBridge={
             storyId === 'gami-alert'

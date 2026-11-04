@@ -1,6 +1,7 @@
 /**
  * The GAMI demo's apps (stories): the four Briefing findings and the Poland supply alert, two pages
  * each. Page 1 frames the insight; page 2 outlines one area on the map and reads the panel for it.
+ * The alert has a third page: the cut-off parts the Kingdom can make itself, and where.
  */
 import {
   ALERT_CAMERA,
@@ -22,6 +23,10 @@ import {
   KAEC_SCENE,
   KINGDOM_STORY_CAMERA,
   KINGDOM_STORY_SCENE,
+  LOCAL_CAMERA,
+  LOCAL_COLOR,
+  LOCAL_MAKERS,
+  LOCAL_SCENE,
   MALHAM_AREA,
   MALHAM_CAMERA,
   MALHAM_SCENE,
@@ -42,6 +47,8 @@ import {
   type GamiPage,
   type GamiPart,
   type GamiStory,
+  type LocalPart,
+  type LocalPartId,
   type MapDataLayer,
   type PartId,
   type Status,
@@ -913,6 +920,232 @@ export const GAMI_PARTS: Record<PartId, GamiPart> = {
   },
 }
 
+const withoutImportShare = (id: PartId) => GAMI_PARTS[id].specs.filter(([label]) => label !== 'Imported from Poland')
+
+type LocalDetails = Omit<LocalPart, 'id' | 'platform' | 'facility' | 'city' | 'months' | 'ready'>
+
+/** The 7 of the 20 cut-off imports the Kingdom can make itself; where and when come from `LOCAL_MAKERS`. */
+const LOCAL_DETAILS: Record<LocalPartId, LocalDetails> = {
+  motor: {
+    name: 'Brushless propulsion motor',
+    short: 'Propulsion motor',
+    placement: 'Sits in the tail and turns the pusher propeller. No Najm, Sahm or Rimah airframe leaves the line without it.',
+    specs: [...withoutImportShare('motor'), ['Local content', '72%']],
+    certification: 'AS9100 · audit 2027',
+    capacity: 2000,
+    need: 1800,
+    unit: 'motors',
+    localContent: 72,
+    investment: 'SAR 410m',
+    costIndex: 94,
+    readiness: [
+      { label: 'Tooling', pct: 45 },
+      { label: 'Workforce', pct: 30 },
+      { label: 'Magnet and copper supply', pct: 25 },
+      { label: 'Qualification', pct: 10 },
+    ],
+    plan: [
+      { step: 'Licence and tooling order', when: 'Q1 2027' },
+      { step: 'Pilot line running', when: 'Q2 2028' },
+      { step: 'First-article and flight tests', when: 'Q4 2028' },
+      { step: 'First local motors', when: 'Q1 2029' },
+    ],
+  },
+  gimbal: {
+    name: 'EO/IR gimbal assembly',
+    short: 'EO/IR gimbal',
+    placement: 'Hangs under the nose: the stabilised day and thermal cameras the crew watches and designates targets through.',
+    specs: [...withoutImportShare('gimbal'), ['Local content', '64%']],
+    certification: 'AS9100 · held',
+    capacity: 260,
+    need: 240,
+    unit: 'gimbals',
+    localContent: 64,
+    investment: 'SAR 260m',
+    costIndex: 97,
+    readiness: [
+      { label: 'Tooling', pct: 60 },
+      { label: 'Workforce', pct: 50 },
+      { label: 'Optics supply', pct: 35 },
+      { label: 'Qualification', pct: 20 },
+    ],
+    plan: [
+      { step: 'Optics clean room fitted', when: 'Q2 2027' },
+      { step: 'Pilot line running', when: 'Q4 2027' },
+      { step: 'Boresight and flight tests', when: 'Q2 2028' },
+      { step: 'First local gimbals', when: 'Q3 2028' },
+    ],
+  },
+  inu: {
+    name: 'Inertial navigation unit',
+    short: 'Navigation unit',
+    placement: 'Sealed inside the fuselage behind the wing: it keeps the aircraft on course when GNSS is jammed.',
+    specs: [...withoutImportShare('inu'), ['Local content', '58%']],
+    certification: 'AS9100 · held',
+    capacity: 450,
+    need: 420,
+    unit: 'units',
+    localContent: 58,
+    investment: 'SAR 220m',
+    costIndex: 98,
+    readiness: [
+      { label: 'Tooling', pct: 55 },
+      { label: 'Workforce', pct: 45 },
+      { label: 'Gyro supply', pct: 20 },
+      { label: 'Qualification', pct: 15 },
+    ],
+    plan: [
+      { step: 'Calibration lab built', when: 'Q2 2027' },
+      { step: 'Pilot line running', when: 'Q1 2028' },
+      { step: 'Flight trials', when: 'Q3 2028' },
+      { step: 'First local units', when: 'Q4 2028' },
+    ],
+  },
+  trackPad: {
+    name: 'Rubber track pad',
+    short: 'Track pads',
+    placement: 'Two on every shoe of both tracks, 312 per tank. They take the road wear and are swapped as they go.',
+    specs: [
+      ['Compound', 'Natural rubber blend'],
+      ['Bond', 'Vulcanised to steel'],
+      ['Mass', '1.9 kg'],
+      ['Life', '2,000 km'],
+      ['Fits', 'T158 track shoe'],
+      ['Local content', '88%'],
+    ],
+    certification: 'ISO 9001 · held',
+    capacity: 12000,
+    need: 9600,
+    unit: 'pads',
+    localContent: 88,
+    investment: 'SAR 85m',
+    costIndex: 91,
+    readiness: [
+      { label: 'Tooling', pct: 80 },
+      { label: 'Workforce', pct: 70 },
+      { label: 'Rubber supply', pct: 90 },
+      { label: 'Qualification', pct: 40 },
+    ],
+    plan: [
+      { step: 'Moulds and presses installed', when: 'Jan 2027' },
+      { step: 'Pilot batch, 2,000 pads', when: 'Mar 2027' },
+      { step: 'Wear trials, Tabuk depot', when: 'Apr 2027' },
+      { step: 'First local deliveries', when: 'Q2 2027' },
+    ],
+  },
+  visionBlock: {
+    name: 'Armored glass vision block',
+    short: 'Vision blocks',
+    placement: 'Ringed around the commander’s cupola and set in the driver’s hatch: the crew’s view out with the hatches shut.',
+    specs: [
+      ['Build', '7 glass layers + polycarbonate'],
+      ['Thickness', '92 mm'],
+      ['Protection', 'STANAG 4569 L3'],
+      ['Mass', '11 kg'],
+      ['Light through', '≥ 70%'],
+      ['Local content', '61%'],
+    ],
+    certification: 'ISO 9001 · ballistic test 2027',
+    capacity: 400,
+    need: 320,
+    unit: 'blocks',
+    localContent: 61,
+    investment: 'SAR 140m',
+    costIndex: 96,
+    readiness: [
+      { label: 'Tooling', pct: 65 },
+      { label: 'Workforce', pct: 55 },
+      { label: 'Glass supply', pct: 50 },
+      { label: 'Qualification', pct: 30 },
+    ],
+    plan: [
+      { step: 'Laminating autoclave installed', when: 'Feb 2027' },
+      { step: 'Ballistic test samples', when: 'May 2027' },
+      { step: 'Optical and fit trials', when: 'Jul 2027' },
+      { step: 'First local deliveries', when: 'Q3 2027' },
+    ],
+  },
+  seal: {
+    name: 'Hydraulic seal kit',
+    short: 'Hydraulic seals',
+    placement: 'Inside the gun-elevation cylinders under the mantlet and in the turret ring, so the gun holds its aim on the move.',
+    specs: [
+      ['Material', 'HNBR + PTFE'],
+      ['Pressure', '210 bar'],
+      ['Temperature', '−40 to 120 °C'],
+      ['Kit', '14 seals and wipers'],
+      ['Life', '3,000 h'],
+      ['Local content', '79%'],
+    ],
+    certification: 'ISO 9001 · held',
+    capacity: 1500,
+    need: 1200,
+    unit: 'kits',
+    localContent: 79,
+    investment: 'SAR 45m',
+    costIndex: 88,
+    readiness: [
+      { label: 'Tooling', pct: 85 },
+      { label: 'Workforce', pct: 75 },
+      { label: 'Compound supply', pct: 80 },
+      { label: 'Qualification', pct: 55 },
+    ],
+    plan: [
+      { step: 'Seal moulds cut', when: 'Dec 2026' },
+      { step: 'Pressure and cycle tests', when: 'Feb 2027' },
+      { step: 'Fit check, Tabuk depot', when: 'Mar 2027' },
+      { step: 'First local kits', when: 'Q1 2027' },
+    ],
+  },
+  forging: {
+    name: 'Road-wheel arm forging',
+    short: 'Road-wheel arms',
+    placement: 'Hangs each road wheel from its torsion bar: seven a side, fourteen per tank, carrying 62 tonnes over rough ground.',
+    specs: [
+      ['Steel', '4340 alloy, forged'],
+      ['Mass', '84 kg'],
+      ['Heat treatment', 'Quench and temper'],
+      ['Proof load', '45 t'],
+      ['Machining', '5-axis'],
+      ['Local content', '83%'],
+    ],
+    certification: 'ISO 9001 · AQAP 2110 2027',
+    capacity: 900,
+    need: 700,
+    unit: 'arms',
+    localContent: 83,
+    investment: 'SAR 120m',
+    costIndex: 93,
+    readiness: [
+      { label: 'Tooling', pct: 70 },
+      { label: 'Workforce', pct: 60 },
+      { label: 'Steel supply', pct: 85 },
+      { label: 'Qualification', pct: 35 },
+    ],
+    plan: [
+      { step: 'Die set and press time booked', when: 'Jan 2027' },
+      { step: 'First forgings heat-treated', when: 'Mar 2027' },
+      { step: 'Fatigue test', when: 'May 2027' },
+      { step: 'First local deliveries', when: 'Q2 2027' },
+    ],
+  },
+}
+
+export const LOCAL_PARTS = Object.fromEntries(
+  LOCAL_MAKERS.map((item) => [
+    item.part,
+    {
+      ...LOCAL_DETAILS[item.part],
+      id: item.part,
+      platform: item.platform,
+      facility: item.facility,
+      city: item.city,
+      months: item.months,
+      ready: item.ready,
+    },
+  ]),
+) as Record<LocalPartId, LocalPart>
+
 type Level = 'Critical' | 'Moderate' | 'Mild'
 
 /** The 20 imports from Poland the conflict cut off, most critical first. */
@@ -1160,6 +1393,131 @@ const ALERT: GamiStory = {
         },
       ],
     },
+    {
+      id: 'local',
+      title: 'Made in the Kingdom',
+      finding:
+        '7 of the 20 cut-off imports can be made at 7 Saudi facilities: 4 Abrams parts from 2027, and the 3 critical UAV parts by Q1 2029, as the Türkiye bridge ends.',
+      camera: LOCAL_CAMERA,
+      scene: LOCAL_SCENE,
+      polygons: [],
+      filters: ['Kingdom', 'Local production', 'UAV and Abrams'],
+      layers: [
+        {
+          group: 'makers-uav',
+          title: 'UAV Part Makers',
+          mark: 'disk',
+          color: { items: [{ label: 'Motors · gimbals · nav units', color: LOCAL_COLOR.uav, count: '3' }] },
+        },
+        {
+          group: 'makers-abrams',
+          title: 'Abrams Part Makers',
+          mark: 'disk',
+          color: { items: [{ label: 'Pads · glass · seals · arms', color: LOCAL_COLOR.abrams, count: '4' }] },
+        },
+        {
+          group: 'local-routes',
+          title: 'Local Supply Routes',
+          mark: 'line',
+          color: {
+            items: [
+              { label: 'To the UAV lines', color: LOCAL_COLOR.uav, count: '3' },
+              { label: 'To the Abrams depot', color: LOCAL_COLOR.abrams, count: '4' },
+            ],
+          },
+        },
+        {
+          group: 'lines',
+          title: 'Receiving Sites',
+          mark: 'disk',
+          color: { items: [{ label: 'UAV lines · Abrams depot', color: MAP.area, count: '3' }] },
+        },
+      ],
+      cards: [
+        {
+          id: 'summary',
+          kind: 'summary',
+          title: 'Llumen AI Summary',
+          parts: [
+            { em: ['7 of the 20'] },
+            ' cut-off imports can be made in the Kingdom. ',
+            { em: ['4 Abrams parts'] },
+            ' start in 2027 at existing land-systems plants; the ',
+            { em: ['3 critical UAV parts'] },
+            ' follow by Q1 2029, as the Türkiye bridge ends.',
+          ],
+        },
+        { id: 'local-count', kind: 'cell', span: 'cell', title: 'Made locally', value: '7 of 20', note: '3 UAV · 4 Abrams parts' },
+        { id: 'local-sites', kind: 'cell', span: 'cell', title: 'Local makers', value: '7 sites', note: 'across 4 regions' },
+        {
+          id: 'local-cover',
+          kind: 'cell',
+          span: 'cell',
+          title: 'Need met locally',
+          value: '100%',
+          note: 'of the 7 parts by 2029',
+          status: 'good',
+          spark: [0, 14, 43, 57, 57, 57, 57, 71, 86, 100],
+        },
+        { id: 'local-motor', kind: 'part', part: 'motor', size: 'large', facet: 'local', title: 'Propulsion Motor' },
+        { id: 'local-gimbal', kind: 'part', part: 'gimbal', span: 'cell', facet: 'local', title: 'EO/IR Gimbal' },
+        { id: 'local-inu', kind: 'part', part: 'inu', span: 'cell', facet: 'local', title: 'Navigation Unit' },
+        { id: 'local-track', kind: 'part', part: 'trackPad', size: 'wide', facet: 'local', title: 'Abrams Track Pad' },
+        { id: 'local-vision', kind: 'part', part: 'visionBlock', span: 'cell', facet: 'local', title: 'Vision Block' },
+        { id: 'local-seal', kind: 'part', part: 'seal', span: 'cell', facet: 'local', title: 'Hydraulic Seals' },
+        { id: 'local-forging', kind: 'part', part: 'forging', span: 'cell', facet: 'local', title: 'Road-wheel Arm' },
+        {
+          id: 'local-timeline',
+          kind: 'range',
+          title: 'Time to First Local Unit',
+          height: 2,
+          min: 0,
+          max: 30,
+          ticks: [0, 6, 12, 18, 24, 30],
+          rows: [...LOCAL_MAKERS]
+            .sort((a, b) => a.months - b.months)
+            .map((item) => ({ label: LOCAL_DETAILS[item.part].short, from: 0, to: item.months })),
+        },
+        {
+          id: 'local-share',
+          kind: 'line',
+          title: 'Need Met Locally',
+          kpi: { value: '100%', unit: 'by Q1 2029' },
+          x: ['Today', 'Q2 27', 'Q4 27', 'Q2 28', 'Q4 28', 'Q2 29'],
+          yLabels: ['100%', '50%', '0'],
+          yMax: 100,
+          series: [
+            { name: 'Abrams parts', points: [0, 75, 100, 100, 100, 100] },
+            { name: 'UAV parts', points: [0, 0, 0, 0, 67, 100] },
+          ],
+        },
+        {
+          id: 'local-savings',
+          kind: 'hbars',
+          title: 'Imports Replaced a Year',
+          height: 2,
+          bars: [
+            { label: 'Propulsion motors', value: 640, display: 'SAR 640m' },
+            { label: 'EO/IR gimbals', value: 380, display: 'SAR 380m' },
+            { label: 'Navigation units', value: 290, display: 'SAR 290m' },
+            { label: 'Track pads', value: 210, display: 'SAR 210m' },
+            { label: 'Road-wheel arms', value: 150, display: 'SAR 150m' },
+            { label: 'Vision blocks', value: 120, display: 'SAR 120m' },
+            { label: 'Hydraulic seals', value: 90, display: 'SAR 90m' },
+          ],
+        },
+        {
+          id: 'local-makers',
+          kind: 'table',
+          title: 'Local Makers',
+          height: 2,
+          columns: ['Part', 'City', 'For', 'First unit'],
+          rows: LOCAL_MAKERS.map((item) => ({
+            cells: [LOCAL_DETAILS[item.part].short, item.city, item.platform === 'uav' ? 'UAV' : 'Abrams', item.ready],
+          })),
+        },
+      ],
+    },
   ],
 }
 
@@ -1174,8 +1532,8 @@ function withTones(story: GamiStory): GamiStory {
       card.tone || !TONED_KINDS.has(card.kind) ? card : { ...card, tone: TONES[turn++ % TONES.length] },
     ),
   })
-  const [first, second] = story.pages
-  return { ...story, pages: [tone(first), tone(second)] }
+  const [first, second, ...rest] = story.pages
+  return { ...story, pages: [tone(first), tone(second), ...rest.map(tone)] }
 }
 
 export const GAMI_STORIES: Record<string, GamiStory> = Object.fromEntries(

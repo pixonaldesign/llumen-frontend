@@ -91,6 +91,10 @@ export type MapDataLayer = {
 }
 
 export type PartId = 'motor' | 'gimbal' | 'inu'
+/** The four Abrams parts cut off with the UAV parts. */
+export type TankPartId = 'trackPad' | 'visionBlock' | 'seal' | 'forging'
+/** Every part the Kingdom can make itself: the three UAV parts and the four Abrams parts. */
+export type LocalPartId = PartId | TankPartId
 
 type CardBase = {
   id: string
@@ -147,7 +151,14 @@ export type GamiCard = CardBase &
       }
     | { kind: 'range'; min: number; max: number; ticks: number[]; rows: { label: string; from: number; to: number; status?: Status }[] }
     | { kind: 'countdown'; target: string }
-    | { kind: 'part'; part: PartId; size?: 'cell' | 'large' }
+    | {
+        kind: 'part'
+        part: LocalPartId
+        /** `wide` lays the model beside its numbers across a full row. */
+        size?: 'cell' | 'large' | 'wide'
+        /** `stock` reads the Poland import's stock (UAV parts only); `local` its local maker. */
+        facet?: 'stock' | 'local'
+      }
   )
 
 export type GamiPage = {
@@ -173,7 +184,7 @@ export type GamiStory = {
   intro?: GamiCamera
   /** Sidebar width in 184px cells on every page (2 unless set). */
   columns?: 2 | 3 | 4
-  pages: [GamiPage, GamiPage]
+  pages: [GamiPage, GamiPage, ...GamiPage[]]
 }
 
 export type GamiPlaceId = 'kingdom' | 'eastern' | 'wds' | 'western'
@@ -197,5 +208,33 @@ export type GamiPart = {
   deliveries: number[]
   alternative: { supplier: string; city: string; capacity: string; leadTime: string; cost: string; qualified: string }
   /** The switch to the bridge supplier, step by step. */
+  plan: { step: string; when: string }[]
+}
+
+/** A part the Kingdom can make itself, and the facility that will make it. */
+export type LocalPart = {
+  id: LocalPartId
+  name: string
+  short: string
+  platform: 'uav' | 'abrams'
+  /** Where it goes in the aircraft or tank, and what it does there. */
+  placement: string
+  specs: [string, string][]
+  facility: string
+  city: string
+  /** Quality approval the facility holds or is working to. */
+  certification: string
+  /** Months from today to the first local unit. */
+  months: number
+  ready: string
+  /** Units a month: the build line's capacity and the Kingdom's need. */
+  capacity: number
+  need: number
+  unit: string
+  localContent: number
+  investment: string
+  /** Unit cost against the Poland import (100). */
+  costIndex: number
+  readiness: { label: string; pct: number }[]
   plan: { step: string; when: string }[]
 }

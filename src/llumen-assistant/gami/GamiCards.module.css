@@ -503,6 +503,57 @@ aside.grid {
   white-space: nowrap;
 }
 
+/* A full-row part: the model on the left half, its numbers stacked on the right. */
+.partWide {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+}
+
+.partWide .partModel {
+  margin: -8px 0 -12px -12px;
+}
+
+.partWide .partFoot {
+  justify-content: flex-end;
+}
+
+.partStatsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.partStatsList div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.partStatsList dt {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.partStatsList dd {
+  margin: 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .partRow {
   display: flex;
   align-items: center;

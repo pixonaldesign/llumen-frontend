@@ -10,8 +10,19 @@ import { formatCount } from '../story/StoryCharts'
 import { StorySummaryText } from '../story/StorySummaryText'
 import { SUMMARY_REGENERATE_MS } from '../story/storySummary'
 import { Gami3DModel } from './Gami3DModel'
-import { GAMI_PARTS } from './gamiScenario'
-import { PALETTE, STATUS, TONE_ACCENT, category, type GamiCard, type PartId, type Status, type Tone } from './gamiTypes'
+import { LOCAL_COLOR } from './gamiPlaces'
+import { GAMI_PARTS, LOCAL_PARTS } from './gamiScenario'
+import {
+  PALETTE,
+  STATUS,
+  TONE_ACCENT,
+  category,
+  type GamiCard,
+  type LocalPartId,
+  type PartId,
+  type Status,
+  type Tone,
+} from './gamiTypes'
 import css from './GamiCards.module.css'
 
 type CardOf<K extends GamiCard['kind']> = Extract<GamiCard, { kind: K }>
@@ -493,8 +504,66 @@ function Countdown({ card }: { card: CardOf<'countdown'> }) {
   )
 }
 
-function Part({ card, onInfo }: { card: CardOf<'part'>; onInfo?: (part: PartId) => void }) {
-  const part = GAMI_PARTS[card.part]
+export type PartInfo = (part: LocalPartId, facet: 'stock' | 'local') => void
+
+function LocalPartBody({ card, onInfo }: { card: CardOf<'part'>; onInfo?: PartInfo }) {
+  const part = LOCAL_PARTS[card.part]
+  const size = card.size ?? 'cell'
+  const stats = (
+    <>
+      <div>
+        <dt>Made in</dt>
+        <dd>{part.city}</dd>
+      </div>
+      <div>
+        <dt>Capacity</dt>
+        <dd>
+          {part.capacity.toLocaleString('en-US')}
+          {size === 'wide' ? ` ${part.unit}` : ''} / mo
+        </dd>
+      </div>
+      <div>
+        <dt>First unit</dt>
+        <dd>{part.ready}</dd>
+      </div>
+    </>
+  )
+  const model = (
+    <Gami3DModel model={part.id} accent={LOCAL_COLOR[part.platform]} className={css.partModel} spin={size === 'cell' ? 0.5 : 0.4} />
+  )
+  const head = (
+    <div className={css.partRow}>
+      <Kpi value={String(part.months)} unit={size === 'cell' ? 'months' : 'months to first unit'} />
+      <button type="button" className={css.partInfo} aria-label={`About the local ${part.name}`} onClick={() => onInfo?.(part.id, 'local')}>
+        <Info size={16} weight="regular" aria-hidden />
+        {size === 'cell' ? null : 'Details'}
+      </button>
+    </div>
+  )
+  if (size === 'wide')
+    return (
+      <div className={css.partWide}>
+        {model}
+        <div className={css.partFoot}>
+          {head}
+          <dl className={css.partStatsList}>{stats}</dl>
+        </div>
+      </div>
+    )
+  return (
+    <>
+      {model}
+      <div className={css.partFoot}>
+        {head}
+        {size === 'large' ? <dl className={css.partStats}>{stats}</dl> : null}
+      </div>
+    </>
+  )
+}
+
+function Part({ card, onInfo }: { card: CardOf<'part'>; onInfo?: PartInfo }) {
+  if (card.facet === 'local') return <LocalPartBody card={card} onInfo={onInfo} />
+  const part = GAMI_PARTS[card.part as PartId]
   const large = card.size === 'large'
   return (
     <>
@@ -502,7 +571,7 @@ function Part({ card, onInfo }: { card: CardOf<'part'>; onInfo?: (part: PartId) 
       <div className={css.partFoot}>
         <div className={css.partRow}>
           <Kpi value={String(part.stockDays)} unit={large ? 'days of stock' : 'days'} />
-          <button type="button" className={css.partInfo} aria-label={`About the ${part.name}`} onClick={() => onInfo?.(part.id)}>
+          <button type="button" className={css.partInfo} aria-label={`About the ${part.name}`} onClick={() => onInfo?.(part.id, 'stock')}>
             <Info size={16} weight="regular" aria-hidden />
             {large ? 'Details' : null}
           </button>
@@ -536,7 +605,7 @@ export function GamiCardBody({
   flat = false,
 }: {
   card: GamiCard
-  onPartInfo?: (part: PartId) => void
+  onPartInfo?: PartInfo
   /** The summary's "Last updated" chip. */
   summaryStatus?: ReactNode
   summaryTyping?: boolean
