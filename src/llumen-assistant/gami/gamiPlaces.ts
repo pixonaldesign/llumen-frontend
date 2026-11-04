@@ -608,9 +608,9 @@ const CONFLICT_HEAT = heatPoints(
   41,
 )
 
-export const ALERT_CAMERA: GamiCamera = { center: [33.5, 40.5], zoom: 3.05, pitch: 32, bearing: -12 }
-/** The whole planet, Poland to Riyadh in view, that the alert story dives in from. */
-export const ALERT_INTRO_CAMERA: GamiCamera = { center: [32, 34], zoom: 1.7, pitch: 0, bearing: 0 }
+export const ALERT_CAMERA: GamiCamera = { center: [39.72, 40.72], zoom: 3.72, pitch: 24, bearing: -11 }
+/** The planet, Poland to Riyadh in view, that the alert story dives in from. */
+export const ALERT_INTRO_CAMERA: GamiCamera = { center: [37, 38], zoom: 2.45, pitch: 0, bearing: 0 }
 
 export const ALERT_SCENE = scene({
   arcs: POLAND_SUPPLIERS.map((supplier) => route(supplier.at, supplier.to, MAP.critical, 'routes')),
