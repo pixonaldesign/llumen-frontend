@@ -69,7 +69,7 @@ export function StorySummaryText({
 
   return (
     <p className={typing ? `${className} ${typingClassName}` : className} aria-busy={typing || undefined}>
-      {parts.map((part, group) => {
+      {parts.map((_, group) => {
         const indexes = runs.flatMap((item, index) => (item.group === group ? [index] : []))
         if (!indexes.some((index) => shown[index])) return null
         return runs[indexes[0]].em ? (

@@ -97,13 +97,13 @@ const NETWORK_PRESSURE: FeedChart = {
 /** The Briefing findings. Each map stop (its own place and palette) is followed by one or more blurred ones. */
 export const FEED_STOPS: FeedStop[] = [
   {
-    id: 'abu-dhabi',
-    place: 'abu-dhabi',
-    domain: 'Operations',
-    title: 'Island Bus Reliability Brief',
-    before: 'Morning arrivals on the island bus routes are ',
-    highlight: 'running 12 minutes late',
-    after: ', led by Routes 54 and 65.',
+    id: 'mussafah-dumping',
+    place: 'mussafah',
+    domain: 'Environment',
+    title: 'Illegal dumping in Al Mussafah',
+    before: 'Illegal dumping along the Mussafah industrial belt has ',
+    highlight: 'spiked 35% in six hours',
+    after: ', and three sites are above the emergency threshold.',
     storyId: 'r1',
   },
   {

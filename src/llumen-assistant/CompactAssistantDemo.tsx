@@ -2695,7 +2695,7 @@ export function CompactAssistantDemo() {
       const userText = detail
         ? `Tell me more about ${item.title}. ${detail}`
         : `Tell me more about ${item.title}`
-      const dumpingBriefing = item.id === 'dumping-alert' || item.id === 'env-dumping-alert'
+      const dumpingBriefing = item.id === 'dumping-alert' || item.id === 'mussafah-dumping'
       clearStream()
       setMessages([
         { id: uid(), role: 'user', text: userText },

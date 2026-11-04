@@ -925,10 +925,10 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
       map: null,
     }),
 
-  'env-dumping-alert': () =>
+  'mussafah-dumping': () =>
     experience({
       id: 'finding-dumping',
-      read: 'Reading the Illegal dumping surge alert and the incident reports behind it…',
+      read: 'Reading the Illegal dumping in Al Mussafah finding and the incident reports behind it…',
       search: 'Pulling dumping reports, site inspections and the week-ago baseline for the Mussafah industrial belt…',
       reason: 'Outlining the sites over the emergency threshold and the lots dumped on again on the Mussafah map…',
       headline: 'Outlined where illegal dumping has spiked in Al Mussafah.',
@@ -992,6 +992,78 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
         areas: [
           { name: 'Sites over threshold', text: '3 sites · +35% in 6 h' },
           { name: 'Cleared lots', text: 'Dumped on again since Sunday' },
+        ],
+      },
+    }),
+
+  'env-co2-alert': () =>
+    experience({
+      id: 'finding-co2',
+      read: 'Reading the CO₂ high-level forecast alert and the air-quality model behind it…',
+      search: 'Pulling the next four hours of CO₂ forecast, wind and clinic visits for Al Mussafah and its neighbours…',
+      reason: 'Outlining the districts the CO₂ peak reaches and the respiratory cases expected in each on the Mussafah map…',
+      headline: 'Outlined the three districts the CO₂ peak reaches in 2 hours.',
+      headlineDetail:
+        'Drew a polygon around Al Mussafah and two neighbouring districts, each labelled with its expected respiratory cases.',
+      intro:
+        'CO₂ over Al Mussafah is forecast to peak at 780 ppm in two hours, as the wind drops while the industrial belt runs its afternoon shift. In past episodes like this one, that brought about 120 extra respiratory cases across Al Mussafah and two neighbouring districts. I outlined each district on the map with its expected cases.',
+      sections: [
+        {
+          heading: 'On the map',
+          text: 'The cyan outlines mark where the peak lands. Al Mussafah’s industrial area takes the highest concentration and most of the cases. Mussafah Shabiya and the western edge of MBZ City sit downwind and peak about 30 minutes later.',
+        },
+        {
+          heading: 'CO₂ over the next four hours',
+          text: 'The level crosses the 600 ppm high-exposure line within the hour and peaks two hours from now, then eases as the evening breeze returns.',
+          chart: chartComponent(
+            'finding-co2-forecast',
+            {
+              type: 'trend',
+              title: 'Forecast CO₂ over Al Mussafah',
+              value: '780',
+              unit: 'ppm peak in 2 hours',
+              color: '#7fe3ff',
+              yLabels: ['900 ppm', '600 ppm', '300 ppm'],
+              xLabels: ['Now', '+1 h', '+2 h', '+3 h', '+4 h'],
+              line: trendLine([520, 610, 700, 780, 730, 650, 590], 300, 900),
+            },
+            'Forecast CO₂ in ppm; 600 ppm is the high-exposure line.',
+          ),
+        },
+        {
+          heading: 'Expected respiratory cases',
+          text: 'Most of the expected cases are asthma and COPD flare-ups among outdoor workers and older residents, concentrated where the peak is highest.',
+          chart: chartComponent(
+            'finding-co2-cases',
+            {
+              type: 'bars',
+              title: 'Expected respiratory cases, next 6 hours',
+              value: '120',
+              unit: 'across three districts',
+              color: '#7fe3ff',
+              rows: barRows([
+                ['Al Mussafah industrial area', 58, '58 cases'],
+                ['Mussafah Shabiya', 38, '38 cases'],
+                ['MBZ City west', 24, '24 cases'],
+              ]),
+            },
+            'Respiratory clinic and emergency visits expected above a normal afternoon.',
+          ),
+        },
+        {
+          heading: 'Recommended action',
+          text: 'Ask the largest emitters on the industrial belt to defer generator and kiln loads through the peak, advise outdoor workers and schools in the three districts to stay indoors for the next four hours, and have the clinics in Al Mussafah and Mussafah Shabiya prepare for more asthma and COPD visits.',
+        },
+      ],
+      map: {
+        place: 'mussafah',
+        title: 'CO₂ forecast for Al Mussafah · on the map',
+        tag: 'Al Mussafah',
+        meta: '3 areas outlined',
+        areas: [
+          { name: 'Al Mussafah industrial area', text: '58 respiratory cases' },
+          { name: 'Mussafah Shabiya', text: '38 respiratory cases' },
+          { name: 'MBZ City west', text: '24 respiratory cases' },
         ],
       },
     }),

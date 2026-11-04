@@ -157,14 +157,14 @@ export const ALERT_FINDING_POOL: FindingToastItem[] = [
 /** The alert for the Briefing's findings, where the aurora opens from the middle of the section. Always the same one. */
 export const ENVIRONMENT_ALERT_POOL: FindingToastItem[] = [
   {
-    id: 'env-dumping-alert',
+    id: 'env-co2-alert',
     type: 'ai',
     severity: 'alert',
-    title: 'Illegal dumping surge',
+    title: 'CO₂ high-level forecast',
     domain: 'Environment',
-    before: 'Illegal dumping along the Mussafah industrial belt has ',
-    highlight: 'spiked 35% in six hours',
-    after: ', and three sites are now above the emergency threshold',
+    before: 'CO₂ over Al Mussafah is forecast to ',
+    highlight: 'reach high levels in 2 hours',
+    after: ', with about 120 respiratory cases expected across three districts',
     storyId: 'r1',
   },
 ]
