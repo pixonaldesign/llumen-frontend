@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
-import type { LocalPartId } from './gamiTypes'
+import { STATUS, type LocalPartId } from './gamiTypes'
 
 export type GamiModelId = LocalPartId | 'drone' | 'tank'
 
@@ -45,7 +45,20 @@ function materials(accent: string) {
     accent: new THREE.MeshStandardMaterial({ color: trim, metalness: 0.3, roughness: 0.4 }),
     laser: new THREE.MeshStandardMaterial({ color: 0x3a2424, metalness: 0.2, roughness: 0.15 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x1b1d21, metalness: 0, roughness: 0.92 }),
-    sand: new THREE.MeshStandardMaterial({ color: 0x8f7f62, metalness: 0.35, roughness: 0.58 }),
+    /** The part a vehicle view points out: the one cut off from Poland. */
+    missing: new THREE.MeshStandardMaterial({
+      color: STATUS.critical,
+      emissive: new THREE.Color(STATUS.critical).multiplyScalar(0.45),
+      metalness: 0.15,
+      roughness: 0.42,
+    }),
+    /** CARC desert tan armour, faceted so plate edges read. */
+    armor: new THREE.MeshStandardMaterial({ color: 0x84734f, metalness: 0.1, roughness: 0.86, flatShading: true, side: THREE.DoubleSide }),
+    tan: new THREE.MeshStandardMaterial({ color: 0x84734f, metalness: 0.1, roughness: 0.8 }),
+    grime: new THREE.MeshStandardMaterial({ color: 0x5f553f, metalness: 0.2, roughness: 0.9 }),
+    iron: new THREE.MeshStandardMaterial({ color: 0x37352f, metalness: 0.75, roughness: 0.55 }),
+    cloth: new THREE.MeshStandardMaterial({ color: 0x7a6b4c, metalness: 0, roughness: 1 }),
+    olive: new THREE.MeshStandardMaterial({ color: 0x55523a, metalness: 0, roughness: 0.95 }),
     forged: new THREE.MeshStandardMaterial({ color: 0x6f757d, metalness: 0.9, roughness: 0.48 }),
     armorGlass: new THREE.MeshPhysicalMaterial({
       color: 0x3d6b66,
@@ -221,7 +234,7 @@ function drone(m: Mats, highlight?: LocalPartId): Built {
   const fin = mesh(new RoundedBoxGeometry(0.02, 0.12, 0.28, 1, 0.008), hull, [0, 0.3, -0.6])
   root.add(fin)
 
-  const hot = (part: LocalPartId) => (highlight === part ? m.accent : m.dark)
+  const hot = (part: LocalPartId) => (highlight === part ? m.missing : m.dark)
   const prop = new THREE.Group()
   prop.position.set(0, 0, 1.74)
   const hub = mesh(new THREE.ConeGeometry(0.08, 0.2, 24), hot('motor'))
@@ -239,7 +252,7 @@ function drone(m: Mats, highlight?: LocalPartId): Built {
   const turret = new THREE.Group()
   turret.position.set(0, -0.27, -1.05)
   turret.add(mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.08, 20), m.dark, [0, 0.06, 0]))
-  turret.add(mesh(new THREE.SphereGeometry(0.15, 32, 24), highlight === 'gimbal' ? m.accent : m.paint))
+  turret.add(mesh(new THREE.SphereGeometry(0.15, 32, 24), highlight === 'gimbal' ? m.missing : m.paint))
   turret.add(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 24), m.glass, [0, -0.02, -0.13]).rotateX(Math.PI / 2))
   root.add(turret)
 
@@ -247,7 +260,7 @@ function drone(m: Mats, highlight?: LocalPartId): Built {
     hull.transparent = true
     hull.opacity = 0.32
     hull.depthWrite = false
-    root.add(mesh(new RoundedBoxGeometry(0.26, 0.14, 0.2, 2, 0.02), m.accent, [0, 0.02, -0.35]))
+    root.add(mesh(new RoundedBoxGeometry(0.26, 0.14, 0.2, 2, 0.02), m.missing, [0, 0.02, -0.35]))
   }
 
   return {
@@ -266,15 +279,6 @@ function sideExtrude(points: [number, number][], width: number, edge = 0.01) {
   const geometry = new THREE.ExtrudeGeometry(shape, { depth: width - edge * 2, ...bevel(edge) })
   geometry.rotateY(Math.PI / 2)
   geometry.translate(-width / 2 + edge, 0, 0)
-  return geometry
-}
-
-/** A plan outline, given as (x, z) points, extruded `height` up from y = 0. */
-function topExtrude(points: [number, number][], height: number, edge = 0.01) {
-  const shape = new THREE.Shape(points.map(([x, z]) => new THREE.Vector2(x, -z)))
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: height - edge * 2, ...bevel(edge) })
-  geometry.rotateX(-Math.PI / 2)
-  geometry.translate(0, edge, 0)
   return geometry
 }
 
@@ -408,189 +412,360 @@ function forging(m: Mats): Built {
   return { root }
 }
 
-/** An Abrams-style main battle tank; `highlight` lights the part the Kingdom makes for it. */
-function tank(m: Mats, highlight?: LocalPartId): Built {
-  const root = new THREE.Group()
-  const hull = m.sand.clone()
-  const turretPaint = m.sand.clone()
-  const see = (material: THREE.Material) => {
-    material.transparent = true
-    material.opacity = 0.22
-    material.depthWrite = false
+/** A solid between two plan outlines, (x, z) points in the same order: `bottom` at y0, `top` at y1. */
+function loft(bottom: [number, number][], top: [number, number][], y0: number, y1: number) {
+  const low = bottom.map(([x, z]) => new THREE.Vector3(x, y0, z))
+  const high = top.map(([x, z]) => new THREE.Vector3(x, y1, z))
+  const points: THREE.Vector3[] = []
+  low.forEach((a, i) => {
+    const j = (i + 1) % low.length
+    points.push(a, low[j], high[j], a, high[j], high[i])
+  })
+  for (const [ring, outline] of [
+    [low, bottom],
+    [high, top],
+  ] as const) {
+    const flat = outline.map(([x, z]) => new THREE.Vector2(x, z))
+    for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(flat, [])) points.push(ring[a], ring[b], ring[c])
   }
-  const hot = (part: LocalPartId, fallback: THREE.Material) => (highlight === part ? m.accent : fallback)
-  if (highlight === 'seal') see(turretPaint)
+  const geometry = new THREE.BufferGeometry().setFromPoints(points)
+  geometry.computeVertexNormals()
+  return geometry
+}
 
-  root.add(
-    mesh(
-      sideExtrude(
-        [
-          [-1.32, 0.5],
-          [-1.32, 0.42],
-          [-1.08, 0.22],
-          [1.16, 0.22],
-          [1.3, 0.38],
-          [1.3, 0.5],
-        ],
-        0.74,
-      ),
-      m.dark,
-    ),
-  )
-  root.add(
-    mesh(
-      sideExtrude(
-        [
-          [-1.44, 0.52],
-          [-1.4, 0.6],
-          [-0.7, 0.76],
-          [1.28, 0.79],
-          [1.34, 0.72],
-          [1.34, 0.52],
-        ],
-        1.24,
-        0.015,
-      ),
-      hull,
-    ),
-  )
-  for (let i = 0; i < 5; i += 1) root.add(mesh(new RoundedBoxGeometry(0.9, 0.012, 0.06, 1, 0.005), m.dark, [0, 0.795, 0.78 + i * 0.1]))
-  for (const x of [-0.12, 0, 0.12]) root.add(mesh(new RoundedBoxGeometry(0.09, 0.05, 0.05, 1, 0.01), hot('visionBlock', m.armorGlass), [x, 0.76, -0.76]))
-  root.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 24), hull, [0, 0.77, -0.64]))
+const TRACK_X = 1.51
+const WHEELS_Z = [-2.62, -1.8, -0.98, -0.16, 0.66, 1.48, 2.3]
 
-  const skirt = hull.clone()
-  if (highlight === 'trackPad' || highlight === 'forging') see(skirt)
-  for (const side of [-1, 1]) {
-    root.add(mesh(new RoundedBoxGeometry(0.03, 0.2, 2.5, 1, 0.01), skirt, [side * 0.62, 0.44, -0.1]))
-    for (let i = 0; i < 6; i += 1) root.add(mesh(new RoundedBoxGeometry(0.035, 0.18, 0.012, 1, 0.004), skirt, [side * 0.62, 0.44, -1.1 + i * 0.4]))
-  }
-
-  const wheel = new THREE.CylinderGeometry(0.12, 0.12, 0.2, 32).rotateZ(Math.PI / 2)
-  const hub = new THREE.CylinderGeometry(0.055, 0.055, 0.22, 16).rotateZ(Math.PI / 2)
-  const arm = new RoundedBoxGeometry(0.05, 0.05, 0.22, 1, 0.012)
-  const wheels = [-0.86, -0.57, -0.28, 0.01, 0.3, 0.59, 0.88]
-  for (const side of [-1, 1]) {
-    const x = side * 0.47
-    for (const z of wheels) {
-      root.add(mesh(wheel, m.rubber, [x, 0.15, z]))
-      root.add(mesh(hub, hot('forging', hull), [x, 0.15, z]))
-      const link = mesh(arm, hot('forging', m.forged), [side * 0.35, 0.22, z + 0.1])
-      link.rotation.x = 0.6
-      root.add(link)
-    }
-    root.add(mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.18, 12).rotateZ(Math.PI / 2), m.dark, [x, 0.36, 1.18]))
-    root.add(mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.18, 24).rotateZ(Math.PI / 2), m.dark, [x, 0.32, -1.16]))
-    for (const z of [-0.45, 0.15, 0.75]) root.add(mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.14, 12).rotateZ(Math.PI / 2), m.dark, [x, 0.47, z]))
-  }
-
+/** One side's track: shoes, rubber pads, end connectors and centre guides, instanced along the loop. */
+function track(m: Mats, padMaterial: THREE.Material) {
   const loop = new THREE.CatmullRomCurve3(
     [
-      [-0.95, 0.02],
-      [0, 0.02],
-      [0.95, 0.02],
-      [1.2, 0.18],
-      [1.32, 0.37],
-      [1.18, 0.5],
-      [0.6, 0.52],
-      [-0.6, 0.51],
-      [-1.2, 0.45],
-      [-1.29, 0.31],
-      [-1.15, 0.14],
+      [-2.95, 0.045],
+      [0, 0.045],
+      [2.7, 0.045],
+      [3.25, 0.2],
+      [3.64, 0.45],
+      [3.72, 0.68],
+      [3.56, 0.93],
+      [3.15, 1.0],
+      [1.05, 1.03],
+      [-1.35, 1.03],
+      [-3.1, 0.99],
+      [-3.55, 0.86],
+      [-3.7, 0.56],
+      [-3.52, 0.3],
+      [-3.12, 0.1],
     ].map(([z, y]) => new THREE.Vector3(0, y, z)),
     true,
     'centripetal',
   )
-  const shoe = new RoundedBoxGeometry(0.26, 0.03, 0.068, 1, 0.008)
-  const pad = new RoundedBoxGeometry(0.1, 0.02, 0.05, 1, 0.006)
-  const padMaterial = hot('trackPad', m.rubber)
-  const count = 84
-  for (let i = 0; i < count; i += 1) {
-    const at = loop.getPointAt(i / count)
-    const tangent = loop.getTangentAt(i / count)
-    for (const side of [-1, 1]) {
-      const link = new THREE.Group()
-      link.position.set(side * 0.47, at.y, at.z)
-      link.rotation.x = Math.atan2(-tangent.y, tangent.z)
-      link.add(mesh(shoe, m.dark))
-      for (const dx of [-0.065, 0.065]) link.add(mesh(pad, padMaterial, [dx, -0.024, 0]))
-      root.add(link)
+  const count = Math.round(loop.getLength() / 0.19)
+  const pieces: { geometry: THREE.BufferGeometry; material: THREE.Material; at: [number, number, number][] }[] = [
+    { geometry: new THREE.BoxGeometry(0.56, 0.05, 0.16), material: m.iron, at: [[0, 0, 0]] },
+    {
+      geometry: new RoundedBoxGeometry(0.23, 0.08, 0.15, 1, 0.02),
+      material: padMaterial,
+      at: [
+        [-0.15, -0.06, 0],
+        [0.15, -0.06, 0],
+      ],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.05, 0.08, 0.1),
+      material: m.iron,
+      at: [
+        [-0.31, 0, 0],
+        [0.31, 0, 0],
+      ],
+    },
+    { geometry: new THREE.BoxGeometry(0.07, 0.12, 0.08), material: m.iron, at: [[0, 0.08, 0]] },
+  ]
+  const group = new THREE.Group()
+  const link = new THREE.Object3D()
+  const offset = new THREE.Matrix4()
+  for (const piece of pieces) {
+    const instances = new THREE.InstancedMesh(piece.geometry, piece.material, count * 2 * piece.at.length)
+    instances.frustumCulled = false
+    let index = 0
+    for (let i = 0; i < count; i += 1) {
+      const at = loop.getPointAt(i / count)
+      const tangent = loop.getTangentAt(i / count)
+      for (const side of [-1, 1]) {
+        link.position.set(side * TRACK_X, at.y, at.z)
+        link.rotation.set(Math.atan2(-tangent.y, tangent.z), 0, 0)
+        link.updateMatrix()
+        for (const [x, y, z] of piece.at) instances.setMatrixAt(index++, offset.makeTranslation(x, y, z).premultiply(link.matrix))
+      }
+    }
+    group.add(instances)
+  }
+  return group
+}
+
+/**
+ * An M1A2-style main battle tank at true scale in metres, nose towards −z: faceted hull and turret,
+ * side skirts, seven dual road wheels a side on torsion arms, a linked track, a 120 mm gun with its
+ * thermal sleeve, sights, remote weapon station and bustle rack. `highlight` shows the part Poland
+ * stopped sending in red.
+ */
+function tank(m: Mats, highlight?: LocalPartId): Built {
+  const root = new THREE.Group()
+  const hullArmor = m.armor.clone()
+  const turretArmor = m.armor.clone()
+  const skirtArmor = m.armor.clone()
+  const mantletCloth = m.cloth.clone()
+  const see = (material: THREE.Material) => {
+    material.transparent = true
+    material.opacity = 0.2
+    material.depthWrite = false
+  }
+  if (highlight === 'seal') [turretArmor, mantletCloth].forEach(see)
+  if (highlight === 'trackPad' || highlight === 'forging') see(skirtArmor)
+  const hot = (part: LocalPartId, fallback: THREE.Material) => (highlight === part ? m.missing : fallback)
+  const along = (geometry: THREE.CylinderGeometry) => geometry.rotateX(Math.PI / 2)
+  const across = (geometry: THREE.CylinderGeometry) => geometry.rotateZ(Math.PI / 2)
+
+  /* Hull: the lower tub between the tracks, then the sponsons and the long shallow glacis over them. */
+  root.add(
+    mesh(
+      sideExtrude(
+        [
+          [-3.9, 1.0],
+          [-3.9, 0.92],
+          [-3.3, 0.5],
+          [3.6, 0.5],
+          [3.9, 0.74],
+          [3.9, 1.05],
+        ],
+        2.36,
+        0.02,
+      ),
+      m.grime,
+    ),
+  )
+  root.add(
+    mesh(
+      sideExtrude(
+        [
+          [-3.97, 0.98],
+          [-3.92, 1.07],
+          [-2.2, 1.43],
+          [3.55, 1.46],
+          [3.93, 1.41],
+          [3.93, 0.98],
+        ],
+        3.66,
+        0.03,
+      ),
+      hullArmor,
+    ),
+  )
+  for (let i = 0; i < 9; i += 1) root.add(mesh(new THREE.BoxGeometry(2.3, 0.025, 0.06), m.iron, [0, 1.47, 2.0 + i * 0.17]))
+  for (const x of [-1.25, 1.25]) root.add(mesh(new THREE.BoxGeometry(0.9, 0.012, 1.4), m.grime, [x, 1.465, 2.65]))
+  root.add(mesh(new THREE.BoxGeometry(1.7, 0.42, 0.05), m.iron, [0, 1.15, 3.95]))
+  for (let i = 0; i < 6; i += 1) root.add(mesh(new THREE.BoxGeometry(1.62, 0.025, 0.04), m.black, [0, 0.98 + i * 0.065, 3.98]))
+  for (const x of [-1.6, 1.6]) root.add(mesh(new RoundedBoxGeometry(0.16, 0.12, 0.08, 1, 0.02), m.black, [x, 1.3, 3.94]))
+  root.add(mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.05, 32), hullArmor, [0, 1.47, -2.45]))
+  for (const [x, z, turn] of [
+    [-0.27, -2.76, 0.5],
+    [0, -2.84, 0],
+    [0.27, -2.76, -0.5],
+  ] as const) {
+    const scope = mesh(new RoundedBoxGeometry(0.17, 0.09, 0.07, 1, 0.012), hot('visionBlock', m.glass), [x, 1.5, z])
+    scope.rotation.y = turn
+    root.add(scope)
+  }
+  for (const side of [-1, 1]) {
+    const lamp = new THREE.Group()
+    lamp.position.set(side * 1.48, 1.14, -3.86)
+    lamp.add(mesh(new RoundedBoxGeometry(0.3, 0.14, 0.14, 1, 0.02), m.grime))
+    for (const dx of [-0.07, 0.07]) lamp.add(mesh(along(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 16)), m.glass, [dx, 0, -0.075]))
+    root.add(lamp)
+    root.add(mesh(new THREE.TorusGeometry(0.07, 0.025, 8, 20).rotateY(Math.PI / 2), m.iron, [side * 0.85, 0.9, -3.98]))
+  }
+
+  /* Side skirts: two heavy front panels, then light ones, hung from the sponsons over the wheel tops. */
+  const bolt = across(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 8))
+  const panels: [number, number, number][] = [
+    [-3.8, -3.06, 0.1],
+    [-3.06, -2.32, 0.1],
+    [-2.32, -1.3, 0.045],
+    [-1.3, -0.28, 0.045],
+    [-0.28, 0.74, 0.045],
+    [0.74, 1.76, 0.045],
+    [1.76, 2.78, 0.045],
+    [2.78, 3.42, 0.045],
+  ]
+  for (const side of [-1, 1]) {
+    for (const [index, [z0, z1, thick]] of panels.entries()) {
+      const outline: [number, number][] =
+        index === 0
+          ? [
+              [z0 + 0.2, 0.62],
+              [z1 - 0.01, 0.62],
+              [z1 - 0.01, 1.17],
+              [z0, 1.17],
+              [z0, 0.9],
+            ]
+          : [
+              [z0 + 0.01, 0.62],
+              [z1 - 0.01, 0.62],
+              [z1 - 0.01, 1.17],
+              [z0 + 0.01, 1.17],
+            ]
+      root.add(mesh(sideExtrude(outline, thick, 0.008), skirtArmor, [side * (1.84 + thick / 2), 0, 0]))
+      for (const z of [z0 + 0.12, (z0 + z1) / 2, z1 - 0.12]) root.add(mesh(bolt, m.iron, [side * (1.85 + thick), 1.1, z]))
     }
   }
 
+  /* Running gear, per side: dual road wheels on forged arms, the front idler, the rear drive sprocket, support rollers and the track. */
+  const tyre = across(new THREE.CylinderGeometry(0.32, 0.32, 0.2, 40))
+  const disc = across(new THREE.CylinderGeometry(0.25, 0.25, 0.215, 32))
+  const cap = across(new THREE.CylinderGeometry(0.1, 0.13, 0.08, 20))
+  const arm = new RoundedBoxGeometry(0.08, 0.11, 0.6, 1, 0.025)
+  const barEnd = across(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 16))
+  const tooth = new RoundedBoxGeometry(0.06, 0.1, 0.09, 1, 0.015)
+  const armTilt = -Math.atan2(0.26, 0.48)
+  for (const side of [-1, 1]) {
+    const x = side * TRACK_X
+    for (const z of WHEELS_Z) {
+      for (const dx of [-0.17, 0.17]) {
+        root.add(mesh(tyre, m.rubber, [x + dx, 0.4, z]))
+        root.add(mesh(disc, m.grime, [x + dx, 0.4, z]))
+      }
+      root.add(mesh(cap, hot('forging', m.iron), [x + side * 0.3, 0.4, z]))
+      const link = mesh(arm, hot('forging', m.forged), [side * 1.22, 0.53, z + 0.24])
+      link.rotation.x = armTilt
+      root.add(link)
+      root.add(mesh(barEnd, m.iron, [side * 1.2, 0.66, z + 0.48]))
+    }
+    for (const dx of [-0.17, 0.17]) {
+      root.add(mesh(across(new THREE.CylinderGeometry(0.29, 0.29, 0.2, 36)), m.iron, [x + dx, 0.55, -3.38]))
+      root.add(mesh(disc, m.grime, [x + dx, 0.55, -3.38]))
+    }
+    root.add(mesh(cap, m.iron, [x + side * 0.3, 0.55, -3.38]))
+    const sprocket = new THREE.Group()
+    sprocket.position.set(x, 0.64, 3.52)
+    sprocket.add(mesh(across(new THREE.CylinderGeometry(0.16, 0.16, 0.52, 24)), m.grime))
+    for (const dx of [-0.2, 0.2]) {
+      sprocket.add(mesh(across(new THREE.CylinderGeometry(0.27, 0.27, 0.06, 36)), m.iron, [dx, 0, 0]))
+      for (let i = 0; i < 12; i += 1) {
+        const angle = (i / 12) * Math.PI * 2
+        const item = mesh(tooth, m.iron, [dx, Math.cos(angle) * 0.3, Math.sin(angle) * 0.3])
+        item.rotation.x = -angle
+        sprocket.add(item)
+      }
+    }
+    sprocket.add(mesh(cap, m.iron, [side * 0.3, 0, 0]))
+    root.add(sprocket)
+    for (const z of [-1.38, 1.07]) root.add(mesh(across(new THREE.CylinderGeometry(0.1, 0.1, 0.5, 20)), m.grime, [x, 0.9, z]))
+  }
+  root.add(track(m, hot('trackPad', m.rubber)))
+
+  /* Turret: a low faceted box with forward cheeks and a recessed mantlet, sitting on its ring. */
   const turret = new THREE.Group()
-  turret.position.set(0, 0.79, -0.05)
-  turret.add(mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.04, 48), hot('seal', m.dark), [0, 0.0, 0]))
-  turret.add(
-    mesh(
-      topExtrude(
-        [
-          [-0.18, -0.9],
-          [0.18, -0.9],
-          [0.48, -0.46],
-          [0.5, 0.34],
-          [-0.5, 0.34],
-          [-0.48, -0.46],
-        ],
-        0.26,
-        0.02,
-      ),
-      turretPaint,
-      [0, 0.02, 0],
-    ),
-  )
-  turret.add(
-    mesh(
-      topExtrude(
-        [
-          [-0.46, 0.34],
-          [0.46, 0.34],
-          [0.42, 0.7],
-          [-0.42, 0.7],
-        ],
-        0.2,
-        0.015,
-      ),
-      turretPaint,
-      [0, 0.07, 0],
-    ),
-  )
-  for (const x of [-0.49, 0.49]) turret.add(mesh(new RoundedBoxGeometry(0.03, 0.12, 0.5, 1, 0.01), m.dark, [x, 0.16, 0.0]))
-  turret.add(mesh(new RoundedBoxGeometry(0.9, 0.025, 0.2, 1, 0.01), m.dark, [0, 0.12, 0.8]))
-  turret.add(mesh(new RoundedBoxGeometry(0.34, 0.2, 0.12, 2, 0.03), hot('seal', turretPaint), [0, 0.15, -0.95]))
+  turret.position.set(0, 1.46, 0.1)
+  turret.add(mesh(new THREE.CylinderGeometry(1.12, 1.12, 0.08, 64), hot('seal', m.iron), [0, 0.03, 0]))
+  const plan: [number, number][] = [
+    [-0.55, -1.62],
+    [0.55, -1.62],
+    [0.62, -2.2],
+    [1.15, -2.05],
+    [1.78, -1.2],
+    [1.78, 1.5],
+    [1.62, 2.55],
+    [-1.62, 2.55],
+    [-1.78, 1.5],
+    [-1.78, -1.2],
+    [-1.15, -2.05],
+    [-0.62, -2.2],
+  ]
+  const roof = plan.map(([x, z]): [number, number] => [x * 0.97, z < -1 ? z + 0.3 : z])
+  turret.add(mesh(loft(plan, roof, 0.06, 0.84), turretArmor))
+  turret.add(mesh(new RoundedBoxGeometry(1.0, 0.52, 0.5, 2, 0.08), mantletCloth, [0, 0.42, -1.6]))
   if (highlight === 'seal')
-    for (const x of [-0.11, 0.11]) turret.add(mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.42, 16).rotateX(Math.PI / 2), m.accent, [x, 0.1, -0.66]))
+    for (const x of [-0.32, 0.32]) {
+      turret.add(mesh(along(new THREE.CylinderGeometry(0.065, 0.065, 0.75, 20)), m.missing, [x, 0.3, -1.2]))
+      turret.add(mesh(along(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 12)), m.missing, [x, 0.3, -1.7]))
+    }
+
   const gun = new THREE.Group()
-  gun.position.set(0, 0.16, -1.0)
-  gun.add(mesh(new THREE.CylinderGeometry(0.038, 0.045, 1.7, 24).rotateX(Math.PI / 2), m.dark, [0, 0, -0.85]))
-  gun.add(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.24, 24).rotateX(Math.PI / 2), m.dark, [0, 0, -0.75]))
-  gun.add(mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.06, 24).rotateX(Math.PI / 2), m.black, [0, 0, -1.7]))
+  gun.position.set(0, 0.44, -1.8)
+  gun.add(mesh(along(new THREE.CylinderGeometry(0.115, 0.095, 4.4, 32)), m.tan, [0, 0, -2.2]))
+  gun.add(mesh(along(new THREE.CylinderGeometry(0.16, 0.16, 0.65, 32)), m.tan, [0, 0, -1.5]))
+  for (const z of [-0.6, -2.4, -3.3]) gun.add(mesh(along(new THREE.CylinderGeometry(0.122, 0.122, 0.06, 32)), m.grime, [0, 0, z]))
+  gun.add(mesh(along(new THREE.CylinderGeometry(0.1, 0.1, 0.14, 32)), m.iron, [0, 0, -4.45]))
+  gun.add(mesh(new RoundedBoxGeometry(0.09, 0.07, 0.14, 1, 0.015), m.iron, [0, 0.13, -4.3]))
   turret.add(gun)
 
-  const cupola = new THREE.Group()
-  cupola.position.set(0.24, 0.3, 0.04)
-  cupola.add(mesh(new THREE.CylinderGeometry(0.14, 0.15, 0.08, 32), turretPaint))
-  cupola.add(mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 32), m.dark, [0, 0.055, 0]))
-  for (let i = 0; i < 6; i += 1) {
-    const angle = (i / 6) * Math.PI * 2
-    const block = mesh(new RoundedBoxGeometry(0.07, 0.04, 0.025, 1, 0.006), hot('visionBlock', m.armorGlass))
-    block.position.set(Math.sin(angle) * 0.145, 0.01, Math.cos(angle) * 0.145)
+  const top = 0.84
+  turret.add(mesh(new RoundedBoxGeometry(0.55, 0.42, 0.7, 2, 0.04), turretArmor, [0.95, top + 0.21, -1.15]))
+  turret.add(mesh(new THREE.BoxGeometry(0.4, 0.22, 0.02), m.glass, [0.95, top + 0.23, -1.51]))
+  turret.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.32, 16), m.iron, [-0.95, top + 0.16, -0.3]))
+  turret.add(mesh(new RoundedBoxGeometry(0.44, 0.3, 0.42, 2, 0.05), turretArmor, [-0.95, top + 0.46, -0.3]))
+  turret.add(mesh(new THREE.BoxGeometry(0.26, 0.12, 0.02), m.glass, [-0.95, top + 0.47, -0.52]))
+
+  const commander = new THREE.Group()
+  commander.position.set(0.8, top, 0.2)
+  commander.add(mesh(new THREE.CylinderGeometry(0.44, 0.46, 0.1, 40), turretArmor, [0, 0.05, 0]))
+  for (let i = 0; i < 8; i += 1) {
+    const angle = (i / 8) * Math.PI * 2
+    const block = mesh(new RoundedBoxGeometry(0.13, 0.07, 0.04, 1, 0.01), hot('visionBlock', m.glass))
+    block.position.set(Math.sin(angle) * 0.45, 0.06, Math.cos(angle) * 0.45)
     block.rotation.y = angle
-    cupola.add(block)
+    commander.add(block)
   }
-  cupola.add(mesh(new RoundedBoxGeometry(0.06, 0.06, 0.16, 1, 0.01), m.dark, [0, 0.1, -0.04]))
-  cupola.add(mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 8).rotateX(Math.PI / 2), m.black, [0, 0.1, -0.24]))
-  turret.add(cupola)
-  turret.add(mesh(new RoundedBoxGeometry(0.16, 0.1, 0.16, 2, 0.02), turretPaint, [0.3, 0.32, -0.5]))
-  turret.add(mesh(new RoundedBoxGeometry(0.12, 0.06, 0.012, 1, 0.004), m.glass, [0.3, 0.32, -0.585]))
-  turret.add(mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 24), turretPaint, [-0.24, 0.29, 0.02]))
-  for (const x of [-0.36, 0.36]) turret.add(mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.6, 6), m.black, [x, 0.57, 0.58]))
+  commander.add(mesh(new RoundedBoxGeometry(0.36, 0.12, 0.36, 1, 0.02), m.iron, [0, 0.16, 0]))
+  commander.add(mesh(new RoundedBoxGeometry(0.3, 0.3, 0.6, 2, 0.04), turretArmor, [0, 0.38, -0.05]))
+  commander.add(mesh(new RoundedBoxGeometry(0.18, 0.2, 0.26, 1, 0.03), m.iron, [0.24, 0.4, -0.12]))
+  commander.add(mesh(new THREE.BoxGeometry(0.12, 0.1, 0.02), m.glass, [0.24, 0.42, -0.26]))
+  commander.add(mesh(along(new THREE.CylinderGeometry(0.045, 0.045, 0.32, 16)), m.iron, [0, 0.4, -0.5]))
+  commander.add(mesh(along(new THREE.CylinderGeometry(0.026, 0.026, 1.2, 12)), m.black, [0, 0.4, -0.95]))
+  turret.add(commander)
+
+  turret.add(mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.06, 32), turretArmor, [-0.8, top + 0.03, 0.75]))
+  turret.add(mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 10), m.iron, [-0.8, top + 0.18, 0.42]))
+  turret.add(mesh(new RoundedBoxGeometry(0.1, 0.12, 0.42, 1, 0.02), m.black, [-0.8, top + 0.36, 0.36]))
+  turret.add(mesh(along(new THREE.CylinderGeometry(0.018, 0.018, 0.7, 10)), m.black, [-0.8, top + 0.37, -0.2]))
+
+  const tube = new THREE.CylinderGeometry(0.035, 0.035, 0.22, 12)
+  for (const side of [-1, 1]) {
+    const launcher = new THREE.Group()
+    launcher.position.set(side * 1.72, 0.66, -0.95)
+    launcher.rotation.z = -side * 0.45
+    launcher.add(mesh(new RoundedBoxGeometry(0.08, 0.06, 0.7, 1, 0.015), m.iron, [0, -0.1, 0]))
+    for (let i = 0; i < 6; i += 1) for (const dy of [0, 0.09]) launcher.add(mesh(tube, m.iron, [dy - 0.045, 0, -0.25 + i * 0.1]))
+    turret.add(launcher)
+    turret.add(mesh(new RoundedBoxGeometry(0.2, 0.48, 1.7, 2, 0.03), turretArmor, [side * 1.88, 0.45, 1.05]))
+    turret.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.14, 12), m.iron, [side * 1.4, top + 0.07, 2.25]))
+    const whip = mesh(new THREE.CylinderGeometry(0.006, 0.008, 1.6, 6), m.black, [side * 1.4, top + 0.94, 2.35])
+    whip.rotation.x = 0.12
+    turret.add(whip)
+  }
+
+  const rack = new THREE.Group()
+  rack.position.set(0, 0, 2.88)
+  const post = new THREE.CylinderGeometry(0.018, 0.018, 0.45, 8)
+  for (const x of [-1.55, -0.78, 0, 0.78, 1.55]) rack.add(mesh(post, m.iron, [x, 0.53, 0.32]))
+  for (const x of [-1.55, 1.55]) for (const z of [-0.22, 0.05]) rack.add(mesh(post, m.iron, [x, 0.53, z]))
+  for (const y of [0.5, 0.75]) {
+    rack.add(mesh(across(new THREE.CylinderGeometry(0.018, 0.018, 3.1, 8)), m.iron, [0, y, 0.32]))
+    for (const x of [-1.55, 1.55]) rack.add(mesh(along(new THREE.CylinderGeometry(0.018, 0.018, 0.6, 8)), m.iron, [x, y, 0.02]))
+  }
+  rack.add(mesh(new THREE.BoxGeometry(3.1, 0.03, 0.62), m.iron, [0, 0.3, 0.02]))
+  rack.add(mesh(across(new THREE.CylinderGeometry(0.16, 0.16, 1.3, 20)), m.olive, [-0.75, 0.48, 0.05]))
+  rack.add(mesh(new RoundedBoxGeometry(0.62, 0.34, 0.46, 2, 0.06), m.cloth, [0.5, 0.49, 0.02]))
+  rack.add(mesh(new RoundedBoxGeometry(0.42, 0.28, 0.4, 1, 0.03), m.olive, [1.18, 0.46, 0.04]))
+  turret.add(rack)
+  turret.add(mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.5, 6), m.black, [0.1, top + 0.25, 2.3]))
+  turret.add(mesh(across(new THREE.CylinderGeometry(0.01, 0.01, 0.22, 6)), m.black, [0.1, top + 0.48, 2.3]))
   root.add(turret)
 
   return {
     root,
     tick: (t) => {
-      turret.rotation.y = Math.sin(t * 0.35) * 0.32
-      gun.rotation.x = Math.sin(t * 0.5) * 0.04
+      turret.rotation.y = Math.sin(t * 0.3) * 0.35
+      gun.rotation.x = Math.sin(t * 0.45) * 0.03
     },
   }
 }
@@ -646,7 +821,7 @@ export function Gami3DModel({ model, accent, className, spin = 0.5, interactive 
     built.root.position.sub(sphere.center)
     pivot.add(built.root)
     pivot.scale.setScalar(1 / sphere.radius)
-    pivot.rotation.x = model === 'tank' ? 0.12 : isVehicle(model) ? 0.42 : 0.28
+    pivot.rotation.x = model === 'tank' ? 0.04 : isVehicle(model) ? 0.42 : 0.28
     scene.add(pivot)
 
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50)
@@ -674,6 +849,7 @@ export function Gami3DModel({ model, accent, className, spin = 0.5, interactive 
     let turn = model === 'tank' ? 2.2 : model === 'drone' ? -0.7 : 0.5
     let dragging: { x: number; y: number } | null = null
     let tilt = pivot.rotation.x
+    const minTilt = model === 'tank' ? -0.04 : -0.6
     const down = (event: PointerEvent) => {
       dragging = { x: event.clientX, y: event.clientY }
       host.setPointerCapture(event.pointerId)
@@ -681,7 +857,7 @@ export function Gami3DModel({ model, accent, className, spin = 0.5, interactive 
     const move = (event: PointerEvent) => {
       if (!dragging) return
       turn += (event.clientX - dragging.x) * 0.01
-      tilt = Math.max(-0.6, Math.min(1.1, tilt + (event.clientY - dragging.y) * 0.006))
+      tilt = Math.max(minTilt, Math.min(1.1, tilt + (event.clientY - dragging.y) * 0.006))
       dragging = { x: event.clientX, y: event.clientY }
     }
     const up = () => (dragging = null)
