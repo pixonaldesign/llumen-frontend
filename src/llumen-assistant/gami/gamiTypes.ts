@@ -34,8 +34,24 @@ export const STATUS = {
 
 export type Status = keyof typeof STATUS
 
-/** The `i`th categorical colour. */
-export const category = (index: number) => PALETTE.categorical[index % PALETTE.categorical.length]
+/** A card's colour family: one of the sequential presets, so neighbouring cards don't all read blue. */
+export type Tone = 'blue' | 'teal' | 'purple'
+
+export const TONES: readonly Tone[] = ['teal', 'blue', 'purple']
+
+/** The shade a tone fills single-series charts with. */
+export const TONE_ACCENT: Record<Tone, string> = {
+  blue: PALETTE.blue[3],
+  teal: PALETTE.teal[2],
+  purple: PALETTE.purple[3],
+}
+
+/** Where each tone enters the categorical palette, so multi-series charts open on their own colour. */
+const TONE_START: Record<Tone, number> = { blue: 0, teal: 2, purple: 1 }
+
+/** The `i`th categorical colour, starting from `tone`'s entry. */
+export const category = (index: number, tone: Tone = 'blue') =>
+  PALETTE.categorical[(index + TONE_START[tone]) % PALETTE.categorical.length]
 
 /** A sequential preset's first `steps` shades: dark to light, which reads low to high on the dark map. */
 export const ramp = (colors: readonly string[], steps = 5) => colors.slice(0, steps)
@@ -85,6 +101,8 @@ type CardBase = {
   height?: 1 | 2
   /** The headline number over a chart, as the story's chart cards show it. */
   kpi?: { value: string; unit?: string }
+  /** The chart's colour family; stories assign one per card in turn. */
+  tone?: Tone
 }
 
 export type GamiCard = CardBase &

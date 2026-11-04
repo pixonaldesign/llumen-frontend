@@ -123,7 +123,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'medium',
     category: 'National KPIs',
     title: '2026 Plan Progress',
-    accent: PALETTE.teal[2],
+    accent: SERIES,
     unit: '%',
     bars: [
       { label: 'Saudi Made', value: 94.8, display: '94.8%' },
@@ -138,7 +138,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'medium',
     category: 'Investors',
     title: 'Localization Opportunities',
-    accent: SERIES,
+    accent: PALETTE.purple[3],
     value: 32,
     unit: 'SAR bn a year',
     tipUnit: 'SAR bn',
@@ -159,7 +159,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'medium',
     category: 'Domains',
     title: 'Licensed Companies by Domain',
-    accent: PALETTE.purple[3],
+    accent: PALETTE.categorical[3],
     metrics: [
       { label: 'Electronics', value: 173, delta: '+14 this year', good: true },
       { label: 'Land', value: 151, delta: '+9 this year', good: true },
@@ -191,7 +191,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'medium',
     category: 'World Defense Show',
     title: 'WDS 2028 Exhibitors',
-    accent: SERIES,
+    accent: PALETTE.teal[2],
     value: 1940,
     unit: 'applications',
     tipUnit: 'exhibitors',
@@ -216,7 +216,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     axis: ['2023', '2024', '2025', '2026'],
     series: [
       { name: 'Share of GDP', color: PALETTE.categorical[1], points: [48, 55, 61, 66] },
-      { name: 'Saudi Made', color: PALETTE.categorical[0], points: [38.8, 45, 52, 58.8] },
+      { name: 'Saudi Made', color: PALETTE.categorical[2], points: [38.8, 45, 52, 58.8] },
     ],
   },
   {
@@ -242,7 +242,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'small',
     category: 'Investors',
     title: '2026 Investment Pipeline',
-    accent: STATUS.good,
+    accent: PALETTE.categorical[3],
     value: 18.6,
     prefix: 'SAR ',
     suffix: 'bn',

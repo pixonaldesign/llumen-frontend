@@ -11,12 +11,14 @@ import { StorySummaryText } from '../story/StorySummaryText'
 import { SUMMARY_REGENERATE_MS } from '../story/storySummary'
 import { Gami3DModel } from './Gami3DModel'
 import { GAMI_PARTS } from './gamiScenario'
-import { PALETTE, SERIES, STATUS, category, type GamiCard, type PartId, type Status } from './gamiTypes'
+import { PALETTE, STATUS, TONE_ACCENT, category, type GamiCard, type PartId, type Status, type Tone } from './gamiTypes'
 import css from './GamiCards.module.css'
 
 type CardOf<K extends GamiCard['kind']> = Extract<GamiCard, { kind: K }>
 
-const statusColor = (status: Status | undefined, fallback: string = SERIES) => (status ? STATUS[status] : fallback)
+const statusColor = (status: Status | undefined, fallback: string) => (status ? STATUS[status] : fallback)
+
+const toneOf = (card: GamiCard): Tone => card.tone ?? 'blue'
 
 /** The trim on the 3D parts: the palette's light blue, not a status colour. */
 const PART_TRIM = PALETTE.blue[4]
@@ -69,6 +71,7 @@ function Kpis({ card }: { card: CardOf<'kpis'> }) {
 }
 
 function Progress({ card }: { card: CardOf<'progress'> }) {
+  const accent = TONE_ACCENT[toneOf(card)]
   return (
     <div className={css.rows}>
       {card.rows.map((row) => (
@@ -80,7 +83,7 @@ function Progress({ card }: { card: CardOf<'progress'> }) {
             </b>
           </div>
           <div className={css.track}>
-            <span className={css.fill} style={{ width: `${Math.min(100, row.pct)}%`, background: SERIES }} />
+            <span className={css.fill} style={{ width: `${Math.min(100, row.pct)}%`, background: accent }} />
           </div>
         </div>
       ))}
@@ -117,9 +120,13 @@ function linePath(points: (number | null)[], yMax: number) {
 
 function LineChart({ card, flat = false }: { card: CardOf<'line'>; flat?: boolean }) {
   const gradientId = useId()
+  const tone = toneOf(card)
   const solid = card.series.filter((series) => !series.dashed)
   const colorOf = (series: CardOf<'line'>['series'][number]) =>
-    series.dashed ? 'rgba(255,255,255,0.72)' : statusColor(series.status, category(solid.indexOf(series)))
+    series.dashed
+      ? 'rgba(255,255,255,0.72)'
+      : statusColor(series.status, solid.length === 1 ? TONE_ACCENT[tone] : category(solid.indexOf(series), tone))
+  const areaColor = solid[0] ? colorOf(solid[0]) : TONE_ACCENT[tone]
   const ticks = card.yLabels.map((_, index) => (card.yLabels.length === 1 ? 0 : (index / (card.yLabels.length - 1)) * 100))
   const area = solid[0] ? linePath(solid[0].points, card.yMax)[0] : null
   return (
@@ -138,8 +145,8 @@ function LineChart({ card, flat = false }: { card: CardOf<'line'>; flat?: boolea
           <svg className={styles.chartSvg} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={solid[0] ? colorOf(solid[0]) : SERIES} stopOpacity="0.42" />
-                <stop offset="100%" stopColor={solid[0] ? colorOf(solid[0]) : SERIES} stopOpacity="0.02" />
+                <stop offset="0%" stopColor={areaColor} stopOpacity="0.42" />
+                <stop offset="100%" stopColor={areaColor} stopOpacity="0.02" />
               </linearGradient>
             </defs>
             {ticks.map((y) => (
@@ -157,7 +164,7 @@ function LineChart({ card, flat = false }: { card: CardOf<'line'>; flat?: boolea
             {area ? (
               <path
                 d={`${area.d} L${area.last} 100 L${area.first} 100 Z`}
-                fill={flat ? (solid[0] ? colorOf(solid[0]) : SERIES) : `url(#${gradientId})`}
+                fill={flat ? areaColor : `url(#${gradientId})`}
                 fillOpacity={flat ? 0.14 : undefined}
               />
             ) : null}
@@ -189,6 +196,7 @@ function LineChart({ card, flat = false }: { card: CardOf<'line'>; flat?: boolea
 }
 
 function VBars({ card }: { card: CardOf<'vbars'> }) {
+  const accent = TONE_ACCENT[toneOf(card)]
   const max = Math.max(...card.bars.map((bar) => bar.value))
   return (
     <>
@@ -200,7 +208,7 @@ function VBars({ card }: { card: CardOf<'vbars'> }) {
             <span className={css.vbarTrack}>
               <span
                 className={css.vbarFill}
-                style={{ height: `${Math.max(3, (bar.value / max) * 100)}%`, background: statusColor(bar.status) }}
+                style={{ height: `${Math.max(3, (bar.value / max) * 100)}%`, background: statusColor(bar.status, accent) }}
               />
             </span>
             <span className={css.vbarLabel}>{bar.label}</span>
@@ -212,6 +220,7 @@ function VBars({ card }: { card: CardOf<'vbars'> }) {
 }
 
 function HBars({ card }: { card: CardOf<'hbars'> }) {
+  const accent = TONE_ACCENT[toneOf(card)]
   const max = Math.max(...card.bars.map((bar) => bar.value))
   return (
     <>
@@ -221,7 +230,7 @@ function HBars({ card }: { card: CardOf<'hbars'> }) {
           <div key={bar.label} className={css.hbar}>
             <span className={css.hbarLabel}>{bar.label}</span>
             <span className={css.track}>
-              <span className={css.fill} style={{ width: `${(bar.value / max) * 100}%`, background: statusColor(bar.status) }} />
+              <span className={css.fill} style={{ width: `${(bar.value / max) * 100}%`, background: statusColor(bar.status, accent) }} />
             </span>
             <b className={css.hbarValue}>{bar.display}</b>
           </div>
@@ -232,19 +241,20 @@ function HBars({ card }: { card: CardOf<'hbars'> }) {
 }
 
 function Split({ card }: { card: CardOf<'split'> }) {
+  const tone = toneOf(card)
   const total = card.parts.reduce((sum, part) => sum + part.value, 0)
   return (
     <>
       <Kpi value={card.total} unit={card.unit} />
       <div className={styles.splitBar} aria-hidden>
         {card.parts.map((part, index) => (
-          <span key={part.name} className={css.splitPart} style={{ flexGrow: part.value, background: category(index) }} />
+          <span key={part.name} className={css.splitPart} style={{ flexGrow: part.value, background: category(index, tone) }} />
         ))}
       </div>
       {card.parts.map((part, index) => (
         <div key={part.name} className={styles.seriesRow}>
           <span>
-            <i className={styles.swatchTerrestrial} style={{ background: category(index) }} />
+            <i className={styles.swatchTerrestrial} style={{ background: category(index, tone) }} />
             {part.name}
           </span>
           <b>
@@ -257,9 +267,10 @@ function Split({ card }: { card: CardOf<'split'> }) {
 }
 
 function Stacked({ card }: { card: CardOf<'stacked'> }) {
+  const tone = toneOf(card)
   return (
     <>
-      <Legend items={card.legend.map((name, index) => ({ name, color: category(index) }))} />
+      <Legend items={card.legend.map((name, index) => ({ name, color: category(index, tone) }))} />
       <div className={css.stacked}>
         {card.bars.map((bar) => {
           const total = bar.parts.reduce((sum, part) => sum + part, 0)
@@ -271,7 +282,7 @@ function Stacked({ card }: { card: CardOf<'stacked'> }) {
                   <span
                     key={card.legend[i]}
                     className={css.stackPart}
-                    style={{ flexGrow: part / total, background: category(i) }}
+                    style={{ flexGrow: part / total, background: category(i, tone) }}
                     title={`${card.legend[i]}: ${Math.round((part / total) * 100)}%`}
                   />
                 ))}
@@ -287,8 +298,9 @@ function Stacked({ card }: { card: CardOf<'stacked'> }) {
 
 function Grouped({ card }: { card: CardOf<'grouped'> }) {
   const max = Math.max(...card.groups.flatMap((group) => group.values))
+  const tone = toneOf(card)
   const colorAt = (index: number) =>
-    card.ordered ? PALETTE.blue[Math.max(0, 4 - Math.round((index / Math.max(1, card.legend.length - 1)) * 4))] : category(index)
+    card.ordered ? PALETTE[tone][Math.max(0, 4 - Math.round((index / Math.max(1, card.legend.length - 1)) * 4))] : category(index, tone)
   return (
     <>
       <Legend items={card.legend.map((name, index) => ({ name, color: colorAt(index) }))} />
@@ -314,6 +326,7 @@ function Grouped({ card }: { card: CardOf<'grouped'> }) {
 }
 
 function Donut({ card }: { card: CardOf<'donut'> }) {
+  const tone = toneOf(card)
   const total = card.slices.reduce((sum, slice) => sum + slice.value, 0)
   const r = 50
   const c = 2 * Math.PI * r
@@ -330,7 +343,7 @@ function Donut({ card }: { card: CardOf<'donut'> }) {
               cy={60}
               r={r}
               fill="none"
-              stroke={statusColor(slice.status, category(i))}
+              stroke={statusColor(slice.status, category(i, tone))}
               strokeWidth={12}
               strokeDasharray={`${Math.max(0, lengths[i] - 2)} ${c}`}
               strokeDashoffset={-offsets[i]}
@@ -347,7 +360,7 @@ function Donut({ card }: { card: CardOf<'donut'> }) {
         {card.slices.map((slice, i) => (
           <div key={slice.name} className={styles.seriesRow}>
             <span>
-              <i className={styles.swatchTerrestrial} style={{ background: statusColor(slice.status, category(i)) }} />
+              <i className={styles.swatchTerrestrial} style={{ background: statusColor(slice.status, category(i, tone)) }} />
               {slice.name}
             </span>
             <b>{(Math.round((slice.value / total) * 1000) / 10).toFixed(1)}%</b>
@@ -393,6 +406,7 @@ function Table({ card }: { card: CardOf<'table'> }) {
 }
 
 function Range({ card }: { card: CardOf<'range'> }) {
+  const tone = toneOf(card)
   const at = (value: number) => ((value - card.min) / (card.max - card.min)) * 100
   return (
     <div className={css.range}>
@@ -402,7 +416,7 @@ function Range({ card }: { card: CardOf<'range'> }) {
           <span className={css.rangeTrack}>
             <span
               className={css.rangeBar}
-              style={{ left: `${at(row.from)}%`, width: `${at(row.to) - at(row.from)}%`, background: statusColor(row.status, category(index)) }}
+              style={{ left: `${at(row.from)}%`, width: `${at(row.to) - at(row.from)}%`, background: statusColor(row.status, category(index, tone)) }}
             />
             <span className={css.rangeToday} style={{ left: `${at(0)}%` }} aria-hidden />
           </span>

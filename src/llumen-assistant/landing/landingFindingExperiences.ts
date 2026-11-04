@@ -11,7 +11,7 @@ import type {
   TimelineStep,
 } from '../assistantReplyTypes'
 import { GAMI_STORIES } from '../gami/gamiScenario'
-import { PALETTE, SERIES, STATUS, type GamiPage } from '../gami/gamiTypes'
+import { PALETTE, STATUS, type GamiPage } from '../gami/gamiTypes'
 import { BRIEFING_PLACES, type BriefingPlaceId } from './briefingMapPlaces'
 
 /** A Briefing place, or the Poland alert's Türkiye bridge. */
@@ -291,7 +291,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               title: 'Localization opportunities',
               value: '32.0',
               unit: 'SAR bn a year',
-              color: SERIES,
+              color: PALETTE.purple[3],
               rows: barRows([
                 ['UAV airframes & propulsion', 6.8, 'SAR 6.8bn'],
                 ['Ammunition & energetics', 5.9, 'SAR 5.9bn'],
@@ -337,7 +337,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               title: 'Exhibitor applications by region',
               value: '1,940',
               unit: 'applications',
-              color: PALETTE.purple[2],
+              color: PALETTE.blue[3],
               rows: barRows([
                 ['Europe', 612, '612'],
                 ['GCC & Middle East', 498, '498'],
@@ -383,7 +383,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               title: 'Skills gap by 2030',
               value: '10,600',
               unit: 'people short by 2030',
-              color: PALETTE.blue[3],
+              color: PALETTE.teal[2],
               rows: barRows([
                 ['Avionics', 2900, '2,900'],
                 ['Precision machining', 2800, '2,800'],

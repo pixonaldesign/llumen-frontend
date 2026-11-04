@@ -34,7 +34,17 @@ import {
   WESTERN_STORY_CAMERA,
   WESTERN_STORY_SCENE,
 } from './gamiPlaces'
-import { PALETTE, type GamiPart, type GamiStory, type MapDataLayer, type PartId, type Status } from './gamiTypes'
+import {
+  PALETTE,
+  TONES,
+  type GamiCard,
+  type GamiPage,
+  type GamiPart,
+  type GamiStory,
+  type MapDataLayer,
+  type PartId,
+  type Status,
+} from './gamiTypes'
 
 export const WDS_OPENS = '2028-02-06T10:00:00+03:00'
 
@@ -1124,8 +1134,23 @@ const ALERT: GamiStory = {
   ],
 }
 
+const TONED_KINDS = new Set<GamiCard['kind']>(['progress', 'line', 'vbars', 'hbars', 'split', 'stacked', 'grouped', 'donut', 'range'])
+
+/** Gives each charted card the next tone in turn, so neighbouring cards differ; a card's own tone stays. */
+function withTones(story: GamiStory): GamiStory {
+  let turn = 0
+  const tone = (page: GamiPage): GamiPage => ({
+    ...page,
+    cards: page.cards.map((card) =>
+      card.tone || !TONED_KINDS.has(card.kind) ? card : { ...card, tone: TONES[turn++ % TONES.length] },
+    ),
+  })
+  const [first, second] = story.pages
+  return { ...story, pages: [tone(first), tone(second)] }
+}
+
 export const GAMI_STORIES: Record<string, GamiStory> = Object.fromEntries(
-  [OVERVIEW, LOCALIZATION, WDS, TALENT, ALERT].map((story) => [story.id, story]),
+  [OVERVIEW, LOCALIZATION, WDS, TALENT, ALERT].map((story) => [story.id, withTones(story)]),
 )
 
 export function isGamiStory(id: string | null | undefined): id is string {
