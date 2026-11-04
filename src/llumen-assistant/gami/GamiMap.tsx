@@ -1,6 +1,7 @@
 /**
  * A GAMI story's map: flies to each page's camera, shrinks the last page's layers and grows the next,
- * outlines the page's areas and pulses its disks and arcs. Used by the GAMI stories and Tell Me More.
+ * and outlines the page's areas. Columns and disks name themselves in a tooltip on hover. Used by the
+ * GAMI stories and Tell Me More.
  */
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 import mapboxgl from 'mapbox-gl'
@@ -11,14 +12,16 @@ import { captureMapView } from '../story/captureMapView'
 import type { StoryMapCapture } from '../story/storyAiScenarios'
 import {
   GamiAreaLabels,
-  GamiPins,
-  animateGamiLayers,
+  GamiLabels,
   drawGamiAreas,
   drawGamiScene,
+  gamiTipHtml,
+  gamiTipLayers,
   mountGamiAreas,
   mountGamiLayers,
   type GamiArea,
   type GamiMapScene,
+  type GamiTip,
 } from './gamiMapLayers'
 import type { GamiCamera } from './gamiTypes'
 import styles from './GamiStory.module.css'
@@ -29,14 +32,16 @@ const FLY_MS = 2600
 const SHRINK_MS = 500
 const GROW_MS = 1500
 const AREA_MS = 1100
+const DIMENSION_MS = 700
 const MAX_PITCH = 85
 
 export type GamiMapHandle = { view: () => StoryMapView | undefined; capture: () => Promise<StoryMapCapture | null> }
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2)
 
-function cameraOptions(camera: GamiCamera) {
-  return { center: camera.center, zoom: camera.zoom, pitch: camera.pitch, bearing: camera.bearing }
+function cameraOptions(camera: GamiCamera, flat = false) {
+  return { center: camera.center, zoom: camera.zoom, pitch: flat ? 0 : camera.pitch, bearing: camera.bearing }
 }
 
 export function GamiMap({
@@ -48,6 +53,8 @@ export function GamiMap({
   padding,
   controls = true,
   interactive = true,
+  flat = false,
+  styleUrl = STORY_MAP_STYLE,
   controlsClassName,
   onReady,
   handleRef,
@@ -61,6 +68,9 @@ export function GamiMap({
   padding: mapboxgl.PaddingOptions
   controls?: boolean
   interactive?: boolean
+  /** The 2D projection: no tilt, and columns and walls laid flat. */
+  flat?: boolean
+  styleUrl?: string
   controlsClassName?: string
   onReady?: (stage: 'loaded' | 'painted') => void
   handleRef?: Ref<GamiMapHandle>
@@ -68,16 +78,19 @@ export function GamiMap({
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const readyRef = useRef(false)
-  const pinsRef = useRef<GamiPins | null>(null)
-  const labelsRef = useRef<GamiAreaLabels | null>(null)
-  const drawnRef = useRef<{ scene: GamiMapScene; grow: number; areas: GamiArea[]; reveal: number }>({
+  const labelsRef = useRef<GamiLabels | null>(null)
+  const areaLabelsRef = useRef<GamiAreaLabels | null>(null)
+  const drawnRef = useRef<{ scene: GamiMapScene; grow: number; areas: GamiArea[]; reveal: number; lift: number }>({
     scene,
     grow: 0,
     areas,
     reveal: 0,
+    lift: flat ? 0 : 1,
   })
-  const latestRef = useRef({ camera, scene, areas, hidden, padding })
+  const latestRef = useRef({ camera, scene, areas, hidden, padding, flat })
   const tweenRef = useRef(0)
+  const liftTweenRef = useRef(0)
+  const styleRef = useRef(styleUrl)
   const onReadyRef = useRef(onReady)
 
   useEffect(() => {
@@ -111,10 +124,10 @@ export function GamiMap({
   const paint = (map: mapboxgl.Map) => {
     const drawn = drawnRef.current
     const { hidden: off } = latestRef.current
-    drawGamiScene(map, PREFIX, drawn.scene, drawn.grow, off)
-    pinsRef.current?.sync(drawn.scene.pins, drawn.grow, off)
-    drawGamiAreas(map, PREFIX, drawn.areas, drawn.reveal, off.has('area'))
-    labelsRef.current?.sync(drawn.areas, drawn.reveal > 0.6 && !off.has('area'))
+    drawGamiScene(map, PREFIX, drawn.scene, drawn.grow, off, drawn.lift)
+    labelsRef.current?.sync(drawn.scene.labels, drawn.grow, off)
+    drawGamiAreas(map, PREFIX, drawn.areas, drawn.reveal, off.has('area'), drawn.lift)
+    areaLabelsRef.current?.sync(drawn.areas, drawn.reveal > 0.6 && !off.has('area'))
   }
 
   useEffect(() => {
@@ -125,9 +138,9 @@ export function GamiMap({
     const start = latestRef.current
     const map = new mapboxgl.Map({
       container: el,
-      style: STORY_MAP_STYLE,
-      ...cameraOptions(start.camera),
-      maxPitch: MAX_PITCH,
+      style: styleRef.current,
+      ...cameraOptions(start.camera, start.flat),
+      maxPitch: start.flat ? 0 : MAX_PITCH,
       interactive,
       antialias: true,
       attributionControl: false,
@@ -137,11 +150,16 @@ export function GamiMap({
     const observer = new ResizeObserver(() => map.resize())
     observer.observe(el)
 
-    map.on('load', () => {
+    // A new basemap drops the GAMI layers; put them back over it.
+    map.on('style.load', () => {
       mountGamiAreas(map, PREFIX)
       mountGamiLayers(map, PREFIX)
-      pinsRef.current = new GamiPins(map)
-      labelsRef.current = new GamiAreaLabels(map)
+      if (readyRef.current) paint(map)
+    })
+
+    map.on('load', () => {
+      labelsRef.current = new GamiLabels(map)
+      areaLabelsRef.current = new GamiAreaLabels(map)
       readyRef.current = true
       onReadyRef.current?.('loaded')
       const announce = () => {
@@ -155,6 +173,7 @@ export function GamiMap({
         const t = reduce ? 1 : Math.min(1, (now - begin) / GROW_MS)
         const latest = latestRef.current
         drawnRef.current = {
+          ...drawnRef.current,
           scene: latest.scene,
           grow: easeOut(t),
           areas: latest.areas,
@@ -166,19 +185,43 @@ export function GamiMap({
       tweenRef.current = window.requestAnimationFrame(grow)
     })
 
-    let frame = 0
-    const loop = (now: number) => {
-      if (readyRef.current && !document.hidden && !reduce) animateGamiLayers(map, PREFIX, now)
-      frame = window.requestAnimationFrame(loop)
+    const tip = document.createElement('div')
+    tip.className = 'gami-tip'
+    tip.hidden = true
+    map.getContainer().appendChild(tip)
+    let tipKey: string | null = null
+    const hideTip = () => {
+      tip.hidden = true
+      tipKey = null
+      map.getCanvas().style.cursor = ''
     }
-    frame = window.requestAnimationFrame(loop)
+    const onMove = (event: mapboxgl.MapMouseEvent) => {
+      const layers = gamiTipLayers(PREFIX).filter((id) => map.getLayer(id))
+      const feature = layers.length
+        ? map.queryRenderedFeatures(event.point, { layers }).find((item) => item.properties?.tip)
+        : undefined
+      if (!feature) return hideTip()
+      const raw = String(feature.properties?.tip)
+      if (raw !== tipKey) {
+        tip.innerHTML = gamiTipHtml(JSON.parse(raw) as GamiTip)
+        tipKey = raw
+      }
+      tip.hidden = false
+      tip.style.left = `${event.point.x}px`
+      tip.style.top = `${event.point.y}px`
+      map.getCanvas().style.cursor = 'default'
+    }
+    map.on('mousemove', onMove)
+    map.on('mouseout', hideTip)
+    map.on('movestart', hideTip)
 
     return () => {
-      window.cancelAnimationFrame(frame)
       window.cancelAnimationFrame(tweenRef.current)
+      window.cancelAnimationFrame(liftTweenRef.current)
       observer.disconnect()
-      pinsRef.current?.clear()
+      tip.remove()
       labelsRef.current?.clear()
+      areaLabelsRef.current?.clear()
       map.remove()
       mapRef.current = null
       readyRef.current = false
@@ -190,7 +233,7 @@ export function GamiMap({
   /* A new page: fly to its camera, shrink the old layers and grow the new ones, then outline its areas. */
   useEffect(() => {
     const previous = latestRef.current
-    latestRef.current = { camera, scene, areas, hidden, padding }
+    latestRef.current = { camera, scene, areas, hidden, padding, flat }
     const map = mapRef.current
     if (!map || !readyRef.current) return
     const moved = previous.camera !== camera
@@ -201,8 +244,9 @@ export function GamiMap({
     }
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (moved) {
-      if (reduce) map.jumpTo({ ...cameraOptions(camera), padding })
-      else map.flyTo({ ...cameraOptions(camera), padding, duration: FLY_MS, curve: 1.5, essential: true })
+      const options = { ...cameraOptions(camera, flat), padding }
+      if (reduce) map.jumpTo(options)
+      else map.flyTo({ ...options, duration: FLY_MS, curve: 1.5, essential: true })
     }
     window.cancelAnimationFrame(tweenRef.current)
     const from = drawnRef.current
@@ -210,13 +254,14 @@ export function GamiMap({
     const growAt = moved ? FLY_MS * 0.45 : SHRINK_MS
     const tween = (now: number) => {
       const elapsed = reduce ? Number.POSITIVE_INFINITY : now - begin
+      const lift = drawnRef.current.lift
       if (elapsed < SHRINK_MS && from.grow > 0) {
         const t = easeOut(elapsed / SHRINK_MS)
-        drawnRef.current = { ...from, grow: from.grow * (1 - t), reveal: from.reveal * (1 - t) }
+        drawnRef.current = { ...from, lift, grow: from.grow * (1 - t), reveal: from.reveal * (1 - t) }
       } else {
         const t = Math.max(0, Math.min(1, (elapsed - growAt) / GROW_MS))
         const r = Math.max(0, Math.min(1, (elapsed - growAt - GROW_MS * 0.5) / AREA_MS))
-        drawnRef.current = { scene, areas, grow: easeOut(t), reveal: easeOut(r) }
+        drawnRef.current = { scene, areas, lift, grow: easeOut(t), reveal: easeOut(r) }
       }
       paint(map)
       if (drawnRef.current.scene !== scene || drawnRef.current.grow < 1 || drawnRef.current.reveal < 1) {
@@ -224,9 +269,44 @@ export function GamiMap({
       }
     }
     tweenRef.current = window.requestAnimationFrame(tween)
-    // `paint` reads refs only.
+    // `paint` reads refs only; `flat` has its own effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, scene, areas, hidden, padding])
+
+  /* 2D ↔ 3D: tilt to or from flat, and lay the columns and walls down or raise them. */
+  useEffect(() => {
+    latestRef.current = { ...latestRef.current, flat }
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    const to = flat ? 0 : 1
+    const from = drawnRef.current.lift
+    if (from === to) return
+    if (flat) {
+      map.easeTo({ pitch: 0, duration: DIMENSION_MS })
+      map.once('moveend', () => {
+        if (latestRef.current.flat) map.setMaxPitch(0)
+      })
+    } else {
+      map.setMaxPitch(MAX_PITCH)
+      map.easeTo({ pitch: latestRef.current.camera.pitch, duration: DIMENSION_MS })
+    }
+    window.cancelAnimationFrame(liftTweenRef.current)
+    const begin = performance.now()
+    const step = (now: number) => {
+      const t = Math.min(1, (now - begin) / DIMENSION_MS)
+      drawnRef.current = { ...drawnRef.current, lift: from + (to - from) * easeInOut(t) }
+      paint(map)
+      if (t < 1) liftTweenRef.current = window.requestAnimationFrame(step)
+    }
+    liftTweenRef.current = window.requestAnimationFrame(step)
+  }, [flat])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || styleRef.current === styleUrl) return
+    styleRef.current = styleUrl
+    map.setStyle(styleUrl)
+  }, [styleUrl])
 
   const zoom = (delta: number) => mapRef.current?.easeTo({ zoom: mapRef.current.getZoom() + delta, duration: 300 })
 

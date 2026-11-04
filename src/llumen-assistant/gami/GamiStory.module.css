@@ -13,108 +13,56 @@
   padding: 8px 12px;
 }
 
-/* Two 184px columns; cards span both unless they are a `cell`. */
-aside.insight {
-  display: grid;
-  grid-template-columns: repeat(2, 184px);
-  grid-auto-rows: 184px;
-  align-content: start;
-  width: 380px;
-  padding-bottom: 96px;
-}
-
 /* Map Data scrolls when the page has many layers; the scroller has no padding on its scrollbar side. */
 .mapLayers {
-  max-height: min(52vh, 460px);
+  max-height: min(48vh, 440px);
   overflow-y: auto;
   overflow-y: overlay;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
 }
 
-.layerToggle {
-  display: inline-flex;
-  flex: 1;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  margin: 0;
-  padding: 0 0 0 8px;
-  border: none;
+.mapLayers::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.mapLayers::-webkit-scrollbar-track {
   background: transparent;
-  color: rgba(255, 255, 255, 0.48);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
-.layerToggle:hover,
-.layerToggle:hover p {
-  color: #fff;
+.mapLayers::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
 }
 
-.caretShut {
-  transform: rotate(-90deg);
+/* Legend marks beside the story's own disk ring and column glyph. */
+.lineGlyph {
+  display: block;
+  width: 16px;
+  height: 2px;
+  border-radius: 2px;
+}
+
+.areaGlyph {
+  box-sizing: border-box;
+  display: block;
+  width: 16px;
+  height: 12px;
+  border: 1.5px solid;
+  border-radius: 3px;
+}
+
+.heatGlyph {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
 }
 
 .legendLabel {
   min-width: 0;
-}
-
-.legendLabel > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.glyph {
-  position: relative;
-  display: inline-block;
-  flex-shrink: 0;
-  box-sizing: border-box;
-  width: 16px;
-  height: 16px;
-}
-
-.glyph[data-mark='column']::before {
-  content: '';
-  position: absolute;
-  left: 5px;
-  bottom: 0;
-  width: 6px;
-  height: 16px;
-  border-radius: 2px 2px 1px 1px;
-  background: linear-gradient(180deg, var(--mark), color-mix(in srgb, var(--mark) 40%, transparent));
-}
-
-.glyph[data-mark='disk'] {
-  border: 2.5px solid var(--mark);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--mark) 20%, transparent);
-}
-
-.glyph[data-mark='arc']::before {
-  content: '';
-  position: absolute;
-  inset: 3px 0 -6px;
-  border: 2px solid var(--mark);
-  border-bottom-color: transparent;
-  border-left-color: transparent;
-  border-radius: 999px 999px 0 0;
-  transform: rotate(-45deg);
-}
-
-.glyph[data-mark='heat'] {
-  border-radius: 999px;
-  background: radial-gradient(circle, var(--mark), transparent 70%);
-}
-
-.glyph[data-mark='pin'] {
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: var(--mark);
-}
-
-.glyph[data-mark='area'] {
-  border: 2px solid var(--mark);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--mark) 16%, transparent);
 }

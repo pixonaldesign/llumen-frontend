@@ -105,7 +105,7 @@ import {
 } from './interactionModel'
 import { StoryView } from './story/StoryView'
 import { GamiStoryView, type GamiAskContext } from './gami/GamiStoryView'
-import { isGamiStory } from './gami/gamiScenario'
+import { GAMI_STORIES, isGamiStory } from './gami/gamiScenario'
 import type { StoryMapView } from './story/StoryMap'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
 import { StoryMapStatesContext, type StoryMapStates } from './story/storyMapStates'
@@ -1500,7 +1500,9 @@ export function CompactAssistantDemo() {
       }
       setStoryChatComponents((prev) => (prev.some((item) => item.id === component.id) ? prev : [...prev, component]))
       if (isHub && activeStoryId != null) {
-        const chip = storyContextChip(getLandingStory(activeStoryId))
+        const chip: LandingContextChip = isGamiStory(activeStoryId)
+          ? { id: `story-${activeStoryId}`, label: GAMI_STORIES[activeStoryId].title, categoryId: 'slides' }
+          : storyContextChip(getLandingStory(activeStoryId))
         setLandingChips((prev) => (prev.some((item) => item.id === chip.id) ? prev : [...prev, chip]))
       }
       if (open || !hubStoryOpen) setHubMorphFrom(sourceRect)
@@ -3114,6 +3116,8 @@ export function CompactAssistantDemo() {
               agentOpen={open || hubStoryOpen}
               onCloseAsk={hubStoryOpen ? () => setCompactRestoreToken((n) => n + 1) : undefined}
               onSlideIndexChange={setStorySlideIndex}
+              onAddToChat={isHub ? addStoryComponentToChat : undefined}
+              onMonitorConfirm={isHub ? showStoryWorkflow : undefined}
             />
           ) : storyActive ? (
             <StoryView

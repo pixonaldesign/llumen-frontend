@@ -12,7 +12,7 @@ export type GamiModelId = PartId | 'drone'
 
 type Props = {
   model: GamiModelId
-  /** The glow and trim colour. */
+  /** The trim colour. */
   accent: string
   className?: string
   /** Radians per second. */
@@ -28,7 +28,7 @@ type Props = {
 type Built = { root: THREE.Group; tick?: (t: number) => void }
 
 function materials(accent: string) {
-  const glow = new THREE.Color(accent)
+  const trim = new THREE.Color(accent)
   return {
     dark: new THREE.MeshStandardMaterial({ color: 0x2b3038, metalness: 0.85, roughness: 0.38 }),
     steel: new THREE.MeshStandardMaterial({ color: 0xa7b0bb, metalness: 0.95, roughness: 0.22 }),
@@ -41,17 +41,9 @@ function materials(accent: string) {
       roughness: 0.04,
       clearcoat: 1,
       clearcoatRoughness: 0.05,
-      emissive: new THREE.Color(0x1d3d6b),
-      emissiveIntensity: 0.5,
     }),
-    accent: new THREE.MeshStandardMaterial({
-      color: glow,
-      emissive: glow,
-      emissiveIntensity: 0.9,
-      metalness: 0.3,
-      roughness: 0.4,
-    }),
-    laser: new THREE.MeshStandardMaterial({ color: 0xff3b30, emissive: 0xff3b30, emissiveIntensity: 1.6 }),
+    accent: new THREE.MeshStandardMaterial({ color: trim, metalness: 0.3, roughness: 0.4 }),
+    laser: new THREE.MeshStandardMaterial({ color: 0x3a2424, metalness: 0.2, roughness: 0.15 }),
   }
 }
 
@@ -171,7 +163,7 @@ function inu(m: Mats): Built {
   const led = mesh(new RoundedBoxGeometry(0.12, 0.05, 0.02, 1, 0.01), m.accent, [-0.02, 0.2, 0.505])
   root.add(led)
   root.add(mesh(new RoundedBoxGeometry(0.5, 0.012, 0.12, 1, 0.005), m.accent, [0.25, 0.378, 0.24]))
-  return { root, tick: (t) => ((led.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.6 + 0.6 * Math.abs(Math.sin(t * 2))) }
+  return { root }
 }
 
 /** A MALE fixed-wing UAV with a pusher prop, a chin turret and a V-tail; `highlight` lights the part it carries. */
@@ -249,7 +241,6 @@ function drone(m: Mats, highlight?: PartId): Built {
     root,
     tick: (t) => {
       prop.rotation.z = t * 28
-      if (highlight) m.accent.emissiveIntensity = 0.6 + 0.8 * Math.abs(Math.sin(t * 2.4))
     },
   }
 }
@@ -285,7 +276,7 @@ export function Gami3DModel({ model, accent, className, spin = 0.5, interactive 
     const key = new THREE.DirectionalLight(0xffffff, 2.2)
     key.position.set(-3, 4, 3)
     scene.add(key)
-    const rim = new THREE.DirectionalLight(new THREE.Color(accent), 2.4)
+    const rim = new THREE.DirectionalLight(0xffffff, 1.4)
     rim.position.set(3, 1.5, -4)
     scene.add(rim)
     scene.add(new THREE.HemisphereLight(0x9fb6d8, 0x0b0f16, 0.6))

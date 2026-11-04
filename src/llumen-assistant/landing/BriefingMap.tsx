@@ -1,5 +1,5 @@
 /**
- * Briefing backdrop: each finding's GAMI map scene (columns, 3D disks, arcs, heat), slowly orbiting
+ * Briefing backdrop: each finding's GAMI map scene (columns, disks, lines, heat), slowly orbiting
  * and flying to each map stop's place. Dragging, rotating or pinching pauses the orbit.
  */
 import { useEffect, useRef } from 'react'
@@ -8,7 +8,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { STORY_MAP_STYLE } from '../story/StoryMap'
 import type { StoryMapView } from '../story/StoryMap'
 import type { BriefingPlace } from './briefingMapPlaces'
-import { animateGamiLayers, drawGamiScene, GamiPins, mountGamiLayers } from '../gami/gamiMapLayers'
+import { drawGamiScene, GamiLabels, mountGamiLayers } from '../gami/gamiMapLayers'
 import styles from './BriefingLanding.module.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
@@ -38,17 +38,17 @@ const LAYERS = 'briefing'
 
 type Drawn = { place: BriefingPlace; grow: number }
 
-const pinsByMap = new WeakMap<mapboxgl.Map, GamiPins>()
+const labelsByMap = new WeakMap<mapboxgl.Map, GamiLabels>()
 
 function drawPlace(map: mapboxgl.Map, drawn: { current: Drawn }, place: BriefingPlace, grow: number) {
   drawn.current = { place, grow }
   drawGamiScene(map, LAYERS, place.scene, grow)
-  pinsByMap.get(map)?.sync(place.scene.pins, grow)
+  labelsByMap.get(map)?.sync(place.scene.labels, grow)
 }
 
 function mountLayers(map: mapboxgl.Map) {
   mountGamiLayers(map, LAYERS)
-  pinsByMap.set(map, new GamiPins(map))
+  labelsByMap.set(map, new GamiLabels(map))
 }
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
@@ -248,7 +248,6 @@ export function BriefingMap({
       if (readyRef.current && !reduce && !flyingRef.current && !document.hidden && now > holdUntilRef.current) {
         map.setBearing(map.getBearing() + (ORBIT_DEG_PER_S * dt) / 1000)
       }
-      if (readyRef.current && !reduce && !document.hidden) animateGamiLayers(map, LAYERS, now)
       frame = window.requestAnimationFrame(orbit)
     }
     frame = window.requestAnimationFrame(orbit)
@@ -261,7 +260,7 @@ export function BriefingMap({
       window.removeEventListener('pointercancel', onRelease)
       observer.disconnect()
       onSamplerRef.current?.(null)
-      pinsByMap.get(map)?.clear()
+      labelsByMap.get(map)?.clear()
       map.remove()
       mapRef.current = null
       readyRef.current = false

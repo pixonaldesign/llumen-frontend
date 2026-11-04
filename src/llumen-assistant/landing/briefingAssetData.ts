@@ -2,6 +2,7 @@
  * Assets the user built in Asset builder (Create → Asset) and follows from Briefing.
  * `visualTypeId` is the Asset builder visual type each one was created with.
  */
+import { PALETTE, SERIES, STATUS } from '../gami/gamiTypes'
 
 export type BriefingAssetSize = 'small' | 'medium' | 'large' | 'wide'
 
@@ -97,7 +98,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'small',
     category: 'Critical Alert',
     title: 'Poland conflict · propulsion motors',
-    accent: '#ee3f39',
+    accent: STATUS.critical,
     value: 41,
     suffix: ' days',
     caption: 'Stock left before UAV production stops',
@@ -110,7 +111,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'small',
     category: 'National KPIs',
     title: 'Saudi Made vs 2030 goal',
-    accent: '#2de8c8',
+    accent: PALETTE.teal[2],
     value: 59,
     caption: '29.4% of the 50% goal',
     tipLabel: 'Saudi Made',
@@ -122,7 +123,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'medium',
     category: 'National KPIs',
     title: '2026 Plan Progress',
-    accent: '#2de8c8',
+    accent: PALETTE.teal[2],
     unit: '%',
     bars: [
       { label: 'Saudi Made', value: 94.8, display: '94.8%' },
@@ -137,7 +138,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'medium',
     category: 'Investors',
     title: 'Localization Opportunities',
-    accent: '#ffc401',
+    accent: SERIES,
     value: 32,
     unit: 'SAR bn a year',
     tipUnit: 'SAR bn',
@@ -158,7 +159,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'medium',
     category: 'Domains',
     title: 'Licensed Companies by Domain',
-    accent: '#70aeff',
+    accent: PALETTE.purple[3],
     metrics: [
       { label: 'Electronics', value: 173, delta: '+14 this year', good: true },
       { label: 'Land', value: 151, delta: '+9 this year', good: true },
@@ -173,14 +174,14 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'small',
     category: 'Investors',
     title: '2026 License Status',
-    accent: '#1fce7a',
+    accent: STATUS.good,
     centre: '1,007',
     centreLabel: 'Applications',
     slices: [
-      { name: 'Granted', pct: 51, color: '#1fce7a' },
-      { name: 'Under review', pct: 24, color: '#f5a729' },
-      { name: 'Applied', pct: 19, color: '#8a94a6' },
-      { name: 'Failed', pct: 6, color: '#ee3f39' },
+      { name: 'Granted', pct: 51, color: STATUS.good },
+      { name: 'Under review', pct: 24, color: PALETTE.diverging[4] },
+      { name: 'Applied', pct: 19, color: STATUS.mild },
+      { name: 'Failed', pct: 6, color: STATUS.critical },
     ],
   },
   {
@@ -190,7 +191,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'medium',
     category: 'World Defense Show',
     title: 'WDS 2028 Exhibitors',
-    accent: '#ffc401',
+    accent: SERIES,
     value: 1940,
     unit: 'applications',
     tipUnit: 'exhibitors',
@@ -208,14 +209,14 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'wide',
     category: 'National KPIs',
     title: 'Saudi Made Trajectory (% of 2030 goal)',
-    accent: '#2de8c8',
+    accent: PALETTE.teal[2],
     floor: 30,
     suffix: '%',
     labels: ['2023', '2024', '2025', '2026'],
     axis: ['2023', '2024', '2025', '2026'],
     series: [
-      { name: 'Share of GDP', color: '#e8d44d', points: [48, 55, 61, 66] },
-      { name: 'Saudi Made', color: '#2de8c8', points: [38.8, 45, 52, 58.8] },
+      { name: 'Share of GDP', color: PALETTE.categorical[1], points: [48, 55, 61, 66] },
+      { name: 'Saudi Made', color: PALETTE.categorical[0], points: [38.8, 45, 52, 58.8] },
     ],
   },
   {
@@ -225,7 +226,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'medium',
     category: 'Human Capital',
     title: 'Unfilled Roles by Region',
-    accent: '#70aeff',
+    accent: PALETTE.purple[3],
     unit: 'roles',
     bars: [
       { label: 'Western', value: 2140, display: '2,140' },
@@ -241,7 +242,7 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     size: 'small',
     category: 'Investors',
     title: '2026 Investment Pipeline',
-    accent: '#1fce7a',
+    accent: STATUS.good,
     value: 18.6,
     prefix: 'SAR ',
     suffix: 'bn',

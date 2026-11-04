@@ -1,7 +1,25 @@
-/* GAMI insight cards on the story's 184px grid: `full` spans both columns, `cell` is one square. */
-.card {
+/*
+ * GAMI insight cards. The shell (`summaryCard`, `visualCard`, `kpiCellCard`) and the type come from the
+ * story's own card styles; this only lays the cards on the 184px grid and draws the chart kinds the story
+ * cards don't have, in the same neutral strokes.
+ */
+
+/* The sidebar: 184px cells in `--sidebar-columns` columns; full cards span the row. */
+aside.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--sidebar-columns, 2), 184px);
+  grid-auto-rows: 184px;
+  grid-auto-flow: row dense;
+  align-content: start;
+  padding-bottom: 112px;
+}
+
+.card.card {
   position: relative;
+  width: auto;
+  height: auto;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -11,791 +29,482 @@
 
 .cell {
   grid-column: span 1;
-  border-radius: 16px;
+}
+
+/* Two cells wide at any column count; with `.tall`, a 2×2 block. */
+.block {
+  grid-column: span 2;
 }
 
 .tall {
   grid-row: span 2;
-  height: auto;
 }
 
-.head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+.legend {
+  flex-wrap: wrap;
+  row-gap: 4px;
 }
 
-.title {
+/* KPI tiles in one row, each read like `visualValue` over its label. */
+.kpis {
+  display: grid;
   flex: 1;
+  grid-template-columns: repeat(var(--kpi-cols, 3), minmax(0, 1fr));
+  gap: 12px;
+  align-content: center;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
+}
+
+/* Three or more tiles share the row, so their figures step down from the story's 32px. */
+.kpis[data-dense] .kpi strong {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.kpis[data-dense] .kpi span {
+  font-size: 13px;
+}
+
+.kpiLabel,
+.kpiNote {
   margin: 0;
   overflow: hidden;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 20px;
+  font-size: 12px;
+  line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.source {
-  flex-shrink: 0;
-  padding: 1px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 14px;
+.kpiLabel {
+  color: rgba(255, 255, 255, 0.72);
 }
 
-.footer {
-  display: -webkit-box;
-  flex-shrink: 0;
-  margin: 0;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 11px;
-  line-height: 15px;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+.kpiNote {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.rows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+}
+
+.progressRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .muted {
   color: rgba(255, 255, 255, 0.48);
-}
-
-.summaryBody {
-  mask-image: none;
-}
-
-/* ---------- KPIs ---------- */
-
-.kpis {
-  display: grid;
-  flex: 1;
-  grid-template-columns: repeat(var(--kpi-cols), minmax(0, 1fr));
-  gap: 8px;
-  min-height: 0;
-}
-
-.kpi {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 2px;
-  min-width: 0;
-  padding: 8px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--tone) 9%, rgba(255, 255, 255, 0.03));
-}
-
-.cell .kpi {
-  padding: 0;
-  background: none;
-}
-
-.kpiIcon {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--tone);
-}
-
-.kpiValue {
-  margin: 0;
-  overflow: hidden;
-  color: var(--tone);
-  font-family: var(--lc-font-mono);
-  font-size: var(--kpi-size);
-  font-weight: 500;
-  line-height: 1.05;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-  animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
-}
-
-.kpiUnit {
-  display: block;
-  margin-top: 3px;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: var(--lc-font-sans);
-  font-size: 11px;
   font-weight: 400;
-  line-height: 14px;
 }
 
-.cell .kpiUnit {
-  margin-top: 4px;
-  font-size: 13px;
-}
-
-.kpiLabel {
-  margin: 0;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 11px;
-  line-height: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cell .kpiLabel {
-  order: -1;
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
-.kpiNote {
-  position: absolute;
-  top: 0;
-  right: 0;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--tone) 22%, transparent);
-  color: var(--tone);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 16px;
-}
-
-.glow {
-  border-color: rgba(238, 63, 57, 0.6);
-  background:
-    radial-gradient(120% 90% at 50% 110%, rgba(238, 63, 57, 0.28), transparent 70%),
-    rgba(40, 14, 16, 0.55);
-  animation: alertGlow 2.4s ease-in-out infinite;
-}
-
-@keyframes alertGlow {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px rgba(238, 63, 57, 0.25),
-      0 0 18px rgba(238, 63, 57, 0.25);
-  }
-
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(238, 63, 57, 0.55),
-      0 0 32px rgba(238, 63, 57, 0.45);
-  }
-}
-
-/* ---------- Progress ---------- */
-
-.progress {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  justify-content: space-around;
-  min-height: 0;
-}
-
-.progressText {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.progressLabel {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.progressValue {
-  color: #fff;
-  font-family: var(--lc-font-mono);
-  font-size: 12px;
-}
-
-.progressTrack {
+.track {
   position: relative;
-  display: flex;
-  align-items: center;
-  height: 14px;
-  margin-top: 4px;
-}
-
-.progressTrack::before {
-  content: '';
-  position: absolute;
-  inset: 4px 44px 4px 0;
-  border-radius: 999px;
+  display: block;
+  height: 8px;
+  min-width: 0;
+  border-radius: 40px;
   background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
 }
 
-.progressFill {
-  position: relative;
-  max-width: calc(100% - 44px);
-  height: 6px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 45%, transparent), var(--tone));
-  box-shadow: 0 0 12px color-mix(in srgb, var(--tone) 50%, transparent);
-  transform-origin: left;
-  animation: growX 1100ms cubic-bezier(0.16, 1, 0.3, 1) 200ms backwards;
-}
-
-.progressPct {
+.fill {
   position: absolute;
-  right: 0;
-  color: var(--tone);
-  font-family: var(--lc-font-mono);
-  font-size: 11px;
+  inset: 0 auto 0 0;
+  border-radius: 40px;
+  transition: width 900ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ---------- Charts ---------- */
-
-.legend {
+/* Column bars: value over the bar, label under it. */
+.vbars {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 10px;
-  line-height: 14px;
-}
-
-.legendItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.legendDot {
-  display: inline-block;
-  flex-shrink: 0;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--tone);
-}
-
-.legendDash {
-  display: inline-block;
-  width: 12px;
-  border-top: 1.5px dashed var(--tone);
-}
-
-.plot {
-  position: relative;
   flex: 1;
+  align-items: stretch;
+  gap: 8px;
   min-height: 0;
-}
-
-.svg {
-  position: absolute;
-  inset: 0;
-  overflow: visible;
-}
-
-.grid {
-  stroke: rgba(255, 255, 255, 0.08);
-  stroke-width: 1;
-}
-
-.axisX,
-.axisY,
-.barValue,
-.goalLabel {
-  fill: rgba(255, 255, 255, 0.5);
-  font-size: 10px;
-}
-
-.axisX,
-.barValue {
-  text-anchor: middle;
-}
-
-.axisY {
-  text-anchor: end;
-  font-family: var(--lc-font-mono);
-  font-size: 9px;
-}
-
-.barValue {
-  fill: #fff;
-  font-family: var(--lc-font-mono);
-}
-
-.goal {
-  stroke: rgba(255, 255, 255, 0.4);
-  stroke-dasharray: 2 4;
-}
-
-.goalLabel {
-  text-anchor: end;
-  font-size: 9px;
-}
-
-.line {
-  stroke-dasharray: 1;
-  animation: draw 1400ms cubic-bezier(0.33, 1, 0.68, 1) 200ms backwards;
-}
-
-.lineFaded {
-  animation: fade 600ms ease 1200ms backwards;
-}
-
-.area {
-  animation: fade 900ms ease 700ms backwards;
-}
-
-.dot {
-  filter: drop-shadow(0 0 6px currentColor);
-  animation: fade 300ms ease 1500ms backwards;
 }
 
 .vbar {
-  transform-box: fill-box;
-  transform-origin: bottom;
-  animation: growY 900ms cubic-bezier(0.16, 1, 0.3, 1) calc(150ms + var(--i) * 70ms) backwards;
-}
-
-.hbars {
   display: flex;
   flex: 1;
   flex-direction: column;
-  justify-content: space-around;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.vbarValue {
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.vbarTrack {
+  position: relative;
+  display: block;
+  flex: 1;
+  width: 100%;
+  max-width: 28px;
   min-height: 0;
 }
 
-.hbarRow {
+.vbarFill {
+  position: absolute;
+  inset: auto 0 0;
+  border-radius: 4px 4px 2px 2px;
+  transition: height 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vbarLabel {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar,
+.stackRow,
+.rangeRow,
+.rangeAxis {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr) auto;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  line-height: 16px;
 }
 
 .hbarLabel {
   overflow: hidden;
   color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.hbarTrack {
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.hbarFill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 40%, transparent), var(--tone));
-  transform-origin: left;
-  animation: growX 1000ms cubic-bezier(0.16, 1, 0.3, 1) calc(200ms + var(--i) * 90ms) backwards;
-}
-
 .hbarValue {
+  min-width: 40px;
   color: #fff;
-  font-family: var(--lc-font-mono);
-  font-size: 11px;
-  white-space: nowrap;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.splitPart {
+  height: 100%;
+  border-radius: 40px;
+  transition: flex-grow 900ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stacked {
   display: flex;
   flex: 1;
   flex-direction: column;
-  justify-content: space-around;
-  min-height: 0;
-}
-
-.stackRow {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-
-.stackLabel {
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  justify-content: center;
+  gap: 10px;
 }
 
 .stackBar {
   display: flex;
   gap: 2px;
-  height: 14px;
-  overflow: hidden;
-  border-radius: 4px;
-  transform-origin: left;
-  animation: growX 1000ms cubic-bezier(0.16, 1, 0.3, 1) calc(150ms + var(--i) * 80ms) backwards;
+  height: 8px;
 }
 
 .stackPart {
-  flex-basis: 0;
-  min-width: 2px;
+  height: 100%;
+  border-radius: 40px;
+}
+
+.groupBars {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  min-height: 0;
+}
+
+.groupFill {
+  width: 8px;
+  border-radius: 3px 3px 1px 1px;
 }
 
 .donut {
-  display: flex;
+  display: grid;
   flex: 1;
+  grid-template-columns: 112px minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   min-height: 0;
 }
 
-.donutSvg {
-  flex-shrink: 0;
+.donutRing {
+  position: relative;
+  width: 112px;
+  height: 112px;
 }
 
-.donutSlice {
-  animation: fade 700ms ease 200ms backwards;
+.donutRing svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.donutTotal {
-  fill: #fff;
-  font-family: var(--lc-font-mono);
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donutCenter strong {
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 20px;
   font-weight: 500;
-  text-anchor: middle;
+  line-height: 24px;
 }
 
-.donutLabel {
-  fill: rgba(255, 255, 255, 0.5);
+.donutCenter span {
+  color: rgba(255, 255, 255, 0.48);
   font-size: 10px;
-  text-anchor: middle;
+  line-height: 14px;
 }
 
 .donutLegend {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 12px;
 }
 
-.donutLegend li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.donutName {
-  flex: 1;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.donutLegend b {
-  font-family: var(--lc-font-mono);
-  font-size: 11px;
-  font-weight: 500;
-}
-
-/* The table scrolls inside the card; the scroller has no padding on its scrollbar side. */
+/* The table scrolls inside the card; the scroller is full-bleed so the thumb sits on the card edge. */
 .tableScroll {
   flex: 1;
   min-height: 0;
-  margin: 0 -12px -12px 0;
+  margin-right: -12px;
+  padding-right: 0;
   overflow-y: auto;
   overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+.tableScroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.tableScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
 }
 
 .table {
-  width: 100%;
+  width: calc(100% - 12px);
   border-collapse: collapse;
-  font-size: 11px;
-  line-height: 15px;
-}
-
-.table th,
-.table td {
-  padding: 6px 6px 6px 0;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.table th:last-child,
-.table td:last-child {
-  padding-right: 12px;
-}
-
-.table td:first-child {
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .table th {
   position: sticky;
   top: 0;
-  z-index: 1;
-  background: rgba(30, 32, 36, 0.96);
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 500;
-}
-
-.table tbody tr {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  animation: fade 500ms ease calc(150ms + var(--i) * 40ms) backwards;
+  padding: 0 8px 6px 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.48);
+  font-weight: 400;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .table td {
-  color: rgba(255, 255, 255, 0.86);
+  padding: 7px 8px 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
 }
 
-.rowHighlight td {
-  background: color-mix(in srgb, var(--tone) 12%, transparent);
+.table td:first-child {
+  color: #fff;
+  white-space: normal;
 }
 
-.rowHighlight td:first-child {
-  box-shadow: inset 2px 0 var(--tone);
-  padding-left: 6px;
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.pill {
-  display: inline-block;
-  padding: 1px 8px;
+.status i {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--tone) 20%, transparent);
-  color: var(--tone);
-  font-weight: 600;
 }
 
+/* Timeline bars against months from today, with today as the story's dashed reference line. */
 .range {
   display: flex;
   flex: 1;
   flex-direction: column;
-  min-height: 0;
+  justify-content: center;
+  gap: 10px;
 }
 
-.rangeRows {
-  position: relative;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  justify-content: space-around;
-}
-
-.rangeRow {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-}
-
-.rangeLabel {
-  color: rgba(255, 255, 255, 0.72);
+.rangeRow,
+.rangeAxis {
+  grid-template-columns: 92px minmax(0, 1fr);
 }
 
 .rangeTrack {
   position: relative;
-  height: 14px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.04);
+  display: block;
+  height: 8px;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .rangeBar {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-radius: 4px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 55%, transparent), var(--tone));
-  box-shadow: 0 0 10px color-mix(in srgb, var(--tone) 40%, transparent);
-  transform-origin: left;
-  animation: growX 1000ms cubic-bezier(0.16, 1, 0.3, 1) calc(200ms + var(--i) * 140ms) backwards;
+  border-radius: 40px;
 }
 
 .rangeToday {
   position: absolute;
-  top: -2px;
-  bottom: -2px;
-  border-left: 1px dashed rgba(255, 255, 255, 0.6);
+  top: -5px;
+  bottom: -5px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.72);
 }
 
-.rangeToday span {
-  position: absolute;
-  top: -12px;
-  left: -14px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 9px;
-}
-
-.rangeAxis {
+.rangeTicks {
   position: relative;
+  display: block;
   height: 14px;
-  margin-left: 64px;
-  color: rgba(255, 255, 255, 0.45);
-  font-family: var(--lc-font-mono);
-  font-size: 9px;
 }
 
-.rangeAxis span {
+.rangeTicks span {
   position: absolute;
-  top: 2px;
-  transform: translateX(-50%);
-}
-
-.countdown {
-  display: grid;
-  flex: 1;
-  grid-template-columns: 1.3fr repeat(3, 1fr);
-  gap: 8px;
-  align-items: center;
-}
-
-.countUnit {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 10px 0;
-  border-radius: 10px;
-  background: rgba(255, 196, 1, 0.08);
-}
-
-.countValue {
-  color: #ffc401;
-  font-family: var(--lc-font-mono);
-  font-size: 26px;
-  font-weight: 500;
-  line-height: 1;
-}
-
-.countLabel {
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.48);
   font-size: 10px;
+  line-height: 14px;
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
-/* ---------- 3D part ---------- */
-
+/* A 3D part: the model fills the card over its stock days. */
 .partCard {
-  gap: 0;
-  border-color: rgba(238, 63, 57, 0.35);
-  background:
-    radial-gradient(80% 60% at 50% 55%, rgba(238, 63, 57, 0.16), transparent 75%),
-    rgba(26, 26, 26, 0.5);
+  padding-bottom: 12px;
 }
 
-.partCard .head {
-  padding-right: 28px;
-}
-
-.part {
+.partModel {
   position: relative;
-  display: flex;
   flex: 1;
-  flex-direction: column;
   min-height: 0;
+  margin: -4px -12px 0;
 }
 
-.partInfo {
-  position: absolute;
-  top: -24px;
-  right: -4px;
-  z-index: 2;
+.partFoot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.partStats {
   display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   margin: 0;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.partStats div {
+  min-width: 0;
+}
+
+.partStats dt {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.partStats dd {
+  margin: 2px 0 0;
+  overflow: hidden;
   color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.partRow > p {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* Opens the part's details; drawn like a card action. */
+.partInfo {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
   cursor: pointer;
   transition: background 140ms ease;
 }
 
 .partInfo:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(56, 56, 56, 0.72);
 }
 
 .partInfo:focus-visible {
   outline: 2px solid #70aeff;
   outline-offset: 2px;
-}
-
-.partModel {
-  flex: 1;
-  min-height: 0;
-  margin: 0 -12px;
-}
-
-.partFoot {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
-}
-
-.partDays {
-  color: #ee3f39;
-  font-family: var(--lc-font-mono);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
-
-@keyframes growX {
-  from {
-    transform: scaleX(0);
-  }
-}
-
-@keyframes growY {
-  from {
-    transform: scaleY(0);
-  }
-}
-
-@keyframes draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-}
-
-@keyframes fade {
-  from {
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .kpiValue,
-  .progressFill,
-  .line,
-  .lineFaded,
-  .area,
-  .dot,
-  .vbar,
-  .hbarFill,
-  .stackBar,
-  .donutSlice,
-  .table tbody tr,
-  .rangeBar,
-  .glow {
-    animation: none;
-  }
 }

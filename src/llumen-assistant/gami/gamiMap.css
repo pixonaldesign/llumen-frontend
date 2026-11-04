@@ -1,126 +1,41 @@
-/* Global: Mapbox markers and popups live outside the CSS-module tree. */
-.gami-pin {
-  position: relative;
+/* Global: Mapbox markers live outside the CSS-module tree. Matches the story map's `.annotationTip`. */
+.gami-label,
+.gami-tip {
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+}
+
+.gami-label {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  cursor: pointer;
+  gap: 2px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  pointer-events: none;
   transition: opacity 0.3s ease;
 }
 
-.gami-pin-head {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--pin);
-  border: 1.5px solid rgb(255 255 255 / 0.85);
-  box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--pin) 28%, transparent),
-    0 4px 14px rgb(0 0 0 / 0.45);
-}
-
-.gami-pin-stem {
-  width: 2px;
-  height: 10px;
-  background: linear-gradient(var(--pin), transparent);
-}
-
-.gami-pin-label {
-  position: absolute;
-  top: 3px;
-  left: calc(100% + 6px);
-  padding: 3px 8px;
-  border-radius: 6px;
-  white-space: nowrap;
-  font: 600 11px/14px var(--lc-font-family, Inter, system-ui, sans-serif);
+.gami-label b {
   color: #fff;
-  background: rgb(10 16 28 / 0.78);
-  border: 1px solid rgb(255 255 255 / 0.12);
-  backdrop-filter: blur(8px);
-}
-
-.gami-pin[data-side='west'] .gami-pin-label {
-  left: auto;
-  right: calc(100% + 6px);
-}
-
-.gami-pin:hover .gami-pin-head {
-  transform: scale(1.12);
-}
-
-.gami-pin-head {
-  transition: transform 0.18s ease;
-}
-
-.gami-tip .mapboxgl-popup-content {
-  padding: 12px 14px 10px;
-  border-radius: 12px;
-  background: rgb(14 20 32 / 0.92);
-  border: 1px solid rgb(255 255 255 / 0.14);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
-  backdrop-filter: blur(14px);
-  color: #fff;
-  font-family: var(--lc-font-family, Inter, system-ui, sans-serif);
-}
-
-.gami-tip .mapboxgl-popup-tip {
-  border-top-color: rgb(14 20 32 / 0.92);
-  border-bottom-color: rgb(14 20 32 / 0.92);
-}
-
-.gami-tip .mapboxgl-popup-close-button {
-  color: rgb(255 255 255 / 0.6);
-  font-size: 16px;
-  padding: 2px 8px;
-}
-
-.gami-tip-title {
-  margin: 0 18px 8px 0;
   font-size: 13px;
   font-weight: 600;
   line-height: 18px;
 }
 
-.gami-tip-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 4px 0;
-  border-top: 1px solid rgb(255 255 255 / 0.08);
-  font-size: 11.5px;
-  line-height: 16px;
-}
-
-.gami-tip-row span {
-  color: rgb(255 255 255 / 0.6);
-}
-
-.gami-tip-row b {
-  font-weight: 600;
-  text-align: right;
-}
-
 .gami-area-label {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--area) 60%, transparent);
-  background: rgb(10 16 28 / 0.82);
-  backdrop-filter: blur(10px);
-  color: #fff;
-  font: 500 11px/15px var(--lc-font-family, Inter, system-ui, sans-serif);
-  white-space: nowrap;
-  box-shadow: 0 6px 22px rgb(0 0 0 / 0.4);
   opacity: 0;
   transform: translateY(6px);
   transition:
     opacity 0.5s ease,
     transform 0.5s ease;
-  pointer-events: none;
 }
 
 .gami-area-label[data-shown='true'] {
@@ -128,12 +43,46 @@
   transform: none;
 }
 
-.gami-area-label b {
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--area);
+/* A column's or disk's details, beside the pointer. */
+.gami-tip {
+  position: absolute;
+  z-index: 4;
+  width: 244px;
+  padding: 10px 12px;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 14px));
 }
 
-.gami-area-label span {
-  color: rgb(255 255 255 / 0.72);
+.gami-tip-title {
+  margin: 0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.gami-tip-rows {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gami-tip-rows div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gami-tip-rows dt {
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.gami-tip-rows dd {
+  margin: 0;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 500;
+  white-space: nowrap;
 }

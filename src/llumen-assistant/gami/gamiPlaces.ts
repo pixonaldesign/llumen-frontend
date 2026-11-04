@@ -1,20 +1,12 @@
 /**
- * Where the GAMI demo happens: the Kingdom's defence industrial sites (names invented for the demo),
- * and each finding's map scenes, cameras and outlined areas.
+ * Where the GAMI demo happens: the Kingdom's defence industrial sites and zones (names invented for the
+ * demo), and each finding's map scenes, cameras and outlined areas. One column or disk per place.
  */
-import { blob, distanceKm, hash, offsetKm, scatter, type LngLat } from './gamiGeo'
-import { scene, type GamiArc, type GamiColumn, type GamiDisk, type GamiIcon, type GamiPin } from './gamiMapLayers'
-import { TONE, type GamiCamera, type GamiPlaceId, type GamiPolygon } from './gamiTypes'
+import { blob, hash, offsetKm, scatter, type LngLat } from './gamiGeo'
+import { scene, type GamiArc, type GamiColumn, type GamiDisk, type GamiLabel } from './gamiMapLayers'
+import { PALETTE, STATUS, category, ramp, rampAt, type GamiCamera, type GamiPlaceId, type GamiPolygon } from './gamiTypes'
 
 export type Domain = 'air' | 'armament' | 'land' | 'naval' | 'electronics'
-
-export const DOMAIN_COLOR: Record<Domain, string> = {
-  air: TONE.sky,
-  armament: TONE.gold,
-  land: TONE.teal,
-  naval: TONE.blue,
-  electronics: TONE.violet,
-}
 
 export const DOMAIN_LABEL: Record<Domain, string> = {
   air: 'Air',
@@ -23,6 +15,20 @@ export const DOMAIN_LABEL: Record<Domain, string> = {
   naval: 'Naval',
   electronics: 'Electronics',
 }
+
+/** Map colours: sites rise in teal, zones and values in blue, risk along the diverging palette. */
+export const MAP = {
+  site: PALETTE.teal[2],
+  siteRamp: ramp(PALETTE.teal),
+  zone: PALETTE.categorical[0],
+  valueRamp: ramp(PALETTE.blue),
+  densityRamp: ramp(PALETTE.purple),
+  conflictRamp: ramp(PALETTE.red),
+  critical: STATUS.critical,
+  good: STATUS.good,
+  pending: STATUS.moderate,
+  area: '#70aeff',
+} as const
 
 type Site = {
   id: string
@@ -40,124 +46,163 @@ export const SITES: Site[] = [
   { id: 'alkharj-uav', name: 'Al-Kharj UAV Components Plant', city: 'Al-Kharj', at: [47.36, 24.17], domain: 'air', companies: 21, employees: 2600, risk: true },
   { id: 'riyadh-electronics', name: 'Riyadh Defense Electronics Park', city: 'Riyadh', at: [46.58, 24.92], domain: 'electronics', companies: 58, employees: 7900 },
   { id: 'alkharj-armament', name: 'Al-Kharj Armament Complex', city: 'Al-Kharj', at: [47.18, 24.03], domain: 'armament', companies: 39, employees: 6800 },
+  { id: 'qassim-armament', name: 'Qassim Munitions Works', city: 'Buraidah', at: [43.97, 26.33], domain: 'armament', companies: 24, employees: 3600 },
+  { id: 'hail-air', name: 'Hail Aerostructures Plant', city: 'Hail', at: [41.69, 27.52], domain: 'air', companies: 17, employees: 2300 },
+  { id: 'madinah-armament', name: 'Madinah Ordnance Works', city: 'Madinah', at: [39.61, 24.47], domain: 'armament', companies: 20, employees: 3100 },
+  { id: 'ahsa-electronics', name: 'Al-Ahsa Electronics Assembly', city: 'Hofuf', at: [49.59, 25.38], domain: 'electronics', companies: 31, employees: 4400 },
+  { id: 'najran-land', name: 'Najran Armor Works', city: 'Najran', at: [44.13, 17.55], domain: 'land', companies: 14, employees: 1900 },
+  { id: 'tabuk-land', name: 'Tabuk Vehicle Systems Depot', city: 'Tabuk', at: [36.6, 28.4], domain: 'land', companies: 16, employees: 2100 },
   { id: 'jeddah-naval', name: 'Jeddah Naval Systems Yard', city: 'Jeddah', at: [39.15, 21.42], domain: 'naval', companies: 27, employees: 4100 },
   { id: 'kaec-land', name: 'KAEC Land Systems Plant', city: 'King Abdullah Economic City', at: [39.12, 22.45], domain: 'land', companies: 32, employees: 3900 },
-  { id: 'yanbu-armament', name: 'Yanbu Energetics Works', city: 'Yanbu', at: [38.25, 24.0], domain: 'armament', companies: 18, employees: 2400 },
   { id: 'taif-air', name: 'Taif Aerospace MRO Centre', city: 'Taif', at: [40.5, 21.3], domain: 'air', companies: 22, employees: 3300 },
-  { id: 'tabuk-land', name: 'Tabuk Vehicle Systems Depot', city: 'Tabuk', at: [36.6, 28.4], domain: 'land', companies: 16, employees: 2100 },
-  { id: 'dammam-electronics', name: 'Dammam Electronics Assembly', city: 'Dammam', at: [50.07, 26.36], domain: 'electronics', companies: 44, employees: 5200 },
   { id: 'jubail-land', name: 'Jubail Armor & Steel Works', city: 'Jubail', at: [49.62, 27.02], domain: 'land', companies: 37, employees: 6100 },
   { id: 'khamis-air', name: 'Khamis Mushait Aircraft Maintenance', city: 'Khamis Mushait', at: [42.75, 18.3], domain: 'air', companies: 19, employees: 2700 },
 ]
 
 const site = (id: string) => SITES.find((item) => item.id === id)!
 
-const ICON: Record<Domain, GamiIcon> = {
-  air: 'air',
-  armament: 'armament',
-  land: 'land',
-  naval: 'naval',
-  electronics: 'electronics',
-}
+/** Licensed industrial zones away from the sites, sized by serviced land. */
+const ZONES: { name: string; city: string; at: LngLat; landKm2: number }[] = [
+  { name: 'Sudair Industrial City', city: 'Sudair', at: [45.62, 25.92], landKm2: 26 },
+  { name: 'Hafar Al-Batin Industrial Zone', city: 'Hafar Al-Batin', at: [45.97, 28.43], landKm2: 9 },
+  { name: 'Al-Jouf Industrial Zone', city: 'Sakaka', at: [40.21, 29.95], landKm2: 7 },
+  { name: 'Dawadmi Industrial Zone', city: 'Dawadmi', at: [44.39, 24.51], landKm2: 6 },
+  { name: 'Wadi ad-Dawasir Test Range', city: 'Wadi ad-Dawasir', at: [45.0, 20.45], landKm2: 14 },
+  { name: 'Bisha Industrial Zone', city: 'Bisha', at: [42.6, 20.0], landKm2: 5 },
+  { name: 'Arar Logistics Zone', city: 'Arar', at: [41.04, 30.97], landKm2: 6 },
+  { name: 'Yanbu Industrial City', city: 'Yanbu', at: [38.25, 24.0], landKm2: 18 },
+  { name: 'Ras Al-Khair Industrial City', city: 'Ras Al-Khair', at: [49.25, 27.48], landKm2: 12 },
+]
 
-function sitePin(item: Site, group: string, label: boolean): GamiPin {
+const MAX_EMPLOYEES = 7900
+
+function siteColumn(item: Site, maxHeight: number, group: string): GamiColumn {
   return {
     at: item.at,
-    label: label ? item.name : undefined,
-    color: item.risk ? TONE.red : TONE.teal,
-    icon: ICON[item.domain],
+    height: maxHeight * (0.25 + 0.75 * (item.employees / MAX_EMPLOYEES)),
+    color: item.risk ? MAP.critical : rampAt(MAP.siteRamp, 0.35 + 0.65 * (item.employees / MAX_EMPLOYEES)),
     group,
-    title: item.name,
-    info: [
-      ['City', item.city],
-      ['Domain', DOMAIN_LABEL[item.domain]],
-      ['Status', item.risk ? 'At risk · Poland supply' : 'Normal'],
-      ['Companies', String(item.companies)],
-      ['Employees', item.employees.toLocaleString('en-US')],
-    ],
+    tip: {
+      title: item.name,
+      rows: [
+        ['City', item.city],
+        ['Domain', DOMAIN_LABEL[item.domain]],
+        ['Companies', String(item.companies)],
+        ['Employees', item.employees.toLocaleString('en-US')],
+        ['Status', item.risk ? 'At risk' : 'Normal'],
+      ],
+    },
   }
 }
 
-/** Value columns around each site: one per few companies, as tall as its share of the site's workforce. */
-function siteColumns(items: Site[], radiusKm: number, maxHeight: number, perColumn: number, group: string): GamiColumn[] {
-  return items.flatMap((item, s) => {
-    const count = Math.max(4, Math.round(item.companies / perColumn))
-    return scatter(item.at, count, radiusKm, s * 7 + 3).map((at, i) => ({
-      at,
-      height: maxHeight * (item.employees / 7900) * (0.35 + 0.65 * hash(i, s + 11)),
-      color: item.risk ? TONE.red : i % 3 === 0 ? TONE.ice : TONE.teal,
-      group,
-    }))
-  })
-}
-
-function siteDisks(items: Site[], radiusM: number, group: string): GamiDisk[] {
-  return items.map((item) => ({
-    at: item.at,
-    radiusM,
-    base: 0,
-    height: radiusM * 0.05,
-    color: item.risk ? TONE.red : TONE.teal,
+function zoneDisks(scale: number, group: string): GamiDisk[] {
+  return ZONES.map((zone) => ({
+    at: zone.at,
+    radiusM: Math.sqrt(zone.landKm2) * scale,
+    color: MAP.zone,
     group,
+    tip: { title: zone.name, rows: [['City', zone.city], ['Serviced land', `${zone.landKm2} km²`], ['Status', 'Licensed']] },
   }))
 }
 
 /* ---------- Finding 1: the Kingdom overview ---------- */
 
-const CORRIDOR = SITES.filter((item) => ['riyadh-uav', 'alkharj-uav', 'riyadh-electronics', 'alkharj-armament'].includes(item.id))
-
-export const KINGDOM_CAMERA: GamiCamera = { center: [44.4, 23.6], zoom: 4.95, pitch: 50, bearing: -12 }
+export const KINGDOM_CAMERA: GamiCamera = { center: [44.2, 23.9], zoom: 4.85, pitch: 48, bearing: -10 }
 
 export const KINGDOM_SCENE = scene({
-  columnRadiusM: 7500,
-  columns: siteColumns(SITES, 34, 380000, 6, 'sites-columns'),
-  disks: siteDisks(SITES, 42000, 'sites-disks'),
+  columnRadiusM: 9000,
+  columns: SITES.map((item) => siteColumn(item, 420000, 'sites')),
+  disks: zoneDisks(14000, 'zones'),
 })
 
-export const KINGDOM_STORY_SCENE = scene({
-  ...KINGDOM_SCENE,
-  pins: SITES.map((item) => sitePin(item, 'sites-pins', false)),
-})
+const RISK_LABEL: GamiLabel = {
+  at: offsetKm(site('riyadh-uav').at, 25, -30),
+  title: 'Riyadh & Al-Kharj UAV sites',
+  text: '2 sites at risk',
+  side: 'east',
+  group: 'sites',
+}
 
-export const CORRIDOR_CAMERA: GamiCamera = { center: [47.0, 24.42], zoom: 7.55, pitch: 56, bearing: 28 }
+export const KINGDOM_STORY_SCENE = scene({ ...KINGDOM_SCENE, labels: [RISK_LABEL] })
+
+const CORRIDOR_PLACES: { name: string; at: LngLat; employees: number; risk?: boolean; domain: Domain }[] = [
+  { name: 'Riyadh UAV Integration Facility', at: site('riyadh-uav').at, employees: 4200, risk: true, domain: 'air' },
+  { name: 'Al-Kharj UAV Components Plant', at: site('alkharj-uav').at, employees: 2600, risk: true, domain: 'air' },
+  { name: 'Riyadh Defense Electronics Park', at: site('riyadh-electronics').at, employees: 7900, domain: 'electronics' },
+  { name: 'Al-Kharj Armament Complex', at: site('alkharj-armament').at, employees: 6800, domain: 'armament' },
+  { name: 'Riyadh 2nd Industrial City', at: [46.86, 24.58], employees: 5200, domain: 'electronics' },
+  { name: 'Riyadh 3rd Industrial City', at: [47.02, 24.42], employees: 3100, domain: 'land' },
+  { name: 'Al-Kharj Industrial City', at: [47.55, 24.3], employees: 2300, domain: 'armament' },
+  { name: 'Diriyah Avionics Workshop', at: [46.5, 24.72], employees: 1800, domain: 'air' },
+  { name: 'Al-Muzahmiyah Test Range', at: [46.25, 24.47], employees: 900, domain: 'armament' },
+  { name: 'North Riyadh Aviation Park', at: [46.72, 25.08], employees: 2200, domain: 'air' },
+]
+
+export const CORRIDOR_CAMERA: GamiCamera = { center: [46.95, 24.52], zoom: 7.6, pitch: 54, bearing: 24 }
 
 export const CORRIDOR_SCENE = scene({
-  columnRadiusM: 1300,
-  columns: siteColumns(CORRIDOR, 13, 62000, 1.6, 'sites-columns'),
-  disks: siteDisks(CORRIDOR, 9000, 'sites-disks'),
-  pins: CORRIDOR.map((item) => sitePin(item, 'sites-pins', true)),
+  columnRadiusM: 1600,
+  columns: CORRIDOR_PLACES.map((place) => ({
+    at: place.at,
+    height: 18000 + 52000 * (place.employees / MAX_EMPLOYEES),
+    color: place.risk ? MAP.critical : rampAt(MAP.siteRamp, 0.35 + 0.65 * (place.employees / MAX_EMPLOYEES)),
+    group: 'sites',
+    tip: {
+      title: place.name,
+      rows: [
+        ['Domain', DOMAIN_LABEL[place.domain]],
+        ['Employees', place.employees.toLocaleString('en-US')],
+        ['Status', place.risk ? 'At risk' : 'Normal'],
+      ],
+    },
+  })),
+  disks: CORRIDOR_PLACES.filter((place) => place.risk).map((place) => ({
+    at: place.at,
+    radiusM: 7000,
+    color: MAP.critical,
+    group: 'risk',
+    tip: { title: place.name, rows: [['Status', 'At risk · Poland supply'], ['Employees', place.employees.toLocaleString('en-US')]] },
+  })),
+  labels: [
+    { at: site('riyadh-uav').at, title: 'Riyadh UAV Integration Facility', text: 'At risk', side: 'east', group: 'risk' },
+    { at: site('alkharj-uav').at, title: 'Al-Kharj UAV Components Plant', text: 'At risk', side: 'east', group: 'risk' },
+    { at: site('riyadh-electronics').at, title: 'Riyadh Defense Electronics Park', text: '7,900 employees', side: 'west', group: 'sites' },
+  ],
 })
 
 export const CORRIDOR_AREA: GamiPolygon = {
   id: 'corridor',
   name: 'Riyadh–Al Kharj corridor',
   text: '248 companies · SAR 7.9bn',
-  color: TONE.sky,
-  ring: blob([46.97, 24.47], 50, 4, [1.65, 0.72], -52),
-  wallM: 5000,
+  color: MAP.area,
+  ring: blob([46.93, 24.53], 52, 4, [1.65, 0.78], -52),
+  wallM: 3000,
 }
 
-/* ---------- Finding 2: localization in the Eastern Province ---------- */
+/* ---------- Finding 2: localization opportunities across the Kingdom ---------- */
 
-type Opportunity = { name: string; value: number; domain: Domain; at: LngLat }
+type Opportunity = { name: string; value: number; domain: Domain; at: LngLat; city: string; side: 'east' | 'west' }
 
+/** Jubail's two add up to the SAR 10.6bn it can take now. */
 export const OPPORTUNITIES: Opportunity[] = [
-  { name: 'UAV airframes & propulsion', value: 6.8, domain: 'air', at: [50.0, 26.4] },
-  { name: 'Ammunition & energetics', value: 5.9, domain: 'armament', at: [49.52, 27.07] },
-  { name: 'Armored vehicle subsystems', value: 4.7, domain: 'land', at: [49.72, 26.94] },
-  { name: 'Radar & comms modules', value: 4.2, domain: 'electronics', at: [50.15, 26.28] },
-  { name: 'Aircraft MRO & spares', value: 3.9, domain: 'air', at: [49.6, 25.42] },
-  { name: 'Naval vessel outfitting', value: 2.6, domain: 'naval', at: [49.27, 27.47] },
+  { name: 'UAV airframes & propulsion', value: 6.8, domain: 'air', at: [47.33, 24.15], city: 'Al-Kharj', side: 'east' },
+  { name: 'Ammunition & energetics', value: 5.9, domain: 'armament', at: [49.52, 27.07], city: 'Jubail', side: 'east' },
+  { name: 'Armored vehicle subsystems', value: 4.7, domain: 'land', at: [49.14, 26.78], city: 'Jubail', side: 'west' },
+  { name: 'Radar & comms modules', value: 4.2, domain: 'electronics', at: [46.68, 24.77], city: 'Riyadh', side: 'west' },
+  { name: 'Aircraft MRO & spares', value: 3.9, domain: 'air', at: [42.73, 18.3], city: 'Khamis Mushait', side: 'east' },
+  { name: 'Naval vessel outfitting', value: 2.6, domain: 'naval', at: [39.2, 21.5], city: 'Jeddah', side: 'west' },
 ]
+
+const MAX_OPPORTUNITY = 6.8
 
 const HEAT_ZONES: [LngLat, number, number, number][] = [
   // centre, points, radius km, weight
-  [[49.62, 27.02], 170, 16, 1],
-  [[50.04, 26.33], 140, 14, 0.9],
-  [[49.24, 27.48], 70, 9, 0.75],
-  [[50.19, 26.27], 50, 6, 0.7],
-  [[49.6, 25.4], 70, 12, 0.6],
-  [[49.95, 26.75], 30, 18, 0.35],
+  [[49.45, 26.98], 120, 34, 1],
+  [[46.72, 24.68], 120, 40, 0.9],
+  [[47.33, 24.15], 90, 30, 0.8],
+  [[39.25, 21.55], 80, 32, 0.6],
+  [[42.6, 18.25], 60, 28, 0.5],
+  [[44.39, 24.51], 40, 26, 0.4],
 ]
 
 function heatPoints(zones: [LngLat, number, number, number][], group: string, seed: number) {
@@ -166,86 +211,85 @@ function heatPoints(zones: [LngLat, number, number, number][], group: string, se
   )
 }
 
-function opportunityDisks(items: Opportunity[], scale: number, base: number, group: string): GamiDisk[] {
-  return items.map((item, index) => ({
+function opportunityDisk(item: Opportunity, scale: number, group: string): GamiDisk {
+  return {
     at: item.at,
     radiusM: Math.sqrt(item.value) * scale,
-    base: base * (0.8 + 0.1 * index),
-    height: base * 0.12,
-    color: DOMAIN_COLOR[item.domain],
+    color: rampAt(MAP.valueRamp, 0.3 + 0.7 * (item.value / MAX_OPPORTUNITY)),
     group,
-  }))
+    tip: {
+      title: item.name,
+      rows: [
+        ['Location', item.city],
+        ['Domain', DOMAIN_LABEL[item.domain]],
+        ['Value', `SAR ${item.value.toFixed(1)}bn / yr`],
+      ],
+    },
+  }
 }
 
-function stems(disks: GamiDisk[], group: string): GamiColumn[] {
-  return disks.map((disk) => ({ at: disk.at, height: disk.base, color: 'rgba(255,255,255,0.55)', group }))
-}
-
-const EASTERN_DISKS = opportunityDisks(OPPORTUNITIES, 8200, 26000, 'opportunity-disks')
-
-export const EASTERN_CAMERA: GamiCamera = { center: [49.72, 26.55], zoom: 7.35, pitch: 54, bearing: 16 }
-
-const LOCALIZATION_RAMP = ['#123a6b', '#2c6fd1', '#2de8c8', '#e8d44d', '#ffc401']
+export const EASTERN_CAMERA: GamiCamera = { center: [44.6, 23.4], zoom: 5.05, pitch: 44, bearing: -8 }
 
 export const EASTERN_SCENE = scene({
-  columnRadiusM: 420,
-  heat: heatPoints(HEAT_ZONES, 'capacity-heat', 21),
-  heatRadiusM: 15000,
-  heatRamp: LOCALIZATION_RAMP,
-  disks: EASTERN_DISKS,
-  columns: stems(EASTERN_DISKS, 'opportunity-disks'),
+  heat: heatPoints(HEAT_ZONES, 'capacity', 21),
+  heatRadiusM: 30000,
+  heatRamp: MAP.densityRamp,
+  disks: OPPORTUNITIES.map((item) => opportunityDisk(item, 17000, 'opportunities')),
 })
 
 export const EASTERN_STORY_SCENE = scene({
   ...EASTERN_SCENE,
-  pins: SITES.filter((item) => ['jubail-land', 'dammam-electronics'].includes(item.id)).map((item) =>
-    sitePin(item, 'sites-pins', true),
-  ),
+  labels: OPPORTUNITIES.map((item) => ({
+    at: item.at,
+    title: item.name,
+    text: `SAR ${item.value.toFixed(1)}bn · ${item.city}`,
+    side: item.side,
+    group: 'opportunities',
+  })),
 })
 
 const JUBAIL_CENTER: LngLat = [49.62, 27.0]
 
-type Supplier = { name: string; at: LngLat; capability: string; status: string; ready: boolean }
+type Supplier = { name: string; at: LngLat; capability: string; status: string; ready: boolean; capacity: number; side: 'east' | 'west' }
 
 export const JUBAIL_SUPPLIERS: Supplier[] = [
-  { name: 'Jubail Energetics Park', at: offsetKm(JUBAIL_CENTER, -7, 5), capability: 'Propellants & charges', status: 'Licence review', ready: false },
-  { name: 'Gulf Armor Plate Mill', at: offsetKm(JUBAIL_CENTER, 5, 6), capability: 'Armor steel', status: 'Ready', ready: true },
-  { name: 'Eastern Composites Works', at: offsetKm(JUBAIL_CENTER, 8, -4), capability: 'Composites', status: 'Needs licence', ready: false },
-  { name: 'Jubail Precision Forge', at: offsetKm(JUBAIL_CENTER, -3, -7), capability: 'Machining & forging', status: 'Ready', ready: true },
-  { name: 'Vehicle Subsystems Hub', at: offsetKm(JUBAIL_CENTER, 1, 0.5), capability: 'Vehicle subsystems', status: 'Ready', ready: true },
+  { name: 'Jubail Energetics Park', at: offsetKm(JUBAIL_CENTER, -7, 5), capability: 'Propellants & charges', status: 'Licence review', ready: false, capacity: 0.7, side: 'west' },
+  { name: 'Gulf Armor Plate Mill', at: offsetKm(JUBAIL_CENTER, 5, 6), capability: 'Armor steel', status: 'Ready', ready: true, capacity: 1, side: 'east' },
+  { name: 'Eastern Composites Works', at: offsetKm(JUBAIL_CENTER, 8, -4), capability: 'Composites', status: 'Needs licence', ready: false, capacity: 0.45, side: 'east' },
+  { name: 'Jubail Precision Forge', at: offsetKm(JUBAIL_CENTER, -4, -7), capability: 'Machining & forging', status: 'Ready', ready: true, capacity: 0.85, side: 'west' },
+  { name: 'Vehicle Subsystems Hub', at: offsetKm(JUBAIL_CENTER, 1, 0.5), capability: 'Vehicle subsystems', status: 'Ready', ready: true, capacity: 0.6, side: 'east' },
 ]
 
-export const JUBAIL_CAMERA: GamiCamera = { center: [49.63, 26.99], zoom: 9.75, pitch: 58, bearing: 32 }
+export const JUBAIL_CAMERA: GamiCamera = { center: [49.63, 26.99], zoom: 9.75, pitch: 56, bearing: 28 }
 
 export const JUBAIL_SCENE = scene({
-  columnRadiusM: 260,
-  heat: heatPoints([[JUBAIL_CENTER, 260, 12, 1]], 'capacity-heat', 5),
+  columnRadiusM: 380,
+  heat: heatPoints([[JUBAIL_CENTER, 220, 12, 1]], 'capacity', 5),
   heatRadiusM: 2200,
-  heatRamp: LOCALIZATION_RAMP,
-  columns: JUBAIL_SUPPLIERS.flatMap((supplier, s) =>
-    scatter(supplier.at, 9, 2.2, s * 5 + 2).map((at, i) => ({
-      at,
-      height: 2600 + 4200 * hash(i, s + 3),
-      color: supplier.ready ? TONE.green : TONE.amber,
-      group: 'supplier-columns',
-    })),
-  ),
-  disks: [
-    { at: offsetKm(JUBAIL_CENTER, -6, 8), radiusM: 2600, base: 9000, height: 900, color: DOMAIN_COLOR.armament, group: 'opportunity-disks' },
-    { at: offsetKm(JUBAIL_CENTER, 6, -1), radiusM: 2300, base: 7800, height: 900, color: DOMAIN_COLOR.land, group: 'opportunity-disks' },
-  ],
-  pins: JUBAIL_SUPPLIERS.map((supplier) => ({
+  heatRamp: MAP.densityRamp,
+  columns: JUBAIL_SUPPLIERS.map((supplier) => ({
     at: supplier.at,
-    label: supplier.name,
-    color: supplier.ready ? TONE.green : TONE.amber,
-    icon: 'factory' as const,
-    group: 'supplier-pins',
+    height: 2500 + 6000 * supplier.capacity,
+    color: supplier.ready ? MAP.good : MAP.pending,
+    group: 'suppliers',
+    tip: {
+      title: supplier.name,
+      rows: [
+        ['Capability', supplier.capability],
+        ['Status', supplier.status],
+      ],
+    },
+  })),
+  disks: [
+    opportunityDisk({ ...OPPORTUNITIES[1], at: offsetKm(JUBAIL_CENTER, -2, 10) }, 1100, 'opportunities'),
+    opportunityDisk({ ...OPPORTUNITIES[2], at: offsetKm(JUBAIL_CENTER, 10, 2) }, 1100, 'opportunities'),
+  ],
+  labels: JUBAIL_SUPPLIERS.map((supplier) => ({
+    at: supplier.at,
     title: supplier.name,
-    info: [
-      ['Capability', supplier.capability],
-      ['Status', supplier.status],
-      ['City', 'Jubail Industrial City'],
-    ] as [string, string][],
+    text: supplier.status,
+    side: supplier.side,
+    group: 'suppliers',
   })),
 })
 
@@ -253,9 +297,9 @@ export const JUBAIL_AREA: GamiPolygon = {
   id: 'jubail',
   name: 'Jubail Industrial City',
   text: 'SAR 10.6bn ready to localize',
-  color: TONE.gold,
-  ring: blob([49.63, 27.0], 11.5, 9, [1.25, 1], 20),
-  wallM: 1400,
+  color: MAP.area,
+  ring: blob([49.63, 27.0], 13, 9, [1.25, 1], 20),
+  wallM: 900,
 }
 
 /* ---------- Finding 3: World Defense Show 2028 ---------- */
@@ -264,14 +308,12 @@ export const MALHAM: LngLat = [46.16, 25.12]
 
 export type Region = 'europe' | 'middle-east' | 'asia' | 'north-america' | 'africa' | 'latin-america'
 
-export const REGION_COLOR: Record<Region, string> = {
-  europe: TONE.violet,
-  'middle-east': TONE.teal,
-  asia: TONE.gold,
-  'north-america': TONE.sky,
-  africa: TONE.amber,
-  'latin-america': TONE.green,
-}
+export const REGION_ORDER: Region[] = ['europe', 'middle-east', 'asia', 'north-america', 'africa', 'latin-america']
+
+export const REGION_COLOR = Object.fromEntries(REGION_ORDER.map((region, index) => [region, category(index)])) as Record<
+  Region,
+  string
+>
 
 export const REGION_LABEL: Record<Region, string> = {
   europe: 'Europe',
@@ -308,43 +350,29 @@ const DELEGATIONS: [string, LngLat, Region][] = [
 export const WDS_CAMERA: GamiCamera = { center: [38, 30], zoom: 2.6, pitch: 30, bearing: -6 }
 
 export const WDS_SCENE = scene({
-  arcs: DELEGATIONS.map(([, at, region]) => ({
-    from: at,
-    to: MALHAM,
-    color: REGION_COLOR[region],
-    peakM: Math.min(1400000, distanceKm(at, MALHAM) * 110),
-    width: 2,
-    group: 'delegation-arcs',
-  })),
-  arcWidthM: 42000,
-  disks: [{ at: MALHAM, radiusM: 120000, base: 0, height: 60000, color: TONE.gold, group: 'venue-disk' }],
-})
-
-export const WDS_STORY_SCENE = scene({
-  ...WDS_SCENE,
-  pins: [
+  arcs: DELEGATIONS.map(([, at, region]) => ({ from: at, to: MALHAM, color: REGION_COLOR[region], width: 1.5, group: 'delegations' })),
+  disks: [
     {
       at: MALHAM,
-      label: 'WDS 2028 · Malham, Riyadh',
-      color: TONE.gold,
-      icon: 'venue',
-      group: 'venue-disk',
-      title: 'World Defense Show 2028',
-      info: [
-        ['Venue', 'Malham, north of Riyadh'],
-        ['Opens', '6 February 2028'],
-        ['Applications', '1,940 exhibitors'],
-      ],
+      radiusM: 110000,
+      color: PALETTE.categorical[4],
+      group: 'venue',
+      tip: { title: 'World Defense Show 2028', rows: [['Venue', 'Malham, Riyadh'], ['Opens', '6 Feb 2028'], ['Applications', '1,940']] },
     },
   ],
 })
 
+export const WDS_STORY_SCENE = scene({
+  ...WDS_SCENE,
+  labels: [{ at: MALHAM, title: 'WDS 2028', text: 'Malham, Riyadh', side: 'east', group: 'venue' }],
+})
+
 const HALLS: [string, LngLat, number][] = [
   ['Hall 1 · Air', offsetKm(MALHAM, -1.6, 1.0), 1],
-  ['Hall 2 · Land', offsetKm(MALHAM, -0.4, 1.3), 0.9],
-  ['Hall 3 · Electronics', offsetKm(MALHAM, 0.8, 1.0), 0.95],
-  ['Hall 4 · Armament', offsetKm(MALHAM, -1.0, -0.2), 0.7],
-  ['Hall 5 · Naval', offsetKm(MALHAM, 0.3, -0.3), 0.55],
+  ['Hall 2 · Land', offsetKm(MALHAM, -0.4, 1.4), 0.9],
+  ['Hall 3 · Electronics', offsetKm(MALHAM, 0.9, 1.0), 0.95],
+  ['Hall 4 · Armament', offsetKm(MALHAM, -1.1, -0.3), 0.7],
+  ['Hall 5 · Naval', offsetKm(MALHAM, 0.4, -0.4), 0.55],
 ]
 
 const ARRIVALS: [string, LngLat][] = [
@@ -354,48 +382,44 @@ const ARRIVALS: [string, LngLat][] = [
   ['Malham village', [46.08, 25.16]],
 ]
 
-export const MALHAM_CAMERA: GamiCamera = { center: offsetKm(MALHAM, 0.2, 0.4), zoom: 12.4, pitch: 60, bearing: -24 }
+const DISPLAY: LngLat = offsetKm(MALHAM, 1.9, -1.7)
+
+export const MALHAM_CAMERA: GamiCamera = { center: offsetKm(MALHAM, 0.2, 0.3), zoom: 12.5, pitch: 58, bearing: -24 }
 
 export const MALHAM_SCENE = scene({
-  columnRadiusM: 70,
-  columns: HALLS.flatMap(([, at, share], h) =>
-    scatter(at, 16, 0.38, h * 3 + 1).map((point, i) => ({
-      at: point,
-      height: 280 + 520 * share * hash(i, h + 9),
-      color: i % 4 === 0 ? TONE.ice : TONE.gold,
-      group: 'hall-columns',
-    })),
-  ),
+  columnRadiusM: 110,
+  columns: HALLS.map(([name, at, share]) => ({
+    at,
+    height: 300 + 700 * share,
+    color: rampAt(MAP.siteRamp, 0.3 + 0.7 * share),
+    group: 'halls',
+    tip: { title: name, rows: [['Stands', `${Math.round(390 * share)} confirmed`], ['Ready', `${Math.round(70 + 20 * share)}%`]] },
+  })),
   heat: [
-    ...scatter(offsetKm(MALHAM, -0.4, 0.6), 240, 1.8, 3).map((at, i) => ({ at, weight: 0.5 + 0.5 * hash(i, 4), group: 'visitor-heat' })),
-    ...scatter(offsetKm(MALHAM, 1.8, -1.6), 90, 0.9, 8).map((at, i) => ({ at, weight: 0.4 + 0.4 * hash(i, 2), group: 'visitor-heat' })),
+    ...scatter(offsetKm(MALHAM, -0.4, 0.6), 220, 1.8, 3).map((at, i) => ({ at, weight: 0.5 + 0.5 * hash(i, 4), group: 'visitors' })),
+    ...scatter(DISPLAY, 80, 0.9, 8).map((at, i) => ({ at, weight: 0.4 + 0.4 * hash(i, 2), group: 'visitors' })),
   ],
   heatRadiusM: 260,
-  heatRamp: ['#2a1c4a', '#7b68ee', '#f5a729', '#ffe08a'],
+  heatRamp: MAP.densityRamp,
   arcs: ARRIVALS.map(([, at], index) => ({
     from: at,
     to: offsetKm(MALHAM, 0.4 - index * 0.3, -0.6),
-    color: TONE.teal,
-    peakM: 2500 + index * 400,
-    width: 2.2,
-    group: 'shuttle-arcs',
+    color: PALETTE.categorical[2],
+    width: 2,
+    group: 'shuttles',
   })),
-  arcWidthM: 45,
-  disks: [{ at: offsetKm(MALHAM, 1.8, -1.6), radiusM: 380, base: 900, height: 60, color: TONE.sky, group: 'display-disk' }],
-  pins: [
-    ...HALLS.map(([name, at]) => ({ at, label: name, color: TONE.gold, icon: 'venue' as const, group: 'hall-columns' })),
+  disks: [
     {
-      at: offsetKm(MALHAM, 1.8, -1.6),
-      label: 'Flying display & static aircraft',
-      color: TONE.sky,
-      icon: 'air',
-      group: 'display-disk',
-      title: 'Flying display & static aircraft',
-      info: [
-        ['Static aircraft slots', '70'],
-        ['Runway upgrade', '74% complete'],
-      ],
+      at: DISPLAY,
+      radiusM: 420,
+      color: MAP.zone,
+      group: 'display',
+      tip: { title: 'Flying display & static aircraft', rows: [['Static aircraft slots', '70'], ['Runway upgrade', '74%']] },
     },
+  ],
+  labels: [
+    ...HALLS.map(([name, at], index) => ({ at, title: name, side: index % 2 ? ('west' as const) : ('east' as const), group: 'halls' })),
+    { at: DISPLAY, title: 'Flying display', text: '70 static aircraft', side: 'east', group: 'display' },
   ],
 })
 
@@ -403,125 +427,110 @@ export const MALHAM_AREA: GamiPolygon = {
   id: 'malham',
   name: 'Malham exhibition venue',
   text: '5 halls · 82% ready',
-  color: TONE.gold,
-  ring: blob(offsetKm(MALHAM, 0.1, 0.1), 2.4, 3, [1.35, 1], 10),
-  wallM: 180,
+  color: MAP.area,
+  ring: blob(offsetKm(MALHAM, 0.1, 0.1), 2.5, 3, [1.35, 1], 10),
+  wallM: 120,
 }
 
 /* ---------- Finding 4: human capital in the Western Region ---------- */
 
-type TalentCity = { name: string; at: LngLat; gap: number }
+type TalentCity = { name: string; at: LngLat; gap: number; side: 'east' | 'west' }
 
 export const TALENT_CITIES: TalentCity[] = [
-  { name: 'Jeddah', at: [39.19, 21.54], gap: 980 },
-  { name: 'King Abdullah Economic City', at: [39.1, 22.4], gap: 640 },
-  { name: 'Yanbu', at: [38.06, 24.09], gap: 290 },
-  { name: 'Taif', at: [40.42, 21.27], gap: 230 },
+  { name: 'Jeddah', at: [39.19, 21.54], gap: 980, side: 'west' },
+  { name: 'King Abdullah Economic City', at: [39.1, 22.4], gap: 640, side: 'west' },
+  { name: 'Madinah', at: [39.61, 24.47], gap: 410, side: 'east' },
+  { name: 'Yanbu', at: [38.06, 24.09], gap: 290, side: 'west' },
+  { name: 'Taif', at: [40.42, 21.27], gap: 230, side: 'east' },
+  { name: 'Makkah', at: [39.83, 21.42], gap: 180, side: 'east' },
 ]
 
-const HORIZONS: [number, string][] = [
-  [1, TONE.ice],
-  [1.28, TONE.sky],
-  [1.67, TONE.blue],
+const MAX_GAP = 980
+
+const ACADEMIES: { name: string; at: LngLat; graduates: number; enrolled: number }[] = [
+  { name: 'National Academy for Military Industries', at: [39.27, 21.64], graduates: 620, enrolled: 1410 },
+  { name: 'KAEC Technical Institute', at: [39.17, 22.33], graduates: 180, enrolled: 420 },
+  { name: 'Taif Aviation Training Centre', at: [40.52, 21.36], graduates: 140, enrolled: 360 },
+  { name: 'Madinah Industrial Skills College', at: [39.7, 24.52], graduates: 110, enrolled: 300 },
 ]
 
-function talentDisks(scale: number, base: number, thickness: number): GamiDisk[] {
-  return TALENT_CITIES.flatMap((city) =>
-    HORIZONS.map(([factor, color], level) => ({
-      at: city.at,
-      radiusM: Math.sqrt(city.gap * factor) * scale,
-      base: base * (level + 1),
-      height: thickness,
-      color,
-      group: 'gap-disks',
-    })),
-  )
-}
-
-const ACADEMIES: GamiPin[] = [
-  {
-    at: [39.27, 21.64],
-    label: 'National Academy for Military Industries · Jeddah',
-    color: TONE.violet,
-    icon: 'academy',
-    group: 'academy-pins',
-    title: 'National Academy for Military Industries',
-    info: [
-      ['Campus', 'Jeddah'],
-      ['Enrolled', '1,410'],
-      ['Graduates 2026', '620'],
-    ],
-  },
-  {
-    at: [39.17, 22.33],
-    label: 'KAEC Technical Institute',
-    color: TONE.violet,
-    icon: 'academy',
-    group: 'academy-pins',
-    title: 'KAEC Technical Institute',
-    info: [
-      ['Graduates a year', '180'],
-      ['Programmes', 'Machining · UAV integration'],
-    ],
-  },
-  {
-    at: [40.52, 21.36],
-    label: 'Taif Aviation Training Centre',
-    color: TONE.violet,
-    icon: 'academy',
-    group: 'academy-pins',
-    title: 'Taif Aviation Training Centre',
-    info: [['Graduates a year', '140']],
-  },
-]
-
-export const WESTERN_CAMERA: GamiCamera = { center: [39.45, 22.55], zoom: 6.35, pitch: 56, bearing: -18 }
+export const WESTERN_CAMERA: GamiCamera = { center: [39.6, 22.9], zoom: 6.2, pitch: 52, bearing: -16 }
 
 export const WESTERN_SCENE = scene({
-  disks: talentDisks(1900, 17000, 4200),
-  columns: TALENT_CITIES.map((city) => ({ at: city.at, height: 51000, color: 'rgba(255,255,255,0.5)', group: 'gap-disks' })),
-  columnRadiusM: 1400,
+  disks: TALENT_CITIES.map((city) => ({
+    at: city.at,
+    radiusM: Math.sqrt(city.gap) * 1500,
+    color: rampAt(MAP.valueRamp, 0.3 + 0.7 * (city.gap / MAX_GAP)),
+    group: 'gap',
+    tip: { title: city.name, rows: [['Skills gap today', city.gap.toLocaleString('en-US')], ['By 2030', Math.round(city.gap * 1.67).toLocaleString('en-US')]] },
+  })),
+  columnRadiusM: 3200,
+  columns: ACADEMIES.map((academy) => ({
+    at: academy.at,
+    height: 30000 + 140000 * (academy.graduates / 620),
+    color: MAP.site,
+    group: 'academies',
+    tip: { title: academy.name, rows: [['Enrolled', academy.enrolled.toLocaleString('en-US')], ['Graduates a year', String(academy.graduates)]] },
+  })),
 })
 
-export const WESTERN_STORY_SCENE = scene({ ...WESTERN_SCENE, pins: ACADEMIES })
+export const WESTERN_STORY_SCENE = scene({
+  ...WESTERN_SCENE,
+  labels: TALENT_CITIES.slice(0, 5).map((city) => ({
+    at: city.at,
+    title: city.name,
+    text: `${city.gap.toLocaleString('en-US')} short`,
+    side: city.side,
+    group: 'gap',
+  })),
+})
 
 const KAEC_CENTER: LngLat = [39.12, 22.42]
 
-type Employer = { name: string; at: LngLat; roles: number; domain: Domain }
+type Employer = { name: string; at: LngLat; roles: number; domain: Domain; side: 'east' | 'west' }
 
 export const KAEC_EMPLOYERS: Employer[] = [
-  { name: 'KAEC Land Systems Plant', at: offsetKm(KAEC_CENTER, 0.5, 2.5), roles: 214, domain: 'land' },
-  { name: 'Red Sea Composites', at: offsetKm(KAEC_CENTER, -3, -1.5), roles: 126, domain: 'air' },
-  { name: 'Western UAV Assembly', at: offsetKm(KAEC_CENTER, 3.5, -2.5), roles: 118, domain: 'air' },
-  { name: 'Coastal Electronics Works', at: offsetKm(KAEC_CENTER, 4, 3.5), roles: 92, domain: 'electronics' },
-  { name: 'Other employers (4)', at: offsetKm(KAEC_CENTER, -2.5, 4.5), roles: 90, domain: 'armament' },
+  { name: 'KAEC Land Systems Plant', at: offsetKm(KAEC_CENTER, 0.5, 2.6), roles: 214, domain: 'land', side: 'east' },
+  { name: 'Red Sea Composites', at: offsetKm(KAEC_CENTER, -3.2, -1.5), roles: 126, domain: 'air', side: 'west' },
+  { name: 'Western UAV Assembly', at: offsetKm(KAEC_CENTER, 3.6, -2.6), roles: 118, domain: 'air', side: 'east' },
+  { name: 'Coastal Electronics Works', at: offsetKm(KAEC_CENTER, 4.2, 3.6), roles: 92, domain: 'electronics', side: 'east' },
+  { name: 'Other employers (4)', at: offsetKm(KAEC_CENTER, -2.6, 4.6), roles: 90, domain: 'armament', side: 'west' },
 ]
 
-export const KAEC_CAMERA: GamiCamera = { center: offsetKm(KAEC_CENTER, 0.5, 0.8), zoom: 10.35, pitch: 58, bearing: -28 }
+const KAEC_INSTITUTE: LngLat = [39.17, 22.33]
+
+export const KAEC_CAMERA: GamiCamera = { center: offsetKm(KAEC_CENTER, 0.5, 0.8), zoom: 10.35, pitch: 56, bearing: -26 }
 
 export const KAEC_SCENE = scene({
-  columnRadiusM: 180,
-  columns: KAEC_EMPLOYERS.flatMap((employer, e) =>
-    scatter(employer.at, Math.round(employer.roles / 14), 1.2, e * 3 + 5).map((at, i) => ({
-      at,
-      height: 900 + 2400 * (employer.roles / 214) * hash(i, e + 1),
-      color: DOMAIN_COLOR[employer.domain],
-      group: 'role-columns',
-    })),
-  ),
-  heat: scatter(offsetKm(KAEC_CENTER, -1, 1), 220, 8, 17).map((at, i) => ({ at, weight: 0.3 + 0.7 * hash(i, 6), group: 'applicant-heat' })),
+  columnRadiusM: 260,
+  columns: KAEC_EMPLOYERS.map((employer) => ({
+    at: employer.at,
+    height: 900 + 3600 * (employer.roles / 214),
+    color: rampAt(MAP.siteRamp, 0.3 + 0.7 * (employer.roles / 214)),
+    group: 'roles',
+    tip: { title: employer.name, rows: [['Domain', DOMAIN_LABEL[employer.domain]], ['Open roles', String(employer.roles)]] },
+  })),
+  heat: scatter(offsetKm(KAEC_CENTER, -1, 1), 200, 8, 17).map((at, i) => ({ at, weight: 0.3 + 0.7 * hash(i, 6), group: 'applicants' })),
   heatRadiusM: 1300,
-  heatRamp: ['#1b2550', '#3b79be', '#70aeff', '#d8ecff'],
-  disks: [{ at: [39.17, 22.33], radiusM: 1300, base: 3600, height: 300, color: TONE.violet, group: 'academy-pins' }],
-  pins: [
+  heatRamp: MAP.densityRamp,
+  disks: [
+    {
+      at: KAEC_INSTITUTE,
+      radiusM: 1100,
+      color: MAP.zone,
+      group: 'institute',
+      tip: { title: 'KAEC Technical Institute', rows: [['Graduates a year', '180'], ['Programmes', 'Machining · UAV']] },
+    },
+  ],
+  labels: [
     ...KAEC_EMPLOYERS.map((employer) => ({
       at: employer.at,
-      label: `${employer.name} · ${employer.roles} open`,
-      color: DOMAIN_COLOR[employer.domain],
-      icon: ICON[employer.domain],
-      group: 'role-columns',
+      title: employer.name,
+      text: `${employer.roles} open roles`,
+      side: employer.side,
+      group: 'roles',
     })),
-    ACADEMIES[1],
+    { at: KAEC_INSTITUTE, title: 'KAEC Technical Institute', text: '180 graduates a year', side: 'east', group: 'institute' },
   ],
 })
 
@@ -529,74 +538,58 @@ export const KAEC_AREA: GamiPolygon = {
   id: 'kaec',
   name: 'KAEC industrial cluster',
   text: '640 unfilled roles',
-  color: TONE.sky,
-  ring: blob(offsetKm(KAEC_CENTER, 0.4, 1), 7.5, 6, [1, 1.2], 0),
-  wallM: 900,
+  color: MAP.area,
+  ring: blob(offsetKm(KAEC_CENTER, 0.4, 1), 7.8, 6, [1, 1.2], 0),
+  wallM: 500,
 }
 
 /* ---------- The alert: Poland supply disruption ---------- */
 
-type PartSupplier = { name: string; city: string; at: LngLat; part: string; to: LngLat; labelSide?: 'west' }
+type PartSupplier = { name: string; city: string; at: LngLat; part: string; to: LngLat; side: 'top' | 'east' | 'west' }
 
 export const POLAND_SUPPLIERS: PartSupplier[] = [
-  { name: 'Rzeszow Propulsion Works', city: 'Rzeszów', at: [22.0, 50.04], part: 'Propulsion motors · 1,800/month', to: site('riyadh-uav').at },
-  { name: 'Krakow Optronics Plant', city: 'Kraków', at: [19.94, 50.06], part: 'EO/IR gimbals · 240/month', to: site('alkharj-uav').at, labelSide: 'west' },
-  { name: 'Gdansk Navigation Systems', city: 'Gdańsk', at: [18.65, 54.35], part: 'Inertial navigation units · 420/month', to: site('riyadh-uav').at },
+  { name: 'Rzeszow Propulsion Works', city: 'Rzeszów', at: [22.0, 50.04], part: 'Propulsion motors', to: site('riyadh-uav').at, side: 'east' },
+  { name: 'Krakow Optronics Plant', city: 'Kraków', at: [19.94, 50.06], part: 'EO/IR gimbals', to: site('alkharj-uav').at, side: 'west' },
+  { name: 'Gdansk Navigation Systems', city: 'Gdańsk', at: [18.65, 54.35], part: 'Navigation units', to: site('riyadh-uav').at, side: 'top' },
 ]
 
 export const TURKIYE_SUPPLIERS: PartSupplier[] = [
-  { name: 'Ankara Propulsion Systems Park', city: 'Ankara', at: [32.85, 39.93], part: 'Propulsion motors · 2,000/month · 30 days', to: site('riyadh-uav').at },
-  { name: 'Eskişehir Optronics Works', city: 'Eskişehir', at: [30.52, 39.78], part: 'EO/IR gimbals · 260/month · 35 days', to: site('alkharj-uav').at, labelSide: 'west' },
-  { name: 'Konya Inertial Systems', city: 'Konya', at: [32.49, 37.87], part: 'Navigation units · 450/month · 32 days', to: site('riyadh-uav').at },
+  { name: 'Ankara Propulsion Systems Park', city: 'Ankara', at: [32.85, 39.93], part: 'Motors · 30 days', to: site('riyadh-uav').at, side: 'east' },
+  { name: 'Eskişehir Optronics Works', city: 'Eskişehir', at: [30.52, 39.78], part: 'Gimbals · 35 days', to: site('alkharj-uav').at, side: 'west' },
+  { name: 'Konya Inertial Systems', city: 'Konya', at: [32.49, 37.87], part: 'Navigation · 32 days', to: site('riyadh-uav').at, side: 'east' },
 ]
-
-/** The other 17 affected imports, by the Polish city they ship from and the Saudi site they reach. */
-const OTHER_ROUTES: [LngLat, string, 'moderate' | 'mild'][] = [
-  [[21.01, 52.23], 'jeddah-naval', 'moderate'],
-  [[21.01, 52.23], 'riyadh-electronics', 'moderate'],
-  [[17.04, 51.11], 'kaec-land', 'moderate'],
-  [[16.93, 52.41], 'jubail-land', 'moderate'],
-  [[19.46, 51.76], 'taif-air', 'moderate'],
-  [[19.02, 50.26], 'alkharj-armament', 'moderate'],
-  [[22.57, 51.25], 'dammam-electronics', 'moderate'],
-  [[18.0, 53.12], 'yanbu-armament', 'moderate'],
-  [[14.55, 53.43], 'jeddah-naval', 'mild'],
-  [[17.04, 51.11], 'tabuk-land', 'mild'],
-  [[16.93, 52.41], 'khamis-air', 'mild'],
-  [[19.46, 51.76], 'dammam-electronics', 'mild'],
-  [[21.01, 52.23], 'jubail-land', 'mild'],
-  [[19.02, 50.26], 'kaec-land', 'mild'],
-  [[22.57, 51.25], 'alkharj-armament', 'mild'],
-  [[18.0, 53.12], 'taif-air', 'mild'],
-  [[14.55, 53.43], 'yanbu-armament', 'mild'],
-]
-
-function route(from: LngLat, to: LngLat, color: string, width: number, group: string, opacity = 1): GamiArc {
-  return { from, to, color, peakM: distanceKm(from, to) * 120, width, group, opacity }
-}
 
 const RECEIVERS = SITES.filter((item) => item.risk)
 
-function factoryPin(
-  supplier: Omit<PartSupplier, 'to'>,
-  color: string,
-  group: string,
-  status: string,
-): GamiPin {
+const RECEIVER_LABEL: GamiLabel = {
+  at: site('riyadh-uav').at,
+  title: 'Riyadh & Al-Kharj UAV sites',
+  text: 'Production stops in 41 days',
+  side: 'east',
+  group: 'receivers',
+}
+
+function supplierDisk(supplier: PartSupplier, color: string, status: string, group: string): GamiDisk {
   return {
     at: supplier.at,
-    label: supplier.name,
-    labelSide: supplier.labelSide,
+    radiusM: 36000,
     color,
-    icon: color === TONE.red ? 'warning' : 'factory',
     group,
-    title: supplier.name,
-    info: [
-      ['City', supplier.city],
-      ['Supplies', supplier.part],
-      ['Status', status],
-    ],
+    tip: { title: supplier.name, rows: [['City', supplier.city], ['Supplies', supplier.part], ['Status', status]] },
   }
+}
+
+const receiverDisks = (radiusM: number): GamiDisk[] =>
+  RECEIVERS.map((item) => ({
+    at: item.at,
+    radiusM,
+    color: MAP.critical,
+    group: 'receivers',
+    tip: { title: item.name, rows: [['City', item.city], ['Status', 'At risk · 41 days of stock']] },
+  }))
+
+function route(from: LngLat, to: LngLat, color: string, group: string): GamiArc {
+  return { from, to, color, width: 2.5, group }
 }
 
 /** Conflict intensity along Poland's eastern border, from the alert feed. */
@@ -606,48 +599,50 @@ const CONFLICT_HEAT = heatPoints(
     [[24.2, 50.4], 80, 110, 0.9],
     [[23.4, 53.0], 50, 90, 0.6],
   ],
-  'conflict-heat',
+  'conflict',
   41,
 )
 
 export const ALERT_CAMERA: GamiCamera = { center: [33.5, 40.5], zoom: 3.05, pitch: 32, bearing: -12 }
 
 export const ALERT_SCENE = scene({
-  arcs: [
-    ...POLAND_SUPPLIERS.map((supplier) => route(supplier.at, supplier.to, TONE.red, 3, 'risk-routes')),
-    ...OTHER_ROUTES.map(([from, to, level]) =>
-      route(from, site(to).at, level === 'moderate' ? TONE.amber : TONE.yellow, 1.2, 'other-routes', 0.75),
-    ),
-  ],
-  arcWidthM: 26000,
+  arcs: POLAND_SUPPLIERS.map((supplier) => route(supplier.at, supplier.to, MAP.critical, 'routes')),
   heat: CONFLICT_HEAT,
   heatRadiusM: 160000,
-  heatRamp: ['#3a0d12', '#a0201c', '#ee3f39', '#ffb199'],
-  pins: [
-    ...POLAND_SUPPLIERS.map((supplier) => factoryPin(supplier, TONE.red, 'poland-sites', 'Conflict: exports suspended')),
-    ...RECEIVERS.map((item) => sitePin(item, 'receiving-sites', false)),
+  heatRamp: MAP.conflictRamp,
+  disks: [
+    ...POLAND_SUPPLIERS.map((supplier) => supplierDisk(supplier, MAP.critical, 'Exports suspended', 'suppliers')),
+    ...receiverDisks(45000),
+  ],
+  labels: [
+    ...POLAND_SUPPLIERS.map((supplier) => ({
+      at: supplier.at,
+      title: supplier.name,
+      text: supplier.part,
+      side: supplier.side,
+      group: 'suppliers',
+    })),
+    RECEIVER_LABEL,
   ],
 })
 
 export const BRIDGE_CAMERA: GamiCamera = { center: [38.4, 32.6], zoom: 4.55, pitch: 44, bearing: -14 }
 
 export const BRIDGE_SCENE = scene({
-  arcs: [
-    ...TURKIYE_SUPPLIERS.map((supplier) => route(supplier.at, supplier.to, TONE.green, 3, 'bridge-routes')),
-    ...POLAND_SUPPLIERS.map((supplier) => route(supplier.at, supplier.to, TONE.red, 1.4, 'risk-routes', 0.35)),
+  arcs: TURKIYE_SUPPLIERS.map((supplier) => route(supplier.at, supplier.to, MAP.good, 'routes')),
+  disks: [
+    ...TURKIYE_SUPPLIERS.map((supplier) => supplierDisk(supplier, MAP.good, 'Recommended · +8%', 'suppliers')),
+    ...receiverDisks(28000),
   ],
-  arcWidthM: 12000,
-  disks: TURKIYE_SUPPLIERS.map((supplier) => ({
-    at: supplier.at,
-    radiusM: 26000,
-    base: 0,
-    height: 4000,
-    color: TONE.green,
-    group: 'bridge-routes',
-  })),
-  pins: [
-    ...TURKIYE_SUPPLIERS.map((supplier) => factoryPin(supplier, TONE.green, 'turkiye-sites', 'Recommended bridge supplier · +8%')),
-    ...RECEIVERS.map((item) => sitePin(item, 'receiving-sites', true)),
+  labels: [
+    ...TURKIYE_SUPPLIERS.map((supplier) => ({
+      at: supplier.at,
+      title: supplier.name,
+      text: supplier.part,
+      side: supplier.side,
+      group: 'suppliers',
+    })),
+    { ...RECEIVER_LABEL, text: 'First delivery in 30 days' },
   ],
 })
 
@@ -655,9 +650,9 @@ export const ANATOLIA_AREA: GamiPolygon = {
   id: 'anatolia',
   name: 'Ankara–Eskişehir–Konya suppliers',
   text: '3 bridge suppliers · 30–35 days',
-  color: TONE.green,
+  color: MAP.area,
   ring: blob([31.85, 38.95], 205, 2, [1.3, 0.95], 15),
-  wallM: 30000,
+  wallM: 18000,
   labelSide: 'west',
 }
 

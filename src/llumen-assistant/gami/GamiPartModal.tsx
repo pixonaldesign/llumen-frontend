@@ -1,14 +1,18 @@
 /**
- * A critical part's deep dive: the part in 3D (or in the UAV that carries it), its specs, stock
- * burn-down, programme exposure and the Turkish bridge supplier.
+ * A critical part's details, in the story's modal: the part in 3D (or in the UAV that carries it) with
+ * its specs, then story cards for its stock, deliveries and programme exposure, and the bridge supplier
+ * with its switch plan.
  */
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowRight, X } from '@phosphor-icons/react'
+import { X } from '@phosphor-icons/react'
+import edit from '../story/StoryEditPanel.module.css'
+import styles from '../story/StoryView.module.css'
 import { Gami3DModel } from './Gami3DModel'
-import { GamiCardView } from './GamiCharts'
+import { GamiCardBody } from './GamiCharts'
 import { GAMI_PARTS } from './gamiScenario'
-import { TONE, type PartId } from './gamiTypes'
+import { PALETTE, STATUS, type GamiCard, type PartId } from './gamiTypes'
+import cards from './GamiCards.module.css'
 import css from './GamiPartModal.module.css'
 
 type Props = {
@@ -18,10 +22,11 @@ type Props = {
   onBridge?: () => void
 }
 
+const MONTHS = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']
+
 export function GamiPartModal({ part: id, onClose, onBridge }: Props) {
   const part = GAMI_PARTS[id]
   const [view, setView] = useState<'part' | 'aircraft'>('part')
-  const accent = TONE[part.tone]
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -31,27 +36,84 @@ export function GamiPartModal({ part: id, onClose, onBridge }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const weeks = part.stock.map((_, index) => (index === 0 ? 'Today' : `W${index * 2}`))
+  const usual = Math.round(part.deliveries.slice(0, 4).reduce((sum, value) => sum + value, 0) / 4)
+  const panels: GamiCard[] = [
+    {
+      id: 'glance',
+      kind: 'kpis',
+      title: 'At a Glance',
+      tiles: [
+        { label: 'Stock left', value: String(part.stockDays), unit: 'days' },
+        { label: 'Monthly need', value: part.monthlyNeed.split(' ')[0] },
+        { label: 'From Poland', value: '100', unit: '%' },
+      ],
+    },
+    {
+      id: 'stock',
+      kind: 'line',
+      title: 'Stock Burn-down',
+      kpi: { value: String(part.stockDays), unit: 'days left' },
+      x: part.stock.map((_, index) => (index === 0 ? 'Today' : `W${index * 2}`)),
+      yLabels: ['60 d', '30 d', '0'],
+      yMax: 60,
+      series: [{ name: 'Days of stock', points: part.stock, status: 'critical' }],
+    },
+    {
+      id: 'deliveries',
+      kind: 'vbars',
+      title: 'Monthly Deliveries from Poland',
+      kpi: { value: part.deliveries[part.deliveries.length - 1].toLocaleString('en-US'), unit: `of ${usual.toLocaleString('en-US')} usual` },
+      bars: part.deliveries.map((value, index) => ({
+        label: MONTHS[index],
+        value,
+        display: value.toLocaleString('en-US'),
+        status: value < usual * 0.5 ? 'critical' : undefined,
+      })),
+    },
+    {
+      id: 'exposure',
+      kind: 'hbars',
+      title: '2027 Deliveries at Risk',
+      bars: part.exposure,
+    },
+  ]
 
   return createPortal(
-    <div className={css.backdrop} onClick={onClose}>
+    <div className={edit.modalRoot}>
+      <button type="button" className={edit.modalBackdrop} aria-label="Close part details" onClick={onClose} />
       <div
-        className={css.dialog}
+        className={`${edit.panel} ${edit.modal} ${css.modal}`}
         role="dialog"
         aria-modal="true"
-        aria-label={part.name}
-        style={{ '--accent': accent } as CSSProperties}
-        onClick={(event) => event.stopPropagation()}
+        aria-labelledby="gami-part-title"
+        dir="ltr"
       >
-        <section className={css.stage}>
-          <div className={css.stageHead}>
-            <span className={css.badge}>Critical · {part.stockDays} days of stock</span>
-            <div className={css.toggle} role="group" aria-label="Model view">
+        <header className={edit.header}>
+          <div className={edit.headerIdentity}>
+            <div className={edit.headerCopy}>
+              <h2 id="gami-part-title" className={edit.title}>
+                {part.name}
+              </h2>
+              <p className={css.sub}>
+                {part.supplier} · {part.city} · Used in {part.programmes.join(', ')}
+              </p>
+            </div>
+          </div>
+          <div className={edit.headerActions}>
+            <button type="button" className={edit.closeBtn} onClick={onClose} aria-label="Close part details">
+              <X size={18} weight="bold" aria-hidden />
+            </button>
+          </div>
+        </header>
+
+        <div className={css.body}>
+          <section className={css.stage} aria-label="3D model">
+            <div className={`${edit.segmentedControl} ${css.toggle}`} role="group" aria-label="Model view">
               {(['part', 'aircraft'] as const).map((option) => (
                 <button
                   key={option}
                   type="button"
-                  className={view === option ? css.toggleActive : undefined}
+                  className={`${edit.segmentedBtn}${view === option ? ` ${edit.segmentedBtnActive}` : ''}`}
                   aria-pressed={view === option}
                   onClick={() => setView(option)}
                 >
@@ -59,94 +121,92 @@ export function GamiPartModal({ part: id, onClose, onBridge }: Props) {
                 </button>
               ))}
             </div>
-          </div>
-          <Gami3DModel
-            key={view}
-            model={view === 'part' ? part.id : 'drone'}
-            highlight={view === 'aircraft' ? part.id : undefined}
-            accent={accent}
-            spin={0.35}
-            interactive
-            distance={view === 'part' ? 1.05 : 0.72}
-            className={css.model}
-          />
-          <p className={css.hint}>Drag to turn</p>
-          <dl className={css.specs}>
-            {part.specs.map(([label, value]) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <section className={css.info}>
-          <header className={css.infoHead}>
-            <div>
-              <p className={css.eyebrow}>Critical import · Poland</p>
-              <h2 className={css.title}>{part.name}</h2>
-              <p className={css.sub}>
-                {part.supplier} · {part.city} · {part.monthlyNeed}
-              </p>
-            </div>
-            <button type="button" className={css.close} aria-label="Close" onClick={onClose}>
-              <X size={18} weight="bold" aria-hidden />
-            </button>
-          </header>
-
-          <div className={css.grid}>
-            <GamiCardView
-              card={{
-                id: `${id}-stock`,
-                kind: 'line',
-                title: 'Stock Burn-down GAMI',
-                x: weeks,
-                yMax: 60,
-                ySuffix: ' d',
-                series: [{ name: 'Days of stock', tone: 'red', points: part.stock }],
-                footer: `Exports suspended; stock runs out in ${part.stockDays} days at current build rate.`,
-              }}
+            <Gami3DModel
+              key={view}
+              model={view === 'part' ? part.id : 'drone'}
+              highlight={view === 'aircraft' ? part.id : undefined}
+              accent={PALETTE.blue[4]}
+              spin={0.35}
+              interactive
+              distance={view === 'part' ? 1.05 : 0.72}
+              className={css.model}
             />
-            <GamiCardView
-              card={{
-                id: `${id}-exposure`,
-                kind: 'hbars',
-                title: 'Programme Exposure GAMI',
-                bars: part.exposure.map((row) => ({ ...row, tone: 'red' as const })),
-                footer: `2027 deliveries that depend on the ${part.short.toLowerCase()}.`,
-              }}
-            />
-          </div>
-
-          <div className={css.alternative}>
-            <div className={css.altHead}>
-              <span className={css.altTag}>Recommended bridge</span>
-              <h3>{part.alternative.supplier}</h3>
-              <p>{part.alternative.city}, Türkiye</p>
+            <p className={css.hint}>Drag to turn</p>
+            <div className={css.stageCopy}>
+              <p className={css.label}>What it does</p>
+              <p className={css.role}>{part.role}</p>
             </div>
-            <dl className={css.altStats}>
-              <div>
-                <dt>Capacity</dt>
-                <dd>{part.alternative.capacity}</dd>
-              </div>
-              <div>
-                <dt>Lead time</dt>
-                <dd>{part.alternative.leadTime}</dd>
-              </div>
-              <div>
-                <dt>Cost</dt>
-                <dd>{part.alternative.cost}</dd>
-              </div>
+            <dl className={css.specs}>
+              {part.specs.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
             </dl>
-            {onBridge ? (
-              <button type="button" className={css.altBtn} onClick={onBridge}>
-                View bridge plan
-                <ArrowRight size={16} weight="bold" aria-hidden />
-              </button>
-            ) : null}
+          </section>
+
+          <div className={css.side}>
+            <div className={css.grid}>
+              {panels.map((card) => (
+                <section key={card.id} className={`${styles.visualCard} ${cards.card} ${css.panel}`}>
+                  <GamiCardBody card={card} flat />
+                </section>
+              ))}
+            </div>
+
+            <section className={`${styles.visualCard} ${cards.card} ${css.bridge}`} aria-label="Bridge supplier">
+              <div className={css.bridgeHead}>
+                <div>
+                  <p className={styles.visualTitle}>Bridge Supplier · Türkiye</p>
+                  <p className={css.bridgeName}>{part.alternative.supplier}</p>
+                  <p className={css.bridgeMeta}>
+                    {part.alternative.city} · {part.alternative.qualified}
+                  </p>
+                </div>
+                <span className={css.status}>
+                  <i style={{ background: STATUS.good }} aria-hidden />
+                  Qualified
+                </span>
+              </div>
+              <dl className={css.bridgeStats}>
+                <div>
+                  <dt>Capacity</dt>
+                  <dd>{part.alternative.capacity}</dd>
+                </div>
+                <div>
+                  <dt>Lead time</dt>
+                  <dd>{part.alternative.leadTime}</dd>
+                </div>
+                <div>
+                  <dt>Unit cost</dt>
+                  <dd>{part.alternative.cost}</dd>
+                </div>
+              </dl>
+              <ol className={css.plan}>
+                {part.plan.map((step) => (
+                  <li key={step.step}>
+                    <span>{step.step}</span>
+                    <b>{step.when}</b>
+                  </li>
+                ))}
+              </ol>
+            </section>
           </div>
-        </section>
+        </div>
+
+        <footer className={edit.assetsFooter}>
+          <p className={edit.assetsHint}>
+            Exports from Poland are suspended; stock runs out in {part.stockDays} days at the current build rate.
+          </p>
+          {onBridge ? (
+            <div className={edit.assetsFooterActions}>
+              <button type="button" className={edit.assetsNext} onClick={onBridge}>
+                View bridge plan
+              </button>
+            </div>
+          ) : null}
+        </footer>
       </div>
     </div>,
     document.body,

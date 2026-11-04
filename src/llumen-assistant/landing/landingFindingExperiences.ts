@@ -11,7 +11,7 @@ import type {
   TimelineStep,
 } from '../assistantReplyTypes'
 import { GAMI_STORIES } from '../gami/gamiScenario'
-import type { GamiPage } from '../gami/gamiTypes'
+import { PALETTE, SERIES, STATUS, type GamiPage } from '../gami/gamiTypes'
 import { BRIEFING_PLACES, type BriefingPlaceId } from './briefingMapPlaces'
 
 /** A Briefing place, or the Poland alert's Türkiye bridge. */
@@ -163,7 +163,7 @@ const polandAlert = () =>
             title: 'Days of stock left',
             value: '41 days',
             unit: 'propulsion motors',
-            color: '#ee3f39',
+            color: STATUS.critical,
             rows: barRows([
               ['Propulsion motors', 41, '41 days'],
               ['EO/IR gimbals', 47, '47 days'],
@@ -187,7 +187,7 @@ const polandAlert = () =>
             title: 'Türkiye capacity vs monthly need',
             value: '111%',
             unit: 'motors, Ankara',
-            color: '#1fce7a',
+            color: STATUS.good,
             rows: barRows([
               ['Motors · Ankara', 111, '111%'],
               ['Gimbals · Eskişehir', 108, '108%'],
@@ -230,7 +230,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               title: '2026 plan progress',
               value: '94.8%',
               unit: 'Saudi Made, of plan',
-              color: '#2de8c8',
+              color: PALETTE.teal[2],
               rows: [
                 { label: 'Saudi Made · 29.4% of 31.0%', value: 94.8, display: '94.8%' },
                 { label: 'Military market · SAR 46.5bn of 50bn', value: 93, display: '93.0%' },
@@ -250,7 +250,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               title: 'Saudi Made share',
               value: '29.4%',
               unit: 'in 2026',
-              color: '#2de8c8',
+              color: PALETTE.teal[2],
               yLabels: ['50%', '35%', '20%'],
               xLabels: ['2023', '2024', '2025', '2026'],
               line: trendLine([19.4, 22.5, 26, 29.4], 20, 50),
@@ -270,7 +270,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
     experience({
       id: 'finding-gami-localization',
       read: 'Reading the localization opportunity register and import data…',
-      search: 'Matching each product to supplier capability and industrial land in the Eastern Province…',
+      search: 'Matching each product to supplier capability and industrial land across the Kingdom…',
       reason: 'Outlining the city that can take the most of it now…',
       headline: 'Jubail can take SAR 10.6bn of the SAR 32.0bn localization opportunity now.',
       headlineDetail: 'Outlined Jubail Industrial City, with its 37 qualified suppliers and two of the six opportunities.',
@@ -291,7 +291,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               title: 'Localization opportunities',
               value: '32.0',
               unit: 'SAR bn a year',
-              color: '#ffc401',
+              color: SERIES,
               rows: barRows([
                 ['UAV airframes & propulsion', 6.8, 'SAR 6.8bn'],
                 ['Ammunition & energetics', 5.9, 'SAR 5.9bn'],
@@ -337,7 +337,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               title: 'Exhibitor applications by region',
               value: '1,940',
               unit: 'applications',
-              color: '#7b68ee',
+              color: PALETTE.purple[2],
               rows: barRows([
                 ['Europe', 612, '612'],
                 ['GCC & Middle East', 498, '498'],
@@ -383,7 +383,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               title: 'Skills gap by 2030',
               value: '10,600',
               unit: 'people short by 2030',
-              color: '#70aeff',
+              color: PALETTE.blue[3],
               rows: barRows([
                 ['Avionics', 2900, '2,900'],
                 ['Precision machining', 2800, '2,800'],

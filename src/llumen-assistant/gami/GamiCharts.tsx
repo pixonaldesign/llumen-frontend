@@ -1,85 +1,67 @@
 /**
- * The GAMI story's insight cards: one renderer per `GamiCard` kind, sized to the story's 184px grid.
+ * The GAMI story's insight cards, drawn with the story cards' own type and chart styles: one body per
+ * `GamiCard` kind, coloured from the Create Asset palettes. The card shell and its hover actions are
+ * the story view's.
  */
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useId, useState, type CSSProperties, type ReactNode } from 'react'
 import { Info } from '@phosphor-icons/react'
-import storyStyles from '../story/StoryView.module.css'
+import styles from '../story/StoryView.module.css'
+import { formatCount } from '../story/StoryCharts'
+import { StorySummaryText } from '../story/StorySummaryText'
+import { SUMMARY_REGENERATE_MS } from '../story/storySummary'
 import { Gami3DModel } from './Gami3DModel'
-import { gamiIconSvg } from './gamiMapLayers'
 import { GAMI_PARTS } from './gamiScenario'
-import { TONE, type GamiCard, type PartId, type Tone } from './gamiTypes'
+import { PALETTE, SERIES, STATUS, category, type GamiCard, type PartId, type Status } from './gamiTypes'
 import css from './GamiCards.module.css'
 
 type CardOf<K extends GamiCard['kind']> = Extract<GamiCard, { kind: K }>
 
-const tone = (name: Tone | undefined, fallback = '#fff') => (name ? TONE[name] : fallback)
+const statusColor = (status: Status | undefined, fallback: string = SERIES) => (status ? STATUS[status] : fallback)
 
-/** Titles carry their source as a trailing tag, e.g. "2026 Plan Progress GAMI". */
-function splitSource(title: string) {
-  const match = /^(.*?)\s+(GAMI)$/.exec(title)
-  return match ? { title: match[1], source: match[2] } : { title, source: null }
+/** The trim on the 3D parts: the palette's light blue, not a status colour. */
+const PART_TRIM = PALETTE.blue[4]
+
+function Title({ card }: { card: GamiCard }) {
+  return <p className={styles.visualTitle}>{card.title}</p>
 }
 
-function useSize<T extends HTMLElement>() {
-  const ref = useRef<T>(null)
-  const [size, setSize] = useState({ width: 0, height: 0 })
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const update = () => {
-      const { width, height } = el.getBoundingClientRect()
-      setSize((current) => (current.width === width && current.height === height ? current : { width, height }))
-    }
-    update()
-    const observer = new ResizeObserver(update)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-  return [ref, size] as const
-}
-
-function CardTitle({ title }: { title: string }) {
-  const { title: text, source } = splitSource(title)
+function Kpi({ value, unit }: { value: string; unit?: string }) {
   return (
-    <header className={css.head}>
-      <h3 className={css.title}>{text}</h3>
-      {source ? <span className={css.source}>{source}</span> : null}
-    </header>
-  )
-}
-
-function Summary({ card }: { card: CardOf<'summary'> }) {
-  return (
-    <p className={`${storyStyles.summaryBody} ${css.summaryBody}`}>
-      {card.parts.map((part, index) =>
-        part.tone ? (
-          <em key={index} className={storyStyles.summaryEmphasis} style={{ color: TONE[part.tone] }}>
-            {part.text}
-          </em>
-        ) : (
-          <span key={index}>{part.text}</span>
-        ),
-      )}
+    <p className={styles.visualValue}>
+      <strong>{value}</strong>
+      {unit ? <span>{unit}</span> : null}
     </p>
   )
 }
 
-function Kpis({ card }: { card: CardOf<'kpis'> }) {
-  const count = card.tiles.length
-  const size = card.span === 'cell' || count === 1 ? 40 : count === 2 ? 34 : count === 3 ? 28 : 20
+function Legend({ items }: { items: { name: string; color: string; dashed?: boolean }[] }) {
   return (
-    <div className={css.kpis} style={{ '--kpi-cols': count, '--kpi-size': `${size}px` } as CSSProperties}>
+    <div className={`${styles.chartLegend} ${css.legend}`}>
+      {items.map((item) => (
+        <span key={item.name}>
+          <i
+            className={item.dashed ? styles.swatchPlanned : styles.swatchProjected}
+            style={item.dashed ? undefined : { background: item.color }}
+          />
+          {item.name}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function Kpis({ card }: { card: CardOf<'kpis'> }) {
+  return (
+    <div
+      className={css.kpis}
+      style={{ '--kpi-cols': card.tiles.length } as CSSProperties}
+      data-dense={card.tiles.length > 2 || undefined}
+    >
       {card.tiles.map((tile) => (
-        <div key={tile.label} className={css.kpi} style={{ '--tone': tone(tile.tone) } as CSSProperties}>
-          {tile.icon ? (
-            <span className={css.kpiIcon} dangerouslySetInnerHTML={{ __html: gamiIconSvg(tile.icon, 14) }} aria-hidden />
-          ) : null}
-          <p className={css.kpiValue}>
-            {tile.value}
-            {tile.unit ? <span className={css.kpiUnit}>{tile.unit}</span> : null}
-          </p>
+        <div key={tile.label} className={css.kpi}>
+          <Kpi value={tile.value} unit={tile.unit} />
           <p className={css.kpiLabel}>{tile.label}</p>
-          {tile.note ? <span className={css.kpiNote}>{tile.note}</span> : null}
+          {tile.note ? <p className={css.kpiNote}>{tile.note}</p> : null}
         </div>
       ))}
     </div>
@@ -88,18 +70,17 @@ function Kpis({ card }: { card: CardOf<'kpis'> }) {
 
 function Progress({ card }: { card: CardOf<'progress'> }) {
   return (
-    <div className={css.progress}>
+    <div className={css.rows}>
       {card.rows.map((row) => (
-        <div key={row.label} className={css.progressRow} style={{ '--tone': TONE[row.tone] } as CSSProperties}>
-          <div className={css.progressText}>
-            <span className={css.progressLabel}>{row.label}</span>
-            <span className={css.progressValue}>
+        <div key={row.label} className={css.progressRow}>
+          <div className={styles.seriesRow}>
+            <span>{row.label}</span>
+            <b>
               {row.value} <span className={css.muted}>{row.target}</span>
-            </span>
+            </b>
           </div>
-          <div className={css.progressTrack}>
-            <span className={css.progressFill} style={{ width: `${Math.min(100, row.pct)}%` }} />
-            <span className={css.progressPct}>{row.pct.toFixed(1)}%</span>
+          <div className={css.track}>
+            <span className={css.fill} style={{ width: `${Math.min(100, row.pct)}%`, background: SERIES }} />
           </div>
         </div>
       ))}
@@ -107,194 +88,195 @@ function Progress({ card }: { card: CardOf<'progress'> }) {
   )
 }
 
-function Legend({ items }: { items: { name: string; color: string; faded?: boolean }[] }) {
-  return (
-    <div className={css.legend}>
-      {items.map((item) => (
-        <span key={item.name} className={css.legendItem}>
-          <i className={item.faded ? css.legendDash : css.legendDot} style={{ '--tone': item.color } as CSSProperties} />
-          {item.name}
-        </span>
-      ))}
-    </div>
-  )
+/** A smooth path through `points` in the chart's 0–100 box, broken where a point is null. */
+function linePath(points: (number | null)[], yMax: number) {
+  const x = (i: number) => (points.length === 1 ? 50 : (i / (points.length - 1)) * 100)
+  const y = (v: number) => 100 - (v / yMax) * 100
+  const runs: [number, number][][] = []
+  let run: [number, number][] = []
+  points.forEach((value, i) => {
+    if (value === null) {
+      if (run.length) runs.push(run)
+      run = []
+      return
+    }
+    run.push([x(i), y(value)])
+  })
+  if (run.length) runs.push(run)
+  return runs.map((pts) => {
+    let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`
+    for (let i = 1; i < pts.length; i += 1) {
+      const [x0, y0] = pts[i - 1]
+      const [x1, y1] = pts[i]
+      const dx = (x1 - x0) / 3
+      d += ` C${(x0 + dx).toFixed(2)} ${y0.toFixed(2)} ${(x1 - dx).toFixed(2)} ${y1.toFixed(2)} ${x1.toFixed(2)} ${y1.toFixed(2)}`
+    }
+    return { d, first: pts[0][0], last: pts[pts.length - 1][0] }
+  })
 }
 
-function LineChart({ card }: { card: CardOf<'line'> }) {
-  const [ref, { width, height }] = useSize<HTMLDivElement>()
-  const pad = { left: 30, right: 8, top: 8, bottom: 18 }
-  const w = Math.max(0, width - pad.left - pad.right)
-  const h = Math.max(0, height - pad.top - pad.bottom)
-  const x = (i: number) => pad.left + (card.x.length === 1 ? w / 2 : (i / (card.x.length - 1)) * w)
-  const y = (v: number) => pad.top + h - (v / card.yMax) * h
-  const ticks = [0, card.yMax / 2, card.yMax]
-  const path = (points: (number | null)[]) => {
-    let d = ''
-    let pen = false
-    points.forEach((value, i) => {
-      if (value === null) {
-        pen = false
-        return
-      }
-      d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)},${y(value).toFixed(1)}`
-      pen = true
-    })
-    return d
-  }
-  const legend = card.series.filter((series) => !series.faded || !card.series.some((s) => !s.faded && s.tone === series.tone))
+function LineChart({ card, flat = false }: { card: CardOf<'line'>; flat?: boolean }) {
+  const gradientId = useId()
+  const solid = card.series.filter((series) => !series.dashed)
+  const colorOf = (series: CardOf<'line'>['series'][number]) =>
+    series.dashed ? 'rgba(255,255,255,0.72)' : statusColor(series.status, category(solid.indexOf(series)))
+  const ticks = card.yLabels.map((_, index) => (card.yLabels.length === 1 ? 0 : (index / (card.yLabels.length - 1)) * 100))
+  const area = solid[0] ? linePath(solid[0].points, card.yMax)[0] : null
   return (
     <>
-      <Legend items={legend.map((series) => ({ name: series.name, color: TONE[series.tone], faded: series.faded }))} />
-      <div ref={ref} className={css.plot}>
-        {width > 0 ? (
-          <svg width={width} height={height} className={css.svg}>
-            <defs>
-              {card.series.map((series) => (
-                <linearGradient key={series.name} id={`fill-${card.id}-${series.tone}`} x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor={TONE[series.tone]} stopOpacity={0.28} />
-                  <stop offset="100%" stopColor={TONE[series.tone]} stopOpacity={0} />
-                </linearGradient>
-              ))}
-            </defs>
-            {ticks.map((tick) => (
-              <g key={tick}>
-                <line x1={pad.left} x2={width - pad.right} y1={y(tick)} y2={y(tick)} className={css.grid} />
-                <text x={pad.left - 6} y={y(tick) + 3} className={css.axisY}>
-                  {Math.round(tick)}
-                  {card.ySuffix ?? ''}
-                </text>
-              </g>
-            ))}
-            {card.x.map((label, i) => (
-              <text key={label} x={x(i)} y={height - 4} className={css.axisX}>
+      {card.kpi ? <Kpi {...card.kpi} /> : null}
+      <Legend items={card.series.map((series) => ({ name: series.name, color: colorOf(series), dashed: series.dashed }))} />
+      <div className={styles.chart}>
+        <div className={styles.chartMain}>
+          <div className={styles.yAxis}>
+            {card.yLabels.map((label, index) => (
+              <span key={label} style={{ top: `${ticks[index]}%` }}>
                 {label}
-              </text>
+              </span>
             ))}
-            {card.goal ? (
-              <g>
-                <line x1={pad.left} x2={width - pad.right} y1={y(card.goal.value)} y2={y(card.goal.value)} className={css.goal} />
-                <text x={width - pad.right} y={y(card.goal.value) - 4} className={css.goalLabel}>
-                  {card.goal.label}
-                </text>
-              </g>
+          </div>
+          <svg className={styles.chartSvg} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={solid[0] ? colorOf(solid[0]) : SERIES} stopOpacity="0.42" />
+                <stop offset="100%" stopColor={solid[0] ? colorOf(solid[0]) : SERIES} stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            {ticks.map((y) => (
+              <line
+                key={y}
+                x1="0"
+                y1={y}
+                x2="100"
+                y2={y}
+                stroke="rgba(255,255,255,0.16)"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+            {area ? (
+              <path
+                d={`${area.d} L${area.last} 100 L${area.first} 100 Z`}
+                fill={flat ? (solid[0] ? colorOf(solid[0]) : SERIES) : `url(#${gradientId})`}
+                fillOpacity={flat ? 0.14 : undefined}
+              />
             ) : null}
-            {card.series.map((series) => {
-              const d = path(series.points)
-              const real = series.points.map((value, i) => [value, i] as const).filter(([value]) => value !== null)
-              const lastPoint = real[real.length - 1]
-              return (
-                <g key={series.name}>
-                  {!series.faded && real.length > 1 ? (
-                    <path
-                      d={`${d}L${x(real[real.length - 1][1])},${y(0)}L${x(real[0][1])},${y(0)}Z`}
-                      fill={`url(#fill-${card.id}-${series.tone})`}
-                      className={css.area}
-                    />
-                  ) : null}
-                  <path
-                    d={d}
-                    fill="none"
-                    stroke={TONE[series.tone]}
-                    strokeWidth={series.faded ? 1.5 : 2}
-                    strokeDasharray={series.faded ? '4 4' : undefined}
-                    strokeOpacity={series.faded ? 0.7 : 1}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    pathLength={1}
-                    className={series.faded ? css.lineFaded : css.line}
-                  />
-                  {!series.faded && lastPoint ? (
-                    <circle cx={x(lastPoint[1])} cy={y(lastPoint[0] as number)} r={3.5} fill={TONE[series.tone]} className={css.dot} />
-                  ) : null}
-                </g>
-              )
-            })}
+            {card.series.map((series) =>
+              linePath(series.points, card.yMax).map((run, index) => (
+                <path
+                  key={`${series.name}-${index}`}
+                  d={run.d}
+                  fill="none"
+                  stroke={colorOf(series)}
+                  strokeWidth={series.dashed ? 1.25 : 1.75}
+                  strokeDasharray={series.dashed ? '3.5 3' : undefined}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )),
+            )}
           </svg>
-        ) : null}
+        </div>
+        <div className={styles.chartX}>
+          {card.x.map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </div>
       </div>
     </>
   )
 }
 
 function VBars({ card }: { card: CardOf<'vbars'> }) {
-  const [ref, { width, height }] = useSize<HTMLDivElement>()
   const max = Math.max(...card.bars.map((bar) => bar.value))
-  const slot = width / card.bars.length
-  const barW = Math.min(30, slot * 0.5)
-  const top = 16
-  const bottom = 18
-  const h = Math.max(0, height - top - bottom)
   return (
-    <div ref={ref} className={css.plot}>
-      {width > 0 ? (
-        <svg width={width} height={height} className={css.svg}>
-          <defs>
-            {card.bars.map((bar, i) => (
-              <linearGradient key={i} id={`vbar-${card.id}-${i}`} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor={TONE[bar.tone]} />
-                <stop offset="100%" stopColor={TONE[bar.tone]} stopOpacity={0.35} />
-              </linearGradient>
-            ))}
-          </defs>
-          <line x1={0} x2={width} y1={top + h} y2={top + h} className={css.grid} />
-          {card.bars.map((bar, i) => {
-            const bh = Math.max(2, (bar.value / max) * h)
-            const cx = slot * i + slot / 2
-            return (
-              <g key={bar.label} className={css.vbar} style={{ '--i': i } as CSSProperties}>
-                <rect x={cx - barW / 2} y={top + h - bh} width={barW} height={bh} rx={4} fill={`url(#vbar-${card.id}-${i})`} />
-                <text x={cx} y={top + h - bh - 4} className={css.barValue}>
-                  {bar.display ?? bar.value}
-                </text>
-                <text x={cx} y={height - 4} className={css.axisX}>
-                  {bar.label}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
-      ) : null}
-    </div>
+    <>
+      {card.kpi ? <Kpi {...card.kpi} /> : null}
+      <div className={css.vbars}>
+        {card.bars.map((bar) => (
+          <div key={bar.label} className={css.vbar}>
+            <span className={css.vbarValue}>{bar.display ?? formatCount(bar.value)}</span>
+            <span className={css.vbarTrack}>
+              <span
+                className={css.vbarFill}
+                style={{ height: `${Math.max(3, (bar.value / max) * 100)}%`, background: statusColor(bar.status) }}
+              />
+            </span>
+            <span className={css.vbarLabel}>{bar.label}</span>
+          </div>
+        ))}
+      </div>
+    </>
   )
 }
 
 function HBars({ card }: { card: CardOf<'hbars'> }) {
   const max = Math.max(...card.bars.map((bar) => bar.value))
   return (
-    <div className={css.hbars}>
-      {card.bars.map((bar, i) => (
-        <div key={bar.label} className={css.hbarRow} style={{ '--tone': TONE[bar.tone], '--i': i } as CSSProperties}>
-          <span className={css.hbarLabel}>{bar.label}</span>
-          <span className={css.hbarTrack}>
-            <span className={css.hbarFill} style={{ width: `${(bar.value / max) * 100}%` }} />
+    <>
+      {card.kpi ? <Kpi {...card.kpi} /> : null}
+      <div className={css.rows}>
+        {card.bars.map((bar) => (
+          <div key={bar.label} className={css.hbar}>
+            <span className={css.hbarLabel}>{bar.label}</span>
+            <span className={css.track}>
+              <span className={css.fill} style={{ width: `${(bar.value / max) * 100}%`, background: statusColor(bar.status) }} />
+            </span>
+            <b className={css.hbarValue}>{bar.display}</b>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+function Split({ card }: { card: CardOf<'split'> }) {
+  const total = card.parts.reduce((sum, part) => sum + part.value, 0)
+  return (
+    <>
+      <Kpi value={card.total} unit={card.unit} />
+      <div className={styles.splitBar} aria-hidden>
+        {card.parts.map((part, index) => (
+          <span key={part.name} className={css.splitPart} style={{ flexGrow: part.value, background: category(index) }} />
+        ))}
+      </div>
+      {card.parts.map((part, index) => (
+        <div key={part.name} className={styles.seriesRow}>
+          <span>
+            <i className={styles.swatchTerrestrial} style={{ background: category(index) }} />
+            {part.name}
           </span>
-          <span className={css.hbarValue}>{bar.display}</span>
+          <b>
+            {part.display} ({Math.round((part.value / total) * 100)}%)
+          </b>
         </div>
       ))}
-    </div>
+    </>
   )
 }
 
 function Stacked({ card }: { card: CardOf<'stacked'> }) {
   return (
     <>
-      <Legend items={card.legend.map((item) => ({ name: item.name, color: TONE[item.tone] }))} />
+      <Legend items={card.legend.map((name, index) => ({ name, color: category(index) }))} />
       <div className={css.stacked}>
-        {card.bars.map((bar, row) => {
+        {card.bars.map((bar) => {
           const total = bar.parts.reduce((sum, part) => sum + part, 0)
           return (
-            <div key={bar.label} className={css.stackRow} style={{ '--i': row } as CSSProperties}>
-              <span className={css.stackLabel}>{bar.label}</span>
+            <div key={bar.label} className={css.stackRow}>
+              <span className={css.hbarLabel}>{bar.label}</span>
               <span className={css.stackBar}>
                 {bar.parts.map((part, i) => (
                   <span
-                    key={i}
+                    key={card.legend[i]}
                     className={css.stackPart}
-                    style={{ flexGrow: part / total, background: TONE[card.legend[i].tone] }}
-                    title={`${card.legend[i].name}: ${Math.round((part / total) * 100)}%`}
+                    style={{ flexGrow: part / total, background: category(i) }}
+                    title={`${card.legend[i]}: ${Math.round((part / total) * 100)}%`}
                   />
                 ))}
               </span>
+              <b className={css.hbarValue}>{Math.round((bar.parts[0] / total) * 100)}%</b>
             </div>
           )
         })}
@@ -304,49 +286,28 @@ function Stacked({ card }: { card: CardOf<'stacked'> }) {
 }
 
 function Grouped({ card }: { card: CardOf<'grouped'> }) {
-  const [ref, { width, height }] = useSize<HTMLDivElement>()
   const max = Math.max(...card.groups.flatMap((group) => group.values))
-  const slot = width / card.groups.length
-  const count = card.legend.length
-  const barW = Math.min(12, (slot * 0.7) / count)
-  const top = 6
-  const bottom = 18
-  const h = Math.max(0, height - top - bottom)
+  const colorAt = (index: number) =>
+    card.ordered ? PALETTE.blue[Math.max(0, 4 - Math.round((index / Math.max(1, card.legend.length - 1)) * 4))] : category(index)
   return (
     <>
-      <Legend items={card.legend.map((item) => ({ name: item.name, color: item.color }))} />
-      <div ref={ref} className={css.plot}>
-        {width > 0 ? (
-          <svg width={width} height={height} className={css.svg}>
-            <line x1={0} x2={width} y1={top + h} y2={top + h} className={css.grid} />
-            {card.groups.map((group, g) => {
-              const start = slot * g + slot / 2 - (barW * count + 2 * (count - 1)) / 2
-              return (
-                <g key={group.label} className={css.vbar} style={{ '--i': g } as CSSProperties}>
-                  {group.values.map((value, i) => {
-                    const bh = Math.max(2, (value / max) * h)
-                    return (
-                      <rect
-                        key={i}
-                        x={start + i * (barW + 2)}
-                        y={top + h - bh}
-                        width={barW}
-                        height={bh}
-                        rx={2}
-                        fill={card.legend[i].color}
-                      >
-                        <title>{`${card.legend[i].name}: ${value.toLocaleString()}`}</title>
-                      </rect>
-                    )
-                  })}
-                  <text x={slot * g + slot / 2} y={height - 4} className={css.axisX}>
-                    {group.label}
-                  </text>
-                </g>
-              )
-            })}
-          </svg>
-        ) : null}
+      <Legend items={card.legend.map((name, index) => ({ name, color: colorAt(index) }))} />
+      <div className={css.vbars}>
+        {card.groups.map((group) => (
+          <div key={group.label} className={css.vbar}>
+            <span className={css.groupBars}>
+              {group.values.map((value, i) => (
+                <span
+                  key={card.legend[i]}
+                  className={css.groupFill}
+                  style={{ height: `${Math.max(3, (value / max) * 100)}%`, background: colorAt(i) }}
+                  title={`${card.legend[i]}: ${value.toLocaleString('en-US')}`}
+                />
+              ))}
+            </span>
+            <span className={css.vbarLabel}>{group.label}</span>
+          </div>
+        ))}
       </div>
     </>
   )
@@ -354,48 +315,45 @@ function Grouped({ card }: { card: CardOf<'grouped'> }) {
 
 function Donut({ card }: { card: CardOf<'donut'> }) {
   const total = card.slices.reduce((sum, slice) => sum + slice.value, 0)
-  const r = 44
+  const r = 50
   const c = 2 * Math.PI * r
   const lengths = card.slices.map((slice) => (slice.value / total) * c)
   const offsets = lengths.map((_, i) => lengths.slice(0, i).reduce((sum, length) => sum + length, 0))
   return (
     <div className={css.donut}>
-      <svg width={112} height={112} viewBox="0 0 112 112" className={css.donutSvg}>
-        <circle cx={56} cy={56} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={12} />
-        {card.slices.map((slice, i) => {
-          const dash = `${Math.max(0, lengths[i] - 2)} ${c}`
-          return (
+      <div className={css.donutRing}>
+        <svg viewBox="0 0 120 120" aria-hidden>
+          {card.slices.map((slice, i) => (
             <circle
               key={slice.name}
-              cx={56}
-              cy={56}
+              cx={60}
+              cy={60}
               r={r}
               fill="none"
-              stroke={TONE[slice.tone]}
+              stroke={statusColor(slice.status, category(i))}
               strokeWidth={12}
-              strokeDasharray={dash}
+              strokeDasharray={`${Math.max(0, lengths[i] - 2)} ${c}`}
               strokeDashoffset={-offsets[i]}
-              transform="rotate(-90 56 56)"
-              className={css.donutSlice}
+              transform="rotate(-90 60 60)"
             />
-          )
-        })}
-        <text x={56} y={56} className={css.donutTotal}>
-          {card.total}
-        </text>
-        <text x={56} y={71} className={css.donutLabel}>
-          {card.totalLabel}
-        </text>
-      </svg>
-      <ul className={css.donutLegend}>
-        {card.slices.map((slice) => (
-          <li key={slice.name}>
-            <i className={css.legendDot} style={{ '--tone': TONE[slice.tone] } as CSSProperties} />
-            <span className={css.donutName}>{slice.name}</span>
-            <b>{Math.round((slice.value / total) * 1000) / 10}%</b>
-          </li>
+          ))}
+        </svg>
+        <div className={css.donutCenter}>
+          <strong>{card.total}</strong>
+          <span>{card.totalLabel}</span>
+        </div>
+      </div>
+      <div className={css.donutLegend}>
+        {card.slices.map((slice, i) => (
+          <div key={slice.name} className={styles.seriesRow}>
+            <span>
+              <i className={styles.swatchTerrestrial} style={{ background: statusColor(slice.status, category(i)) }} />
+              {slice.name}
+            </span>
+            <b>{(Math.round((slice.value / total) * 1000) / 10).toFixed(1)}%</b>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   )
 }
@@ -412,14 +370,19 @@ function Table({ card }: { card: CardOf<'table'> }) {
           </tr>
         </thead>
         <tbody>
-          {card.rows.map((row, r) => (
-            <tr
-              key={r}
-              className={row.highlight ? css.rowHighlight : undefined}
-              style={{ '--tone': tone(row.tone, 'rgba(255,255,255,0.6)'), '--i': r } as CSSProperties}
-            >
+          {card.rows.map((row) => (
+            <tr key={row.cells[0]}>
               {row.cells.map((cell, c) => (
-                <td key={c}>{c === card.pillColumn ? <span className={css.pill}>{cell}</span> : cell}</td>
+                <td key={c}>
+                  {c === card.statusColumn ? (
+                    <span className={css.status}>
+                      <i style={{ background: statusColor(row.status, 'rgba(255,255,255,0.48)') }} />
+                      {cell}
+                    </span>
+                  ) : (
+                    cell
+                  )}
+                </td>
               ))}
             </tr>
           ))}
@@ -430,28 +393,30 @@ function Table({ card }: { card: CardOf<'table'> }) {
 }
 
 function Range({ card }: { card: CardOf<'range'> }) {
-  const at = (value: number) => `${((value - card.min) / (card.max - card.min)) * 100}%`
+  const at = (value: number) => ((value - card.min) / (card.max - card.min)) * 100
   return (
     <div className={css.range}>
-      <div className={css.rangeRows}>
-        {card.rows.map((row, i) => (
-          <div key={row.label} className={css.rangeRow} style={{ '--tone': TONE[row.tone], '--i': i } as CSSProperties}>
-            <span className={css.rangeLabel}>{row.label}</span>
-            <span className={css.rangeTrack}>
-              <span className={css.rangeBar} style={{ left: at(row.from), width: `calc(${at(row.to)} - ${at(row.from)})` }} />
-            </span>
-          </div>
-        ))}
-        <span className={css.rangeToday} style={{ left: `calc(64px + (100% - 64px) * ${(0 - card.min) / (card.max - card.min)})` }}>
-          <span>Today</span>
-        </span>
-      </div>
-      <div className={css.rangeAxis}>
-        {card.ticks.map((tick) => (
-          <span key={tick} style={{ left: at(tick) }}>
-            {tick === 0 ? '0' : `${tick > 0 ? '+' : '−'}${Math.abs(tick)}m`}
+      {card.rows.map((row, index) => (
+        <div key={row.label} className={css.rangeRow}>
+          <span className={css.hbarLabel}>{row.label}</span>
+          <span className={css.rangeTrack}>
+            <span
+              className={css.rangeBar}
+              style={{ left: `${at(row.from)}%`, width: `${at(row.to) - at(row.from)}%`, background: statusColor(row.status, category(index)) }}
+            />
+            <span className={css.rangeToday} style={{ left: `${at(0)}%` }} aria-hidden />
           </span>
-        ))}
+        </div>
+      ))}
+      <div className={css.rangeAxis}>
+        <span className={css.hbarLabel} aria-hidden />
+        <span className={css.rangeTicks}>
+          {card.ticks.map((tick) => (
+            <span key={tick} style={{ left: `${at(tick)}%` }}>
+              {tick === 0 ? 'Today' : `${tick > 0 ? '+' : '−'}${Math.abs(tick)}m`}
+            </span>
+          ))}
+        </span>
       </div>
     </div>
   )
@@ -468,15 +433,15 @@ function Countdown({ card }: { card: CardOf<'countdown'> }) {
   const units: [string, number][] = [
     ['Days', Math.floor(left / 86_400_000)],
     ['Hours', Math.floor(left / 3_600_000) % 24],
-    ['Min', Math.floor(left / 60_000) % 60],
-    ['Sec', Math.floor(left / 1000) % 60],
+    ['Minutes', Math.floor(left / 60_000) % 60],
+    ['Seconds', Math.floor(left / 1000) % 60],
   ]
   return (
-    <div className={css.countdown}>
+    <div className={css.kpis} style={{ '--kpi-cols': 4 } as CSSProperties} data-dense>
       {units.map(([label, value]) => (
-        <div key={label} className={css.countUnit}>
-          <span className={css.countValue}>{String(value).padStart(label === 'Days' ? 3 : 2, '0')}</span>
-          <span className={css.countLabel}>{label}</span>
+        <div key={label} className={css.kpi}>
+          <Kpi value={String(value).padStart(2, '0')} />
+          <p className={css.kpiLabel}>{label}</p>
         </div>
       ))}
     </div>
@@ -485,76 +450,105 @@ function Countdown({ card }: { card: CardOf<'countdown'> }) {
 
 function Part({ card, onInfo }: { card: CardOf<'part'>; onInfo?: (part: PartId) => void }) {
   const part = GAMI_PARTS[card.part]
+  const large = card.size === 'large'
   return (
-    <div className={css.part}>
-      <button
-        type="button"
-        className={css.partInfo}
-        aria-label={`About the ${part.name}`}
-        onClick={() => onInfo?.(part.id)}
-      >
-        <Info size={16} weight="bold" aria-hidden />
-      </button>
-      <Gami3DModel model={part.id} accent={TONE[part.tone]} className={css.partModel} />
+    <>
+      <Gami3DModel model={part.id} accent={PART_TRIM} className={css.partModel} spin={large ? 0.4 : 0.5} />
       <div className={css.partFoot}>
-        <span className={css.partDays}>{part.stockDays} days</span>
-        <span className={css.muted}>{part.city.split(',')[0]}</span>
+        <div className={css.partRow}>
+          <Kpi value={String(part.stockDays)} unit={large ? 'days of stock' : 'days'} />
+          <button type="button" className={css.partInfo} aria-label={`About the ${part.name}`} onClick={() => onInfo?.(part.id)}>
+            <Info size={16} weight="regular" aria-hidden />
+            {large ? 'Details' : null}
+          </button>
+        </div>
+        {large ? (
+          <dl className={css.partStats}>
+            <div>
+              <dt>Monthly need</dt>
+              <dd>{part.monthlyNeed}</dd>
+            </div>
+            <div>
+              <dt>Supplier</dt>
+              <dd>{part.city}</dd>
+            </div>
+            <div>
+              <dt>Programmes</dt>
+              <dd>{part.programmes.join(' · ')}</dd>
+            </div>
+          </dl>
+        ) : null}
       </div>
-    </div>
+    </>
   )
 }
 
-function body(card: GamiCard, onPartInfo?: (part: PartId) => void): ReactNode {
+export function GamiCardBody({
+  card,
+  onPartInfo,
+  summaryStatus,
+  summaryTyping = false,
+  flat = false,
+}: {
+  card: GamiCard
+  onPartInfo?: (part: PartId) => void
+  /** The summary's "Last updated" chip. */
+  summaryStatus?: ReactNode
+  summaryTyping?: boolean
+  /** Area charts fill with one flat tint instead of a gradient. */
+  flat?: boolean
+}) {
   switch (card.kind) {
     case 'summary':
-      return <Summary card={card} />
-    case 'kpis':
-      return <Kpis card={card} />
-    case 'progress':
-      return <Progress card={card} />
-    case 'line':
-      return <LineChart card={card} />
-    case 'vbars':
-      return <VBars card={card} />
-    case 'hbars':
-      return <HBars card={card} />
-    case 'stacked':
-      return <Stacked card={card} />
-    case 'grouped':
-      return <Grouped card={card} />
-    case 'donut':
-      return <Donut card={card} />
-    case 'table':
-      return <Table card={card} />
-    case 'range':
-      return <Range card={card} />
-    case 'countdown':
-      return <Countdown card={card} />
+      return (
+        <>
+          <h2 className={styles.summaryTitle}>{card.title}</h2>
+          {summaryStatus}
+          <StorySummaryText
+            parts={card.parts}
+            typing={summaryTyping}
+            durationMs={SUMMARY_REGENERATE_MS}
+            format={formatCount}
+            className={styles.summaryBody}
+            emphasisClassName={styles.summaryEmphasis}
+            typingClassName={styles.summaryTyping}
+          />
+        </>
+      )
+    case 'cell':
+      return (
+        <>
+          <p className={styles.kpiCellLabel}>{card.title}</p>
+          <p className={styles.kpiCellValue}>{card.value}</p>
+          <p className={styles.kpiCellNote}>{card.note}</p>
+        </>
+      )
     case 'part':
-      return <Part card={card} onInfo={onPartInfo} />
+      return (
+        <>
+          <Title card={card} />
+          <Part card={card} onInfo={onPartInfo} />
+        </>
+      )
   }
-}
-
-export function GamiCardView({ card, onPartInfo }: { card: GamiCard; onPartInfo?: (part: PartId) => void }) {
-  const cell = card.span === 'cell'
-  const glow = card.kind === 'kpis' && card.glow
+  const body: Record<Exclude<GamiCard['kind'], 'summary' | 'cell' | 'part'>, () => ReactNode> = {
+    kpis: () => <Kpis card={card as CardOf<'kpis'>} />,
+    progress: () => <Progress card={card as CardOf<'progress'>} />,
+    line: () => <LineChart card={card as CardOf<'line'>} flat={flat} />,
+    vbars: () => <VBars card={card as CardOf<'vbars'>} />,
+    hbars: () => <HBars card={card as CardOf<'hbars'>} />,
+    split: () => <Split card={card as CardOf<'split'>} />,
+    stacked: () => <Stacked card={card as CardOf<'stacked'>} />,
+    grouped: () => <Grouped card={card as CardOf<'grouped'>} />,
+    donut: () => <Donut card={card as CardOf<'donut'>} />,
+    table: () => <Table card={card as CardOf<'table'>} />,
+    range: () => <Range card={card as CardOf<'range'>} />,
+    countdown: () => <Countdown card={card as CardOf<'countdown'>} />,
+  }
   return (
-    <section
-      className={[
-        card.kind === 'summary' ? storyStyles.summaryCard : storyStyles.visualCard,
-        css.card,
-        cell ? css.cell : css.full,
-        card.height === 2 ? css.tall : '',
-        glow ? css.glow : '',
-        card.kind === 'part' ? css.partCard : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      aria-label={splitSource(card.title).title}
-    >
-      <CardTitle title={card.title} />
-      {body(card, onPartInfo)}
-      {card.footer ? <p className={css.footer}>{card.footer}</p> : null}
-    </section>
+    <>
+      <Title card={card} />
+      {body[card.kind]()}
+    </>
   )
 }

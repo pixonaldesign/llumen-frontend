@@ -43,7 +43,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
   {
     id: 'gami-localization-app',
     storyId: 'gami-localization',
-    title: 'Localization Opportunities — Eastern Province',
+    title: 'Localization Opportunities',
     description: 'SAR 32.0bn a year can be made in the Kingdom; Jubail can take SAR 10.6bn of it now.',
     image: `${APPS_BASE}/gami-localization.jpg`,
     focus: 'center',
