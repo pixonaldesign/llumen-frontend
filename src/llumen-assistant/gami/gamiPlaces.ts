@@ -108,6 +108,8 @@ function zoneDisks(scale: number, group: string): GamiDisk[] {
 /* ---------- Finding 1: the Kingdom overview ---------- */
 
 export const KINGDOM_CAMERA: GamiCamera = { center: [44.2, 23.9], zoom: 4.85, pitch: 48, bearing: -10 }
+/** The story opens closer than the Briefing: the Kingdom fills the map beside the sidebar. */
+export const KINGDOM_STORY_CAMERA: GamiCamera = { center: [44.95, 24.85], zoom: 5.5, pitch: 55, bearing: -11 }
 
 export const KINGDOM_SCENE = scene({
   columnRadiusM: 9000,
@@ -229,6 +231,7 @@ function opportunityDisk(item: Opportunity, scale: number, group: string): GamiD
 }
 
 export const EASTERN_CAMERA: GamiCamera = { center: [44.6, 23.4], zoom: 5.05, pitch: 44, bearing: -8 }
+export const EASTERN_STORY_CAMERA: GamiCamera = { center: [45.6, 23.1], zoom: 5.6, pitch: 42, bearing: -9 }
 
 export const EASTERN_SCENE = scene({
   heat: heatPoints(HEAT_ZONES, 'capacity', 21),
@@ -348,6 +351,7 @@ const DELEGATIONS: [string, LngLat, Region][] = [
 ]
 
 export const WDS_CAMERA: GamiCamera = { center: [38, 30], zoom: 2.6, pitch: 30, bearing: -6 }
+export const WDS_STORY_CAMERA: GamiCamera = { center: [47.5, 22.5], zoom: 4.6, pitch: 32, bearing: -6 }
 
 export const WDS_SCENE = scene({
   arcs: DELEGATIONS.map(([, at, region]) => ({ from: at, to: MALHAM, color: REGION_COLOR[region], width: 1.5, group: 'delegations' })),
@@ -455,6 +459,7 @@ const ACADEMIES: { name: string; at: LngLat; graduates: number; enrolled: number
 ]
 
 export const WESTERN_CAMERA: GamiCamera = { center: [39.6, 22.9], zoom: 6.2, pitch: 52, bearing: -16 }
+export const WESTERN_STORY_CAMERA: GamiCamera = { center: [39.8, 22.3], zoom: 7.35, pitch: 60, bearing: -15 }
 
 export const WESTERN_SCENE = scene({
   disks: TALENT_CITIES.map((city) => ({
