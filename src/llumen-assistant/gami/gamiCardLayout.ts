@@ -20,6 +20,7 @@ export function cardClass(card: GamiCard) {
     isLarge(card) ? css.block : card.span === 'cell' || card.kind === 'cell' ? css.cell : css.full,
     card.height === 2 || isLarge(card) ? css.tall : '',
     card.kind === 'part' ? css.partCard : '',
+    card.kind === 'summary' ? css.summary : '',
   ]
     .filter(Boolean)
     .join(' ')

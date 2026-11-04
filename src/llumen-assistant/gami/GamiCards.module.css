@@ -23,6 +23,11 @@ aside.grid {
   overflow: hidden;
 }
 
+/* The animated gradient ring is drawn over the border, outside the padding box a clip would cut it to. */
+.card.card.summary {
+  overflow: visible;
+}
+
 .full {
   grid-column: 1 / -1;
 }
