@@ -1114,6 +1114,8 @@ export function GamiStoryView({
       <div className={styles.mapPane}>
         <GamiMap
           camera={page.camera}
+          intro={story.intro}
+          hold={mapHidden}
           scene={page.scene}
           areas={page.polygons}
           hidden={mapHiddenGroups}

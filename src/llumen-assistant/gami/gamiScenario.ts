@@ -4,6 +4,7 @@
  */
 import {
   ALERT_CAMERA,
+  ALERT_INTRO_CAMERA,
   ALERT_SCENE,
   ANATOLIA_AREA,
   BRIDGE_CAMERA,
@@ -953,6 +954,7 @@ const ALERT: GamiStory = {
   description:
     'The Poland–Russia conflict suspended export permits for 20 components Saudi military industries import from Poland. Three are critical to the national UAV programmes; Türkiye can bridge supply until local production starts.',
   place: 'kingdom',
+  intro: ALERT_INTRO_CAMERA,
   pages: [
     {
       id: 'disruption',

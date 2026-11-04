@@ -162,6 +162,8 @@ export type GamiStory = {
   description: string
   /** The Briefing place its first page opens on. */
   place: GamiPlaceId
+  /** Opens on this camera (the whole planet) and dives into the first page before drawing it. */
+  intro?: GamiCamera
   pages: [GamiPage, GamiPage]
 }
 

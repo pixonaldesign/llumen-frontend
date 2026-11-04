@@ -132,8 +132,9 @@ const storyEnters = new Map<string, BriefingMapEnter>()
 function storyEnter(storyId: string): BriefingMapEnter {
   let enter = storyEnters.get(storyId)
   if (!enter) {
-    const page = GAMI_STORIES[storyId]?.pages[0]
-    enter = { camera: page?.camera ?? BRIEFING_PLACES.kingdom.camera, padding: STORY_CAMERA_PADDING }
+    const story = GAMI_STORIES[storyId]
+    const camera = story?.intro ?? story?.pages[0].camera ?? BRIEFING_PLACES.kingdom.camera
+    enter = { camera, padding: STORY_CAMERA_PADDING }
     storyEnters.set(storyId, enter)
   }
   return enter

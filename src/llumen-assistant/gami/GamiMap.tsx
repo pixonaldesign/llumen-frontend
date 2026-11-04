@@ -1,5 +1,6 @@
 /**
- * A GAMI story's map: flies to each page's camera, shrinks the last page's layers and grows the next,
+ * A GAMI story's map: optionally dives in from the whole planet on opening, flies to each page's
+ * camera, shrinks the last page's layers and grows the next,
  * and outlines the page's areas. Columns and disks name themselves in a tooltip on hover. Used by the
  * GAMI stories and Tell Me More.
  */
@@ -33,6 +34,7 @@ const SHRINK_MS = 500
 const GROW_MS = 1500
 const AREA_MS = 1100
 const DIMENSION_MS = 700
+const DIVE_MS = 3200
 const MAX_PITCH = 85
 
 export type GamiMapHandle = { view: () => StoryMapView | undefined; capture: () => Promise<StoryMapCapture | null> }
@@ -47,6 +49,8 @@ function cameraOptions(camera: GamiCamera, flat = false) {
 export function GamiMap({
   className,
   camera,
+  intro,
+  hold = false,
   scene,
   areas,
   hidden,
@@ -61,6 +65,10 @@ export function GamiMap({
 }: {
   className?: string
   camera: GamiCamera
+  /** Opens here and dives into `camera`, then draws the scene. */
+  intro?: GamiCamera
+  /** The map is still covered: the intro waits to dive until it can be seen. */
+  hold?: boolean
   scene: GamiMapScene
   areas: GamiArea[]
   /** Scene groups switched off in Map Data; `area` hides the outlines. */
@@ -88,6 +96,11 @@ export function GamiMap({
     lift: flat ? 0 : 1,
   })
   const latestRef = useRef({ camera, scene, areas, hidden, padding, flat })
+  const introRef = useRef<{ camera: GamiCamera; phase: 'wait' | 'dive' | 'done' }>({
+    camera: intro ?? camera,
+    phase: intro ? 'wait' : 'done',
+  })
+  const holdRef = useRef(hold)
   const tweenRef = useRef(0)
   const liftTweenRef = useRef(0)
   const styleRef = useRef(styleUrl)
@@ -130,16 +143,52 @@ export function GamiMap({
     areaLabelsRef.current?.sync(drawn.areas, drawn.reveal > 0.6 && !off.has('area'))
   }
 
+  /** Grows the current page's layers in from nothing, then outlines its areas. */
+  const growIn = (map: mapboxgl.Map) => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.cancelAnimationFrame(tweenRef.current)
+    const begin = performance.now()
+    const grow = (now: number) => {
+      const t = reduce ? 1 : Math.min(1, (now - begin) / GROW_MS)
+      const latest = latestRef.current
+      drawnRef.current = {
+        ...drawnRef.current,
+        scene: latest.scene,
+        grow: easeOut(t),
+        areas: latest.areas,
+        reveal: reduce ? 1 : easeOut(Math.max(0, Math.min(1, (now - begin - GROW_MS * 0.4) / AREA_MS))),
+      }
+      paint(map)
+      if (t < 1 || drawnRef.current.reveal < 1) tweenRef.current = window.requestAnimationFrame(grow)
+    }
+    tweenRef.current = window.requestAnimationFrame(grow)
+  }
+
+  /** The intro: once the map can be seen, dive from the planet into the page's camera, then draw it. */
+  const dive = (map: mapboxgl.Map) => {
+    const intro = introRef.current
+    if (intro.phase !== 'wait' || holdRef.current) return
+    intro.phase = 'dive'
+    const { camera: target, padding: inset, flat: flatNow } = latestRef.current
+    map.easeTo({ ...cameraOptions(target, flatNow), padding: inset, duration: DIVE_MS, easing: easeInOut, essential: true })
+    map.once('moveend', () => {
+      if (intro.phase !== 'dive') return
+      intro.phase = 'done'
+      growIn(map)
+    })
+  }
+
   useEffect(() => {
     const el = elRef.current
     if (!el || mapRef.current || !MAPBOX_TOKEN) return
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     mapboxgl.accessToken = MAPBOX_TOKEN
     const start = latestRef.current
+    if (reduce) introRef.current = { camera: start.camera, phase: 'done' }
     const map = new mapboxgl.Map({
       container: el,
       style: styleRef.current,
-      ...cameraOptions(start.camera, start.flat),
+      ...cameraOptions(introRef.current.camera, start.flat),
       maxPitch: start.flat ? 0 : MAX_PITCH,
       interactive,
       antialias: true,
@@ -168,21 +217,8 @@ export function GamiMap({
         onReadyRef.current?.('painted')
       }
       map.on('render', announce)
-      const begin = performance.now()
-      const grow = (now: number) => {
-        const t = reduce ? 1 : Math.min(1, (now - begin) / GROW_MS)
-        const latest = latestRef.current
-        drawnRef.current = {
-          ...drawnRef.current,
-          scene: latest.scene,
-          grow: easeOut(t),
-          areas: latest.areas,
-          reveal: easeOut(Math.max(0, Math.min(1, (now - begin - GROW_MS * 0.4) / AREA_MS))),
-        }
-        paint(map)
-        if (t < 1 || drawnRef.current.reveal < 1) tweenRef.current = window.requestAnimationFrame(grow)
-      }
-      tweenRef.current = window.requestAnimationFrame(grow)
+      if (introRef.current.phase === 'done') growIn(map)
+      else dive(map)
     })
 
     const tip = document.createElement('div')
@@ -242,6 +278,7 @@ export function GamiMap({
       paint(map)
       return
     }
+    introRef.current.phase = 'done'
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (moved) {
       const options = { ...cameraOptions(camera, flat), padding }
@@ -272,6 +309,14 @@ export function GamiMap({
     // `paint` reads refs only; `flat` has its own effect.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, scene, areas, hidden, padding])
+
+  useEffect(() => {
+    holdRef.current = hold
+    const map = mapRef.current
+    if (map && readyRef.current) dive(map)
+    // `dive` reads refs only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hold])
 
   /* 2D ↔ 3D: tilt to or from flat, and lay the columns and walls down or raise them. */
   useEffect(() => {
