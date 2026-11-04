@@ -626,12 +626,7 @@ export function GamiCardBody({
         </>
       )
     case 'section':
-      return (
-        <>
-          <h3 className={css.sectionTitle}>{card.title}</h3>
-          <p className={css.sectionText}>{card.text}</p>
-        </>
-      )
+      return <h3 className={css.sectionTitle}>{card.title}</h3>
   }
   const body: Record<Exclude<GamiCard['kind'], 'summary' | 'cell' | 'part' | 'section'>, () => ReactNode> = {
     kpis: () => <Kpis card={card as CardOf<'kpis'>} />,

@@ -1452,7 +1452,6 @@ const ALERT: GamiStory = {
           id: 'section-uav',
           kind: 'section',
           title: 'UAV Critical Parts · 3',
-          text: 'The three parts whose loss halted the Najm, Sahm and Rimah lines. Plants in Riyadh, Al-Ahsa and Taif take over from the Türkiye bridge between Q3 2028 and Q1 2029.',
         },
         { id: 'local-motor', kind: 'part', part: 'motor', size: 'large', facet: 'local', title: 'Propulsion Motor' },
         { id: 'local-gimbal', kind: 'part', part: 'gimbal', span: 'cell', facet: 'local', title: 'EO/IR Gimbal' },
@@ -1461,7 +1460,6 @@ const ALERT: GamiStory = {
           id: 'section-abrams',
           kind: 'section',
           title: 'Abrams Tank Parts · 4',
-          text: 'Wear and spare parts for the M1A2 fleet. Existing land-systems plants start making them in 2027, all delivered to the Tabuk depot.',
         },
         { id: 'local-track', kind: 'part', part: 'trackPad', span: 'half', facet: 'local', title: 'Track Pad' },
         { id: 'local-vision', kind: 'part', part: 'visionBlock', span: 'half', facet: 'local', title: 'Vision Block' },
@@ -1471,7 +1469,6 @@ const ALERT: GamiStory = {
           id: 'section-outlook',
           kind: 'section',
           title: 'Timeline and Value',
-          text: 'When each part comes online, how fast local output meets the need, and the imports it replaces each year.',
         },
         {
           id: 'local-timeline',
