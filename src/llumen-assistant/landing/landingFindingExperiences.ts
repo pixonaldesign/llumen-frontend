@@ -26,6 +26,21 @@ export type FindingMap = {
   meta: string
   /** Names for the outlined areas, heaviest first; the place's own when unset. */
   areas?: AreaSpec[]
+  /** Affected areas marked with disks, columns and a tooltip instead of outlines; their disks replace the place's own. */
+  affected?: AffectedArea[]
+}
+
+export type AffectedArea = {
+  name: string
+  /** Second line of the area's tooltip, under its name. */
+  text: string
+  /** [lng, lat] */
+  center: [number, number]
+  radiusKm: number
+  /** Sizes the area's disks and columns against the other areas. */
+  weight: number
+  /** The place's own area, which keeps the place's columns instead of growing new ones. */
+  home?: boolean
 }
 
 export type FindingExperience = {
@@ -116,6 +131,114 @@ export function findingRegion(place: BriefingPlaceId): StoryMapRegion {
   }
   regions.set(place, region)
   return region
+}
+
+const DISK_SPACING_KM = 0.65
+const AREA_COLUMN_SPACING_KM = 0.36
+const AFFECTED_CAMERA_ZOOM = 11.95
+const AFFECTED_CAMERA_PITCH = 50
+
+function hash(index: number, seed: number) {
+  const s = Math.sin(index * 127.1 + seed * 311.7) * 43758.5453
+  return s - Math.floor(s)
+}
+
+/** A jittered hex grid over the area, with each point's falloff from 1 at the centre to 0 at the edge. */
+function areaPoints(area: AffectedArea, spacingKm: number, seed: number) {
+  const steps = Math.ceil(area.radiusKm / spacingKm)
+  const points: { lngLat: [number, number]; falloff: number; index: number }[] = []
+  let index = 0
+  for (let i = -steps; i <= steps; i += 1) {
+    for (let j = -steps; j <= steps; j += 1) {
+      index += 1
+      const x = (i + (j % 2) * 0.5 + (hash(index, seed) - 0.5) * 0.3) * spacingKm
+      const y = (j * 0.87 + (hash(index, seed + 1) - 0.5) * 0.3) * spacingKm
+      const falloff = 1 - Math.hypot(x, y) / area.radiusKm
+      if (falloff <= 0) continue
+      points.push({ lngLat: [area.center[0] + x / KM_PER_DEG_LNG, area.center[1] + y / KM_PER_DEG_LAT], falloff, index })
+    }
+  }
+  return points
+}
+
+/** Disks filling each area, largest at its centre and for its heaviest weight. */
+function areaDisks(areas: AffectedArea[]): [number, number, number][] {
+  const heaviest = Math.max(...areas.map((area) => area.weight))
+  return areas.flatMap((area, order) =>
+    areaPoints(area, DISK_SPACING_KM, order * 10 + 91).map(({ lngLat, falloff, index }): [number, number, number] => [
+      ...lngLat,
+      (170 + 420 * falloff) * (0.6 + 0.4 * (area.weight / heaviest)) * (0.85 + 0.3 * hash(index, order + 93)),
+    ]),
+  )
+}
+
+/** Columns for the areas beyond the place, peaking at their centres and topping out below the place's tallest. */
+function areaColumns(areas: AffectedArea[], tallest: number): [number, number, number][] {
+  const heaviest = Math.max(...areas.map((area) => area.weight))
+  return areas.flatMap((area, order) => {
+    if (area.home) return []
+    const peak = tallest * (0.55 + 0.4 * (area.weight / heaviest))
+    return areaPoints(area, AREA_COLUMN_SPACING_KM, order * 10 + 101)
+      .filter(({ index }) => hash(index, order + 103) >= 0.35)
+      .map(({ lngLat, falloff, index }): [number, number, number] => [
+        ...lngLat,
+        Math.min(
+          tallest,
+          180 + 360 * hash(index, order + 104) + peak * Math.sqrt(falloff) * (0.35 + 0.65 * hash(index, order + 105)),
+        ),
+      ])
+  })
+}
+
+const affectedRegions = new Map<string, StoryMapRegion>()
+
+/** The place with every affected area's columns and disks, framed to take them all in. */
+export function findingAffectedRegion(place: BriefingPlaceId, areas: AffectedArea[]): StoryMapRegion {
+  const key = `${place}|${areas.map((area) => area.name).join('|')}`
+  const cached = affectedRegions.get(key)
+  if (cached) return cached
+  const base = findingRegion(place)
+  const tallest = Math.max(...base.columns.map(([, , height]) => height))
+  const lngs = areas.flatMap(({ center, radiusKm }) => [center[0] - radiusKm / KM_PER_DEG_LNG, center[0] + radiusKm / KM_PER_DEG_LNG])
+  const lats = areas.flatMap(({ center, radiusKm }) => [center[1] - radiusKm / KM_PER_DEG_LAT, center[1] + radiusKm / KM_PER_DEG_LAT])
+  const region: StoryMapRegion = {
+    ...base,
+    id: `finding-${place}-affected`,
+    camera: {
+      ...base.camera,
+      center: [(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2],
+      zoom: AFFECTED_CAMERA_ZOOM,
+      pitch: AFFECTED_CAMERA_PITCH,
+    },
+    columns: [...base.columns, ...areaColumns(areas, tallest)],
+    junctions: areaDisks(areas),
+  }
+  affectedRegions.set(key, region)
+  return region
+}
+
+const affectedMarkers = new Map<string, MapAnnotationItem[]>()
+
+/** A marker at each affected area's centre, its tooltip naming the area over its text. */
+export function findingAffectedMarkers(place: BriefingPlaceId, areas: AffectedArea[]): MapAnnotationItem[] {
+  const key = `${place}|${areas.map((area) => area.name).join('|')}`
+  const cached = affectedMarkers.get(key)
+  if (cached) return cached
+  const { label, color } = PLACE_OUTLINES[place]
+  const items = areas.map(
+    (area, order): MapAnnotationItem => ({
+      id: `finding-${place}-affected-${order + 1}`,
+      tool: 'marker',
+      name: area.name,
+      geometry: { type: 'Point', coordinates: area.center },
+      style: { color, text: `${area.name}\n${area.text}` },
+      visible: true,
+      opacity: 1,
+      context: { anchor: 'geometry', slideIndex: 0, dataLabel: label, features: [] },
+    }),
+  )
+  affectedMarkers.set(key, items)
+  return items
 }
 
 function distanceKm(a: [number, number, number], b: [number, number, number]) {
@@ -925,24 +1048,24 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
       map: null,
     }),
 
-  'mussafah-dumping': () =>
+  'island-dumping': () =>
     experience({
       id: 'finding-dumping',
-      read: 'Reading the Illegal dumping in Al Mussafah finding and the incident reports behind it…',
-      search: 'Pulling dumping reports, site inspections and the week-ago baseline for the Mussafah industrial belt…',
-      reason: 'Outlining the sites over the emergency threshold and the lots dumped on again on the Mussafah map…',
-      headline: 'Outlined where illegal dumping has spiked in Al Mussafah.',
-      headlineDetail: 'Drew a polygon around the three threshold sites and the re-dumped lots on the Mussafah map.',
+      read: 'Reading the Illegal dumping on Abu Dhabi Island finding and the incident reports behind it…',
+      search: 'Pulling dumping reports, site inspections and the week-ago baseline for Abu Dhabi Island…',
+      reason: 'Outlining the sites over the emergency threshold and the lots dumped on again on the island map…',
+      headline: 'Outlined where illegal dumping has spiked on Abu Dhabi Island.',
+      headlineDetail: 'Drew a polygon around the three threshold sites and the re-dumped lots on the island map.',
       intro:
-        'Illegal dumping along the Mussafah industrial belt spiked 35% in six hours, and three sites are now above the emergency threshold. I outlined the sites and the lots that were dumped on again on the Mussafah map.',
+        'Illegal dumping across Abu Dhabi Island spiked 35% in six hours, and three sites are now above the emergency threshold. I outlined the sites and the lots that were dumped on again on the island map.',
       sections: [
         {
           heading: 'On the map',
-          text: 'The cyan outline over the tallest columns holds the three sites above the threshold, on the belt’s main industrial axis. The second outline covers vacant lots cleared earlier this month that have new deposits since Sunday.',
+          text: 'The first outline, over the tallest columns, holds the three sites above the threshold. The second covers vacant lots cleared earlier this month that have new deposits since Sunday.',
         },
         {
           heading: 'Six-hour spike',
-          text: 'Reports climbed after 20:00, when most yards close and trucks leave the belt.',
+          text: 'Reports climbed after 20:00, when most construction sites close and trucks leave the island.',
           chart: chartComponent(
             'finding-dumping-trend',
             {
@@ -955,7 +1078,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               xLabels: ['18:00', '20:00', '22:00', '00:00'],
               line: trendLine([18, 20, 26, 34, 41, 47, 52], 0, 60),
             },
-            'Dumping reports per hour along the Mussafah industrial belt.',
+            'Dumping reports per hour across Abu Dhabi Island.',
           ),
         },
         {
@@ -985,9 +1108,9 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
         },
       ],
       map: {
-        place: 'mussafah',
-        title: 'Illegal dumping in Al Mussafah · on the map',
-        tag: 'Al Mussafah',
+        place: 'abu-dhabi',
+        title: 'Illegal dumping on Abu Dhabi Island · on the map',
+        tag: 'Abu Dhabi Island',
         meta: '2 areas outlined',
         areas: [
           { name: 'Sites over threshold', text: '3 sites · +35% in 6 h' },
@@ -1001,16 +1124,16 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
       id: 'finding-co2',
       read: 'Reading the CO₂ high-level forecast alert and the air-quality model behind it…',
       search: 'Pulling the next four hours of CO₂ forecast, wind and clinic visits for Al Mussafah and its neighbours…',
-      reason: 'Outlining the districts the CO₂ peak reaches and the respiratory cases expected in each on the Mussafah map…',
-      headline: 'Outlined the three districts the CO₂ peak reaches in 2 hours.',
+      reason: 'Marking Al Mussafah and the districts beyond it that the CO₂ peak reaches, sized by their expected respiratory cases…',
+      headline: 'Marked the three areas the CO₂ peak reaches in 2 hours.',
       headlineDetail:
-        'Drew a polygon around Al Mussafah and two neighbouring districts, each labelled with its expected respiratory cases.',
+        'Marked Al Mussafah, Mohammed Bin Zayed City and Khalifa City with their own columns and disks, each with a tooltip of its expected respiratory cases.',
       intro:
-        'CO₂ over Al Mussafah is forecast to peak at 780 ppm in two hours, as the wind drops while the industrial belt runs its afternoon shift. In past episodes like this one, that brought about 120 extra respiratory cases across Al Mussafah and two neighbouring districts. I outlined each district on the map with its expected cases.',
+        'CO₂ over Al Mussafah is forecast to peak at 780 ppm in two hours, as the wind drops while the industrial belt runs its afternoon shift. Al Mussafah is affected itself, and the plume carries past it into Mohammed Bin Zayed City and Khalifa City. In past episodes like this one, that brought about 120 extra respiratory cases across the three areas. I marked each on the map with its expected cases.',
       sections: [
         {
           heading: 'On the map',
-          text: 'The cyan outlines mark where the peak lands. Al Mussafah’s industrial area takes the highest concentration and most of the cases. Mussafah Shabiya and the western edge of MBZ City sit downwind and peak about 30 minutes later.',
+          text: 'Each area has its own columns and disks, taller and larger where more cases are expected. Al Mussafah takes the highest concentration and most of the cases. Mohammed Bin Zayed City to the east and Khalifa City to the north-east sit downwind and peak about 30 and 50 minutes later.',
         },
         {
           heading: 'CO₂ over the next four hours',
@@ -1039,12 +1162,12 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               type: 'bars',
               title: 'Expected respiratory cases, next 6 hours',
               value: '120',
-              unit: 'across three districts',
+              unit: 'across three areas',
               color: '#7fe3ff',
               rows: barRows([
-                ['Al Mussafah industrial area', 58, '58 cases'],
-                ['Mussafah Shabiya', 38, '38 cases'],
-                ['MBZ City west', 24, '24 cases'],
+                ['Al Mussafah', 58, '58 cases'],
+                ['Mohammed Bin Zayed City', 38, '38 cases'],
+                ['Khalifa City', 24, '24 cases'],
               ]),
             },
             'Respiratory clinic and emergency visits expected above a normal afternoon.',
@@ -1052,18 +1175,31 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
         },
         {
           heading: 'Recommended action',
-          text: 'Ask the largest emitters on the industrial belt to defer generator and kiln loads through the peak, advise outdoor workers and schools in the three districts to stay indoors for the next four hours, and have the clinics in Al Mussafah and Mussafah Shabiya prepare for more asthma and COPD visits.',
+          text: 'Ask the largest emitters on the industrial belt to defer generator and kiln loads through the peak, advise outdoor workers and schools in the three areas to stay indoors for the next four hours, and have the clinics in Al Mussafah and Mohammed Bin Zayed City prepare for more asthma and COPD visits.',
         },
       ],
       map: {
         place: 'mussafah',
         title: 'CO₂ forecast for Al Mussafah · on the map',
         tag: 'Al Mussafah',
-        meta: '3 areas outlined',
-        areas: [
-          { name: 'Al Mussafah industrial area', text: '58 respiratory cases' },
-          { name: 'Mussafah Shabiya', text: '38 respiratory cases' },
-          { name: 'MBZ City west', text: '24 respiratory cases' },
+        meta: '3 areas affected',
+        affected: [
+          {
+            name: 'Al Mussafah',
+            text: '58 respiratory cases',
+            center: [54.516, 24.346],
+            radiusKm: 2.1,
+            weight: 58,
+            home: true,
+          },
+          {
+            name: 'Mohammed Bin Zayed City',
+            text: '38 respiratory cases',
+            center: [54.576, 24.326],
+            radiusKm: 1.6,
+            weight: 38,
+          },
+          { name: 'Khalifa City', text: '24 respiratory cases', center: [54.585, 24.421], radiusKm: 1.5, weight: 24 },
         ],
       },
     }),

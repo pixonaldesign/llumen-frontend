@@ -26,7 +26,14 @@ import type { StoryAiSnapshot, StoryMapCapture } from '../story/storyAiScenarios
 import { StoryMap, type StoryMapAnnotationLayer, type StoryMapHandle } from '../story/StoryMap'
 import mapStyles from '../story/StoryMap.module.css'
 import styles from './LandingAskStage.module.css'
-import { findingAreas, findingRegion, findingSceneIndex, isFindingPlace } from './landingFindingExperiences'
+import {
+  findingAffectedMarkers,
+  findingAffectedRegion,
+  findingAreas,
+  findingRegion,
+  findingSceneIndex,
+  isFindingPlace,
+} from './landingFindingExperiences'
 
 /** Loads the asset builder's styles only once Data or Source is opened. */
 const LandingAssetPanels = lazy(() => import('./LandingAssetPanels'))
@@ -308,17 +315,16 @@ export function LandingAskMap({ snapshot, capture, onCapture, preview = false }:
     handleRef.current = handle
   }, [])
   const place = isFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
+  const affected = snapshot?.findingAffected
   const region = useMemo(() => {
-    if (place) return findingRegion(place)
+    if (place) return affected ? findingAffectedRegion(place, affected) : findingRegion(place)
     return snapshot?.region ? snapshotRegion(snapshot) : null
-  }, [place, snapshot])
-  const annotations = useMemo<StoryMapAnnotationLayer | null>(
-    () =>
-      place
-        ? { items: findingAreas(place, snapshot?.findingAreas), validity: {}, selectedId: null, drawing: null }
-        : null,
-    [place, snapshot?.findingAreas],
-  )
+  }, [place, affected, snapshot])
+  const annotations = useMemo<StoryMapAnnotationLayer | null>(() => {
+    if (!place) return null
+    const items = affected ? findingAffectedMarkers(place, affected) : findingAreas(place, snapshot?.findingAreas)
+    return { items, validity: {}, selectedId: null, drawing: null }
+  }, [place, affected, snapshot?.findingAreas])
   const annotation = useMemo(() => {
     const request = snapshot?.annotation
     if (!request) return null

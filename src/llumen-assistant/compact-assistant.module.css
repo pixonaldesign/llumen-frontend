@@ -2953,7 +2953,7 @@
   mask-origin: border-box, border-box;
   mask-composite: exclude;
   mask-repeat: no-repeat;
-  animation: findingBorderShimmer 1s linear infinite;
+  animation: findingBorderShimmer 1.6s linear infinite;
   pointer-events: none;
   z-index: 2;
 }

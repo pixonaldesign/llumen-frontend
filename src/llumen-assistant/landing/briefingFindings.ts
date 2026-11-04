@@ -97,11 +97,11 @@ const NETWORK_PRESSURE: FeedChart = {
 /** The Briefing findings. Each map stop (its own place and palette) is followed by one or more blurred ones. */
 export const FEED_STOPS: FeedStop[] = [
   {
-    id: 'mussafah-dumping',
-    place: 'mussafah',
+    id: 'island-dumping',
+    place: 'abu-dhabi',
     domain: 'Environment',
-    title: 'Illegal dumping in Al Mussafah',
-    before: 'Illegal dumping along the Mussafah industrial belt has ',
+    title: 'Illegal dumping on Abu Dhabi Island',
+    before: 'Illegal dumping across Abu Dhabi Island has ',
     highlight: 'spiked 35% in six hours',
     after: ', and three sites are above the emergency threshold.',
     storyId: 'r1',

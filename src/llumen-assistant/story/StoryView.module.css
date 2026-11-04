@@ -1798,13 +1798,26 @@ button.summaryStatus:disabled {
 .chartMain {
   display: grid;
   flex: 1;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 4px 8px;
   min-height: 0;
 }
 
 .yAxis {
   position: relative;
+  min-width: 28px;
+}
+
+/* Invisible copies of the labels give the axis the width of the widest one. */
+.yAxisSizer {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  font-size: 10px;
+  font-style: normal;
+  white-space: nowrap;
+  visibility: hidden;
 }
 
 .yAxis span {
@@ -1830,8 +1843,8 @@ button.summaryStatus:disabled {
 
 .chartX {
   display: flex;
+  grid-column: 2;
   justify-content: space-between;
-  padding-left: 36px;
   color: rgba(255, 255, 255, 0.48);
   font-size: 10px;
   line-height: 14px;

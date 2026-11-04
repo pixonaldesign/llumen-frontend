@@ -423,6 +423,7 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
           filterLabels: {},
           findingPlace: experience.map.place,
           findingAreas: experience.map.areas,
+          findingAffected: experience.map.affected,
         }
       : null
     return {
@@ -2695,7 +2696,7 @@ export function CompactAssistantDemo() {
       const userText = detail
         ? `Tell me more about ${item.title}. ${detail}`
         : `Tell me more about ${item.title}`
-      const dumpingBriefing = item.id === 'dumping-alert' || item.id === 'mussafah-dumping'
+      const dumpingBriefing = item.id === 'dumping-alert' || item.id === 'island-dumping'
       clearStream()
       setMessages([
         { id: uid(), role: 'user', text: userText },

@@ -110,7 +110,7 @@
   mask-repeat: no-repeat;
   opacity: 1;
   transition: opacity 280ms ease;
-  animation: findingBorderShimmer 1s linear infinite;
+  animation: findingBorderShimmer 1.6s linear infinite;
   pointer-events: none;
   z-index: 2;
 }
