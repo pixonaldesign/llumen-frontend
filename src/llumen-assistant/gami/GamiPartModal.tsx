@@ -4,18 +4,10 @@
  * vehicle that carries it, with the part lit up in red. `GamiPartModal` reads a critical UAV part's
  * Poland stock and its Türkiye bridge; `GamiLocalPartModal` reads a part the Kingdom will make, and where.
  */
-import { useEffect, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
-import { X } from '@phosphor-icons/react'
-import edit from '../story/StoryEditPanel.module.css'
-import styles from '../story/StoryView.module.css'
-import { GamiCardBody } from './GamiCharts'
-import { gridVars } from './gamiCardLayout'
+import { GamiAssetModal } from './GamiAssetModal'
 import { LOCAL_COLOR } from './gamiPlaces'
-import { GAMI_PARTS, GAMI_VEHICLES, LOCAL_PARTS, POLAND_SUPPLIERS, toneCards } from './gamiScenario'
+import { GAMI_PARTS, GAMI_VEHICLES, LOCAL_PARTS, POLAND_SUPPLIERS } from './gamiScenario'
 import { STATUS, type GamiCard, type LocalPartId, type PartId } from './gamiTypes'
-import cards from './GamiCards.module.css'
-import css from './GamiPartModal.module.css'
 
 type Props = {
   part: PartId
@@ -25,8 +17,6 @@ type Props = {
 }
 
 const MONTHS = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']
-/** The widest the grid gets; narrower windows take four columns (GamiPartModal.module.css). */
-const COLUMNS = 6
 
 type ShellProps = {
   part: LocalPartId
@@ -42,91 +32,31 @@ type ShellProps = {
 }
 
 function PartModalShell({ part, title, sub, vehicle, partCards, accent, hint, action, onClose }: ShellProps) {
-  const [view, setView] = useState<'part' | 'vehicle'>('part')
   const carrier = GAMI_VEHICLES[vehicle]
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  const model: GamiCard =
-    view === 'part'
-      ? { id: 'model', kind: 'model', title: LOCAL_PARTS[part].short, cols: 2, height: 2, model: part, accent }
-      : { id: 'model', kind: 'model', title: carrier.name, cols: 2, height: 2, model: vehicle, highlight: part, accent }
-  const grid = [model, ...toneCards(view === 'part' ? partCards : carrier.cards)]
-
-  return createPortal(
-    <div className={edit.modalRoot}>
-      <button type="button" className={edit.modalBackdrop} aria-label="Close part details" onClick={onClose} />
-      <div
-        className={`${edit.panel} ${edit.modal} ${css.modal}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="gami-part-title"
-        dir="ltr"
-      >
-        <header className={edit.header}>
-          <div className={edit.headerIdentity}>
-            <div className={edit.headerCopy}>
-              <h2 id="gami-part-title" className={edit.title}>
-                {title}
-              </h2>
-              <p className={css.sub}>{sub}</p>
-            </div>
-          </div>
-          <div className={edit.headerActions}>
-            <button type="button" className={edit.closeBtn} onClick={onClose} aria-label="Close part details">
-              <X size={18} weight="bold" aria-hidden />
-            </button>
-          </div>
-        </header>
-
-        <div className={`${edit.segmentedControl} ${css.toggle}`} role="tablist" aria-label="Part details view">
-          {(['part', 'vehicle'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="tab"
-              className={`${edit.segmentedBtn}${view === option ? ` ${edit.segmentedBtnActive}` : ''}`}
-              aria-selected={view === option}
-              onClick={() => setView(option)}
-            >
-              {option === 'part' ? 'The part' : vehicle === 'drone' ? 'The UAV' : 'The Abrams'}
-            </button>
-          ))}
-        </div>
-
-        <div key={view} className={css.scroll}>
-          <div className={css.grid} role="tabpanel">
-            {grid.map((card, index) => (
-              <section
-                key={card.id}
-                className={`${card.kind === 'cell' ? styles.kpiCellCard : styles.visualCard} ${cards.card} ${css.asset}`}
-                style={{ ...gridVars(card, COLUMNS), '--i': index } as CSSProperties}
-              >
-                <GamiCardBody card={card} flat />
-              </section>
-            ))}
-          </div>
-        </div>
-
-        <footer className={edit.assetsFooter}>
-          <p className={edit.assetsHint}>{hint}</p>
-          {action ? (
-            <div className={edit.assetsFooterActions}>
-              <button type="button" className={edit.assetsNext} onClick={action.onClick}>
-                {action.label}
-              </button>
-            </div>
-          ) : null}
-        </footer>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <GamiAssetModal
+      label="part details"
+      title={title}
+      sub={sub}
+      views={[
+        {
+          id: 'part',
+          label: 'The part',
+          cards: [{ id: 'model', kind: 'model', title: LOCAL_PARTS[part].short, cols: 2, height: 2, model: part, accent }, ...partCards],
+        },
+        {
+          id: 'vehicle',
+          label: vehicle === 'drone' ? 'The UAV' : 'The Abrams',
+          cards: [
+            { id: 'model', kind: 'model', title: carrier.name, cols: 2, height: 2, model: vehicle, highlight: part, accent },
+            ...carrier.cards,
+          ],
+        },
+      ]}
+      hint={hint}
+      action={action}
+      onClose={onClose}
+    />
   )
 }
 

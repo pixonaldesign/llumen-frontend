@@ -75,7 +75,13 @@ import type { LandingTellMeMorePayload } from './landing/LandingHomeDefault'
 import { DUMPING_ALERT_BRIEFING, DUMPING_BRIEFING_SOURCES } from './landing/dumpingBriefing'
 import { LandingAskAsset, LandingAskMap, LandingAskStage, type LandingAskStageHandle } from './landing/LandingAskStage'
 import { findingReply, tellMeMorePrompt } from './landing/landingAskReplies'
-import { findingExperience } from './landing/landingFindingExperiences'
+import {
+  findingExperience,
+  GAMI_ASK_ID,
+  GAMI_ASK_PROMPT,
+  GAMI_DIVE_ID,
+  GAMI_DIVE_PROMPT,
+} from './landing/landingFindingExperiences'
 import { CommandPalette } from './CommandPalette'
 import {
   persistComparisonSplit,
@@ -2465,16 +2471,41 @@ export function CompactAssistantDemo() {
     if (!pending || pending.messageId !== messageId) return
     if (componentId !== null && componentId !== pending.stateId) return
     landingAskPendingRef.current = null
-    setLandingAskMap((current) => ({ ...current, open: true }))
     window.clearTimeout(landingAskMapTimer.current)
-    landingAskMapTimer.current = window.setTimeout(() => {
-      setLandingAskMap({
-        open: true,
-        snapshot: pending.snapshot,
-        capture: { stateId: pending.stateId, delay: pending.captureDelay },
-      })
-    }, LANDING_MAP_SETTLE_MS)
+    // The map opens on its annotation, so nothing else shows while it slides in.
+    setLandingAskMap({
+      open: true,
+      snapshot: pending.snapshot,
+      capture: { stateId: pending.stateId, delay: pending.captureDelay + LANDING_MAP_SETTLE_MS },
+    })
   }, [])
+
+  /** A follow-up in the stage that moves its map: the reply joins the conversation and the map follows its card. */
+  const continueLandingAsk = useCallback(
+    (prompt: string, subject: LandingAskSubject) => {
+      if (streaming) return
+      const { reply, stateId, map } = planLandingAsk(subject)
+      setDraft('')
+      setActiveMapStateId(map ? stateId : null)
+      setMessages((current) => [...current, { id: uid(), role: 'user', text: prompt }])
+      const messageId = startAssistantReply(reply)
+      if (map) landingAskPendingRef.current = { messageId, stateId, ...map }
+    },
+    [startAssistantReply, streaming],
+  )
+
+  /** The GAMI demo's second prompt is offered in the stage once its first has put the sites on the map. */
+  const gamiDiveReady =
+    landingAsk !== null &&
+    messages.some((message) => message.role === 'user' && message.text === GAMI_ASK_PROMPT) &&
+    !messages.some((message) => message.role === 'user' && message.text === GAMI_DIVE_PROMPT)
+  const diveGamiAsk = useCallback(
+    () =>
+      continueLandingAsk(GAMI_DIVE_PROMPT, {
+        finding: { id: GAMI_DIVE_ID, title: 'Riyadh–Al Kharj corridor', domain: 'National Performance', finding: GAMI_DIVE_PROMPT },
+      }),
+    [continueLandingAsk],
+  )
 
   /** Back to the landing; the conversation stays in past sessions. */
   const closeLandingAsk = useCallback(() => {
@@ -2596,6 +2627,13 @@ export function CompactAssistantDemo() {
       const slash = parseSlashCommand(text)
       if (landingTakeover && chips.length === 0) {
         const prompt = text.trim()
+        if (prompt === GAMI_ASK_PROMPT) {
+          setFirstResponse(null)
+          runLandingAsk(prompt, {
+            finding: { id: GAMI_ASK_ID, title: 'Defence Industrial Sites', domain: 'National Performance', finding: prompt },
+          })
+          return
+        }
         const demo = parseFirstResponseCommand(prompt)
         // A second prompt while the first answer is up (or still loading) continues full screen.
         if (firstResponse && prompt && !slash && !demo) {
@@ -2684,6 +2722,7 @@ export function CompactAssistantDemo() {
       openLandingAsk,
       firstResponse,
       openFirstResponse,
+      runLandingAsk,
     ],
   )
 
@@ -2970,7 +3009,7 @@ export function CompactAssistantDemo() {
         ref={composerRef}
         value={draft}
         onChange={setDraft}
-        onSend={send}
+        onSend={gamiDiveReady && draft.trim() === GAMI_DIVE_PROMPT ? diveGamiAsk : send}
         onStop={stop}
         sendState={sendVisual}
         showParameters
@@ -2991,8 +3030,10 @@ export function CompactAssistantDemo() {
             />
           ) : null
         }
-        suggestedPrompt={streaming ? undefined : (railComponentPrompt ?? storyAnnotationPrompt)}
-        onSendSuggested={sendRailSuggested}
+        suggestedPrompt={
+          streaming ? undefined : (railComponentPrompt ?? storyAnnotationPrompt ?? (gamiDiveReady ? GAMI_DIVE_PROMPT : undefined))
+        }
+        onSendSuggested={!railComponentPrompt && !storyAnnotationPrompt && gamiDiveReady ? diveGamiAsk : sendRailSuggested}
         onPickLocation={storyPrompts ? openLocationPicker : undefined}
       />
       {locationPickerOpen ? (
@@ -3336,7 +3377,7 @@ export function CompactAssistantDemo() {
                     ? undefined
                     : firstResponse
                       ? FOLLOW_UP_PROMPTS[firstResponse.response.kind]
-                      : LANDING_DEMO_PROMPT
+                      : GAMI_ASK_PROMPT
                 }
               />
           </div>

@@ -341,9 +341,10 @@ function FindingPlaceMap({
   )
 }
 
-/** The story map with whatever the reply annotated on it. */
+/** The story map with whatever the reply annotated on it; nothing until the reply gives it a snapshot. */
 export function LandingAskMap({ snapshot, ...rest }: LandingAskMapProps) {
-  const place = isFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
+  if (!snapshot) return null
+  const place = isFindingPlace(snapshot.findingPlace) ? snapshot.findingPlace : null
   if (place) return <FindingPlaceMap place={place} {...rest} />
   return <ReplyMap snapshot={snapshot} {...rest} />
 }

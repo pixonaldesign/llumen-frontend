@@ -74,6 +74,8 @@ import { GamiCardBody } from './GamiCharts'
 import { GamiFillDelay } from './gamiFill'
 import { GamiMap, type GamiMapHandle } from './GamiMap'
 import { GamiLocalPartModal, GamiPartModal } from './GamiPartModal'
+import { GamiProductModal } from './GamiProductModal'
+import { GamiFacilityModal } from './GamiFacilityModal'
 import { cardClass, cardFootprint, gridSpan, gridVars } from './gamiCardLayout'
 import { GAMI_STORIES } from './gamiScenario'
 import type { GamiCard, GamiPage, LocalPartId, MapDataLayer, PartId } from './gamiTypes'
@@ -124,6 +126,7 @@ const CHART_CATEGORY: Record<GamiCard['kind'], string> = {
   split: 'Distribution',
   donut: 'Distribution',
   table: 'Distribution',
+  inventory: 'Distribution',
 }
 const CHAPTER = 'gami'
 const FILTER_IDS = ['loc', 'year', 'domain']
@@ -375,6 +378,8 @@ export function GamiStoryView({
   const [legendOpen, setLegendOpen] = useState(true)
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NO_GROUPS)
   const [part, setPart] = useState<{ id: LocalPartId; facet: 'stock' | 'local' } | null>(null)
+  const [product, setProduct] = useState<string | null>(null)
+  const [facility, setFacility] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [pageRename, setPageRename] = useState<{ slideId: string; title: string } | null>(null)
   const [columnsBySlide, setColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
@@ -676,6 +681,7 @@ export function GamiStoryView({
       <GamiCardBody
         card={card}
         onPartInfo={(id, facet) => setPart({ id, facet })}
+        onProductInfo={setProduct}
         summaryStatus={summary ? summaryUpdated : undefined}
         summaryTyping={summary && summaryRegenerating}
       />
@@ -1220,6 +1226,7 @@ export function GamiStoryView({
           flat={flat}
           styleUrl={mapStyle.url}
           onReady={onMapReady}
+          onColumnClick={setFacility}
           handleRef={mapRef}
         />
         {grid ? <div className={css.mapTint} aria-hidden /> : null}
@@ -1814,6 +1821,8 @@ export function GamiStoryView({
         />
       ) : null}
       {part?.facet === 'local' ? <GamiLocalPartModal part={part.id} onClose={() => setPart(null)} /> : null}
+      {product ? <GamiProductModal product={product} onClose={() => setProduct(null)} /> : null}
+      {facility ? <GamiFacilityModal site={facility} onClose={() => setFacility(null)} /> : null}
       {part?.facet === 'stock' ? (
         <GamiPartModal
           part={part.id as PartId}

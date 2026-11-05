@@ -1,4 +1,6 @@
-import { PALETTE } from '../gami/gamiTypes'
+import { INVENTORY_TOTALS, PRODUCT_STATUS } from '../gami/gamiInventory'
+import { PLANT_NAME } from '../gami/gamiPlaces'
+import { STATUS } from '../gami/gamiTypes'
 import type { BriefingPlaceId } from './briefingMapPlaces'
 
 type ChartSeries = { name: string; value: string; pct: number; color: string }
@@ -37,21 +39,22 @@ export type FeedStop = {
   chart?: FeedChart
 }
 
-/** Imported line items by stock health; matches the inventory app's Stock Health card. */
+/** The listing's products by status; matches the inventory app's Products by Status card. */
 const STOCK_HEALTH: FeedChart = {
   kind: 'bar',
-  label: 'Imported stock health · 4,280 line items',
-  value: '96 days of cover',
-  series: [
-    { name: 'Healthy', value: '81%', pct: 81, color: PALETTE.diverging[5] },
-    { name: 'Watch', value: '14%', pct: 14, color: PALETTE.diverging[2] },
-    { name: 'Below safety', value: '5%', pct: 5, color: PALETTE.diverging[1] },
-  ],
+  label: `Products by status · ${INVENTORY_TOTALS.products} products`,
+  value: `SAR ${INVENTORY_TOTALS.valueBn}bn held`,
+  series: INVENTORY_TOTALS.byStatus.map(({ status, count }) => ({
+    name: status,
+    value: `${Math.round((count / INVENTORY_TOTALS.products) * 100)}%`,
+    pct: (count / INVENTORY_TOTALS.products) * 100,
+    color: STATUS[PRODUCT_STATUS[status]],
+  })),
 }
 
 /**
  * The Briefing findings: GAMI insights, each on its own place on the map. Inventory has no place, so it
- * shows over the last place's map, blurred.
+ * shows over the last place's map, blurred. The Riyadh plant has no app: Tell Me More only.
  */
 export const FEED_STOPS: FeedStop[] = [
   {
@@ -67,12 +70,21 @@ export const FEED_STOPS: FeedStop[] = [
   {
     id: 'gami-inventory',
     domain: 'Inventory',
-    title: 'Imported Inventory Health',
-    before: 'Imported stock covers 96 days against a 120-day target, and ',
-    highlight: '3 critical UAV parts are cut off',
-    after: ' with Poland’s 20 suspended imports.',
+    title: 'Product Inventory Health',
+    before: `The sector holds ${INVENTORY_TOTALS.products} products worth SAR ${INVENTORY_TOTALS.valueBn}bn, and `,
+    highlight: `${INVENTORY_TOTALS.cutOff} imported from Poland are cut off`,
+    after: `; imported lead times run up to ${INVENTORY_TOTALS.maxLead} months.`,
     storyId: 'gami-inventory',
     chart: STOCK_HEALTH,
+  },
+  {
+    id: 'gami-riyadh-plant',
+    place: 'riyadh-plant',
+    domain: 'Industrial Facilities',
+    title: 'Riyadh Military Plant at Full Capacity',
+    before: `${PLANT_NAME} in Riyadh’s 2nd Industrial City runs at `,
+    highlight: '94% of capacity, the busiest in the Kingdom',
+    after: '; its new Hall B adds 120 armoured vehicles a year from Q2 2027.',
   },
   {
     id: 'gami-localization',

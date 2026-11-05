@@ -1,6 +1,7 @@
 import type { SummaryPart } from '../story/StorySummaryText'
 import type { LngLat } from './gamiGeo'
 import type { GamiMapScene } from './gamiMapLayers'
+import type { GamiModelId } from './gamiModelIds'
 
 /**
  * The Create Asset flow's palettes (the asset builder's `ColorPalette` presets). Cards and map layers
@@ -101,8 +102,8 @@ type CardBase = {
   title: string
   /** `cell` is one 184px square; `full` spans the row. */
   span?: 'full' | 'cell'
-  /** Height in 184px rows. */
-  height?: 1 | 2
+  /** Height in 184px rows; grid layouts take up to 4. */
+  height?: 1 | 2 | 3 | 4
   /** Grid layout only: width in cells (one for `cell` cards, two otherwise). */
   cols?: number
   /** The headline number over a chart, as the story's chart cards show it. */
@@ -180,9 +181,11 @@ export type GamiCard = CardBase &
         unit: string
         stats?: [string, string][]
       }
-    /** A part or vehicle in 3D that turns when dragged; a vehicle lights up `highlight` in red. */
-    | { kind: 'model'; model: LocalPartId | 'drone' | 'tank'; highlight?: LocalPartId; accent: string }
+    /** A part, vehicle, product or plant in 3D that turns when dragged; a vehicle lights up `highlight` in red. */
+    | { kind: 'model'; model: GamiModelId; highlight?: LocalPartId; accent: string }
     | { kind: 'note'; text: string }
+    /** The inventory app's product listing, with its filters (gamiInventory.ts). */
+    | { kind: 'inventory' }
     /** Label and value pairs in two columns. */
     | { kind: 'specs'; items: [string, string][] }
   )
@@ -220,7 +223,7 @@ export type GamiStory = {
   pages: [GamiPage, ...GamiPage[]]
 }
 
-export type GamiPlaceId = 'kingdom' | 'eastern' | 'wds' | 'western'
+export type GamiPlaceId = 'kingdom' | 'eastern' | 'wds' | 'western' | 'riyadh-plant'
 
 export type GamiPart = {
   id: PartId

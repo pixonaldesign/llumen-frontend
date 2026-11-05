@@ -6,9 +6,10 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
-import { STATUS, type LocalPartId } from './gamiTypes'
-
-export type GamiModelId = LocalPartId | 'drone' | 'tank'
+import { loft, materials, mesh, sideExtrude, type Built, type Mats } from './gami3dKit'
+import { isFacility, isProduct, isVehicle, type GamiModelId } from './gamiModelIds'
+import { PRODUCT_MODELS, facility, type FacilityKind } from './gamiProductModels'
+import type { LocalPartId } from './gamiTypes'
 
 type Props = {
   model: GamiModelId
@@ -23,62 +24,6 @@ type Props = {
   highlight?: LocalPartId
   /** Camera distance, as a multiple of the model's fitted size. */
   distance?: number
-}
-
-type Built = { root: THREE.Group; tick?: (t: number) => void }
-
-function materials(accent: string) {
-  const trim = new THREE.Color(accent)
-  return {
-    dark: new THREE.MeshStandardMaterial({ color: 0x2b3038, metalness: 0.85, roughness: 0.38 }),
-    steel: new THREE.MeshStandardMaterial({ color: 0xa7b0bb, metalness: 0.95, roughness: 0.22 }),
-    black: new THREE.MeshStandardMaterial({ color: 0x12151a, metalness: 0.5, roughness: 0.55 }),
-    copper: new THREE.MeshStandardMaterial({ color: 0xc27a3c, metalness: 1, roughness: 0.32 }),
-    paint: new THREE.MeshStandardMaterial({ color: 0xc3c9d1, metalness: 0.35, roughness: 0.48 }),
-    glass: new THREE.MeshPhysicalMaterial({
-      color: 0x0b1424,
-      metalness: 0.1,
-      roughness: 0.04,
-      clearcoat: 1,
-      clearcoatRoughness: 0.05,
-    }),
-    accent: new THREE.MeshStandardMaterial({ color: trim, metalness: 0.3, roughness: 0.4 }),
-    laser: new THREE.MeshStandardMaterial({ color: 0x3a2424, metalness: 0.2, roughness: 0.15 }),
-    rubber: new THREE.MeshStandardMaterial({ color: 0x1b1d21, metalness: 0, roughness: 0.92 }),
-    /** The part a vehicle view points out: the one cut off from Poland. */
-    missing: new THREE.MeshStandardMaterial({
-      color: STATUS.critical,
-      emissive: new THREE.Color(STATUS.critical).multiplyScalar(0.45),
-      metalness: 0.15,
-      roughness: 0.42,
-    }),
-    /** CARC desert tan armour, faceted so plate edges read. */
-    armor: new THREE.MeshStandardMaterial({ color: 0x84734f, metalness: 0.1, roughness: 0.86, flatShading: true, side: THREE.DoubleSide }),
-    tan: new THREE.MeshStandardMaterial({ color: 0x84734f, metalness: 0.1, roughness: 0.8 }),
-    grime: new THREE.MeshStandardMaterial({ color: 0x5f553f, metalness: 0.2, roughness: 0.9 }),
-    iron: new THREE.MeshStandardMaterial({ color: 0x37352f, metalness: 0.75, roughness: 0.55 }),
-    cloth: new THREE.MeshStandardMaterial({ color: 0x7a6b4c, metalness: 0, roughness: 1 }),
-    olive: new THREE.MeshStandardMaterial({ color: 0x55523a, metalness: 0, roughness: 0.95 }),
-    forged: new THREE.MeshStandardMaterial({ color: 0x6f757d, metalness: 0.9, roughness: 0.48 }),
-    armorGlass: new THREE.MeshPhysicalMaterial({
-      color: 0x3d6b66,
-      metalness: 0.05,
-      roughness: 0.05,
-      clearcoat: 1,
-      clearcoatRoughness: 0.04,
-      transparent: true,
-      opacity: 0.78,
-    }),
-    interlayer: new THREE.MeshStandardMaterial({ color: 0xdfe8e6, metalness: 0, roughness: 0.3, transparent: true, opacity: 0.55 }),
-  }
-}
-
-type Mats = ReturnType<typeof materials>
-
-function mesh(geometry: THREE.BufferGeometry, material: THREE.Material, at: [number, number, number] = [0, 0, 0]) {
-  const item = new THREE.Mesh(geometry, material)
-  item.position.set(...at)
-  return item
 }
 
 /** An outrunner brushless motor: cross mount, copper stator, spinning bell and shaft. */
@@ -271,17 +216,6 @@ function drone(m: Mats, highlight?: LocalPartId): Built {
   }
 }
 
-const bevel = (size: number) => ({ bevelEnabled: true, bevelSize: size, bevelThickness: size, bevelSegments: 2 })
-
-/** A side profile, given as (z, y) points, extruded `width` across x and centred on it. */
-function sideExtrude(points: [number, number][], width: number, edge = 0.01) {
-  const shape = new THREE.Shape(points.map(([z, y]) => new THREE.Vector2(-z, y)))
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: width - edge * 2, ...bevel(edge) })
-  geometry.rotateY(Math.PI / 2)
-  geometry.translate(-width / 2 + edge, 0, 0)
-  return geometry
-}
-
 /** Three linked Abrams track shoes, rubber pads up: the pads are what the Kingdom makes. */
 function trackPad(m: Mats): Built {
   const root = new THREE.Group()
@@ -410,27 +344,6 @@ function forging(m: Mats): Built {
   root.add(mesh(new THREE.TorusGeometry(0.19, 0.014, 8, 48).rotateY(Math.PI / 2), m.accent, [0.72, -0.16, 0.6]))
   root.add(mesh(new RoundedBoxGeometry(0.02, 0.06, 0.4, 1, 0.008), m.accent, [0.17, 0.06, 0.02]))
   return { root }
-}
-
-/** A solid between two plan outlines, (x, z) points in the same order: `bottom` at y0, `top` at y1. */
-function loft(bottom: [number, number][], top: [number, number][], y0: number, y1: number) {
-  const low = bottom.map(([x, z]) => new THREE.Vector3(x, y0, z))
-  const high = top.map(([x, z]) => new THREE.Vector3(x, y1, z))
-  const points: THREE.Vector3[] = []
-  low.forEach((a, i) => {
-    const j = (i + 1) % low.length
-    points.push(a, low[j], high[j], a, high[j], high[i])
-  })
-  for (const [ring, outline] of [
-    [low, bottom],
-    [high, top],
-  ] as const) {
-    const flat = outline.map(([x, z]) => new THREE.Vector2(x, z))
-    for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(flat, [])) points.push(ring[a], ring[b], ring[c])
-  }
-  const geometry = new THREE.BufferGeometry().setFromPoints(points)
-  geometry.computeVertexNormals()
-  return geometry
 }
 
 const TRACK_X = 1.51
@@ -771,6 +684,8 @@ function tank(m: Mats, highlight?: LocalPartId): Built {
 }
 
 function build(model: GamiModelId, m: Mats, highlight?: LocalPartId): Built {
+  if (isFacility(model)) return facility(m, model.slice('facility-'.length) as FacilityKind)
+  if (isProduct(model)) return PRODUCT_MODELS[model](m)
   if (model === 'motor') return motor(m)
   if (model === 'gimbal') return gimbal(m)
   if (model === 'inu') return inu(m)
@@ -782,7 +697,15 @@ function build(model: GamiModelId, m: Mats, highlight?: LocalPartId): Built {
   return drone(m, highlight)
 }
 
-const isVehicle = (model: GamiModelId) => model === 'drone' || model === 'tank'
+/** Stands on the ground: seen from just above, and never turned over. */
+const grounded = (model: GamiModelId) => model === 'tank' || (isProduct(model) && model !== 'helicopter')
+
+function startTilt(model: GamiModelId) {
+  if (isFacility(model)) return 0.5
+  if (grounded(model)) return 0.04
+  if (model === 'helicopter') return 0.22
+  return isVehicle(model) ? 0.42 : 0.28
+}
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -821,7 +744,7 @@ export function Gami3DModel({ model, accent, className, spin = 0.5, interactive 
     built.root.position.sub(sphere.center)
     pivot.add(built.root)
     pivot.scale.setScalar(1 / sphere.radius)
-    pivot.rotation.x = model === 'tank' ? 0.04 : isVehicle(model) ? 0.42 : 0.28
+    pivot.rotation.x = startTilt(model)
     scene.add(pivot)
 
     const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50)
@@ -847,10 +770,10 @@ export function Gami3DModel({ model, accent, className, spin = 0.5, interactive 
     const seen = new IntersectionObserver(([entry]) => (visible = entry.isIntersecting))
     seen.observe(host)
 
-    let turn = model === 'tank' ? 2.2 : model === 'drone' ? -0.7 : 0.5
+    let turn = grounded(model) || isFacility(model) ? 2.2 : model === 'drone' ? -0.7 : 0.5
     let dragging: { x: number; y: number } | null = null
     let tilt = pivot.rotation.x
-    const minTilt = model === 'tank' ? -0.04 : -0.6
+    const minTilt = grounded(model) || isFacility(model) ? -0.04 : -0.6
     const down = (event: PointerEvent) => {
       dragging = { x: event.clientX, y: event.clientY }
       host.setPointerCapture(event.pointerId)

@@ -1,0 +1,312 @@
+.root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.search {
+  flex: 0 1 280px;
+  min-width: 180px;
+  padding-block: 6px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.search input::placeholder {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search:focus-within {
+  border-color: rgba(112, 174, 255, 0.6);
+}
+
+.toolbar > button {
+  padding-block: 6px;
+  font-size: 13px;
+}
+
+.filterLabel {
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.filterSet.filterSet {
+  border-color: rgba(112, 174, 255, 0.5);
+  background: rgba(112, 174, 255, 0.16);
+}
+
+.count {
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.clear.clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.clear:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.menu {
+  max-height: 360px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+/* Runs out to the card's right and bottom edges so the thumb sits on the border; rows keep the inset. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  margin: 0 -12px -12px 0;
+  padding: 0;
+  overflow: auto;
+  overflow: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+@supports selector(::-webkit-scrollbar) {
+  .scroll {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.scroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+  height: var(--lc-scrollbar-size, 4px);
+}
+
+.scroll::-webkit-scrollbar-track,
+.scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.table {
+  display: grid;
+  grid-template-columns:
+    minmax(200px, 1.6fr) minmax(84px, 0.6fr) minmax(84px, 0.6fr) minmax(96px, 0.7fr) minmax(170px, 1.3fr)
+    minmax(76px, 0.6fr) minmax(84px, 0.6fr) minmax(120px, 0.8fr) minmax(72px, 0.5fr) minmax(84px, 0.6fr) 32px;
+  column-gap: 12px;
+  min-width: 1180px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.head,
+.row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding-right: 12px;
+}
+
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(26, 26, 26, 0.92);
+  white-space: nowrap;
+}
+
+.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 0 8px;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.48);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sort:hover,
+.sortActive {
+  color: #fff;
+}
+
+.sort.numeric {
+  justify-content: flex-end;
+}
+
+.row {
+  min-height: 44px;
+  color: rgba(255, 255, 255, 0.82);
+  white-space: nowrap;
+}
+
+.row + .row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product {
+  display: flex;
+  flex-direction: column;
+  padding-block: 6px;
+}
+
+.product b {
+  overflow: hidden;
+  color: #fff;
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.product small {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.maker {
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.local,
+.imported {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.local {
+  background: rgba(69, 205, 185, 0.16);
+  color: #94e8dc;
+}
+
+.imported {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.readiness {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.readiness > i {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.readiness > i > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status i {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.info {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(112, 174, 255, 0.14);
+  color: #a8c9fa;
+  cursor: pointer;
+}
+
+.info:hover {
+  background: rgba(112, 174, 255, 0.28);
+  color: #fff;
+}
+
+.info:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 1px;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 24px 0;
+  color: rgba(255, 255, 255, 0.56);
+  text-align: center;
+}

@@ -11,7 +11,17 @@ import './gamiMap.css'
 /** What a column or disk's hover tooltip reads. */
 export type GamiTip = { title: string; rows?: [string, string][] }
 
-export type GamiColumn = { at: LngLat; height: number; color: string; group: string; tip?: GamiTip }
+export type GamiColumn = {
+  /** Set on columns that open details when clicked. */
+  id?: string
+  at: LngLat
+  height: number
+  color: string
+  group: string
+  tip?: GamiTip
+  /** A building's footprint, raised in place of the round column. */
+  ring?: LngLat[]
+}
 export type GamiDisk = { at: LngLat; radiusM: number; color: string; group: string; tip?: GamiTip }
 export type GamiArc = { from: LngLat; to: LngLat; color: string; width?: number; opacity?: number; group: string }
 export type GamiHeatPoint = { at: LngLat; weight: number; group: string }
@@ -187,8 +197,13 @@ export function drawGamiScene(
     type: 'FeatureCollection',
     features: shown(scene.columns).map((column) => ({
       type: 'Feature',
-      properties: { height: column.height * grow * lift, color: column.color, tip: column.tip ? JSON.stringify(column.tip) : null },
-      geometry: { type: 'Polygon', coordinates: [cachedCircle(column, column.at, scene.columnRadiusM, 16)] },
+      properties: {
+        id: column.id ?? null,
+        height: column.height * grow * lift,
+        color: column.color,
+        tip: column.tip ? JSON.stringify(column.tip) : null,
+      },
+      geometry: { type: 'Polygon', coordinates: [column.ring ?? cachedCircle(column, column.at, scene.columnRadiusM, 16)] },
     })),
   })
   setData(map, id.disks, {
@@ -215,12 +230,14 @@ function escapeHtml(text: string) {
   return text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`)
 }
 
-/** A tooltip's markup: the title, then label and value rows. */
-export function gamiTipHtml(tip: GamiTip) {
+/** A tooltip's markup: the title, then label and value rows, then `hint` (what a click does). */
+export function gamiTipHtml(tip: GamiTip, hint?: string) {
   const rows = (tip.rows ?? [])
     .map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`)
     .join('')
-  return `<p class="gami-tip-title">${escapeHtml(tip.title)}</p>${rows ? `<dl class="gami-tip-rows">${rows}</dl>` : ''}`
+  return `<p class="gami-tip-title">${escapeHtml(tip.title)}</p>${rows ? `<dl class="gami-tip-rows">${rows}</dl>` : ''}${
+    hint ? `<p class="gami-tip-hint">${escapeHtml(hint)}</p>` : ''
+  }`
 }
 
 const LABEL_ANCHOR = {

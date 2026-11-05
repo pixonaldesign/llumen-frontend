@@ -40,7 +40,7 @@ export const MAP = {
   area: '#70aeff',
 } as const
 
-type Site = {
+export type GamiSite = {
   id: string
   name: string
   city: string
@@ -51,7 +51,7 @@ type Site = {
   risk?: boolean
 }
 
-export const SITES: Site[] = [
+export const SITES: GamiSite[] = [
   { id: 'riyadh-uav', name: 'Riyadh UAV Integration Facility', city: 'Riyadh', at: [46.83, 24.78], domain: 'air', companies: 34, employees: 4200, risk: true },
   { id: 'alkharj-uav', name: 'Al-Kharj UAV Components Plant', city: 'Al-Kharj', at: [47.36, 24.17], domain: 'air', companies: 21, employees: 2600, risk: true },
   { id: 'riyadh-electronics', name: 'Riyadh Defense Electronics Park', city: 'Riyadh', at: [46.58, 24.92], domain: 'electronics', companies: 58, employees: 7900 },
@@ -86,8 +86,9 @@ const ZONES: { name: string; city: string; at: LngLat; landKm2: number }[] = [
 
 const MAX_EMPLOYEES = 7900
 
-function siteColumn(item: Site, maxHeight: number, group: string): GamiColumn {
+function siteColumn(item: GamiSite, maxHeight: number, group: string): GamiColumn {
   return {
+    id: item.id,
     at: item.at,
     height: maxHeight * (0.25 + 0.75 * (item.employees / MAX_EMPLOYEES)),
     color: item.risk ? MAP.critical : rampAt(MAP.siteRamp, 0.35 + 0.65 * (item.employees / MAX_EMPLOYEES)),
@@ -137,24 +138,30 @@ const RISK_LABEL: GamiLabel = {
 
 export const KINGDOM_STORY_SCENE = scene({ ...KINGDOM_SCENE, labels: [RISK_LABEL] })
 
-const CORRIDOR_PLACES: { name: string; at: LngLat; employees: number; risk?: boolean; domain: Domain }[] = [
-  { name: 'Riyadh UAV Integration Facility', at: site('riyadh-uav').at, employees: 4200, risk: true, domain: 'air' },
-  { name: 'Al-Kharj UAV Components Plant', at: site('alkharj-uav').at, employees: 2600, risk: true, domain: 'air' },
-  { name: 'Riyadh Defense Electronics Park', at: site('riyadh-electronics').at, employees: 7900, domain: 'electronics' },
-  { name: 'Al-Kharj Armament Complex', at: site('alkharj-armament').at, employees: 6800, domain: 'armament' },
-  { name: 'Riyadh 2nd Industrial City', at: [46.86, 24.58], employees: 5200, domain: 'electronics' },
-  { name: 'Riyadh 3rd Industrial City', at: [47.02, 24.42], employees: 3100, domain: 'land' },
-  { name: 'Al-Kharj Industrial City', at: [47.55, 24.3], employees: 2300, domain: 'armament' },
-  { name: 'Diriyah Avionics Workshop', at: [46.5, 24.72], employees: 1800, domain: 'air' },
-  { name: 'Al-Muzahmiyah Test Range', at: [46.25, 24.47], employees: 900, domain: 'armament' },
-  { name: 'North Riyadh Aviation Park', at: [46.72, 25.08], employees: 2200, domain: 'air' },
+/** The corridor's places that are not national sites. */
+const CORRIDOR_SITES: GamiSite[] = [
+  { id: 'riyadh-2nd', name: 'Riyadh 2nd Industrial City', city: 'Riyadh', at: [46.86, 24.58], domain: 'electronics', companies: 46, employees: 5200 },
+  { id: 'riyadh-3rd', name: 'Riyadh 3rd Industrial City', city: 'Riyadh', at: [47.02, 24.42], domain: 'land', companies: 28, employees: 3100 },
+  { id: 'alkharj-city', name: 'Al-Kharj Industrial City', city: 'Al-Kharj', at: [47.55, 24.3], domain: 'armament', companies: 19, employees: 2300 },
+  { id: 'diriyah-avionics', name: 'Diriyah Avionics Workshop', city: 'Diriyah', at: [46.5, 24.72], domain: 'air', companies: 9, employees: 1800 },
+  { id: 'muzahmiyah-range', name: 'Al-Muzahmiyah Test Range', city: 'Al-Muzahmiyah', at: [46.25, 24.47], domain: 'armament', companies: 4, employees: 900 },
+  { id: 'north-riyadh-aviation', name: 'North Riyadh Aviation Park', city: 'Riyadh', at: [46.72, 25.08], domain: 'air', companies: 15, employees: 2200 },
 ]
+
+const CORRIDOR_PLACES: GamiSite[] = [
+  ...['riyadh-uav', 'alkharj-uav', 'riyadh-electronics', 'alkharj-armament'].map(site),
+  ...CORRIDOR_SITES,
+]
+
+/** Every site a map column stands for, by its column's id. */
+export const FACILITY_SITES: ReadonlyMap<string, GamiSite> = new Map([...SITES, ...CORRIDOR_SITES].map((item) => [item.id, item]))
 
 export const CORRIDOR_CAMERA: GamiCamera = { center: [46.95, 24.52], zoom: 7.6, pitch: 54, bearing: 24 }
 
 export const CORRIDOR_SCENE = scene({
   columnRadiusM: 1600,
   columns: CORRIDOR_PLACES.map((place) => ({
+    id: place.id,
     at: place.at,
     height: 18000 + 52000 * (place.employees / MAX_EMPLOYEES),
     color: place.risk ? MAP.critical : rampAt(MAP.siteRamp, 0.35 + 0.65 * (place.employees / MAX_EMPLOYEES)),
@@ -746,6 +753,72 @@ export const LOCAL_SCENE = scene({
   ],
 })
 
+/* ---------- Finding 3: a military plant in Riyadh, building by building ---------- */
+
+/** The plant's buildings, set apart from the sites' teal. */
+export const PLANT_COLOR = PALETTE.purple[2]
+export const PLANT_NAME = 'Al-Yamamah Defence Systems Plant'
+const PLANT_AT: LngLat = [46.8408, 24.5893]
+const PLANT_ANGLE = 18
+
+/** A `w` by `h` metre footprint, `east` and `north` metres from the plant's centre, turned with the campus. */
+function footprint(east: number, north: number, w: number, h: number): LngLat[] {
+  const rad = (PLANT_ANGLE * Math.PI) / 180
+  const turn = (x: number, y: number): [number, number] => [x * Math.cos(rad) - y * Math.sin(rad), x * Math.sin(rad) + y * Math.cos(rad)]
+  const corners: [number, number][] = [
+    [-w / 2, -h / 2],
+    [w / 2, -h / 2],
+    [w / 2, h / 2],
+    [-w / 2, h / 2],
+    [-w / 2, -h / 2],
+  ]
+  return corners.map(([x, y]) => {
+    const [dx, dy] = turn(east + x, north + y)
+    return offsetKm(PLANT_AT, dx / 1000, dy / 1000)
+  })
+}
+
+const PLANT_BUILDINGS: { name: string; use: string; east: number; north: number; w: number; h: number; heightM: number; shade: number }[] = [
+  { name: 'Assembly Hall A', use: 'Armoured vehicle final assembly', east: 0, north: 0, w: 260, h: 120, heightM: 34, shade: 2 },
+  { name: 'Assembly Hall B', use: 'Expansion · opens Q2 2027', east: 10, north: -150, w: 220, h: 90, heightM: 26, shade: 3 },
+  { name: 'Engineering Centre', use: 'Design, test and quality', east: -205, north: 40, w: 90, h: 54, heightM: 44, shade: 1 },
+  { name: 'Proof & Test Building', use: 'Weapon station and vehicle test', east: 195, north: 55, w: 84, h: 84, heightM: 20, shade: 3 },
+  { name: 'Parts Warehouse', use: 'Inbound parts and kits', east: -175, north: -150, w: 120, h: 70, heightM: 16, shade: 4 },
+  { name: 'Energetics Store 1', use: 'Munitions storage', east: 205, north: -120, w: 26, h: 26, heightM: 7, shade: 4 },
+  { name: 'Energetics Store 2', use: 'Munitions storage', east: 250, north: -120, w: 26, h: 26, heightM: 7, shade: 4 },
+  { name: 'Energetics Store 3', use: 'Munitions storage', east: 295, north: -120, w: 26, h: 26, heightM: 7, shade: 4 },
+]
+
+/** Close over Riyadh's 2nd Industrial City, tilted so the halls stand up. */
+export const PLANT_CAMERA: GamiCamera = { center: PLANT_AT, zoom: 16, pitch: 62, bearing: 34 }
+
+export const PLANT_SCENE = scene({
+  columns: PLANT_BUILDINGS.map((building) => ({
+    at: offsetKm(PLANT_AT, building.east / 1000, building.north / 1000),
+    ring: footprint(building.east, building.north, building.w, building.h),
+    height: building.heightM,
+    color: PALETTE.purple[building.shade],
+    group: 'plant',
+    tip: {
+      title: building.name,
+      rows: [
+        ['Plant', 'Al-Yamamah'],
+        ['Use', building.use],
+        ['Floor area', `${Math.round((building.w * building.h) / 100) * 100} m²`],
+      ],
+    },
+  })),
+  labels: [
+    {
+      at: offsetKm(PLANT_AT, 0.02, 0.06),
+      title: PLANT_NAME,
+      text: 'Military plant · 94% of capacity',
+      side: 'top',
+      group: 'plant',
+    },
+  ],
+})
+
 /* ---------- Briefing places ---------- */
 
 export type GamiPlace = { id: GamiPlaceId; camera: GamiCamera; scene: ReturnType<typeof scene> }
@@ -755,4 +828,5 @@ export const GAMI_PLACES: Record<GamiPlaceId, GamiPlace> = {
   eastern: { id: 'eastern', camera: EASTERN_CAMERA, scene: EASTERN_SCENE },
   wds: { id: 'wds', camera: WDS_CAMERA, scene: WDS_SCENE },
   western: { id: 'western', camera: WESTERN_CAMERA, scene: WESTERN_SCENE },
+  'riyadh-plant': { id: 'riyadh-plant', camera: PLANT_CAMERA, scene: PLANT_SCENE },
 }

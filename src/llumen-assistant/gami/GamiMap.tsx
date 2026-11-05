@@ -61,6 +61,7 @@ export function GamiMap({
   styleUrl = STORY_MAP_STYLE,
   controlsClassName,
   onReady,
+  onColumnClick,
   handleRef,
 }: {
   className?: string
@@ -81,6 +82,8 @@ export function GamiMap({
   styleUrl?: string
   controlsClassName?: string
   onReady?: (stage: 'loaded' | 'painted') => void
+  /** A click on a column with an id; its tooltip says it opens details. */
+  onColumnClick?: (id: string) => void
   handleRef?: Ref<GamiMapHandle>
 }) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -105,10 +108,12 @@ export function GamiMap({
   const liftTweenRef = useRef(0)
   const styleRef = useRef(styleUrl)
   const onReadyRef = useRef(onReady)
+  const onColumnClickRef = useRef(onColumnClick)
 
   useEffect(() => {
     onReadyRef.current = onReady
-  }, [onReady])
+    onColumnClickRef.current = onColumnClick
+  }, [onReady, onColumnClick])
 
   useImperativeHandle(handleRef, () => ({
     view: () => {
@@ -231,23 +236,34 @@ export function GamiMap({
       tipKey = null
       map.getCanvas().style.cursor = ''
     }
-    const onMove = (event: mapboxgl.MapMouseEvent) => {
+    const featureAt = (point: mapboxgl.Point) => {
       const layers = gamiTipLayers(PREFIX).filter((id) => map.getLayer(id))
-      const feature = layers.length
-        ? map.queryRenderedFeatures(event.point, { layers }).find((item) => item.properties?.tip)
-        : undefined
+      return layers.length ? map.queryRenderedFeatures(point, { layers }).find((item) => item.properties?.tip) : undefined
+    }
+    const clickableId = (feature: mapboxgl.GeoJSONFeature | undefined) =>
+      onColumnClickRef.current && feature?.properties?.id ? String(feature.properties.id) : null
+    const onMove = (event: mapboxgl.MapMouseEvent) => {
+      const feature = featureAt(event.point)
       if (!feature) return hideTip()
+      const clickable = Boolean(clickableId(feature))
       const raw = String(feature.properties?.tip)
-      if (raw !== tipKey) {
-        tip.innerHTML = gamiTipHtml(JSON.parse(raw) as GamiTip)
-        tipKey = raw
+      const key = `${raw}${clickable}`
+      if (key !== tipKey) {
+        tip.innerHTML = gamiTipHtml(JSON.parse(raw) as GamiTip, clickable ? 'Click for facility details' : undefined)
+        tipKey = key
       }
       tip.hidden = false
       tip.style.left = `${event.point.x}px`
       tip.style.top = `${event.point.y}px`
-      map.getCanvas().style.cursor = 'default'
+      map.getCanvas().style.cursor = clickable ? 'pointer' : 'default'
     }
     map.on('mousemove', onMove)
+    map.on('click', (event) => {
+      const id = clickableId(featureAt(event.point))
+      if (!id) return
+      hideTip()
+      onColumnClickRef.current?.(id)
+    })
     map.on('mouseout', hideTip)
     map.on('movestart', hideTip)
 

@@ -10,12 +10,21 @@ import type {
   ThinkingStep,
   TimelineStep,
 } from '../assistantReplyTypes'
+import { INVENTORY_TOTALS, sar, valueByOrigin } from '../gami/gamiInventory'
+import { DOMAIN_LABEL, PLANT_NAME, SITES } from '../gami/gamiPlaces'
 import { GAMI_STORIES } from '../gami/gamiScenario'
 import { PALETTE, STATUS, type GamiPage } from '../gami/gamiTypes'
 import { BRIEFING_PLACES, type BriefingPlaceId } from './briefingMapPlaces'
 
-/** A Briefing place, or the Poland alert's Türkiye bridge. */
-export type FindingStageId = BriefingPlaceId | 'alert'
+/** A Briefing place, the Poland alert's Türkiye bridge, or every site across the Kingdom. */
+export type FindingStageId = BriefingPlaceId | 'alert' | 'kingdom-sites'
+
+/** Typed into the Briefing's AI bar on the first keystroke: opens the stage on the Kingdom's sites. */
+export const GAMI_ASK_PROMPT = 'Map the Kingdom’s defence industrial sites and show which are at risk from the Poland supply cut'
+/** Offered in the stage's chat box once the sites are on the map: dives into the corridor at risk. */
+export const GAMI_DIVE_PROMPT = 'Zoom into the Riyadh–Al Kharj UAV sites and chart what is at risk'
+export const GAMI_ASK_ID = 'gami-ask'
+export const GAMI_DIVE_ID = 'gami-dive'
 
 export type FindingMap = { place: FindingStageId; title: string; tag: string; meta: string }
 
@@ -26,16 +35,30 @@ export type FindingExperience = {
 }
 
 export function isFindingPlace(id: string | undefined): id is FindingStageId {
-  return id === 'alert' || (id !== undefined && id in BRIEFING_PLACES)
+  return id === 'alert' || id === 'kingdom-sites' || (id !== undefined && id in BRIEFING_PLACES)
+}
+
+const placePages = new Map<BriefingPlaceId, GamiPage>()
+
+/** A place without a story of its own: its Briefing camera and scene, with nothing outlined. */
+function placePage(place: BriefingPlaceId): GamiPage {
+  let page = placePages.get(place)
+  if (!page) {
+    const { camera, scene } = BRIEFING_PLACES[place]
+    page = { id: place, title: '', finding: '', camera, scene, polygons: [], filters: [], cards: [], layers: [] }
+    placePages.set(place, page)
+  }
+  return page
 }
 
 /** The map Tell Me More opens for a place: its story's second page, with that page's outlined area. */
 export function findingStage(place: FindingStageId): GamiPage {
   if (place === 'alert') return GAMI_STORIES['gami-alert'].pages[1]
+  if (place === 'kingdom-sites') return GAMI_STORIES['gami-overview'].pages[0]
   const story = Object.values(GAMI_STORIES).find(
     (item) => item.place === place && item.id !== 'gami-alert' && item.layout !== 'grid',
   )
-  return (story ?? GAMI_STORIES['gami-overview']).pages[1]
+  return story ? story.pages[1] : placePage(place)
 }
 
 function timeline(steps: ThinkingStep[]): TimelineStep[] {
@@ -203,7 +226,160 @@ const polandAlert = () =>
     map: { place: 'alert', title: 'Drone Supply: Bridge Through Türkiye · on the map', tag: 'Anatolia', meta: '1 area outlined' },
   })
 
+const SITE_EMPLOYEES = SITES.reduce((total, item) => total + item.employees, 0)
+const SITE_COMPANIES = SITES.reduce((total, item) => total + item.companies, 0)
+const AT_RISK = SITES.filter((item) => item.risk)
+const thousands = (count: number) => count.toLocaleString('en-US')
+
+/** The AI bar's GAMI demo: every site on the Kingdom's map, then the corridor at risk. */
+const gamiAsk = () =>
+  experience({
+    id: 'gami-ask',
+    read: 'Reading the national register of defence industrial sites…',
+    search: 'Matching each site’s suppliers to the 20 suspended Poland export permits…',
+    reason: 'Placing the sites on the map by workforce…',
+    headline: `${SITES.length} defence industrial sites across the Kingdom; the ${AT_RISK.length} UAV sites near Riyadh are at risk.`,
+    headlineDetail: 'Mapped every site as a column, its height the workforce; the sites at risk are in red.',
+    intro: `The Kingdom has ${SITES.length} defence industrial sites, with ${thousands(SITE_EMPLOYEES)} employees across ${SITE_COMPANIES} companies. ${AT_RISK.map((item) => item.name).join(' and ')} take parts from Poland, whose export permits are suspended.`,
+    sections: [
+      {
+        heading: 'On the map',
+        text: 'Each column is a site and its height the workforce. Riyadh and Al-Kharj hold the most, and the two red columns between them are the UAV sites at risk. Hover a column for its figures.',
+      },
+      {
+        heading: 'Workforce by domain',
+        text: 'Air employs the most people, and both sites at risk are air sites; land and armament follow.',
+        chart: chartComponent(
+          'gami-ask-domains',
+          {
+            type: 'bars',
+            title: 'Employees by domain',
+            value: thousands(SITE_EMPLOYEES),
+            unit: 'employees',
+            color: PALETTE.teal[2],
+            rows: barRows(
+              (['air', 'land', 'armament', 'electronics', 'naval'] as const)
+                .map((domain): [string, number, string] => {
+                  const count = SITES.filter((item) => item.domain === domain).reduce((total, item) => total + item.employees, 0)
+                  return [DOMAIN_LABEL[domain], count, thousands(count)]
+                })
+                .sort((a, b) => b[1] - a[1]),
+            ),
+          },
+          'People employed at the national defence industrial sites.',
+        ),
+      },
+      {
+        heading: 'What is at risk',
+        text: `Together the two UAV sites employ ${thousands(AT_RISK.reduce((total, item) => total + item.employees, 0))} people and build every national UAV programme. Their motor stock runs out first, in 41 days.`,
+        chart: chartComponent(
+          'gami-ask-stock',
+          {
+            type: 'bars',
+            title: 'Days of stock left',
+            value: '41 days',
+            unit: 'propulsion motors',
+            color: STATUS.critical,
+            rows: barRows([
+              ['Propulsion motors', 41, '41 days'],
+              ['EO/IR gimbals', 47, '47 days'],
+              ['Navigation units', 58, '58 days'],
+            ]),
+          },
+          'Stock left at the two UAV sites, at the current build rate.',
+        ),
+      },
+    ],
+    map: { place: 'kingdom-sites', title: 'Defence Industrial Sites · on the map', tag: 'Saudi Arabia', meta: `${SITES.length} sites, ${AT_RISK.length} at risk` },
+  })
+
+const gamiDive = () =>
+  experience({
+    id: 'gami-dive',
+    read: 'Reading the corridor’s sites, companies and supplier links…',
+    search: 'Tracing which UAV programmes run through the two sites at risk…',
+    reason: 'Outlining the corridor and charting the exposure…',
+    headline: 'The Riyadh–Al Kharj corridor holds 248 companies; its UAV output falls 38% by October without a bridge supplier.',
+    headlineDetail: 'Zoomed into the corridor and outlined it: 10 places, 2 of them at risk.',
+    intro:
+      'Between Riyadh and Al-Kharj sit 10 defence sites and industrial cities, 248 of the 602 licensed companies and SAR 7.9bn of this year’s investment. Both UAV sites at risk are here, about 70 km apart.',
+    sections: [
+      {
+        heading: 'On the map',
+        text: 'The outline runs from the Riyadh Defense Electronics Park to the Al-Kharj Armament Complex. The red columns and rings are the two UAV sites; the teal columns are the other sites by workforce.',
+      },
+      {
+        heading: 'Workforce in the corridor',
+        text: 'The electronics park and the armament complex are the largest employers. The two UAV sites rank fourth and sixth.',
+        chart: chartComponent(
+          'gami-dive-workforce',
+          {
+            type: 'bars',
+            title: 'Employees by site',
+            value: '6,800',
+            unit: 'at the two UAV sites',
+            color: PALETTE.teal[2],
+            rows: barRows([
+              ['Riyadh Defense Electronics Park', 7900, '7,900'],
+              ['Al-Kharj Armament Complex', 6800, '6,800'],
+              ['Riyadh 2nd Industrial City', 5200, '5,200'],
+              ['Riyadh UAV Integration Facility', 4200, '4,200'],
+              ['Riyadh 3rd Industrial City', 3100, '3,100'],
+              ['Al-Kharj UAV Components Plant', 2600, '2,600'],
+            ]),
+          },
+          'People employed at the corridor’s largest places.',
+        ),
+      },
+      {
+        heading: 'UAV output',
+        text: 'Deliveries from the two sites hold to July, then fall as Polish motor and gimbal stock runs down.',
+        chart: chartComponent(
+          'gami-dive-output',
+          {
+            type: 'trend',
+            title: 'UAV deliveries, both sites',
+            value: '−38%',
+            unit: 'by October, without a bridge',
+            color: STATUS.critical,
+            yLabels: ['110', '80', '50'],
+            xLabels: ['Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+            line: trendLine([100, 101, 88, 74, 62], 50, 110),
+          },
+          'Monthly UAV deliveries, indexed to June.',
+        ),
+      },
+      {
+        heading: 'Programmes exposed',
+        text: 'Najm takes most of the shortfall: 1,240 of the 2,160 deliveries that would slip in 2027.',
+        chart: chartComponent(
+          'gami-dive-programmes',
+          {
+            type: 'bars',
+            title: 'Deliveries at risk in 2027',
+            value: '2,160',
+            unit: 'UAV deliveries',
+            color: STATUS.critical,
+            rows: barRows([
+              ['Najm', 1240, '1,240'],
+              ['Sahm', 610, '610'],
+              ['Rimah', 310, '310'],
+            ]),
+          },
+          'Deliveries each UAV programme would miss if motor stock runs out.',
+        ),
+      },
+      {
+        heading: 'Recommended action',
+        text: 'Place the Türkiye bridge orders this week and route the first Ankara motors to Al-Kharj. That holds the corridor’s UAV output within 5% of plan.',
+      },
+    ],
+    map: { place: 'kingdom', title: 'Riyadh–Al Kharj corridor · on the map', tag: 'Riyadh–Al Kharj', meta: '1 area outlined · 2 sites at risk' },
+  })
+
 const EXPERIENCES: Record<string, () => FindingExperience> = {
+  [GAMI_ASK_ID]: gamiAsk,
+  [GAMI_DIVE_ID]: gamiDive,
   'poland-motor-alert': polandAlert,
   'poland-gimbal-alert': polandAlert,
   'poland-inu-alert': polandAlert,
@@ -271,40 +447,36 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
   'gami-inventory': () =>
     experience({
       id: 'finding-gami-inventory',
-      read: 'Reading stock levels for the 4,280 imported line items…',
-      search: 'Matching each item to its supplier country, open orders and delivery history…',
-      reason: 'Ranking the items closest to running out…',
-      headline: 'Stock is 24 days short of target, and Poland’s cut-off decides where it runs out first.',
-      headlineDetail: 'Inventory is not on the map: the answer is in its stock, by the country it comes from.',
-      intro:
-        'GAMI holds SAR 18.4bn of imported parts and weapons across 4,280 line items. Cover averages 96 days against a 120-day target, and 214 items are below safety stock.',
+      read: `Reading the national inventory register: ${INVENTORY_TOTALS.products} products across five domains…`,
+      search: 'Matching each product to its maker, origin, open orders and delivery history…',
+      reason: 'Ranking the products whose supply is most at risk…',
+      headline: `The sector holds SAR ${INVENTORY_TOTALS.valueBn}bn of products; the ${INVENTORY_TOTALS.cutOff} from Poland decide where readiness falls first.`,
+      headlineDetail: 'Inventory is not on the map: the answer is in its listing, by domain and origin.',
+      intro: `The inventory lists ${INVENTORY_TOTALS.products} weapons, vehicles and systems worth SAR ${INVENTORY_TOTALS.valueBn}bn, ${INVENTORY_TOTALS.localShare}% of it made in the Kingdom. Readiness averages ${INVENTORY_TOTALS.readiness}%, and ${INVENTORY_TOTALS.cutOff} products imported from Poland are cut off.`,
       sections: [
         {
-          heading: 'Where the stock comes from',
-          text: 'The USA supplies 44% of it, with 118 days of cover and every route open. Poland is 4%, but all 20 of its routes are suspended and its cover has fallen to 63 days.',
+          heading: 'Where it comes from',
+          text: 'Most of the value is imported, led by the USA. Poland is a small share of the value, but every one of its products is cut off.',
           chart: chartComponent(
             'finding-gami-inventory-countries',
             {
               type: 'bars',
-              title: 'Inventory by country',
-              value: 'SAR 18.4bn',
-              unit: 'in stock',
+              title: 'Inventory by origin',
+              value: `SAR ${INVENTORY_TOTALS.valueBn}bn`,
+              unit: 'held',
               color: PALETTE.blue[3],
-              rows: barRows([
-                ['USA', 8.1, 'SAR 8.1bn'],
-                ['UK', 2.3, 'SAR 2.3bn'],
-                ['France', 2.0, 'SAR 2.0bn'],
-                ['Germany', 1.6, 'SAR 1.6bn'],
-                ['Spain', 1.1, 'SAR 1.1bn'],
-                ['Poland', 0.7, 'SAR 0.7bn'],
-              ]),
+              rows: barRows(
+                valueByOrigin()
+                  .slice(0, 6)
+                  .map(([country, millions]): [string, number, string] => [country === 'Saudi Arabia' ? 'Kingdom' : country, millions, sar(millions)]),
+              ),
             },
-            'Value of imported stock by supplier country.',
+            'Value of the products held, by the country they come from.',
           ),
         },
         {
           heading: 'Lowest stock',
-          text: 'The three lowest items are the UAV parts from Poland: propulsion motors run out in 41 days, EO/IR gimbals in 47 and navigation units in 58.',
+          text: 'The Najm UAV is the first product hit: its propulsion motors from Poland run out in 41 days, then EO/IR gimbals in 47 and navigation units in 58.',
           chart: chartComponent(
             'finding-gami-inventory-lowest',
             {
@@ -329,6 +501,50 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
         },
       ],
       map: null,
+    }),
+
+  'gami-riyadh-plant': () =>
+    experience({
+      id: 'finding-gami-riyadh-plant',
+      read: 'Reading the plant’s production reports and the national capacity register…',
+      search: 'Comparing its utilisation with the Kingdom’s other land systems plants…',
+      reason: 'Highlighting its buildings on the map…',
+      headline: `${PLANT_NAME} runs at 94% of capacity; Hall B is what keeps APC orders on time.`,
+      headlineDetail: 'Highlighted the plant’s eight buildings in Riyadh’s 2nd Industrial City in purple.',
+      intro: `${PLANT_NAME} assembles armoured vehicles and stores munitions in Riyadh’s 2nd Industrial City. It runs three shifts at 94% of capacity, the highest of any defence plant in the Kingdom, against a national average of 78%.`,
+      sections: [
+        {
+          heading: 'On the map',
+          text: 'Assembly Hall A is the largest building, with the Engineering Centre to its west and the Proof & Test Building to its east. Hall B to the south opens in Q2 2027; the three energetics stores sit apart, to the south-east.',
+        },
+        {
+          heading: 'Busiest plants',
+          text: 'It is the only plant above 90%. Without Hall B, Tuwaiq APC orders slip about five months in 2027.',
+          chart: chartComponent(
+            'finding-gami-plant-utilisation',
+            {
+              type: 'bars',
+              title: 'Utilisation by plant',
+              value: '94%',
+              unit: 'Al-Yamamah',
+              color: PALETTE.purple[3],
+              rows: barRows([
+                ['Al-Yamamah · Riyadh', 94, '94%'],
+                ['KAEC Land Systems', 86, '86%'],
+                ['Jubail Armor & Steel', 82, '82%'],
+                ['Najran Armor Works', 74, '74%'],
+                ['Tabuk Vehicle Systems', 69, '69%'],
+              ]),
+            },
+            'Share of installed capacity in use, last 12 months.',
+          ),
+        },
+        {
+          heading: 'Recommended action',
+          text: 'Keep Hall B’s fit-out on its Q2 2027 date and move 18 trained technicians from Tabuk ahead of opening. That lifts output by 120 vehicles a year and brings utilisation back to about 80%.',
+        },
+      ],
+      map: { place: 'riyadh-plant', title: 'Riyadh Military Plant · on the map', tag: 'Riyadh', meta: '8 buildings highlighted' },
     }),
 
   'gami-localization': () =>

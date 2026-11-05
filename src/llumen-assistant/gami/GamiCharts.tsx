@@ -11,6 +11,8 @@ import { StorySummaryText } from '../story/StorySummaryText'
 import { SUMMARY_REGENERATE_MS } from '../story/storySummary'
 import { Gami3DModel } from './Gami3DModel'
 import { GamiFillDelay } from './gamiFill'
+import { GamiInventoryTable, type ProductInfo } from './GamiInventoryTable'
+import { isVehicle } from './gamiModelIds'
 import { LOCAL_COLOR } from './gamiPlaces'
 import { GAMI_PARTS, LOCAL_PARTS } from './gamiScenario'
 import {
@@ -670,12 +672,14 @@ function Part({ card, onInfo }: { card: CardOf<'part'>; onInfo?: PartInfo }) {
 export function GamiCardBody({
   card,
   onPartInfo,
+  onProductInfo,
   summaryStatus,
   summaryTyping = false,
   flat = false,
 }: {
   card: GamiCard
   onPartInfo?: PartInfo
+  onProductInfo?: ProductInfo
   /** The summary's "Last updated" chip. */
   summaryStatus?: ReactNode
   summaryTyping?: boolean
@@ -725,7 +729,7 @@ export function GamiCardBody({
     case 'section':
       return <h3 className={css.sectionTitle}>{card.title}</h3>
     case 'model': {
-      const vehicle = card.model === 'drone' || card.model === 'tank'
+      const vehicle = isVehicle(card.model)
       return (
         <>
           <Title card={card} />
@@ -770,6 +774,7 @@ export function GamiCardBody({
     table: () => <Table card={card as CardOf<'table'>} />,
     range: () => <Range card={card as CardOf<'range'>} />,
     countdown: () => <Countdown card={card as CardOf<'countdown'>} />,
+    inventory: () => <GamiInventoryTable onInfo={onProductInfo} />,
   }
   return (
     <>
