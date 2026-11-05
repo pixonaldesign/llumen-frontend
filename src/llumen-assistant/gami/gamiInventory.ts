@@ -532,7 +532,6 @@ export const INVENTORY_TOTALS = {
   maxLead: Math.max(...IMPORTED.map((product) => product.lead)),
   byStatus: PRODUCT_STATUSES.map((status) => ({ status, count: PRODUCTS.filter((product) => product.status === status).length })),
 }
-const MONTHS = ['Jan', 'Mar', 'May', 'Jul', 'Sep', 'Nov']
 
 /** SAR millions held from each country, largest first. */
 export function valueByOrigin() {
@@ -543,18 +542,10 @@ export function valueByOrigin() {
 
 /**
  * The inventory app's one page: the product listing docked on the right, seven rows tall, beside a two-cell
- * column of the summary, headline cells and three charts; then how the inventory performs.
+ * column of the summary, headline cells and three charts.
  */
 export function inventoryCards(): GamiCard[] {
   const countries = valueByOrigin()
-  const leads = [...new Set(IMPORTED.map((product) => product.country))]
-    .map((country) => {
-      const items = IMPORTED.filter((product) => product.country === country && product.status !== 'Cut off')
-      return { country, lead: items.length ? sum(items, (item) => item.lead) / items.length : 0 }
-    })
-    .filter((item) => item.lead > 0)
-    .sort((a, b) => b.lead - a.lead)
-    .slice(0, 6)
   const statusCounts = PRODUCT_STATUSES.map((status) => PRODUCTS.filter((product) => product.status === status).length)
   const value = bn(TOTAL)
   const growth = [0.9, 0.92, 0.94, 0.95, 0.98, 1]
@@ -609,80 +600,6 @@ export function inventoryCards(): GamiCard[] {
       })),
     },
     { id: 'listing', kind: 'inventory', title: `All Products · ${PRODUCTS.length}`, dock: true, height: 7 },
-
-    { id: 'performance-section', kind: 'section', title: 'Inventory Performance' },
-    {
-      id: 'value-trend',
-      kind: 'line',
-      title: 'Inventory Value, 2026',
-      cols: 4,
-      height: 2,
-      kpi: { value: `${value}`, unit: 'SAR bn' },
-      x: MONTHS,
-      yLabels: [`${Math.ceil(value / 10) * 10}bn`, `${Math.ceil(value / 20) * 10}bn`, '0'],
-      yMax: Math.ceil(value / 10) * 10,
-      series: [
-        { name: 'Imported', points: growth.map((g) => bn(sum(IMPORTED, productValue) * (g * 1.02))) },
-        { name: 'Local', points: growth.map((g, i) => bn(sum(LOCAL, productValue) * (g - (5 - i) * 0.03))) },
-      ],
-    },
-    {
-      id: 'sources',
-      kind: 'stacked',
-      title: 'Local vs Imported by Domain',
-      height: 2,
-      legend: ['Local', 'Imported'],
-      bars: PRODUCT_DOMAINS.map((domain) => ({
-        label: domain,
-        parts: [
-          LOCAL.filter((product) => product.domain === domain).length,
-          IMPORTED.filter((product) => product.domain === domain).length,
-        ],
-      })),
-    },
-    {
-      id: 'domain-readiness',
-      kind: 'progress',
-      title: 'Readiness by Domain',
-      height: 2,
-      rows: PRODUCT_DOMAINS.map((domain) => {
-        const items = PRODUCTS.filter((product) => product.domain === domain)
-        const pct = Math.round(sum(items, (item) => item.readiness * productValue(item)) / sum(items, productValue))
-        return { label: domain, value: `${pct}%`, target: 'of 90%', pct: Math.min(100, (pct / 90) * 100) }
-      }),
-    },
-    {
-      id: 'lead-times',
-      kind: 'hbars',
-      title: 'Average Lead Time by Origin',
-      bars: leads.map((item) => ({
-        label: item.country,
-        value: item.lead,
-        display: `${Math.round(item.lead)} mo`,
-        status: item.lead >= 15 ? 'moderate' : undefined,
-      })),
-    },
-    {
-      id: 'on-time',
-      kind: 'vbars',
-      title: 'On-time Delivery, 2026',
-      kpi: { value: '87', unit: '% YTD' },
-      bars: ['Q1', 'Q2', 'Q3', 'Oct'].map((label, index) => {
-        const pct = [91, 89, 84, 72][index]
-        return { label, value: pct, display: `${pct}%`, status: pct < 75 ? ('critical' as const) : undefined }
-      }),
-    },
-    {
-      id: 'supply',
-      kind: 'progress',
-      title: 'Supply Performance',
-      rows: [
-        { label: 'Fill rate', value: '94%', target: 'of 98%', pct: 95.9 },
-        { label: 'Stock accuracy', value: '99.1%', target: 'of 99.5%', pct: 99.6 },
-      ],
-    },
-    { id: 'open-orders', kind: 'cell', title: 'Open orders', value: 'SAR 6.2bn', note: '1,240 purchase orders' },
-    { id: 'due', kind: 'cell', title: 'Due this month', value: '38', note: 'Deliveries, 9 of them local', status: 'good' },
   ]
 }
 
