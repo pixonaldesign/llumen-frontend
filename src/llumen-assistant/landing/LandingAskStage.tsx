@@ -23,17 +23,15 @@ import {
   topSchoolsAnnotation,
 } from '../story/storyAnnotations'
 import type { StoryAiSnapshot, StoryMapCapture } from '../story/storyAiScenarios'
-import { StoryMap, type StoryMapAnnotationLayer, type StoryMapHandle } from '../story/StoryMap'
+import { StoryMap, type StoryMapHandle } from '../story/StoryMap'
 import mapStyles from '../story/StoryMap.module.css'
 import styles from './LandingAskStage.module.css'
-import {
-  findingAffectedMarkers,
-  findingAffectedRegion,
-  findingAreas,
-  findingRegion,
-  findingSceneIndex,
-  isFindingPlace,
-} from './landingFindingExperiences'
+import { findingStage, isFindingPlace, type FindingStageId } from './landingFindingExperiences'
+import { EstateMap, type EstateMapHandle } from '../realEstate/EstateMap'
+import estateStyles from '../realEstate/EstateStory.module.css'
+import type { EstateTower } from '../realEstate/estateMapLayers'
+import type { MapDataLayer } from '../realEstate/estateTypes'
+import storyStyles from '../story/StoryView.module.css'
 
 /** Loads the asset builder's styles only once Data or Source is opened. */
 const LandingAssetPanels = lazy(() => import('./LandingAssetPanels'))
@@ -308,23 +306,119 @@ const PREVIEW_PADDING = { top: 44, right: 8, bottom: 8, left: 8 }
 /** Pulls the camera out so a ~180px-tall preview frames what the full stage shows. */
 const PREVIEW_ZOOM_OFFSET = -1.7
 
+const NO_HIDDEN: ReadonlySet<string> = new Set()
+
+/** Hard steps between a ramp's colours, as binned towers read it. */
+const steppedRamp = (ramp: readonly string[]) =>
+  `linear-gradient(to right, ${ramp
+    .map((color, index) => `${color} ${(index / ramp.length) * 100}% ${((index + 1) / ramp.length) * 100}%`)
+    .join(', ')})`
+
+/** The story's Map Data card, read-only: each layer's colour scale, and the labelled towers it ranks. */
+function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: EstateTower[] }) {
+  const labelled = towers.filter((tower) => tower.label !== false)
+  return (
+    <div className={`${storyStyles.mapData} ${styles.mapData}`}>
+      <div className={storyStyles.mapDataHeader}>
+        <span>Map Data</span>
+      </div>
+      <div className={storyStyles.mapLayers}>
+        {layers.map((layer) => (
+          <section key={layer.group} className={storyStyles.mapLayer}>
+            <div className={storyStyles.mapLayerHead}>
+              <p className={storyStyles.mapLayerTitle}>{layer.title}</p>
+            </div>
+            <div className={storyStyles.mapLayerAttrs}>
+              {'ramp' in layer.color ? (
+                <div className={storyStyles.mapLayerAttr}>
+                  <p className={storyStyles.mapLayerAttrLabel}>Color</p>
+                  <div className={storyStyles.legendScale}>
+                    <span>{layer.color.low ?? 'Low'}</span>
+                    <span
+                      className={storyStyles.colorRamp}
+                      style={{ backgroundImage: steppedRamp(layer.color.ramp) }}
+                      aria-hidden
+                    />
+                    <span>{layer.color.high ?? 'High'}</span>
+                  </div>
+                </div>
+              ) : null}
+              {labelled.length ? (
+                <div className={storyStyles.mapLayerAttr}>
+                  <p className={storyStyles.mapLayerAttrLabel}>Top towers</p>
+                  {labelled
+                    .filter((tower) => tower.group === layer.group)
+                    .map((tower) => (
+                      <div key={tower.id} className={storyStyles.legendRow}>
+                        <span className={`${storyStyles.legendMark} ${estateStyles.legendLabel}`}>{tower.title}</span>
+                        <span className={storyStyles.legendMark}>
+                          <span className={storyStyles.legendCount}>{tower.tip.rows?.[0]?.[1]}</span>
+                          <i className={estateStyles.towerGlyph} style={{ background: tower.color }} aria-hidden />
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** A real-estate finding's place, as Tell Me More reads it: every tall tower coloured by its potential. */
+function FindingPlaceMap({
+  place,
+  capture,
+  onCapture,
+  preview,
+}: Omit<LandingAskMapProps, 'snapshot'> & { place: FindingStageId }) {
+  const handleRef = useRef<EstateMapHandle>(null)
+  const stage = findingStage(place)
+  const camera = useMemo(
+    () => (preview ? { ...stage.camera, zoom: stage.camera.zoom + PREVIEW_ZOOM_OFFSET } : stage.camera),
+    [preview, stage],
+  )
+  useEffect(() => {
+    if (!capture) return
+    const timer = window.setTimeout(() => {
+      void handleRef.current?.capture().then((shot) => {
+        if (shot) onCapture(capture.stateId, shot)
+      })
+    }, capture.delay)
+    return () => window.clearTimeout(timer)
+  }, [capture, onCapture])
+  return (
+    <>
+      <EstateMap
+        camera={camera}
+        scene={stage.scene}
+        hidden={NO_HIDDEN}
+        padding={preview ? PREVIEW_PADDING : MAP_PADDING}
+        controls={!preview}
+        interactive={!preview}
+        controlsClassName={styles.mapControls}
+        handleRef={handleRef}
+      />
+      {preview ? null : <FindingMapData layers={stage.layers} towers={stage.scene.towers} />}
+    </>
+  )
+}
+
 /** The story map with whatever the reply annotated on it. */
-export function LandingAskMap({ snapshot, capture, onCapture, preview = false }: LandingAskMapProps) {
+export function LandingAskMap({ snapshot, ...rest }: LandingAskMapProps) {
+  const place = isFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
+  if (place) return <FindingPlaceMap place={place} {...rest} />
+  return <ReplyMap snapshot={snapshot} {...rest} />
+}
+
+function ReplyMap({ snapshot, capture, onCapture, preview = false }: LandingAskMapProps) {
   const handleRef = useRef<StoryMapHandle | null>(null)
   const onHandle = useCallback((handle: StoryMapHandle | null) => {
     handleRef.current = handle
   }, [])
-  const place = isFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
-  const affected = snapshot?.findingAffected
-  const region = useMemo(() => {
-    if (place) return affected ? findingAffectedRegion(place, affected) : findingRegion(place)
-    return snapshot?.region ? snapshotRegion(snapshot) : null
-  }, [place, affected, snapshot])
-  const annotations = useMemo<StoryMapAnnotationLayer | null>(() => {
-    if (!place) return null
-    const items = affected ? findingAffectedMarkers(place, affected) : findingAreas(place, snapshot?.findingAreas)
-    return { items, validity: {}, selectedId: null, drawing: null }
-  }, [place, affected, snapshot?.findingAreas])
+  const region = useMemo(() => (snapshot?.region ? snapshotRegion(snapshot) : null), [snapshot])
   const annotation = useMemo(() => {
     const request = snapshot?.annotation
     if (!request) return null
@@ -343,7 +437,7 @@ export function LandingAskMap({ snapshot, capture, onCapture, preview = false }:
 
   return (
     <StoryMap
-      sceneIndex={place ? findingSceneIndex(place) : 0}
+      sceneIndex={0}
       framePhase={0}
       flyToScene={false}
       cameraPadding={preview ? PREVIEW_PADDING : MAP_PADDING}
@@ -353,7 +447,6 @@ export function LandingAskMap({ snapshot, capture, onCapture, preview = false }:
       controlsClassName={styles.mapControls}
       region={region}
       annotation={annotation}
-      annotations={annotations}
       cameraRequest={cameraRequest}
       onHandle={onHandle}
     />

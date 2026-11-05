@@ -77,7 +77,7 @@ export function Briefing2Landing({ topBar, onTellMeMore, onOpenStory, reserveCom
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
-    return BRIEFING_PLACES['abu-dhabi']
+    return BRIEFING_PLACES.downtown
   }, [active])
 
   const vote = (id: string, value: 'up' | 'down') =>

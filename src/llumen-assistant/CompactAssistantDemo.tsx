@@ -104,6 +104,8 @@ import {
   type ChatInteractionModel,
 } from './interactionModel'
 import { StoryView } from './story/StoryView'
+import { EstateStoryView, type EstateAskContext } from './realEstate/EstateStoryView'
+import { ESTATE_STORIES, isEstateStory } from './realEstate/estateScenario'
 import type { StoryMapView } from './story/StoryMap'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
 import { StoryMapStatesContext, type StoryMapStates } from './story/storyMapStates'
@@ -399,6 +401,8 @@ const LANDING_MAP_CLOSED: LandingAskMapState = { open: false, snapshot: null, ca
 type LandingAskSubject = { finding: LandingTellMeMorePayload } | { location: StoryLocation } | null
 
 type LandingAskPlan = {
+  /** The question the user is shown asking, when the subject words it its own way. */
+  prompt?: string
   reply: AssistantReplyPayload
   stateId: string
   map: { snapshot: StoryAiSnapshot; captureDelay: number } | null
@@ -422,11 +426,10 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
           areaEffect: null,
           filterLabels: {},
           findingPlace: experience.map.place,
-          findingAreas: experience.map.areas,
-          findingAffected: experience.map.affected,
         }
       : null
     return {
+      prompt: experience.prompt,
       stateId,
       reply:
         experience.map && snapshot
@@ -1500,7 +1503,9 @@ export function CompactAssistantDemo() {
       }
       setStoryChatComponents((prev) => (prev.some((item) => item.id === component.id) ? prev : [...prev, component]))
       if (isHub && activeStoryId != null) {
-        const chip = storyContextChip(getLandingStory(activeStoryId))
+        const chip: LandingContextChip = isEstateStory(activeStoryId)
+          ? { id: `story-${activeStoryId}`, label: ESTATE_STORIES[activeStoryId].title, categoryId: 'slides' }
+          : storyContextChip(getLandingStory(activeStoryId))
         setLandingChips((prev) => (prev.some((item) => item.id === chip.id) ? prev : [...prev, chip]))
       }
       if (open || !hubStoryOpen) setHubMorphFrom(sourceRect)
@@ -2444,13 +2449,14 @@ export function CompactAssistantDemo() {
   const runLandingAsk = useCallback(
     (prompt: string, subject: LandingAskSubject) => {
       const finding = subject && 'finding' in subject ? subject.finding : null
-      const { reply, stateId, map } = planLandingAsk(subject)
+      const plan = planLandingAsk(subject)
+      const { reply, stateId, map } = plan
       resetConversation()
       openLandingAsk()
       setActiveConversationId(uid())
       setActiveMapStateId(map ? stateId : null)
-      setChatTitle(finding ? truncateTitle(finding.title) : titleFromReply(reply))
-      setMessages([{ id: uid(), role: 'user', text: prompt }])
+      setChatTitle(plan.prompt ? truncateTitle(plan.prompt) : finding ? truncateTitle(finding.title) : titleFromReply(reply))
+      setMessages([{ id: uid(), role: 'user', text: plan.prompt ?? prompt }])
       const messageId = startAssistantReply(reply)
       if (map) landingAskPendingRef.current = { messageId, stateId, ...map }
     },
@@ -2463,7 +2469,9 @@ export function CompactAssistantDemo() {
     if (!pending || pending.messageId !== messageId) return
     if (componentId !== null && componentId !== pending.stateId) return
     landingAskPendingRef.current = null
-    setLandingAskMap((current) => ({ ...current, open: true }))
+    // A finding's place is its own scene and goes in with the slide; other annotations land once the map settles.
+    const placed = pending.snapshot.findingPlace !== undefined
+    setLandingAskMap((current) => ({ ...current, open: true, snapshot: placed ? pending.snapshot : current.snapshot }))
     window.clearTimeout(landingAskMapTimer.current)
     landingAskMapTimer.current = window.setTimeout(() => {
       setLandingAskMap({
@@ -2818,6 +2826,27 @@ export function CompactAssistantDemo() {
     return grouped
   }, [messages])
 
+  const openEstateAsk = useCallback(
+    ({ storyId, title, pageTitle, sourceRect }: EstateAskContext) => {
+      if (isHub) {
+        setLandingChips([{ id: `story-${storyId}`, label: title, categoryId: 'slides' }])
+        setHubMorphFrom(sourceRect)
+        setHubStoryOpen(true)
+        setLandingFocusToken((n) => n + 1)
+        return
+      }
+      setDraft((prev) => {
+        const mention = `@${pageTitle}`
+        if (!prev.trim()) return `Tell me more about ${mention}`
+        if (prev.includes(mention)) return prev
+        return `${prev.trim()} ${mention}`
+      })
+      setOpen(true)
+      setExpanded(false)
+    },
+    [isHub],
+  )
+
   const openRelatedFinding = useCallback((item: FindingToastInstance) => {
     const storyId = relatedStoryId(item)
     if (storyId) setActiveStoryId(storyId)
@@ -3078,7 +3107,22 @@ export function CompactAssistantDemo() {
           ref={(node) => setLandingScrollEl((current) => (current === node ? current : node))}
         >
           {!storyActive || storyHandoff || storyRelease ? landingHome : null}
-          {storyActive ? (
+          {storyActive && isEstateStory(activeStoryId) ? (
+            <EstateStoryView
+              key={activeStoryId}
+              storyId={activeStoryId}
+              entrance={storyEntrance}
+              mapHidden={storyHandoff === 'cover' || storyRelease !== null}
+              onMapReady={passStoryGate}
+              onBack={leaveStory}
+              onAsk={openEstateAsk}
+              agentOpen={open || hubStoryOpen}
+              onCloseAsk={hubStoryOpen ? () => setCompactRestoreToken((n) => n + 1) : undefined}
+              onSlideIndexChange={setStorySlideIndex}
+              onAddToChat={isHub ? addStoryComponentToChat : undefined}
+              onMonitorConfirm={isHub ? showStoryWorkflow : undefined}
+            />
+          ) : storyActive ? (
             <StoryView
               storyId={activeStoryId}
               entrance={storyEntrance}
@@ -3345,7 +3389,7 @@ export function CompactAssistantDemo() {
               <LandingAskAsset
                 stateId={landingAskAsset?.stateId ?? null}
                 title={landingAskAsset?.title ?? chatTitle}
-                place={landingAskAsset?.place ?? 'Abu Dhabi'}
+                place={landingAskAsset?.place ?? 'Dubai'}
                 caption={landingAskAsset?.caption}
                 analysis={landingAskAsset?.analysis}
                 onShowInConversation={

@@ -41,7 +41,7 @@ import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
 import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
 import { BRIEFING_PLACES } from './briefingMapPlaces'
 import { STORY_CAMERA_PADDING } from '../story/StoryMap'
-import { storySceneAt } from '../story/storyDemoScenes'
+import { ESTATE_STORIES } from '../realEstate/estateScenario'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
 import { VoteButton } from './VoteButton'
@@ -67,45 +67,45 @@ type SummaryPart = { text: string; highlight?: boolean }
 
 /** What is happening now, in two lines at most. */
 const ASSETS_STATEMENT: SummaryPart[] = [
-  { text: 'Coastal air quality crossed the sensitive\u2011groups line overnight, ' },
-  { text: 'up 18% to 142', highlight: true },
+  { text: 'Downtown off\u2011plan sales reached AED 16.0bn this quarter, and two towers took ' },
+  { text: '38% of it', highlight: true },
   { text: '.' },
 ]
 
 /** What the assets below say about it. */
 const ASSETS_DETAIL: SummaryPart[] = [
-  { text: 'AQI has stayed above the line since 09:00. Heat-related clinic visits reached ' },
-  { text: '1,284 this week', highlight: true },
-  { text: ', 22% higher and peaking at 244 on Sunday, while bus delays sit on ' },
-  { text: 'Routes 54 and 65', highlight: true },
+  { text: 'Downtown prices reached ' },
+  { text: 'AED 3,240 per sq ft', highlight: true },
+  { text: ', up 14% on a year ago, and off-plan homes made up 61% of Dubai’s sales in 2025. The city closed ' },
+  { text: '3,412 sales this week', highlight: true },
   {
-    text: ' at 18 and 14 minutes late. Non-compliant facilities run 14% over their permit limits, Al Mussafah is now 31% industrial and adults make up 68% of residents. Network pressure in Al Ain holds at ',
+    text: ', 9% more than last week. Dreamscape Tower is 84% built and 66% sold, ahead of Opera Crest at 58%, and a Downtown 1-bedroom now rents for ',
   },
-  { text: '62% of target', highlight: true },
-  { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
+  { text: 'AED 142k a year', highlight: true },
+  { text: ', up 11%.' },
 ]
 
 /** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
 const ASSETS_INSIGHTS: SummaryPart[][] = [
   [
-    { text: 'Heat-related clinic visits reached ' },
-    { text: '1,284 this week', highlight: true },
-    { text: ', 22% higher and peaking at 244 on Sunday.' },
+    { text: 'Downtown prices reached ' },
+    { text: 'AED 3,240 per sq ft', highlight: true },
+    { text: ', up 14% on a year ago.' },
   ],
   [
-    { text: 'Bus delays sit on ' },
-    { text: 'Routes 54 and 65', highlight: true },
-    { text: ' at 18 and 14 minutes late.' },
+    { text: 'Dubai closed ' },
+    { text: '3,412 sales this week', highlight: true },
+    { text: ', 9% more than last week, and 61% of 2025’s sales were off-plan.' },
   ],
   [
     {
-      text: 'Non-compliant facilities run 14% over their permit limits, and Al Mussafah is now 31% industrial.',
+      text: 'Dreamscape Tower is 84% built and 66% sold, ahead of Opera Crest Residences at 58%.',
     },
   ],
   [
-    { text: 'Network pressure in Al Ain holds at ' },
-    { text: '62% of target', highlight: true },
-    { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
+    { text: 'A Downtown 1-bedroom now rents for ' },
+    { text: 'AED 142k a year', highlight: true },
+    { text: ', up 11% on a year ago.' },
   ],
 ]
 
@@ -129,8 +129,8 @@ const ASSETS_OPEN_PX = 8
 
 /** Findings style 6's slide between the findings and Assets and Apps; keep in step with --side-slide. */
 /** A story opens on its first scene, framed clear of its insight column. */
-const STORY_OPENING_PLACE = BRIEFING_PLACES['abu-dhabi']
-const STORY_ENTER: BriefingMapEnter = { camera: storySceneAt(0).camera, padding: STORY_CAMERA_PADDING }
+const STORY_OPENING_PLACE = BRIEFING_PLACES.downtown
+const STORY_ENTER: BriefingMapEnter = { camera: ESTATE_STORIES['re-downtown'].pages[0].camera, padding: STORY_CAMERA_PADDING }
 /** BriefingMap's flight (2200ms) plus slack. */
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
@@ -355,7 +355,7 @@ export function BriefingLanding({
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
-    return BRIEFING_PLACES['abu-dhabi']
+    return BRIEFING_PLACES.downtown
   }, [active, opening, returnHeld])
 
   const enterStory = useCallback(
@@ -916,6 +916,10 @@ export function BriefingLanding({
               edge={peekEdge}
               onReorder={setBoardOrder}
               onBack={() => flyAssets(false)}
+              onOpenApp={(storyId) => {
+                flyAssets(false)
+                enterStory(storyId)
+              }}
               tools={floating ? { onAddAssets: () => setAddingAsset(true) } : undefined}
             />
             {addingAsset ? (
@@ -962,7 +966,7 @@ export function BriefingLanding({
   )
 }
 
-const ASSET_LOCATIONS = ['Abu Dhabi Emirate', 'Abu Dhabi City', 'Al Ain', 'Al Dhafra'] as const
+const ASSET_LOCATIONS = ['Dubai', 'Downtown Dubai', 'Business Bay', 'Dubai Marina'] as const
 const ASSET_PERIODS = ['Today', 'Last 7 days', 'Last 30 days', 'This year'] as const
 
 /**
@@ -1055,7 +1059,7 @@ function FilterSelect<T extends string>({
 
 /** Global filters for the Assets section: location and time. */
 function AssetsFilters() {
-  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Abu Dhabi Emirate')
+  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Dubai')
   const [period, setPeriod] = useState<(typeof ASSET_PERIODS)[number]>('Last 7 days')
   return (
     <div className={styles.assetsFilters} role="group" aria-label="Filters">
@@ -1234,6 +1238,7 @@ function AssetsAppsView({
   edge,
   onReorder,
   onBack,
+  onOpenApp,
   tools,
 }: {
   shown: boolean
@@ -1248,6 +1253,8 @@ function AssetsAppsView({
   edge: { room: number; min: number; partial?: number }
   onReorder: (order: string[]) => void
   onBack: () => void
+  /** An app's View button: leaves the board for the app's story. */
+  onOpenApp: (storyId: string) => void
   /** Findings style 8's modal. */
   tools?: { onAddAssets: () => void }
 }) {
@@ -1306,7 +1313,14 @@ function AssetsAppsView({
           </div>
         ) : null}
         <div ref={setGrid} className={styles.sideGrid}>
-          <BriefingAssetBoard order={order} columns={columns} roomy={roomy} edge={edge} onReorder={onReorder} />
+          <BriefingAssetBoard
+            order={order}
+            columns={columns}
+            roomy={roomy}
+            edge={edge}
+            onReorder={onReorder}
+            onOpenApp={onOpenApp}
+          />
         </div>
       </div>
     </section>
@@ -1622,14 +1636,16 @@ function FindingBody({
           type="button"
           className={`${home.actionBtn} ${styles.tellMoreBtn}`}
           aria-label="Tell me more"
-          onClick={() =>
+          aria-disabled={stop.tellMore === false || undefined}
+          onClick={() => {
+            if (stop.tellMore === false) return
             onTellMeMore?.({
               id: stop.id,
               title: stop.title,
               domain: stop.domain,
               finding,
             })
-          }
+          }}
         >
           <span className={home.actionInner}>
             <ChatText size={20} weight="regular" aria-hidden />

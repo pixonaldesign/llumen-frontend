@@ -2344,8 +2344,12 @@
   border: 1px solid #fff;
 }
 
-.tellMoreBtn:hover {
+.tellMoreBtn:not([aria-disabled='true']):hover {
   background: rgba(255, 255, 255, 0.12);
+}
+
+.tellMoreBtn[aria-disabled='true'] {
+  cursor: default;
 }
 
 @media (prefers-reduced-motion: reduce) {

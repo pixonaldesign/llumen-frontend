@@ -45,21 +45,21 @@ type BoardItem =
 
 /** Preferred width in cells, how narrow and wide each card still reads well, and its height. */
 const ASSET_FITS: Record<string, Fit> = {
-  'permit-deviation': { cols: 2, min: 2, max: 3, rows: 1 },
-  'land-use': { cols: 2, min: 2, max: 3, rows: 1 },
-  population: { cols: 2, min: 2, max: 3, rows: 1 },
-  'water-pressure': { cols: 1, min: 1, max: 2, rows: 1 },
-  'air-quality': { cols: 4, min: 3, max: 5, rows: 2 },
-  'bus-delays': { cols: 2, min: 2, max: 3, rows: 2 },
-  'heat-visits': { cols: 2, min: 2, max: 4, rows: 2 },
-  'night-temperature': { cols: 2, min: 2, max: 4, rows: 2 },
-  'station-uptime': { cols: 4, min: 3, max: 4, rows: 2 },
+  're-price-sqft': { cols: 2, min: 2, max: 3, rows: 1 },
+  're-sales-mix': { cols: 2, min: 2, max: 3, rows: 1 },
+  're-buyers': { cols: 2, min: 2, max: 3, rows: 1 },
+  're-construction': { cols: 1, min: 1, max: 2, rows: 1 },
+  're-sales-today': { cols: 4, min: 3, max: 5, rows: 2 },
+  're-top-areas': { cols: 2, min: 2, max: 3, rows: 2 },
+  're-weekly-sales': { cols: 2, min: 2, max: 4, rows: 2 },
+  're-rents': { cols: 2, min: 2, max: 4, rows: 2 },
+  're-sell-through': { cols: 4, min: 3, max: 4, rows: 2 },
 }
 
 /**
  * A roomy board's cell is wide enough for the small charts, so they pair up a cell each (the donut and
- * pie without their legends, the clinic visits beside the night-time lows that drive them). Apps take a
- * square cell each too, thumbnail on top, except the tourism peak, thumbnail-left across the row. The rest
+ * pie without their legends, the week's sales beside the rents). Apps take a square cell each too,
+ * thumbnail on top, except Dubai Marina's, thumbnail-left across the row. The rest
  * run the board's width one row tall, so three cards down the first column still fit the edge peek above
  * the composer.
  */
@@ -67,21 +67,21 @@ const ROOMY_SMALL: Fit = { cols: 1, min: 1, max: 2, rows: 1 }
 const ROOMY_APP: Fit = { cols: 1, min: 1, max: 1, rows: 1 }
 const ROOMY_WIDE: Fit = { cols: 2, min: 2, max: 2, rows: 1 }
 const ROOMY_FITS: Record<string, Fit> = {
-  'permit-deviation': ROOMY_SMALL,
-  'water-pressure': ROOMY_SMALL,
-  'land-use': ROOMY_SMALL,
-  population: ROOMY_SMALL,
-  'heat-visits': ROOMY_SMALL,
-  'night-temperature': ROOMY_SMALL,
-  'station-uptime': { cols: 2, min: 2, max: 2, rows: 2 },
-  'tourism-peak': ROOMY_WIDE,
+  're-price-sqft': ROOMY_SMALL,
+  're-construction': ROOMY_SMALL,
+  're-sales-mix': ROOMY_SMALL,
+  're-buyers': ROOMY_SMALL,
+  're-weekly-sales': ROOMY_SMALL,
+  're-rents': ROOMY_SMALL,
+  're-sell-through': { cols: 2, min: 2, max: 2, rows: 2 },
+  're-marina-app': ROOMY_WIDE,
 }
 
 const APP_LAYOUTS: Record<string, AppLayout> = {
-  'construction-surge': 'tall',
-  'rainfall-disruption': 'wide',
-  'tourism-peak': 'tall',
-  'permit-concentration': 'wide',
+  're-downtown-app': 'tall',
+  're-creek-app': 'wide',
+  're-marina-app': 'tall',
+  're-business-bay-app': 'wide',
 }
 
 const APP_FITS: Record<AppLayout, Fit> = {
@@ -155,6 +155,7 @@ export function BriefingAssetBoard({
   play = true,
   preview = false,
   edge,
+  onOpenApp,
 }: {
   order: readonly string[]
   columns?: number
@@ -170,6 +171,8 @@ export function BriefingAssetBoard({
    * `partial`, a card cut off at `room` counts too when at least that many px of it show.
    */
   edge?: { room: number; min: number; partial?: number }
+  /** An app's View button: opens the app's story. */
+  onOpenApp?: (storyId: string) => void
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const boardRef = useRef<HTMLDivElement>(null)
@@ -406,6 +409,7 @@ export function BriefingAssetBoard({
                   layout={slot.cols > slot.rows ? 'wide' : 'tall'}
                   menuOpen={open}
                   onToggleMenu={() => setMenuFor(open ? null : id)}
+                  onView={item.app.storyId && onOpenApp ? () => onOpenApp(item.app.storyId!) : undefined}
                 />
               )}
             </div>
@@ -422,11 +426,13 @@ function AppAssetCard({
   layout,
   menuOpen,
   onToggleMenu,
+  onView,
 }: {
   app: AppHighlight
   layout: AppLayout
   menuOpen: boolean
   onToggleMenu: () => void
+  onView?: () => void
 }) {
   return (
     <article className={`${assetStyles.card} ${styles.app}`} data-layout={layout} aria-label={`App: ${app.title}`}>
@@ -442,7 +448,7 @@ function AppAssetCard({
           <AppMenu label={app.title} open={menuOpen} below={layout === 'wide'} onToggle={onToggleMenu} />
         </div>
         <h3 className={styles.appTitle}>{app.title}</h3>
-        <button type="button" className={styles.appView} aria-label={`View ${app.title}`}>
+        <button type="button" className={styles.appView} aria-label={`View ${app.title}`} onClick={onView}>
           <ArrowUpRight size={20} weight="regular" aria-hidden />
           View
         </button>

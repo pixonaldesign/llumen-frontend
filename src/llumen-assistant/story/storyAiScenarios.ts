@@ -38,19 +38,8 @@ export type StoryAiSnapshot = {
   periodCards?: ChartCardId[]
   /** Top-10 schools annotated on the map, from the data of this slide (inside `location` when set). */
   annotation?: { slide: number; location?: StoryLocation; kind?: 'markers' }
-  /** A landing finding's own map (a Briefing place id): its columns replace the story's, with its areas outlined. */
+  /** A landing finding's own map (a Briefing place id), shown in place of the story's. */
   findingPlace?: string
-  /** The finding's own names for its outlined areas, heaviest first; the place's defaults when unset. */
-  findingAreas?: { name: string; text: string }[]
-  /** Affected areas the finding marks with disks, columns and a tooltip instead of outlines. */
-  findingAffected?: {
-    name: string
-    text: string
-    center: [number, number]
-    radiusKm: number
-    weight: number
-    home?: boolean
-  }[]
   /** Raw map camera to fly back to (zoom includes the map's zoom offset). */
   camera?: StorySceneCamera
 }

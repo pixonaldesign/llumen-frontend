@@ -1,0 +1,155 @@
+.mapFill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #05070c;
+}
+
+.controls {
+  top: 35px;
+  right: 20px;
+  flex-direction: row;
+  padding: 8px 12px;
+}
+
+/* Map Data scrolls when the page has many layers; the scroller has no padding on its scrollbar side. */
+.mapLayers {
+  max-height: min(48vh, 440px);
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+.mapLayers::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.mapLayers::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mapLayers::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Legend marks: a lit tower, and the heat swatch. */
+.towerGlyph {
+  display: block;
+  width: 8px;
+  height: 16px;
+  border-radius: 2px 2px 0 0;
+}
+
+.heatGlyph {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+}
+
+/* A tower's legend row opens its details. */
+.legendButton {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.legendButton:hover {
+  color: #fff;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.32);
+  text-underline-offset: 3px;
+}
+
+.legendButton:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.legendLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * Dive: a tower's details take the right of the story, wider than the edit sheet, while the cards slide
+ * off to the left one after another and Map Data to the right; the toolbar moves to the middle of the
+ * room left beside the panel. `translate` leaves the cards' own transforms, and the entrance's, alone.
+ */
+.root {
+  --estate-panel-w: min(1200px, max(720px, calc(100% - 640px)));
+}
+
+.diveLeft > * {
+  transition:
+    opacity 320ms ease,
+    translate 480ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.root[data-dive] .diveLeft > * {
+  opacity: 0;
+  translate: -48px 0;
+  transition:
+    opacity 240ms ease var(--dive-d, 0ms),
+    translate 360ms cubic-bezier(0.4, 0, 1, 1) var(--dive-d, 0ms);
+}
+
+.root[data-dive] .diveLeft > :nth-child(2) {
+  --dive-d: 40ms;
+}
+
+.root[data-dive] .diveLeft > :nth-child(3) {
+  --dive-d: 80ms;
+}
+
+.root[data-dive] .diveLeft > :nth-child(4) {
+  --dive-d: 120ms;
+}
+
+.root[data-dive] .diveLeft > :nth-child(n + 5) {
+  --dive-d: 160ms;
+}
+
+.diveRight {
+  transition:
+    opacity 320ms ease,
+    translate 480ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.root[data-dive] .diveRight {
+  opacity: 0;
+  translate: 48px 0;
+  transition:
+    opacity 240ms ease,
+    translate 360ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.diveNav {
+  transition: left 640ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.root[data-dive] .diveNav {
+  left: calc((100% - var(--estate-panel-w) - 24px) / 2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diveLeft > *,
+  .root[data-dive] .diveLeft > *,
+  .diveRight,
+  .root[data-dive] .diveRight,
+  .diveNav {
+    transition: none;
+  }
+}

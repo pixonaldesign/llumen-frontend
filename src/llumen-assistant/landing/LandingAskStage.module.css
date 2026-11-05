@@ -166,6 +166,15 @@
   overflow: hidden;
 }
 
+/* A finding map's legend, where the story keeps its Map Data. */
+.mapData {
+  position: absolute;
+  right: 32px;
+  bottom: 32px;
+  z-index: 5;
+  width: 300px;
+}
+
 /* Below the asset header's tabs (--asset-header-h is measured to their bottom edge). */
 .mapPane .mapControls {
   top: calc(var(--asset-header-h, 0px) + 16px);
