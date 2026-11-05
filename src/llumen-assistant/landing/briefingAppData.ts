@@ -22,7 +22,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     description:
       'The Poland–Russia conflict cut off 20 imported components; 3 are critical to the UAV programmes. Turkish suppliers deliver in 30 days.',
     image: `${APPS_BASE}/gami-turkiye.jpg`,
-    focus: 'center',
+    focus: '65% center',
   },
   {
     id: 'gami-overview',
