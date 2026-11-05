@@ -1,7 +1,18 @@
-/* The story's modal at a wider size: the 3D stage on the left, story cards on the right. */
+/*
+ * The story's modal at a wider size: a view toggle over a grid of the story sidebar's 184px cells,
+ * six across, or four in a narrower window.
+ */
 .modal.modal {
-  width: min(1280px, calc(100vw - 64px));
+  --columns: 6;
+  --grid-width: calc(var(--columns) * 184px + (var(--columns) - 1) * 12px);
+  width: min(calc(var(--grid-width) + 48px), calc(100vw - 64px));
   height: min(860px, calc(100vh - 64px));
+}
+
+@media (max-width: 1259px) {
+  .modal.modal {
+    --columns: 4;
+  }
 }
 
 .sub {
@@ -11,253 +22,73 @@
   line-height: 18px;
 }
 
-.body {
-  display: grid;
-  flex: 1;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  min-height: 0;
-}
-
-.stage {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 0;
-  padding: 20px 24px 24px;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
 .toggle {
-  align-self: flex-start;
-  width: 220px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: min(var(--grid-width), calc(100% - 48px));
+  margin: 16px auto 0;
 }
 
-.model {
-  position: relative;
-  flex: 1 0 300px;
-  min-height: 300px;
-  cursor: grab;
-}
-
-.model:active {
-  cursor: grabbing;
-}
-
-.hint {
-  margin: -8px 0 0;
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 12px;
-  line-height: 16px;
-  text-align: center;
-}
-
-.stageCopy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.label {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.role {
-  margin: 0;
-  color: #fff;
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.specs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px 16px;
-  margin: 0;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.specs div {
-  min-width: 0;
-}
-
-.specs dt {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.specs dd {
-  margin: 2px 0 0;
-  color: #fff;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 18px;
-}
-
-/* The right side scrolls; the scroller has no padding on its scrollbar side. */
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+/* Full-bleed so the thumb runs down the modal's edge; the grid is inset by centring it. */
+.scroll {
+  flex: 1;
   min-height: 0;
-  padding: 20px 0 24px 24px;
+  padding: 16px 0 24px;
+  overflow-x: hidden;
   overflow-y: auto;
   overflow-y: overlay;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
 }
 
-.side::-webkit-scrollbar {
+@supports selector(::-webkit-scrollbar) {
+  .scroll {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.scroll::-webkit-scrollbar {
   width: var(--lc-scrollbar-size, 4px);
 }
 
-.side::-webkit-scrollbar-track {
+.scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.side::-webkit-scrollbar-thumb {
+.scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.24);
 }
 
-.side > * {
-  margin-right: 24px;
-}
-
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 200px;
+  grid-template-columns: repeat(var(--columns), 184px);
+  grid-auto-rows: 184px;
+  grid-auto-flow: row dense;
+  justify-content: center;
   gap: 12px;
 }
 
-.panel.panel {
-  height: 100%;
-}
-
-.bridge.bridge {
-  flex-shrink: 0;
-  gap: 14px;
+/* Each card covers whole cells: `--cols` by `--rows`, from gridVars. */
+.asset.asset {
+  grid-column: span var(--cols, 1);
+  grid-row: span var(--rows, 1);
+  align-self: stretch;
+  width: auto;
   height: auto;
 }
 
-.bridgeHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+@media (prefers-reduced-motion: no-preference) {
+  .asset.asset {
+    animation: assetIn 520ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i, 0) * 40ms) backwards;
+  }
 }
 
-.bridgeName {
-  margin: 4px 0 0;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
-}
-
-.bridgeMeta {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.status {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 40px;
-  color: #fff;
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.status i {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-}
-
-.bridgeStats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0;
-}
-
-.bridgeStats dt {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.bridgeStats dd {
-  margin: 2px 0 0;
-  color: #fff;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 28px;
-}
-
-.plan {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: step;
-}
-
-.plan li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 13px;
-  line-height: 18px;
-  counter-increment: step;
-}
-
-.plan li::before {
-  content: counter(step);
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.72);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 11px;
-}
-
-.plan li span {
-  flex: 1;
-  min-width: 0;
-}
-
-.plan b {
-  color: #fff;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
+@keyframes assetIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 }

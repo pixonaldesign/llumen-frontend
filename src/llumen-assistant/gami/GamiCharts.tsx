@@ -469,8 +469,8 @@ function Table({ card }: { card: CardOf<'table'> }) {
         ))}
       </div>
       <div className={css.tableScroll} role="rowgroup">
-        {card.rows.map((row) => (
-          <div key={row.cells[0]} className={css.tableRow} role="row">
+        {card.rows.map((row, index) => (
+          <div key={`${index}-${row.cells[0]}`} className={css.tableRow} role="row">
             {row.cells.map((cell, c) => (
               <span key={c} role="cell">
                 {c === card.statusColumn ? (
@@ -724,8 +724,40 @@ export function GamiCardBody({
       )
     case 'section':
       return <h3 className={css.sectionTitle}>{card.title}</h3>
+    case 'model': {
+      const vehicle = card.model === 'drone' || card.model === 'tank'
+      return (
+        <>
+          <Title card={card} />
+          <Gami3DModel
+            model={card.model}
+            highlight={card.highlight}
+            accent={card.accent}
+            spin={0.35}
+            interactive
+            distance={vehicle ? 0.72 : 1.05}
+            className={css.modelStage}
+          />
+          <p className={css.modelHint}>Drag to turn</p>
+        </>
+      )
+    }
   }
-  const body: Record<Exclude<GamiCard['kind'], 'summary' | 'cell' | 'part' | 'stock' | 'section'>, () => ReactNode> = {
+  const body: Record<
+    Exclude<GamiCard['kind'], 'summary' | 'cell' | 'part' | 'stock' | 'section' | 'model'>,
+    () => ReactNode
+  > = {
+    note: () => <p className={css.note}>{(card as CardOf<'note'>).text}</p>,
+    specs: () => (
+      <dl className={css.specs}>
+        {(card as CardOf<'specs'>).items.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    ),
     kpis: () => <Kpis card={card as CardOf<'kpis'>} />,
     progress: () => <Progress card={card as CardOf<'progress'>} />,
     line: () => <LineChart card={card as CardOf<'line'>} flat={flat} />,

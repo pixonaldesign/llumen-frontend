@@ -55,6 +55,7 @@ import {
   type MapDataLayer,
   type PartId,
   type Status,
+  type TankPartId,
 } from './gamiTypes'
 
 export const WDS_OPENS = '2028-02-06T10:00:00+03:00'
@@ -1149,6 +1150,202 @@ export const LOCAL_PARTS = Object.fromEntries(
   ]),
 ) as Record<LocalPartId, LocalPart>
 
+/** Who made each cut-off part in Poland: the UAV parts' suppliers, and the Abrams parts' makers. */
+export const POLAND_SUPPLIERS: Record<LocalPartId, string> = {
+  motor: GAMI_PARTS.motor.supplier,
+  gimbal: GAMI_PARTS.gimbal.supplier,
+  inu: GAMI_PARTS.inu.supplier,
+  trackPad: 'Bydgoszcz Rubber Works',
+  visionBlock: 'Wroclaw Armour Glass',
+  seal: 'Lodz Hydraulic Seals',
+  forging: 'Stalowa Wola Forge',
+}
+
+/** Days of stock left of each Abrams part cut off from Poland, as the inventory dashboard reads them. */
+const ABRAMS_STOCK_DAYS: Record<TankPartId, number> = { seal: 104, visionBlock: 92, forging: 140, trackPad: 180 }
+
+const NEXT_MONTHS = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr']
+
+/** The vehicle a part goes into, for the part details' second view: everything after its 3D model. */
+export const GAMI_VEHICLES: Record<'drone' | 'tank', { name: string; cards: GamiCard[] }> = {
+  drone: {
+    name: 'Najm, Sahm and Rimah UAVs',
+    cards: [
+      { id: 'uav-airframes', kind: 'cell', title: '2027 airframes', value: '2,160', note: 'Najm, Sahm and Rimah' },
+      {
+        id: 'uav-line-stop',
+        kind: 'cell',
+        title: 'Line stops in',
+        value: `${GAMI_PARTS.motor.stockDays} days`,
+        note: 'When motor stock runs out',
+        status: 'critical',
+      },
+      { id: 'uav-cut-off', kind: 'cell', title: 'Cut-off parts', value: '3', note: 'All three from Poland', status: 'critical' },
+      { id: 'uav-local', kind: 'cell', title: 'Local content', value: '46%', note: 'Of each airframe’s value' },
+      {
+        id: 'uav-output',
+        kind: 'line',
+        title: 'Monthly UAV Output',
+        kpi: { value: '180', unit: 'airframes / mo planned' },
+        x: NEXT_MONTHS,
+        yLabels: ['200', '100', '0'],
+        yMax: 200,
+        series: [
+          { name: 'Plan', points: NEXT_MONTHS.map(() => 180), dashed: true },
+          { name: 'With Türkiye bridge', points: [180, 150, 172, 180, 180, 180], status: 'good' },
+          { name: 'Without', points: [180, 60, 0, 0, 0, 0], status: 'critical' },
+        ],
+      },
+      { id: 'uav-programmes', kind: 'hbars', title: '2027 Deliveries by Programme', bars: GAMI_PARTS.motor.exposure },
+      {
+        id: 'uav-imports',
+        kind: 'table',
+        title: 'Imported Parts in the UAV',
+        cols: 4,
+        height: 2,
+        columns: ['Part', 'From', 'Stock', 'Status'],
+        statusColumn: 3,
+        rows: [
+          ...(['motor', 'gimbal', 'inu'] as const).map((id) => ({
+            cells: [GAMI_PARTS[id].short, 'Poland', `${GAMI_PARTS[id].stockDays} d`, 'Cut off'],
+            status: 'critical' as const,
+          })),
+          { cells: ['Carbon-fibre prepreg', 'Poland', '64 d', 'Watch'], status: 'moderate' },
+          { cells: ['Li-ion battery packs', 'Poland', '72 d', 'Watch'], status: 'moderate' },
+          { cells: ['Datalink radios', 'USA', '110 d', 'Healthy'], status: 'good' },
+          { cells: ['Composite propellers', 'Türkiye', '126 d', 'Healthy'], status: 'good' },
+        ],
+      },
+      {
+        id: 'uav-origin',
+        kind: 'donut',
+        title: 'Airframe Value by Origin',
+        height: 2,
+        total: '46%',
+        totalLabel: 'made locally',
+        slices: [
+          { name: 'Saudi Arabia', value: 46 },
+          { name: 'Poland', value: 24, status: 'critical' },
+          { name: 'Türkiye', value: 12 },
+          { name: 'USA', value: 10 },
+          { name: 'Other', value: 8 },
+        ],
+      },
+      {
+        id: 'uav-programme-table',
+        kind: 'table',
+        title: 'UAV Programmes',
+        cols: 4,
+        columns: ['Programme', 'Role', 'Endurance', 'Payload'],
+        rows: [
+          { cells: ['Najm', 'Tactical ISR', '12 h', '50 kg'] },
+          { cells: ['Sahm', 'Long-endurance ISR and strike', '24 h', '350 kg'] },
+          { cells: ['Rimah', 'Loitering munition', '2 h', '15 kg'] },
+        ],
+      },
+      {
+        id: 'uav-about',
+        kind: 'note',
+        title: 'About the UAVs',
+        text: 'All three are built at the Riyadh and Al-Kharj UAV sites. Every airframe carries the three Poland parts, so one cut-off stops all three lines.',
+      },
+    ],
+  },
+  tank: {
+    name: 'M1A2 Abrams',
+    cards: [
+      { id: 'abrams-fleet', kind: 'cell', title: 'Fleet', value: '373', note: 'M1A2 Abrams in service' },
+      { id: 'abrams-ready', kind: 'cell', title: 'Mission-capable', value: '86%', note: '321 of 373 tanks', status: 'moderate' },
+      { id: 'abrams-cut-off', kind: 'cell', title: 'Cut-off parts', value: '4', note: 'All four from Poland', status: 'critical' },
+      {
+        id: 'abrams-first-local',
+        kind: 'cell',
+        title: 'First local part',
+        value: LOCAL_PARTS.seal.ready,
+        note: `${LOCAL_PARTS.seal.short}, ${LOCAL_PARTS.seal.city}`,
+        status: 'good',
+      },
+      {
+        id: 'abrams-readiness',
+        kind: 'line',
+        title: 'Mission-capable Tanks',
+        kpi: { value: '321', unit: 'of 373 today' },
+        x: NEXT_MONTHS,
+        yLabels: ['400', '200', '0'],
+        yMax: 400,
+        series: [
+          { name: 'Target', points: NEXT_MONTHS.map(() => 340), dashed: true },
+          { name: 'With local parts', points: [321, 318, 322, 328, 334, 338], status: 'good' },
+          { name: 'Without', points: [321, 310, 298, 286, 274, 262], status: 'critical' },
+        ],
+      },
+      {
+        id: 'abrams-lead',
+        kind: 'vbars',
+        title: 'Spares Lead Time',
+        kpi: { value: '14', unit: 'months from the USA' },
+        bars: [
+          { label: 'Poland', value: 0, display: 'Cut off', status: 'critical' },
+          { label: 'USA', value: 14, display: '14 mo' },
+          { label: 'Local', value: 5, display: '5 mo', status: 'good' },
+        ],
+      },
+      {
+        id: 'abrams-imports',
+        kind: 'table',
+        title: 'Imported Parts in the Abrams',
+        cols: 4,
+        height: 2,
+        columns: ['Part', 'From', 'Stock', 'Status'],
+        statusColumn: 3,
+        rows: [
+          ...(['seal', 'visionBlock', 'forging', 'trackPad'] as const).map((id) => ({
+            cells: [LOCAL_PARTS[id].short, 'Poland', `${ABRAMS_STOCK_DAYS[id]} d`, 'Cut off'],
+            status: 'critical' as const,
+          })),
+          { cells: ['Vision blocks', 'USA', '88 d', 'Watch'], status: 'moderate' },
+          { cells: ['Hydraulic seals', 'USA', '96 d', 'Watch'], status: 'moderate' },
+          { cells: ['Track pads', 'USA', '132 d', 'Healthy'], status: 'good' },
+        ],
+      },
+      {
+        id: 'abrams-status',
+        kind: 'donut',
+        title: 'Fleet Status',
+        height: 2,
+        total: '373',
+        totalLabel: 'tanks',
+        slices: [
+          { name: 'Mission-capable', value: 321, status: 'good' },
+          { name: 'In depot', value: 34, status: 'moderate' },
+          { name: 'Awaiting parts', value: 18, status: 'critical' },
+        ],
+      },
+      {
+        id: 'abrams-specs',
+        kind: 'specs',
+        title: 'M1A2 Abrams',
+        cols: 3,
+        items: [
+          ['Crew', '4'],
+          ['Combat mass', '62 t'],
+          ['Main gun', '120 mm smoothbore'],
+          ['Engine', '1,500 hp turbine'],
+          ['Top speed', '67 km/h'],
+          ['Range', '426 km'],
+        ],
+      },
+      {
+        id: 'abrams-about',
+        kind: 'note',
+        title: 'About the Abrams',
+        cols: 3,
+        text: 'The fleet is kept at the Tabuk and Khamis Mushait depots. Four of its wear parts came only from Poland; local makers replace all four by Q3 2027.',
+      },
+    ],
+  },
+}
+
 type Level = 'Critical' | 'Moderate' | 'Mild'
 
 /** The 20 imports from Poland the conflict cut off, most critical first. */
@@ -1984,6 +2181,12 @@ function withTones(story: GamiStory): GamiStory {
   }
   const [first, ...rest] = story.pages
   return { ...story, pages: [tone(first), ...rest.map(tone)] }
+}
+
+/** One set of cards toned in turn, as a story page tones its own. */
+export function toneCards(cards: GamiCard[]): GamiCard[] {
+  let turn = 0
+  return cards.map((card) => (card.tone || !TONED_KINDS.has(card.kind) ? card : { ...card, tone: TONES[turn++ % TONES.length] }))
 }
 
 export const GAMI_STORIES: Record<string, GamiStory> = Object.fromEntries(

@@ -556,6 +556,69 @@ aside.grid > .section {
   white-space: nowrap;
 }
 
+/* A `model` card: the 3D view takes the room under the title, the hint sits under it. */
+.modelStage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 0 -12px;
+  cursor: grab;
+}
+
+.modelStage:active {
+  cursor: grabbing;
+}
+
+.modelHint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.note {
+  margin: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.specs {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.specs div {
+  min-width: 0;
+}
+
+.specs dt {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.specs dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Opens the part's details; drawn like a card action. */
 .partInfo {
   display: inline-flex;

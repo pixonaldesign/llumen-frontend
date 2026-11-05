@@ -180,6 +180,11 @@ export type GamiCard = CardBase &
         unit: string
         stats?: [string, string][]
       }
+    /** A part or vehicle in 3D that turns when dragged; a vehicle lights up `highlight` in red. */
+    | { kind: 'model'; model: LocalPartId | 'drone' | 'tank'; highlight?: LocalPartId; accent: string }
+    | { kind: 'note'; text: string }
+    /** Label and value pairs in two columns. */
+    | { kind: 'specs'; items: [string, string][] }
   )
 
 export type GamiPage = {
