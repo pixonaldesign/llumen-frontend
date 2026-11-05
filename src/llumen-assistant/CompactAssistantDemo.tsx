@@ -2374,30 +2374,14 @@ export function CompactAssistantDemo() {
   }, [])
 
   const openStoryAsk = useCallback(
-    ({
-      story,
-      slideIndex,
-      sourceRect,
-    }: {
-      story: LandingStory
-      slideIndex: number
-      sourceRect: DOMRect
-    }) => {
-      const slide = story.slides[slideIndex]
-      const chipLabel = slide?.title ?? story.storyTitle
+    ({ sourceRect }: { story: LandingStory; slideIndex: number; sourceRect: DOMRect }) => {
       if (isHub) {
-        setLandingChips([storyContextChip(story)])
+        setLandingChips([])
         setHubMorphFrom(sourceRect)
         setHubStoryOpen(true)
         setLandingFocusToken((n) => n + 1)
         return
       }
-      setDraft((prev) => {
-        const mention = `@${chipLabel}`
-        if (!prev.trim()) return `Tell me more about ${mention}`
-        if (prev.includes(mention)) return prev
-        return `${prev.trim()} ${mention}`
-      })
       setOpen(true)
       setExpanded(false)
     },
@@ -2860,20 +2844,14 @@ export function CompactAssistantDemo() {
   }, [messages])
 
   const openGamiAsk = useCallback(
-    ({ storyId, title, pageTitle, sourceRect }: GamiAskContext) => {
+    ({ sourceRect }: GamiAskContext) => {
       if (isHub) {
-        setLandingChips([{ id: `story-${storyId}`, label: title, categoryId: 'slides' }])
+        setLandingChips([])
         setHubMorphFrom(sourceRect)
         setHubStoryOpen(true)
         setLandingFocusToken((n) => n + 1)
         return
       }
-      setDraft((prev) => {
-        const mention = `@${pageTitle}`
-        if (!prev.trim()) return `Tell me more about ${mention}`
-        if (prev.includes(mention)) return prev
-        return `${prev.trim()} ${mention}`
-      })
       setOpen(true)
       setExpanded(false)
     },
