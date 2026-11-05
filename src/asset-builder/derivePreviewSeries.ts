@@ -510,6 +510,40 @@ export function derivePreviewSeries({
     return out;
   }
 
+  if (chartId === "funnel") {
+    const stageCol = mapped(config, "Stage", "district");
+    const valueCol = mapped(config, "Value", yCol);
+    const stageAgg = agg.startsWith("None") ? "Sum" : agg;
+    const maxPct = Number(config["Funnel::Max stages"] ?? 60);
+    const maxStages = Math.round(2 + (Math.max(0, Math.min(100, Number.isFinite(maxPct) ? maxPct : 60)) / 100) * 10);
+    let stages = groupRows(rows, stageCol).map((group) => ({
+      group,
+      value: Number(aggregate(group.rows.map((r) => numCell(r, valueCol)), stageAgg).toFixed(2)),
+    }));
+    if ((cfgStr(config, "Funnel", "Stage order") || "Largest first") === "Largest first") {
+      stages = [...stages].sort((a, b) => b.value - a.value);
+    }
+    stages = stages.slice(0, maxStages);
+    const colorMode = asColorMode(config["Colors::Palette"]);
+    const categoryField = colorMode.categoryField === "Auto" ? stageCol : colorMode.categoryField;
+    out.labels = stages.map((stage) => stage.group.label);
+    out.values = stages.map((stage) => stage.value);
+    out.legend = columnLabel(valueCol, dataset);
+    out.colorCategories = stages.map(
+      (stage) => strCell(stage.group.rows[0] ?? {}, categoryField) || stage.group.label,
+    );
+    out.markTips = stages.map((stage) => ({
+      ...markTipFromGroup(stage.group, valueCol, stageAgg),
+      value: stage.value,
+    }));
+    const first = stages[0];
+    const last = stages[stages.length - 1];
+    if (!out.insight && first && last && stages.length > 1 && first.value > 0) {
+      out.insight = `${Math.round((last.value / first.value) * 100)}% of ${first.group.label} reaches ${last.group.label}`;
+    }
+    return out;
+  }
+
   if (chartId === "scatter" && !isMap) {
     const xCol = mapped(config, "X value", "amount");
     const yScatter = mapped(config, "Y value", "incidents");

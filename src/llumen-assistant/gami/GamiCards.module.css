@@ -1,0 +1,894 @@
+/*
+ * GAMI insight cards. The shell (`summaryCard`, `visualCard`, `kpiCellCard`) and the type come from the
+ * story's own card styles; this only lays the cards on the 184px grid and draws the chart kinds the story
+ * cards don't have, in the same neutral strokes.
+ */
+
+/*
+ * The sidebar: 184px cells in `--sidebar-columns` columns; full cards span the row. Rows size to their
+ * content so a section header takes only its text's height; every card is held to whole cells.
+ */
+aside.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--sidebar-columns, 2), 184px);
+  grid-auto-rows: auto;
+  grid-auto-flow: row dense;
+  align-content: start;
+  padding-bottom: 112px;
+}
+
+aside.grid > *,
+aside.grid > .card.card {
+  height: 184px;
+}
+
+aside.grid > .card.card.tall {
+  height: calc(184px * 2 + 12px);
+}
+
+aside.grid > .section {
+  height: auto;
+}
+
+/* Heads the cards after it: its title centred on a rule across the row. */
+.section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 0;
+}
+
+.section::before,
+.section::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.card.card {
+  position: relative;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  overflow: hidden;
+}
+
+/* The animated gradient ring is drawn over the border, outside the padding box a clip would cut it to. */
+.card.card.summary {
+  overflow: visible;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.cell {
+  grid-column: span 1;
+}
+
+/* Two cells wide at any column count; with `.tall`, a 2×2 block. */
+.block {
+  grid-column: span 2;
+}
+
+.tall {
+  grid-row: span 2;
+}
+
+/* A cell card's unit after its value, as `visualValue` sets one. */
+.cellUnit {
+  margin-left: 6px;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: var(--lc-font-sans);
+  font-size: 16px;
+  font-weight: 400;
+}
+
+/* A cell card's sparkline (in `SparkAxes`, which takes the room under its note); the line may run over the plot's edges. */
+.spark {
+  overflow: visible;
+}
+
+/* A changed trend (the inventory's filters) morphs to its new shape. */
+.spark path {
+  transition: d 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.legend {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+/* KPI tiles in one row, each read like `visualValue` over its label. */
+.kpis {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(var(--kpi-cols, 3), minmax(0, 1fr));
+  gap: 12px;
+  align-content: center;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Three or more tiles share the row, so their figures step down from the story's 32px. */
+.kpis[data-dense] .kpi strong {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.kpis[data-dense] .kpi span {
+  font-size: 13px;
+}
+
+.kpiLabel {
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+}
+
+.progressRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.muted {
+  color: rgba(255, 255, 255, 0.48);
+  font-weight: 400;
+}
+
+.track {
+  position: relative;
+  display: block;
+  height: 8px;
+  min-width: 0;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 40px;
+  transition: width 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Column bars: value over the bar, label under it. */
+.vbars {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 0;
+}
+
+.vbar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.vbarValue {
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.vbarTrack {
+  position: relative;
+  display: block;
+  flex: 1;
+  width: 100%;
+  max-width: 28px;
+  min-height: 0;
+}
+
+.vbarFill {
+  position: absolute;
+  inset: auto 0 0;
+  border-radius: 4px 4px 2px 2px;
+  transition: height 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vbarLabel {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar,
+.stackRow,
+.rangeRow,
+.rangeAxis {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.hbarLabel {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbarValue {
+  min-width: 40px;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.splitPart {
+  height: 100%;
+  border-radius: 40px;
+  transition: flex-grow 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stacked {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.stackBar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+}
+
+.stackPart {
+  height: 100%;
+  border-radius: 40px;
+}
+
+.groupBars {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  min-height: 0;
+}
+
+.groupFill {
+  width: 8px;
+  border-radius: 3px 3px 1px 1px;
+}
+
+.donut {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 0;
+}
+
+.donutRing {
+  position: relative;
+  width: 112px;
+  height: 112px;
+}
+
+.donutRing svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.donutRing circle {
+  transition:
+    stroke-dasharray 900ms cubic-bezier(0.4, 0, 0.2, 1),
+    stroke-dashoffset 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donutCenter strong {
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.donutCenter span {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.donutLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/*
+ * The table: a fixed row of column titles over a scrolling body, both on the table's columns. It runs to
+ * the card's edge so the thumb sits there; its last 4px track and the gap inset the cells.
+ */
+.table {
+  display: grid;
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: 8px;
+  min-height: 0;
+  margin-right: -12px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.tableHead,
+.tableRow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.tableHead {
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.48);
+  white-space: nowrap;
+}
+
+.tableRow {
+  padding: 7px 0;
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+}
+
+.tableRow + .tableRow {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tableRow > :first-child {
+  color: #fff;
+  white-space: normal;
+}
+
+.tableScroll {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-content: start;
+  min-height: 0;
+  padding-right: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+/* Chromium drops ::-webkit-scrollbar sizing when scrollbar-width is set; the 4px thumb takes the last track. */
+@supports selector(::-webkit-scrollbar) {
+  .tableScroll {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.tableScroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.tableScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status i {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+/* Timeline bars against months from today, with today as the story's dashed reference line. */
+.range {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.rangeRow,
+.rangeAxis {
+  grid-template-columns: 92px minmax(0, 1fr);
+}
+
+.rangeTrack {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rangeBar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 40px;
+}
+
+.rangeToday {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.72);
+}
+
+.rangeTicks {
+  position: relative;
+  display: block;
+  height: 14px;
+}
+
+.rangeTicks span {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 14px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* A 3D part: the model fills the card over its stock days. */
+.partCard {
+  padding-bottom: 12px;
+}
+
+.partModel {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: -4px -12px 0;
+}
+
+.partFoot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.partStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.partStats div {
+  min-width: 0;
+}
+
+.partStats dt {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.partStats dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.partRow > p {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* A `model` card: the 3D view takes the room under the title, the hint sits under it. */
+.modelStage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 0 -12px;
+  cursor: grab;
+}
+
+.modelStage:active {
+  cursor: grabbing;
+}
+
+.modelHint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.note {
+  margin: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.specs {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.specs div {
+  min-width: 0;
+}
+
+.specs dt {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.specs dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Opens the part's details; drawn like a card action. */
+.partInfo {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.partInfo:hover {
+  background: rgba(56, 56, 56, 0.72);
+}
+
+.partInfo:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+/*
+ * The grid layout: `--grid-columns` square cells across the page. Each card spans `--cols` × `--rows`
+ * cells (set from the card); a section takes the row at its text's height.
+ */
+.dash {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns, 8), minmax(0, 1fr));
+  grid-auto-rows: auto;
+  grid-auto-flow: row dense;
+  align-content: start;
+  gap: 12px;
+  margin: 0 20px;
+  padding: 20px 0 96px;
+}
+
+.dash > * {
+  --cell: calc((100cqw - (var(--grid-columns, 8) - 1) * 12px) / var(--grid-columns, 8));
+  /* Figures keep the story's 32px on wide screens and shrink with the cell so they fit it on a laptop. */
+  --figure: clamp(18px, calc(var(--cell) * 0.125), 32px);
+}
+
+.dash .figure > strong,
+.dash .figureCell {
+  font-size: var(--figure);
+  line-height: 1.25;
+}
+
+.dash .figure > span,
+.dash .figureCell > .cellUnit {
+  font-size: clamp(12px, calc(var(--cell) * 0.065), 16px);
+}
+
+.dash > .card.card,
+.dash > .gridCell {
+  grid-column: span var(--cols, 1);
+  grid-row: span var(--rows, 1);
+  width: auto;
+  height: calc(var(--rows, 1) * var(--cell) + (var(--rows, 1) - 1) * 12px);
+}
+
+/* Placed before the auto-flowed cards, so the cards after it pack into the two columns on its left. */
+.dash > .card.card.docked {
+  grid-column: span var(--cols, 1) / -1;
+  grid-row: 1 / span var(--rows, 1);
+}
+
+.dash > .section {
+  grid-column: 1 / -1;
+}
+
+/* Edit mode's empty cells, as the story's grid draws them. */
+.gridCell {
+  box-sizing: border-box;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  pointer-events: none;
+}
+
+/* Waiting for the story to come in: the cards hold back until the fill plays. */
+.dash[data-fill='wait'] > * {
+  opacity: 0;
+}
+
+.dash[data-fill='leave'] > * {
+  animation: dashOut 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/*
+ * The fill: each card rises in after `--fill-d`, then its model, bars, lines, ring and rows fill in
+ * from empty while its figures count up (GamiCharts).
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .dash[data-fill='play'] > * {
+    animation: dashIn 760ms cubic-bezier(0.16, 1, 0.3, 1) var(--fill-d, 0ms) backwards;
+  }
+
+  .dash[data-fill='play'] .partModel {
+    animation: modelIn 1100ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--fill-d, 0ms) + 180ms) backwards;
+  }
+
+  .dash[data-fill='play'] .fill,
+  .dash[data-fill='play'] .splitPart,
+  .dash[data-fill='play'] .stackPart,
+  .dash[data-fill='play'] .rangeBar {
+    transform-origin: left center;
+    animation: fillX 1100ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--fill-d, 0ms) + 260ms) backwards;
+  }
+
+  .dash[data-fill='play'] .stackRow:nth-child(2) .stackPart,
+  .dash[data-fill='play'] .hbar:nth-child(2) .fill,
+  .dash[data-fill='play'] .progressRow:nth-child(2) .fill {
+    animation-delay: calc(var(--fill-d, 0ms) + 330ms);
+  }
+
+  .dash[data-fill='play'] .stackRow:nth-child(3) .stackPart,
+  .dash[data-fill='play'] .hbar:nth-child(3) .fill,
+  .dash[data-fill='play'] .progressRow:nth-child(3) .fill {
+    animation-delay: calc(var(--fill-d, 0ms) + 400ms);
+  }
+
+  .dash[data-fill='play'] .stackRow:nth-child(n + 4) .stackPart,
+  .dash[data-fill='play'] .hbar:nth-child(n + 4) .fill {
+    animation-delay: calc(var(--fill-d, 0ms) + 470ms);
+  }
+
+  .dash[data-fill='play'] .vbarFill,
+  .dash[data-fill='play'] .groupFill {
+    transform-origin: center bottom;
+    animation: fillY 1100ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--fill-d, 0ms) + 260ms) backwards;
+  }
+
+  .dash[data-fill='play'] .vbar:nth-child(2) .vbarFill {
+    animation-delay: calc(var(--fill-d, 0ms) + 340ms);
+  }
+
+  .dash[data-fill='play'] .vbar:nth-child(3) .vbarFill {
+    animation-delay: calc(var(--fill-d, 0ms) + 420ms);
+  }
+
+  .dash[data-fill='play'] .vbar:nth-child(n + 4) .vbarFill {
+    animation-delay: calc(var(--fill-d, 0ms) + 500ms);
+  }
+
+  /* Line charts and sparklines (both drawn in a 0–100 box) draw in from the left. */
+  .dash[data-fill='play'] svg[viewBox='0 0 100 100'] {
+    animation: wipe 1400ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--fill-d, 0ms) + 260ms) backwards;
+  }
+
+  .dash[data-fill='play'] .donutRing svg {
+    -webkit-mask-image: conic-gradient(#000 var(--sweep), transparent 0);
+    mask-image: conic-gradient(#000 var(--sweep), transparent 0);
+    animation: sweep 1200ms cubic-bezier(0.65, 0, 0.35, 1) calc(var(--fill-d, 0ms) + 260ms) backwards;
+  }
+
+  .dash[data-fill='play'] .tableRow {
+    animation: rowIn 520ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--fill-d, 0ms) + 300ms + var(--row-d, 0ms)) backwards;
+  }
+
+  .tableRow:nth-child(2) {
+    --row-d: 50ms;
+  }
+
+  .tableRow:nth-child(3) {
+    --row-d: 100ms;
+  }
+
+  .tableRow:nth-child(4) {
+    --row-d: 150ms;
+  }
+
+  .tableRow:nth-child(5) {
+    --row-d: 200ms;
+  }
+
+  .tableRow:nth-child(6) {
+    --row-d: 250ms;
+  }
+
+  .tableRow:nth-child(n + 7) {
+    --row-d: 300ms;
+  }
+}
+
+@property --sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 360deg;
+}
+
+@keyframes dashIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+}
+
+@keyframes dashOut {
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+@keyframes modelIn {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+}
+
+@keyframes fillX {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes fillY {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes sweep {
+  from {
+    --sweep: 0deg;
+  }
+
+  to {
+    --sweep: 360deg;
+  }
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

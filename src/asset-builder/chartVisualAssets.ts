@@ -32,6 +32,7 @@ const CHART_PICKER_ICON_IDS = new Set([
   "range",
   "availability",
   "sankey-chart",
+  "funnel-chart",
   "kpi-card",
   "kpi-grid",
   "table",

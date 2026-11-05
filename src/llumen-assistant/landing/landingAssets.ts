@@ -4,6 +4,8 @@ const b = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/landing`
 export const landingAssets = {
   logoMark: `${b}/llumen-logo.png`,
   wordmark: `${b}/llumen-wordmark.svg`,
+  /** GAMI's white emblem for dark backgrounds, from gami.gov.sa/en/visual-branding. */
+  gamiLogo: `${b}/gami-logo.svg`,
   userBtn: `${b}/user-btn.png`,
   slideMap: `${b}/slide-map.png`,
   recMapA: `${b}/rec-map-a.png`,
@@ -28,9 +30,11 @@ export const landingAssets = {
   storyThumbMask: `${b}/story-mask.svg`,
   storyThumbChartBase: `${b}/story-thumb-chart-base.png`,
   storyThumbChartBars: `${b}/story-thumb-chart-bars.png`,
+  storyThumbBars: `${b}/story-thumb-bars.jpg`,
   assetLayerPermit: `${b}/asset-layer-permit.png`,
   assetLayerTerrain: `${b}/asset-layer-terrain.png`,
   assetLayerPins: `${b}/asset-layer-pins.png`,
+  assetLayerHeat: `${b}/asset-layer-heat.png`,
   mapStyleAimsunTeal: `${b}/map-style-aimsun-teal.jpg`,
   mapStyleAimsunBase: `${b}/map-style-aimsun-base.png`,
   mapStyleAimsunDefault: `${b}/map-style-aimsun-default.png`,
@@ -40,7 +44,7 @@ export const landingAssets = {
 } as const
 
 /** Thumbnail variants from the Figma Stories grid — keep story copy separate. */
-export type StoryThumbVariant = 'map' | 'chart' | 'satellite'
+export type StoryThumbVariant = 'map' | 'chart' | 'satellite' | 'bars'
 
 export function storyThumbLayers(variant: StoryThumbVariant): {
   image: string
@@ -59,5 +63,7 @@ export function storyThumbLayers(variant: StoryThumbVariant): {
       }
     case 'satellite':
       return { image: landingAssets.storyThumbChartBase }
+    case 'bars':
+      return { image: landingAssets.storyThumbBars }
   }
 }

@@ -6207,6 +6207,11 @@ button {
   gap: var(--spacing-xs);
   min-width: 0;
 }
+.cp-type--row {
+  grid-template-columns: none;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
 .cp-type__btn {
   display: flex;
   align-items: center;

@@ -1,0 +1,94 @@
+/*
+ * The story's modal at a wider size: a view toggle over a grid of the story sidebar's 184px cells,
+ * six across, or four in a narrower window.
+ */
+.modal.modal {
+  --columns: 6;
+  --grid-width: calc(var(--columns) * 184px + (var(--columns) - 1) * 12px);
+  width: min(calc(var(--grid-width) + 48px), calc(100vw - 64px));
+  height: min(860px, calc(100vh - 64px));
+}
+
+@media (max-width: 1259px) {
+  .modal.modal {
+    --columns: 4;
+  }
+}
+
+.sub {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.toggle {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: min(var(--grid-width), calc(100% - 48px));
+  margin: 16px auto 0;
+}
+
+/* Full-bleed so the thumb runs down the modal's edge; the grid is inset by centring it. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 0 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+@supports selector(::-webkit-scrollbar) {
+  .scroll {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.scroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--columns), 184px);
+  grid-auto-rows: 184px;
+  grid-auto-flow: row dense;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Each card covers whole cells: `--cols` by `--rows`, from gridVars. */
+.asset.asset {
+  grid-column: span var(--cols, 1);
+  grid-row: span var(--rows, 1);
+  align-self: stretch;
+  width: auto;
+  height: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .asset.asset {
+    animation: assetIn 520ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--i, 0) * 40ms) backwards;
+  }
+}
+
+@keyframes assetIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}

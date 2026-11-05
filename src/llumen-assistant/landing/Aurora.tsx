@@ -26,6 +26,7 @@ uniform float uFadeHold;
 uniform float uFadeSpan;
 uniform float uStreaks;
 uniform float uHighlights;
+uniform float uMirror;
 
 out vec4 fragColor;
 
@@ -93,7 +94,17 @@ struct ColorStop {
 }
 
 void main() {
-  vec2 uv = gl_FragCoord.xy / uResolution;
+  // Mirrored, the upper half reflects the lower one across the centre line, which is the ribbon's base.
+  // The fold is rounded over a few pixels so the reflection leaves no crease along the line.
+  vec2 frag = gl_FragCoord.xy;
+  vec2 res = uResolution;
+  if (uMirror > 0.5) {
+    res.y *= 0.5;
+    float d = frag.y - res.y;
+    float soft = res.y * 0.04;
+    frag.y = sqrt(d * d + soft * soft) - soft;
+  }
+  vec2 uv = frag / res;
   uv.y = 1.0 - uv.y;
 
   ColorStop colors[3];
@@ -112,7 +123,7 @@ void main() {
   float midPoint = 0.20;
   float auroraAlpha = smoothstep(midPoint - uBlend * 0.5, midPoint + uBlend * 0.5, intensity);
 
-  float fromBottom = gl_FragCoord.y;
+  float fromBottom = frag.y;
   float fadeStart = max(uFadeHold * 0.45, uFadeHold - uFadeSpan * 0.65);
   float fadeEnd = uFadeHold + max(uFadeSpan, 1.0) * 1.65;
   float t = clamp((fromBottom - fadeStart) / max(fadeEnd - fadeStart, 1.0), 0.0, 1.0);
@@ -162,6 +173,8 @@ export type AuroraProps = {
   streaks?: number
   /** Bright cores inside the curtains. */
   highlights?: number
+  /** Grow the ribbon up and down from a line across the middle of the box; the fade is measured from that line. */
+  mirror?: boolean
   /** Called after the first frame is drawn with the live settings. */
   onReady?: () => void
 }
@@ -185,12 +198,13 @@ export function Aurora({
   fadeSpan = 140,
   streaks = 0.24,
   highlights = 0.04,
+  mirror = false,
   onReady,
 }: AuroraProps) {
   const hostRef = useRef<HTMLDivElement>(null)
-  const propsRef = useRef({ colorStops, amplitude, blend, speed, fadeHold, fadeSpan, streaks, highlights })
+  const propsRef = useRef({ colorStops, amplitude, blend, speed, fadeHold, fadeSpan, streaks, highlights, mirror })
   const onReadyRef = useRef(onReady)
-  propsRef.current = { colorStops, amplitude, blend, speed, fadeHold, fadeSpan, streaks, highlights }
+  propsRef.current = { colorStops, amplitude, blend, speed, fadeHold, fadeSpan, streaks, highlights, mirror }
   onReadyRef.current = onReady
 
   useLayoutEffect(() => {
@@ -230,6 +244,7 @@ export function Aurora({
         uFadeSpan: { value: propsRef.current.fadeSpan },
         uStreaks: { value: propsRef.current.streaks },
         uHighlights: { value: propsRef.current.highlights },
+        uMirror: { value: propsRef.current.mirror ? 1 : 0 },
       },
     })
 
@@ -262,6 +277,7 @@ export function Aurora({
       program.uniforms.uFadeSpan.value = current.fadeSpan * dpr
       program.uniforms.uStreaks.value = current.streaks
       program.uniforms.uHighlights.value = current.highlights
+      program.uniforms.uMirror.value = current.mirror ? 1 : 0
       program.uniforms.uColorStops.value = stopsToVec3(current.colorStops)
       renderer.render({ scene: mesh })
     }
