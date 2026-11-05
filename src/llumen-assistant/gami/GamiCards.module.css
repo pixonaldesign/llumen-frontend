@@ -87,12 +87,17 @@ aside.grid > .section {
   grid-row: span 2;
 }
 
-/* A cell card's sparkline takes the room under its note; the line may run over the box's bottom edge. */
+/* A cell card's unit after its value, as `visualValue` sets one. */
+.cellUnit {
+  margin-left: 6px;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: var(--lc-font-sans);
+  font-size: 16px;
+  font-weight: 400;
+}
+
+/* A cell card's sparkline (in `SparkAxes`, which takes the room under its note); the line may run over the plot's edges. */
 .spark {
-  display: block;
-  flex: 1 1 auto;
-  width: 100%;
-  min-height: 24px;
   overflow: visible;
 }
 
@@ -132,22 +137,14 @@ aside.grid > .section {
   font-size: 13px;
 }
 
-.kpiLabel,
-.kpiNote {
+.kpiLabel {
   margin: 0;
   overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
   font-size: 12px;
   line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.kpiLabel {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.kpiNote {
-  color: rgba(255, 255, 255, 0.48);
 }
 
 .rows {
@@ -691,7 +688,8 @@ aside.grid > .section {
   line-height: 1.25;
 }
 
-.dash .figure > span {
+.dash .figure > span,
+.dash .figureCell > .cellUnit {
   font-size: clamp(12px, calc(var(--cell) * 0.065), 16px);
 }
 

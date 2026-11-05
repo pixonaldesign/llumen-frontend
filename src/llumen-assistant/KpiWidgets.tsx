@@ -1,6 +1,8 @@
 import { useId } from 'react'
 import { AiGeneratedBadge } from './AiGeneratedBadge'
 import type { CreatedComponent, WidgetVariant } from './assistantReplyTypes'
+import { SparkAxes } from './SparkAxes'
+import { sparkPath, sparkScale, sparkX } from './sparkScale'
 import styles from './KpiWidgets.module.css'
 
 function StatusBadge({
@@ -220,27 +222,44 @@ function WindWidget() {
   )
 }
 
+const HUMIDITY = [58, 60, 66, 63, 55, 61, 68, 67, 64]
+const HUMIDITY_X = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00', 'Now']
+const FALLBACK = [14, 22, 18, 42, 34, 52, 46]
+
+/** A widget's trend line on small axes, filling the room under its figures. */
+function Sparkline({ points, x, suffix, stroke }: { points: number[]; x?: string[]; suffix?: string; stroke?: [string, string] }) {
+  const gradientId = useId().replace(/:/g, '')
+  const scale = sparkScale(points, { suffix })
+  return (
+    <SparkAxes y={scale.labels} x={sparkX(points.length, x)} className={styles.sparkline}>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className={styles.sparkSvg} aria-hidden>
+        {stroke ? (
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor={stroke[0]} />
+              <stop offset="100%" stopColor={stroke[1]} />
+            </linearGradient>
+          </defs>
+        ) : null}
+        <path
+          d={sparkPath(points, scale)}
+          fill="none"
+          stroke={stroke ? `url(#${gradientId})` : 'rgba(115,173,245,0.95)'}
+          strokeWidth="2"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    </SparkAxes>
+  )
+}
+
 function HumidityWidget() {
   return (
     <div className={styles.widgetInner}>
       <p className={styles.widgetTitle}>Avg. Humidity</p>
       <p className={styles.widgetValue}>64%</p>
-      <div className={styles.sparkline} aria-hidden>
-        <svg viewBox="0 0 172 48" preserveAspectRatio="none" className={styles.sparkSvg}>
-          <defs>
-            <linearGradient id="sparkStroke" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#e0c27a" />
-              <stop offset="100%" stopColor="#5ec4b0" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M0 30 C20 28, 40 18, 60 22 S100 36, 120 20 S150 10, 172 16"
-            fill="none"
-            stroke="url(#sparkStroke)"
-            strokeWidth="2"
-          />
-        </svg>
-      </div>
+      <Sparkline points={HUMIDITY} x={HUMIDITY_X} suffix="%" stroke={['#e0c27a', '#5ec4b0']} />
     </div>
   )
 }
@@ -264,16 +283,7 @@ function ChartFallback({ title }: { title: string }) {
   return (
     <div className={styles.widgetInner}>
       <p className={styles.widgetTitle}>{title}</p>
-      <div className={styles.sparkline} aria-hidden>
-        <svg viewBox="0 0 172 64" preserveAspectRatio="none" className={styles.sparkSvg}>
-          <path
-            d="M0 50 L28 42 L56 46 L84 22 L112 30 L140 12 L172 18"
-            fill="none"
-            stroke="rgba(115,173,245,0.95)"
-            strokeWidth="2"
-          />
-        </svg>
-      </div>
+      <Sparkline points={FALLBACK} />
     </div>
   )
 }

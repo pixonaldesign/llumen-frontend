@@ -166,11 +166,13 @@
   font-size: 12px;
 }
 
-.spark {
-  display: block;
-  width: calc(100% + 32px);
-  height: 36px;
-  margin: 6px -16px 0;
+.tile .spark {
+  height: 64px;
+  margin: 8px 0 12px;
+}
+
+.spark svg {
+  overflow: visible;
 }
 
 .sparkLine {

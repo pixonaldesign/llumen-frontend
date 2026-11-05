@@ -161,15 +161,8 @@ const OVERVIEW: GamiStory = {
             { label: 'Naval', value: 46, display: '46' },
           ],
         },
-        {
-          id: 'investment',
-          kind: 'kpis',
-          title: '2026 Investment Pipeline',
-          tiles: [
-            { label: 'Invested YTD', value: '18.6', unit: 'SAR bn' },
-            { label: 'Potential to year end', value: '31.4', unit: 'SAR bn' },
-          ],
-        },
+        { id: 'invested', kind: 'cell', title: 'Invested YTD', value: '18.6', unit: 'SAR bn', note: '2026 investment pipeline' },
+        { id: 'potential', kind: 'cell', title: 'Potential to year end', value: '31.4', unit: 'SAR bn', note: '2026 investment pipeline' },
         {
           id: 'licences',
           kind: 'donut',
@@ -237,16 +230,10 @@ const OVERVIEW: GamiStory = {
             ' from the Poland supply alert.',
           ],
         },
-        {
-          id: 'kpis',
-          kind: 'kpis',
-          title: 'Corridor at a Glance',
-          tiles: [
-            { label: 'Companies', value: '248' },
-            { label: 'Jobs', value: '27.1k' },
-            { label: 'Invested YTD', value: '7.9', unit: 'SAR bn' },
-          ],
-        },
+        { id: 'companies', kind: 'cell', title: 'Companies', value: '248', note: 'Corridor at a glance' },
+        { id: 'jobs', kind: 'cell', title: 'Jobs', value: '27.1k', note: 'Corridor at a glance' },
+        { id: 'invested', kind: 'cell', title: 'Invested YTD', value: '7.9', unit: 'SAR bn', note: 'Corridor at a glance' },
+        { id: 'at-risk', kind: 'cell', title: 'UAV sites at risk', value: '2', note: 'Poland supply alert', status: 'critical' },
         {
           id: 'domains',
           kind: 'vbars',
@@ -352,15 +339,8 @@ const LOCALIZATION: GamiStory = {
             { label: 'Air', value: 19, display: '19%' },
           ],
         },
-        {
-          id: 'investment',
-          kind: 'kpis',
-          title: '2026 Investment Pipeline',
-          tiles: [
-            { label: 'Invested YTD', value: '18.6', unit: 'SAR bn' },
-            { label: 'Potential to year end', value: '31.4', unit: 'SAR bn' },
-          ],
-        },
+        { id: 'invested', kind: 'cell', title: 'Invested YTD', value: '18.6', unit: 'SAR bn', note: '2026 investment pipeline' },
+        { id: 'potential', kind: 'cell', title: 'Potential to year end', value: '31.4', unit: 'SAR bn', note: '2026 investment pipeline' },
         {
           id: 'licences',
           kind: 'donut',
@@ -409,16 +389,10 @@ const LOCALIZATION: GamiStory = {
             '.',
           ],
         },
-        {
-          id: 'kpis',
-          kind: 'kpis',
-          title: 'Jubail Readiness',
-          tiles: [
-            { label: 'Serviced land', value: '4.2', unit: 'km²' },
-            { label: 'Qualified suppliers', value: '37' },
-            { label: 'First output', value: '14', unit: 'months' },
-          ],
-        },
+        { id: 'land', kind: 'cell', title: 'Serviced land', value: '4.2', unit: 'km²', note: 'Jubail readiness' },
+        { id: 'suppliers', kind: 'cell', title: 'Qualified suppliers', value: '37', note: 'Jubail readiness' },
+        { id: 'first-output', kind: 'cell', title: 'First output', value: '14', unit: 'months', note: 'Jubail readiness' },
+        { id: 'ready-now', kind: 'cell', title: 'Ready now', value: '10.6', unit: 'SAR bn', note: 'Ammunition and vehicle subsystems' },
         {
           id: 'readiness',
           kind: 'grouped',
@@ -507,16 +481,10 @@ const WDS: GamiStory = {
           ],
         },
         { id: 'countdown', kind: 'countdown', title: 'WDS 2028 Countdown', target: WDS_OPENS },
-        {
-          id: 'outlook',
-          kind: 'kpis',
-          title: 'WDS Outlook',
-          tiles: [
-            { label: 'Countries', value: '94', note: '2026: 76' },
-            { label: 'Visitors', value: '155k', note: '2026: 137k' },
-            { label: 'Contracts', value: '10.2', unit: 'USD bn', note: '+16% on 2026' },
-          ],
-        },
+        { id: 'countries', kind: 'cell', title: 'Countries', value: '94', note: '2026: 76' },
+        { id: 'visitors', kind: 'cell', title: 'Visitors', value: '155k', note: '2026: 137k' },
+        { id: 'contracts', kind: 'cell', title: 'Contracts', value: '10.2', unit: 'USD bn', note: '+16% on 2026' },
+        { id: 'growth', kind: 'cell', title: 'Ahead of 2026', value: '+32%', note: '1,940 exhibitor applications' },
         {
           id: 'exhibitors',
           kind: 'split',
@@ -585,16 +553,10 @@ const WDS: GamiStory = {
             ', for a peak of 41,000 visitors a day.',
           ],
         },
-        {
-          id: 'kpis',
-          kind: 'kpis',
-          title: 'Venue Capacity',
-          tiles: [
-            { label: 'Indoor halls', value: '172k', unit: 'm²' },
-            { label: 'Outdoor display', value: '380k', unit: 'm²' },
-            { label: 'Peak visitors', value: '41k', unit: '/ day' },
-          ],
-        },
+        { id: 'indoor-halls', kind: 'cell', title: 'Indoor halls', value: '172k', unit: 'm²', note: 'Venue capacity' },
+        { id: 'outdoor-display', kind: 'cell', title: 'Outdoor display', value: '380k', unit: 'm²', note: 'Venue capacity' },
+        { id: 'peak-visitors', kind: 'cell', title: 'Peak visitors', value: '41k', unit: '/ day', note: 'Venue capacity' },
+        { id: 'hall-count', kind: 'cell', title: 'Exhibition halls', value: '5', note: 'For 1,940 exhibitors' },
         {
           id: 'readiness',
           kind: 'progress',
@@ -752,16 +714,10 @@ const TALENT: GamiStory = {
             ', so the cluster needs a second intake to close the gap by 2028.',
           ],
         },
-        {
-          id: 'kpis',
-          kind: 'kpis',
-          title: 'KAEC Talent at a Glance',
-          tiles: [
-            { label: 'Unfilled roles', value: '640' },
-            { label: 'Graduates / yr', value: '180' },
-            { label: 'Time to hire', value: '5.2', unit: 'months' },
-          ],
-        },
+        { id: 'unfilled', kind: 'cell', title: 'Unfilled roles', value: '640', note: 'KAEC talent at a glance' },
+        { id: 'graduates', kind: 'cell', title: 'Graduates / yr', value: '180', note: 'KAEC talent at a glance' },
+        { id: 'time-to-hire', kind: 'cell', title: 'Time to hire', value: '5.2', unit: 'months', note: 'KAEC talent at a glance' },
+        { id: 'employer-count', kind: 'cell', title: 'Employers', value: '8', note: '412 roles in machining and UAV' },
         {
           id: 'skills',
           kind: 'hbars',
@@ -1456,6 +1412,7 @@ const ALERT: GamiStory = {
           note: 'Down from 450 a week',
           status: 'critical',
           spark: [450, 465, 440, 455, 430, 210, 0, 0, 0],
+          sparkX: ['−8w', '−7w', '−6w', '−5w', '−4w', '−3w', '−2w', '−1w', 'Now'],
         },
         {
           id: 'imports',
@@ -1543,6 +1500,7 @@ const ALERT: GamiStory = {
           note: 'Up to 450 motors a week',
           status: 'good',
           spark: [0, 0, 0, 0, 120, 300, 450, 450, 450],
+          sparkX: ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4', 'Wk 5', 'Wk 6', 'Wk 7', 'Wk 8', 'Wk 9'],
         },
         {
           id: 'options',
@@ -1648,6 +1606,7 @@ const ALERT: GamiStory = {
           note: 'of the 7 parts by 2029',
           status: 'good',
           spark: [0, 14, 43, 57, 57, 57, 57, 71, 86, 100],
+          sparkX: ['2026', '2027', '2028', '2029'],
         },
         {
           id: 'section-uav',

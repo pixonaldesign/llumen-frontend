@@ -56,6 +56,7 @@ export function facilityViews(site: GamiSite): [AssetModalView, AssetModalView] 
       note: risk ? 'UAV lines short of parts' : 'Of installed capacity',
       status: risk ? 'moderate' : 'good',
       spark: MONTHS.map((_, i) => utilisation + (5 - i) * (risk ? 3 : -0.6)),
+      sparkX: MONTHS,
     },
     {
       id: 'status',
@@ -114,14 +115,13 @@ export function facilityViews(site: GamiSite): [AssetModalView, AssetModalView] 
           : 'Its suppliers are delivering on time and output is on plan for 2026.'
       }`,
     },
+    { id: 'local-content', kind: 'cell', title: 'Local content', value: `${Math.round(42 + at(40) * 30)}%`, note: 'Localization' },
     {
-      id: 'kpis',
-      kind: 'kpis',
-      title: 'Localization',
-      tiles: [
-        { label: 'Local content', value: String(Math.round(42 + at(40) * 30)), unit: '%' },
-        { label: 'Local suppliers', value: String(Math.round(site.companies * (2 + at(41) * 3))) },
-      ],
+      id: 'local-suppliers',
+      kind: 'cell',
+      title: 'Local suppliers',
+      value: String(Math.round(site.companies * (2 + at(41) * 3))),
+      note: 'Localization',
     },
   ]
 

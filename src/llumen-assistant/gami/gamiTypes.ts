@@ -120,15 +120,18 @@ export type GamiCard = CardBase &
     | { kind: 'summary'; parts: SummaryPart[] }
     /** A separator across the row that heads the cards after it: the title centred on a rule. */
     | { kind: 'section' }
-    | { kind: 'kpis'; tiles: { label: string; value: string; unit?: string; note?: string }[] }
     | {
         kind: 'cell'
         value: string
+        /** Set smaller after the value, as a chart's headline unit reads. */
+        unit?: string
         note: string
         /** A sparkline under the note, oldest first, in the status colour. */
         spark?: number[]
         /** The sparkline's top, so filtered selections draw against the same scale; defaults to its own peak. */
         sparkMax?: number
+        /** The sparkline's period labels, oldest first; defaults to months ending this month. */
+        sparkX?: string[]
         status?: Status
       }
     | { kind: 'progress'; rows: { label: string; value: string; target: string; pct: number }[] }

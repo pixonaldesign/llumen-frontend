@@ -402,15 +402,10 @@
   pointer-events: none;
 }
 
-.sparkline {
-  flex: 1;
-  min-height: 48px;
-  display: flex;
-  align-items: flex-end;
+.widgetInner .sparkline {
+  min-height: 56px;
 }
 
 .sparkSvg {
-  width: 100%;
-  height: 100%;
-  display: block;
+  overflow: visible;
 }

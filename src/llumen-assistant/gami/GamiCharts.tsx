@@ -9,6 +9,8 @@ import styles from '../story/StoryView.module.css'
 import { formatCount } from '../story/StoryCharts'
 import { StorySummaryText } from '../story/StorySummaryText'
 import { SUMMARY_REGENERATE_MS } from '../story/storySummary'
+import { SparkAxes } from '../SparkAxes'
+import { sparkScale, sparkX } from '../sparkScale'
 import { Gami3DModel } from './Gami3DModel'
 import { GamiFillDelay } from './gamiFill'
 import { GamiInventoryTable, type InventoryControls, type ProductInfo } from './GamiInventoryTable'
@@ -102,8 +104,13 @@ function Kpi({ value, unit }: { value: string; unit?: string }) {
   )
 }
 
-function CellValue({ value }: { value: string }) {
-  return <p className={`${styles.kpiCellValue} ${css.figureCell}`}>{useCountUp(value)}</p>
+function CellValue({ value, unit }: { value: string; unit?: string }) {
+  return (
+    <p className={`${styles.kpiCellValue} ${css.figureCell}`}>
+      {useCountUp(value)}
+      {unit ? <span className={css.cellUnit}>{unit}</span> : null}
+    </p>
+  )
 }
 
 function Legend({ items }: { items: { name: string; color: string; dashed?: boolean }[] }) {
@@ -117,24 +124,6 @@ function Legend({ items }: { items: { name: string; color: string; dashed?: bool
           />
           {item.name}
         </span>
-      ))}
-    </div>
-  )
-}
-
-function Kpis({ card }: { card: CardOf<'kpis'> }) {
-  return (
-    <div
-      className={css.kpis}
-      style={{ '--kpi-cols': card.tiles.length } as CSSProperties}
-      data-dense={card.tiles.length > 2 || undefined}
-    >
-      {card.tiles.map((tile) => (
-        <div key={tile.label} className={css.kpi}>
-          <Kpi value={tile.value} unit={tile.unit} />
-          <p className={css.kpiLabel}>{tile.label}</p>
-          {tile.note ? <p className={css.kpiNote}>{tile.note}</p> : null}
-        </div>
       ))}
     </div>
   )
@@ -748,9 +737,17 @@ export function GamiCardBody({
       return (
         <>
           <p className={styles.kpiCellLabel}>{card.title}</p>
-          <CellValue value={card.value} />
+          <CellValue value={card.value} unit={card.unit} />
           <p className={styles.kpiCellNote}>{card.note}</p>
-          {card.spark ? <Sparkline points={card.spark} max={card.sparkMax} color={statusColor(card.status, TONE_ACCENT[toneOf(card)])} /> : null}
+          {card.spark ? (
+            <Sparkline
+              points={card.spark}
+              max={card.sparkMax}
+              x={card.sparkX}
+              suffix={card.value.endsWith('%') ? '%' : undefined}
+              color={statusColor(card.status, TONE_ACCENT[toneOf(card)])}
+            />
+          ) : null}
         </>
       )
     case 'part':
@@ -803,7 +800,6 @@ export function GamiCardBody({
         ))}
       </dl>
     ),
-    kpis: () => <Kpis card={card as CardOf<'kpis'>} />,
     progress: () => <Progress card={card as CardOf<'progress'>} />,
     line: () => <LineChart card={card as CardOf<'line'>} flat={flat} />,
     vbars: () => <VBars card={card as CardOf<'vbars'>} />,

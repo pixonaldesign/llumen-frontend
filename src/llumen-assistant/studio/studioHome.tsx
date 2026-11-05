@@ -30,6 +30,8 @@ import {
   ageMinutes,
   type StudioPage,
 } from './studioData'
+import { SparkAxes } from '../SparkAxes'
+import { sparkScale, sparkX } from '../sparkScale'
 import { CATEGORY_COLOR, STATUS_COLOR, byRecent, ownerOf, type Go } from './studioAssetMeta'
 import { Avatar, ChartFrame, Dot } from './studioExperiences'
 import { StatusChip } from './studioUi'
@@ -39,21 +41,24 @@ const PERIODS = ['Today', 'This week', 'This month'] as const
 type Period = (typeof PERIODS)[number]
 
 /** Per-period figures behind the stat tiles; the sparklines run oldest to newest. */
-const PERIOD_STATS: Record<Period, { updated: number; briefings: number; spark: Record<string, number[]> }> = {
+const PERIOD_STATS: Record<Period, { updated: number; briefings: number; spark: Record<string, number[]>; sparkX: string[] }> = {
   Today: {
     updated: 4,
     briefings: 3,
     spark: { review: [1, 1, 2, 2, 3, 3], live: [7, 7, 8, 8, 8, 8], sources: [10, 11, 11, 11, 12, 11], briefings: [0, 1, 1, 2, 2, 3] },
+    sparkX: ['09:00', '10:00', '11:00', '12:00', '13:00', 'Now'],
   },
   'This week': {
     updated: 9,
     briefings: 10,
     spark: { review: [4, 2, 3, 5, 2, 3], live: [6, 6, 7, 7, 8, 8], sources: [9, 10, 12, 11, 11, 11], briefings: [1, 3, 2, 4, 1, 3] },
+    sparkX: ['Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Today'],
   },
   'This month': {
     updated: 14,
     briefings: 38,
     spark: { review: [6, 4, 5, 2, 4, 3], live: [5, 6, 6, 7, 7, 8], sources: [8, 9, 9, 10, 11, 11], briefings: [6, 9, 7, 11, 8, 12] },
+    sparkX: ['3 Oct', '8 Oct', '13 Oct', '18 Oct', '23 Oct', '28 Oct'],
   },
 }
 
@@ -124,17 +129,20 @@ function assetById(id: string) {
   return STUDIO_ASSETS.find((asset) => asset.id === id) ?? STUDIO_ASSETS[0]
 }
 
-function Sparkline({ values }: { values: number[] }) {
-  const max = Math.max(...values)
-  const min = Math.min(...values)
-  const span = max - min || 1
-  const points = values.map((value, index) => [(index / (values.length - 1)) * 100, 28 - ((value - min) / span) * 24])
+function Sparkline({ values, x }: { values: number[]; x: string[] }) {
+  const scale = sparkScale(values)
+  const points = values.map((value, index) => [
+    (index / (values.length - 1)) * 100,
+    32 - ((value - scale.lo) / (scale.hi - scale.lo)) * 32,
+  ])
   const line = points.map(([x, y], index) => `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
   return (
-    <svg className={h.spark} viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden>
-      <path className={h.sparkArea} d={`${line} L100 32 L0 32 Z`} />
-      <path className={h.sparkLine} d={line} />
-    </svg>
+    <SparkAxes y={scale.labels} x={sparkX(values.length, x)} className={h.spark}>
+      <svg viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden>
+        <path className={h.sparkArea} d={`${line} L100 32 L0 32 Z`} />
+        <path className={h.sparkLine} d={line} />
+      </svg>
+    </SparkAxes>
   )
 }
 
@@ -236,7 +244,7 @@ export function RichHome({
             </span>
             <span className={h.tileValue}>{tile.value}</span>
             <span className={h.tileNote}>{tile.note}</span>
-            <Sparkline key={period} values={stats.spark[tile.id]} />
+            <Sparkline key={period} values={stats.spark[tile.id]} x={stats.sparkX} />
           </button>
         ))}
       </div>

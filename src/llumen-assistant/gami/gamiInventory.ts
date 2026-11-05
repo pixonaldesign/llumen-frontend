@@ -582,7 +582,7 @@ export function inventoryCards(picks: InventoryPicks = {}): GamiCard[] {
   return [
     summary,
     { id: 'products', kind: 'cell', title: 'Products', value: String(shown.length), note: `${imported.length} imported · ${local.length} local` },
-    { id: 'value', kind: 'cell', title: 'Inventory value', value: held, note: `Across ${plural(domains, 'domain')}`, spark: growth.map((g) => g * total), sparkMax: TOTAL },
+    { id: 'value', kind: 'cell', title: 'Inventory value', value: held, note: `Across ${plural(domains, 'domain')}`, spark: growth.map((g) => g * total * 1e6), sparkMax: TOTAL * 1e6 },
     {
       id: 'readiness',
       kind: 'cell',

@@ -8,6 +8,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
+import { SparkAxes } from '../SparkAxes'
+import { sparkScale, sparkX } from '../sparkScale'
 import { BRIEFING_ASSETS, type AssetBar, type AssetSlice, type BriefingAsset } from './briefingAssetData'
 import styles from './BriefingAssets.module.css'
 
@@ -222,6 +224,7 @@ function AssetVisual({
           {spark ? (
             <Sparkline
               points={asset.spark}
+              suffix={asset.suffix && asset.suffix.trim().length <= 2 ? asset.suffix.trim() : undefined}
               showTip={showTip}
               describe={(i) => ({
                 label: i === last ? 'This week' : `${last - i} wk ago`,
@@ -601,36 +604,48 @@ function Ring({
 
 function Sparkline({
   points,
+  suffix,
   showTip,
   describe,
 }: {
   points: number[]
+  suffix?: string
   showTip: ShowTip
   describe: (index: number) => { label: string; value: string }
 }) {
   const [hover, setHover] = useState<number | null>(null)
-  const min = Math.min(...points)
-  const span = Math.max(1, Math.max(...points) - min)
-  const coords = points.map((v, i): [number, number] => [(i / (points.length - 1)) * 100, 22 - ((v - min) / span) * 18])
+  const scale = sparkScale(points, { suffix })
+  const coords = points.map((v, i): [number, number] => [
+    (i / (points.length - 1)) * 100,
+    24 - ((v - scale.lo) / (scale.hi - scale.lo)) * 24,
+  ])
   return (
-    <div
-      className={styles.spark}
-      onPointerMove={(event) => {
-        const { index, rect } = nearestIndex(event, points.length)
-        setHover(index)
-        showTip({
-          x: rect.left + (coords[index][0] / 100) * rect.width,
-          y: rect.top + (coords[index][1] / 24) * rect.height,
-          ...describe(index),
-        })
-      }}
-      onPointerLeave={() => setHover(null)}
+    <SparkAxes
+      y={scale.labels}
+      x={sparkX(
+        points.length,
+        points.map((_, i) => describe(i).label),
+      )}
     >
-      <svg className={styles.plotSvg} viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden>
-        <path className={styles.plotLine} d={smoothPath(coords)} vectorEffect="non-scaling-stroke" />
-      </svg>
-      {hover != null ? <HoverMark x={coords[hover][0]} y={(coords[hover][1] / 24) * 100} /> : null}
-    </div>
+      <div
+        className={styles.sparkPlot}
+        onPointerMove={(event) => {
+          const { index, rect } = nearestIndex(event, points.length)
+          setHover(index)
+          showTip({
+            x: rect.left + (coords[index][0] / 100) * rect.width,
+            y: rect.top + (coords[index][1] / 24) * rect.height,
+            ...describe(index),
+          })
+        }}
+        onPointerLeave={() => setHover(null)}
+      >
+        <svg className={styles.plotSvg} viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden>
+          <path className={styles.plotLine} d={smoothPath(coords)} vectorEffect="non-scaling-stroke" />
+        </svg>
+        {hover != null ? <HoverMark x={coords[hover][0]} y={(coords[hover][1] / 24) * 100} /> : null}
+      </div>
+    </SparkAxes>
   )
 }
 

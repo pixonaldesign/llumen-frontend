@@ -123,7 +123,6 @@ const CHART_CATEGORY: Record<GamiCard['kind'], string> = {
   hbars: 'Comparison',
   grouped: 'Comparison',
   stacked: 'Comparison',
-  kpis: 'Distribution',
   cell: 'Distribution',
   split: 'Distribution',
   donut: 'Distribution',
