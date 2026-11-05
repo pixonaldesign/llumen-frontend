@@ -1,0 +1,467 @@
+/*
+ * Real-estate insight cards. The shell (`summaryCard`, `visualCard`, `kpiCellCard`) and the type come from the
+ * story's own card styles; this only lays the cards on the 184px grid and draws the chart kinds the story
+ * cards don't have, in the same neutral strokes.
+ */
+
+/*
+ * The sidebar: 184px cells in `--sidebar-columns` columns; full cards span the row. Rows size to their
+ * content so a section header takes only its text's height; every card is held to whole cells.
+ */
+aside.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--sidebar-columns, 2), 184px);
+  grid-auto-rows: auto;
+  grid-auto-flow: row dense;
+  align-content: start;
+  padding-bottom: 112px;
+}
+
+aside.grid > *,
+aside.grid > .card.card {
+  height: 184px;
+}
+
+aside.grid > .card.card.tall {
+  height: calc(184px * 2 + 12px);
+}
+
+aside.grid > .section {
+  height: auto;
+}
+
+/* Heads the cards after it: its title centred on a rule across the row. */
+.section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 0;
+}
+
+.section::before,
+.section::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.card.card {
+  position: relative;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  overflow: hidden;
+}
+
+/* The animated gradient ring is drawn over the border, outside the padding box a clip would cut it to. */
+.card.card.summary {
+  overflow: visible;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.cell {
+  grid-column: span 1;
+}
+
+/* Two cells wide at any column count; with `.tall`, a 2×2 block. */
+.block {
+  grid-column: span 2;
+}
+
+.tall {
+  grid-row: span 2;
+}
+
+/* A cell card's sparkline takes the room under its note; the line may run over the box's bottom edge. */
+.spark {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 24px;
+  overflow: visible;
+}
+
+.legend {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+/* KPI tiles in one row, each read like `visualValue` over its label. */
+.kpis {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(var(--kpi-cols, 3), minmax(0, 1fr));
+  gap: 12px;
+  align-content: center;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Three or more tiles share the row, so their figures step down from the story's 32px. */
+.kpis[data-dense] .kpi strong {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.kpis[data-dense] .kpi span {
+  font-size: 13px;
+}
+
+.kpiLabel,
+.kpiNote {
+  margin: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kpiLabel {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.kpiNote {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.rows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+}
+
+.progressRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.muted {
+  color: rgba(255, 255, 255, 0.48);
+  font-weight: 400;
+}
+
+.track {
+  position: relative;
+  display: block;
+  height: 8px;
+  min-width: 0;
+  border-radius: 40px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 40px;
+  transition: width 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Column bars: value over the bar, label under it. */
+.vbars {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 0;
+}
+
+.vbar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.vbarValue {
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.vbarTrack {
+  position: relative;
+  display: block;
+  flex: 1;
+  width: 100%;
+  max-width: 28px;
+  min-height: 0;
+}
+
+.vbarFill {
+  position: absolute;
+  inset: auto 0 0;
+  border-radius: 4px 4px 2px 2px;
+  transition: height 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vbarLabel {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbar {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.hbarLabel {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbarValue {
+  min-width: 40px;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.splitPart {
+  height: 100%;
+  border-radius: 40px;
+  transition: flex-grow 900ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.groupBars {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  min-height: 0;
+}
+
+.groupFill {
+  width: 8px;
+  border-radius: 3px 3px 1px 1px;
+}
+
+.donut {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 0;
+}
+
+.donutRing {
+  position: relative;
+  width: 112px;
+  height: 112px;
+}
+
+.donutRing svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donutCenter strong {
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.donutCenter span {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.donutLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/*
+ * The table: a fixed row of column titles over a scrolling body, both on the table's columns. It runs to
+ * the card's edge so the thumb sits there; its last 4px track and the gap inset the cells.
+ */
+.table {
+  display: grid;
+  flex: 1;
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: 8px;
+  min-height: 0;
+  margin-right: -12px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.tableHead,
+.tableRow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.tableHead {
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.48);
+  white-space: nowrap;
+}
+
+.tableRow {
+  padding: 7px 0;
+  color: rgba(255, 255, 255, 0.88);
+  white-space: nowrap;
+}
+
+.tableRow + .tableRow {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tableRow > :first-child {
+  color: #fff;
+  white-space: normal;
+}
+
+.tableScroll {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-content: start;
+  min-height: 0;
+  padding-right: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+/* Chromium drops ::-webkit-scrollbar sizing when scrollbar-width is set; the 4px thumb takes the last track. */
+@supports selector(::-webkit-scrollbar) {
+  .tableScroll {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.tableScroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.tableScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status i {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+
+.note {
+  margin: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.specs {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.specs div {
+  min-width: 0;
+}
+
+.specs dt {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.specs dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

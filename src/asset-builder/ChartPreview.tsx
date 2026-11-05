@@ -484,21 +484,25 @@ function Legend({
   const side = pos === "Left" || pos === "Right";
   const rowH = 16;
 
-  const swatchAndLabel = (it: (typeof items)[number], x: number, y: number, anchor: "start" | "end") => {
-    const bits = [
+  const legendText = (it: (typeof items)[number]) =>
+    [
       showLabels ? it.label : "",
       showValues && it.value != null
         ? formatVisualNumber(cfg, it.value)
         : "",
       showPct && it.value != null ? `${Math.round((it.value / total) * 100)}%` : "",
-    ].filter(Boolean);
+    ]
+      .filter(Boolean)
+      .join(" ") || series?.legend || "Series";
+
+  const swatchAndLabel = (it: (typeof items)[number], x: number, y: number, anchor: "start" | "end") => {
     const swatchX = anchor === "end" ? x - 8 : x;
     const textX = anchor === "end" ? x - 12 : x + 11;
     return (
       <g>
         <rect x={swatchX} y={y - 7} width={8} height={8} rx={2} fill={it.color} />
         <text x={textX} y={y} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor={anchor}>
-          {bits.join(" ") || series?.legend || "Series"}
+          {legendText(it)}
         </text>
       </g>
     );
@@ -519,12 +523,15 @@ function Legend({
   }
 
   const y = pos === "Bottom" ? H - 14 : 12;
-  const x0 = P;
+  const starts = shown.reduce<number[]>(
+    (xs, _it, i) => [...xs, i === 0 ? P : xs[i - 1] + Math.max(56, 11 + legendText(shown[i - 1]).length * 6 + 10)],
+    [],
+  );
   return (
     <g>
-      {shown.map((it, i) => (
-        <g key={i}>{swatchAndLabel(it, x0 + i * 56, y, "start")}</g>
-      ))}
+      {shown.map((it, i) =>
+        starts[i] < W - P - 24 ? <g key={i}>{swatchAndLabel(it, starts[i], y, "start")}</g> : null,
+      )}
     </g>
   );
 }
@@ -1553,6 +1560,223 @@ function Sankey({ cfg, minimal, compact, series, decorate, hover, setHover, onMa
   );
 }
 
+function roundedPolygon(pts: [number, number][], r: number) {
+  if (r < 0.25) return `M ${pts.map(pt).join(" L ")} Z`;
+  let d = "";
+  pts.forEach((p, i) => {
+    const a = pts[(i - 1 + pts.length) % pts.length];
+    const b = pts[(i + 1) % pts.length];
+    const la = Math.hypot(a[0] - p[0], a[1] - p[1]) || 1;
+    const lb = Math.hypot(b[0] - p[0], b[1] - p[1]) || 1;
+    const k = Math.min(r, la / 2, lb / 2);
+    const s: [number, number] = [p[0] + ((a[0] - p[0]) / la) * k, p[1] + ((a[1] - p[1]) / la) * k];
+    const e: [number, number] = [p[0] + ((b[0] - p[0]) / lb) * k, p[1] + ((b[1] - p[1]) / lb) * k];
+    d += `${i === 0 ? "M" : "L"} ${pt(s)} Q ${pt(p)} ${pt(e)} `;
+  });
+  return `${d}Z`;
+}
+
+const clip = (text: string, chars: number) =>
+  chars < 2 ? "" : text.length > chars ? `${text.slice(0, Math.max(1, chars - 1))}…` : text;
+
+function Funnel({ cfg, minimal, compact, series, decorate, hover, setHover, onMarkEnter, onMarkLeave }: RenderProps) {
+  const metrics = usePlot();
+  const box = plotBox(cfg, !!decorate, 0, 0, metrics);
+  const values = series?.values ?? [100, 72, 48, 30];
+  const labels = series?.labels ?? values.map((_, i) => `Stage ${i + 1}`);
+  const n = values.length;
+  if (!n) return null;
+
+  const detail = !minimal && !compact;
+  const horizontal = str(cfg("Funnel", "Orientation", "Vertical"), "Vertical") === "Horizontal";
+  const stepped = str(cfg("Funnel", "Shape", "Tapered"), "Tapered") === "Stepped";
+  const byValue = bool(cfg("Funnel", "Width from value", true), true);
+  const showStage = detail && bool(cfg("Funnel", "Show stage labels", true), true);
+  const showValues = detail && bool(cfg("Layout & visibility", "Show data labels", false), false);
+  const outside = str(cfg("Funnel", "Label position", "Inside"), "Inside") === "Outside";
+  const showConv = detail && n > 1 && bool(cfg("Funnel", "Show conversion rate", true), true);
+  const fromFirst = str(cfg("Funnel", "Conversion basis", "Previous stage"), "Previous stage") === "First stage";
+  const gapSetting = Math.round(sliderMapped(cfg("Funnel", "Stage gap", 25), 0, 16, 4));
+  const neck = sliderMapped(cfg("Funnel", "Neck width", 33), 0, 0.6, 0.2);
+  const radius = Math.round(sliderMapped(cfg("Funnel", "Corner radius", 25), 0, 12, 3));
+  const fillOpacity = sliderMapped(cfg("Funnel", "Fill opacity", 90), 0, 1, 0.9);
+  const dropOff = bool(cfg("Funnel", "Show drop-off", false), false);
+  const labelColor = str(cfg("Funnel", "Label color", "#ffffff"), "#ffffff");
+  const highlight =
+    bool(cfg("Tooltips", "Enable hover effects", false), false) &&
+    bool(cfg("Tooltips", "Highlight on hover", false), false);
+
+  const max = Math.max(...values, 1);
+  const widths = values.map((v, i) =>
+    byValue ? Math.max(neck, Math.max(0, v) / max) : n === 1 ? 1 : 1 - ((1 - neck) * i) / (n - 1),
+  );
+  const tail = (i: number) => {
+    if (stepped) return widths[i];
+    if (i < n - 1) return widths[i + 1];
+    const step = n > 1 ? Math.max(0, widths[n - 2] - widths[i]) : 0.2;
+    return Math.max(widths[i] * 0.6, 0.04, widths[i] - step);
+  };
+
+  const anyLabel = showStage || showValues;
+  const convRoom = showConv ? 40 : 0;
+  const lead = anyLabel && outside ? (horizontal ? (showStage ? 14 : 0) + (showValues ? 13 : 0) : Math.min(96, box.width * 0.32)) : 0;
+  const along = horizontal ? box.width : box.height;
+  const gap = n > 1 ? Math.max(0, Math.min(gapSetting, (along - 4 * n) / (n - 1))) : 0;
+  const band = (along - gap * (n - 1)) / n;
+
+  const start = horizontal ? box.left : box.top;
+  const crossStart = horizontal ? box.top + (showConv ? 14 : 0) : box.left + (lead || convRoom);
+  const crossEnd = horizontal ? box.bottom - (lead || (showConv ? 14 : 0)) : box.right - convRoom;
+  const span = crossEnd - crossStart;
+  const mid = (crossStart + crossEnd) / 2;
+
+  const stages = values.map((value, i) => {
+    const s0 = start + i * (band + gap);
+    const s1 = s0 + band;
+    const head = widths[i] * span;
+    const foot = tail(i) * span;
+    const pts: [number, number][] = horizontal
+      ? [
+          [s0, mid - head / 2],
+          [s1, mid - foot / 2],
+          [s1, mid + foot / 2],
+          [s0, mid + head / 2],
+        ]
+      : [
+          [mid - head / 2, s0],
+          [mid + head / 2, s0],
+          [mid + foot / 2, s1],
+          [mid - foot / 2, s1],
+        ];
+    const colorCategory = series?.colorCategories?.[i] ?? labels[i];
+    return {
+      value,
+      label: labels[i] ?? "",
+      center: (s0 + s1) / 2,
+      cross: (head + foot) / 2,
+      s0,
+      pts,
+      color: colorMode(cfg, i, value, max, colorCategory, n, axisAlong(i, n, value, 0, max)),
+    };
+  });
+
+  const conversion = (i: number) => {
+    const basis = fromFirst ? values[0] : values[i - 1];
+    if (!basis) return "—";
+    const pct = (values[i] / basis) * 100;
+    return `${pct >= 10 || pct === 0 ? Math.round(pct) : pct.toFixed(1)}%`;
+  };
+  const fontSize = !horizontal && band < 13 ? 8.5 : FS_TICK;
+  const textFits = horizontal || band >= 8;
+
+  return (
+    <>
+      {dropOff &&
+        stages.slice(1).map((stage, k) => {
+          const prev = widths[k] * span;
+          const ghost: [number, number][] = horizontal
+            ? [
+                [stage.s0, mid - prev / 2],
+                [stage.s0 + band, mid - prev / 2],
+                [stage.s0 + band, mid + prev / 2],
+                [stage.s0, mid + prev / 2],
+              ]
+            : [
+                [mid - prev / 2, stage.s0],
+                [mid + prev / 2, stage.s0],
+                [mid + prev / 2, stage.s0 + band],
+                [mid - prev / 2, stage.s0 + band],
+              ];
+          return (
+            <path
+              key={`ghost-${k}`}
+              d={roundedPolygon(ghost, radius)}
+              fill="rgba(255,255,255,.05)"
+              stroke="rgba(255,255,255,.18)"
+              strokeWidth="0.8"
+              strokeDasharray="3 2"
+            />
+          );
+        })}
+      {stages.map((stage, i) => {
+        const dimmed = highlight && hover != null && hover !== i;
+        const bits = [showStage ? stage.label : "", showValues ? formatVisualNumber(cfg, stage.value) : ""].filter(Boolean);
+        const insideRoom = horizontal ? band - 6 : stage.cross - 10;
+        const insideText =
+          anyLabel && !outside && textFits ? clip(bits.join(" · "), Math.floor(insideRoom / (fontSize * 0.56))) : "";
+        const edge = (dropOff && i > 0 ? Math.max(stage.cross, widths[i - 1] * span) : stage.cross) / 2;
+        return (
+          <g key={`${stage.label}-${i}`} {...markHover({ setHover, onMarkEnter, onMarkLeave }, i)}>
+            <path
+              d={roundedPolygon(stage.pts, radius)}
+              fill={stage.color}
+              fillOpacity={dimmed ? fillOpacity * 0.3 : fillOpacity}
+              stroke="rgba(255,255,255,.22)"
+              strokeWidth="0.8"
+            />
+            {insideText && (
+              <text
+                x={horizontal ? stage.center : mid}
+                y={(horizontal ? mid : stage.center) + fontSize * 0.35}
+                fill={labelColor}
+                fontSize={fontSize}
+                fontWeight="500"
+                textAnchor="middle"
+                pointerEvents="none"
+              >
+                {insideText}
+              </text>
+            )}
+            {anyLabel && outside && !horizontal && textFits && (
+              <text
+                x={mid - edge - 6}
+                y={stage.center + fontSize * 0.35}
+                fill={INK}
+                fontSize={fontSize}
+                fontWeight="500"
+                textAnchor="end"
+              >
+                {clip(bits.join(" · "), Math.floor((mid - edge - 6 - box.left) / 6.2))}
+              </text>
+            )}
+            {anyLabel && outside && horizontal && (
+              <text x={stage.center} y={mid + edge + 12} fill={INK} fontSize={FS_TICK} fontWeight="500" textAnchor="middle">
+                {showStage && <tspan>{clip(stage.label, Math.floor((band + gap) / 6.2))}</tspan>}
+                {showValues && (
+                  <tspan x={stage.center} dy={showStage ? 13 : 0}>
+                    {formatVisualNumber(cfg, stage.value)}
+                  </tspan>
+                )}
+              </text>
+            )}
+            {showConv && i > 0 && textFits && (
+              <text
+                x={horizontal ? stage.center : mid + edge + 6}
+                y={horizontal ? mid - edge - 5 : stage.center + fontSize * 0.35}
+                fill={INK_STRONG}
+                fontSize={fontSize}
+                fontWeight="500"
+                textAnchor={horizontal ? "middle" : "start"}
+                pointerEvents="none"
+              >
+                {conversion(i)}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      {decorate && (
+        <Legend
+          cfg={cfg}
+          series={series}
+          items={stages.map((stage) => ({ label: stage.label, color: stage.color, value: stage.value }))}
+          box={box}
+        />
+      )}
+    </>
+  );
+}
+
 function Kpi({ cfg, minimal, series }: RenderProps) {
   const { W, H, P } = usePlot();
   if (minimal && !series) {
@@ -1802,6 +2026,10 @@ export default function ChartPreview({
         ? mapTooltip(cfg, series?.markTips?.[hover])
         : markTooltip(cfg, series?.markTips?.[hover], series?.labels?.[hover] ?? "", series?.values?.[hover])
       : "";
+  const stageTip =
+    chartId === "funnel" && tipText && !str(cfg("Tooltips", "Tooltip format", ""), "").includes("{")
+      ? `${series?.labels?.[hover ?? -1] ?? ""}\n${tipText}`.trim()
+      : tipText;
 
   let body: ReactNode;
   if (isMap)
@@ -1817,6 +2045,7 @@ export default function ChartPreview({
     );
   else if (chartId === "availability") body = <Availability {...renderProps} />;
   else if (chartId === "sankey") body = <Sankey {...renderProps} />;
+  else if (chartId === "funnel") body = <Funnel {...renderProps} />;
   else if (chartId === "range") body = <RangeChart {...renderProps} />;
   else if (chartId === "kpiGrid") body = <KpiGrid {...renderProps} />;
   else if (chartId === "polar") body = <PolarRose {...renderProps} />;
@@ -1865,7 +2094,7 @@ export default function ChartPreview({
             {body}
           </svg>
         </div>
-        {tipText &&
+        {stageTip &&
           tipPos &&
           createPortal(
             <div
@@ -1877,7 +2106,7 @@ export default function ChartPreview({
               }}
               role="tooltip"
             >
-              {tipText.split("\n").map((line, i) => (
+              {stageTip.split("\n").map((line, i) => (
                 <span key={`${i}-${line}`}>{line}</span>
               ))}
             </div>,

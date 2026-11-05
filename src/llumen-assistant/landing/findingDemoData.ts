@@ -154,8 +154,23 @@ export const ALERT_FINDING_POOL: FindingToastItem[] = [
   },
 ]
 
-export function nextAlertFromPool(index: number): FindingToastItem {
-  return ALERT_FINDING_POOL[index % ALERT_FINDING_POOL.length]
+/** The alert for the Briefing's findings, where the aurora opens from the middle of the section. Always the same one. */
+export const ENVIRONMENT_ALERT_POOL: FindingToastItem[] = [
+  {
+    id: 'env-co2-alert',
+    type: 'ai',
+    severity: 'alert',
+    title: 'CO₂ high-level forecast',
+    domain: 'Environment',
+    before: 'CO₂ over Al Mussafah is forecast to ',
+    highlight: 'reach high levels in 2 hours',
+    after: ', with about 120 respiratory cases expected across three districts',
+    storyId: 'r1',
+  },
+]
+
+export function nextAlertFromPool(index: number, pool: FindingToastItem[] = ALERT_FINDING_POOL): FindingToastItem {
+  return pool[index % pool.length]
 }
 
 export function isAlertFinding(item: { severity?: FindingSeverity }): boolean {

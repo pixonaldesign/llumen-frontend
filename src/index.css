@@ -28,3 +28,8 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
 }
+
+/* Kept in the DOM, just not shown. */
+.mapboxgl-ctrl-logo {
+  display: none !important;
+}

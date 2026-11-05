@@ -27,6 +27,32 @@
   background: rgba(109, 233, 225, 0.18);
 }
 
+/* Same chrome as the story header's filter pills. */
+.triggerFilter {
+  gap: 8px;
+  height: auto;
+  padding: 8px 12px;
+  border-color: rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(34, 42, 42, 0.5);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.triggerFilter:hover,
+.triggerFilter[aria-expanded='true'] {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(34, 42, 42, 0.72);
+}
+
+.triggerFilter .kicker {
+  display: inline-flex;
+  color: #fff;
+}
+
 .trigger:focus-visible {
   outline: 2px solid rgba(109, 233, 225, 0.7);
   outline-offset: 2px;
