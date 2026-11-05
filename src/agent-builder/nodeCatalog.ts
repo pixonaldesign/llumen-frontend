@@ -256,12 +256,7 @@ export const NODE_TYPES: readonly NodeType[] = [
   dataStep('forecast', 'Forecast', 'Project a time series forward, with a confidence interval.', Graph),
   dataStep('createAsset', 'Create Asset', 'Register upstream data as a saved chart, table, or map layer.', CubeFocus, { tone: 'create', width: 420 }),
   dataStep('noOperation', 'No Operation', 'Continues the flow without passing any rows on.', Empty),
-  dataStep('filter', 'Filter', 'Keep the rows that match; the rest leave on Discarded.', Funnel, {
-    outputs: [
-      { id: 'kept', label: 'Kept', tone: 'positive' },
-      { id: 'discarded', label: 'Discarded', tone: 'negative' },
-    ],
-  }),
+  dataStep('filter', 'Filter', 'Keep only the rows that match.', Funnel, { outputs: [{ id: 'kept', label: 'Kept' }] }),
   dataStep('ifElse', 'If / Else', 'Send matching rows down If and the rest down Else.', GitBranch, {
     outputs: [
       { id: 'true', label: 'If', tone: 'positive' },

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react'
 import { ArrowLeft, MagnifyingGlass, X } from '@phosphor-icons/react'
-import type { NodeType, PortSide } from './nodeCatalog'
+import { NODE_DRAG_MIME, type NodeType, type PortSide } from './nodeCatalog'
 import { groupTypes, matchesQuery, NODE_GROUPS, type NodeGroupId } from './nodeGroups'
 import { useDismiss } from './useDismiss'
 import tones from './nodeTones.module.css'
@@ -26,14 +26,19 @@ type InsertNodePanelProps = InsertNodePlacement & {
   anchorRef?: RefObject<HTMLElement | null>
   onPick: (typeId: string) => void
   onClose: () => void
+  /** Asked on press, before a drag can start, to render the card a row's node will be; `null` once it's done. */
+  onDragPrepare?: (typeId: string | null) => void
+  /** That card, used as the drag image. */
+  dragImage?: () => HTMLElement | null
 }
 
 /** Picks a node to add: search, the four groups, then every node grouped by them. */
-export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPick, onClose }: InsertNodePanelProps) {
+export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPick, onClose, onDragPrepare, dragImage }: InsertNodePanelProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [groupId, setGroupId] = useState<NodeGroupId | null>(null)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
+  const docked = x === undefined
   useDismiss(true, ref, onClose, anchorRef)
 
   /** Why a node can't be added here, or null when it can. */
@@ -92,10 +97,11 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
   return (
     <div
       ref={ref}
-      className={x === undefined ? `${styles.panel} ${styles.docked}` : styles.panel}
-      style={x === undefined ? undefined : { left: x, top }}
+      className={docked ? `${styles.panel} ${styles.docked}` : styles.panel}
+      style={docked ? undefined : { left: x, top }}
       role="dialog"
       aria-label="Add node"
+      data-covers-canvas
     >
       <header className={styles.head}>
         <h3 className={styles.title}>Add node</h3>
@@ -158,8 +164,22 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
                   disabled={Boolean(reason)}
                   className={styles.row}
                   data-active={isActive || undefined}
+                  draggable={docked && !reason}
                   onPointerMove={reason ? undefined : () => setActive(flat.indexOf(type))}
-                  onClick={() => onPick(type.id)}
+                  onPointerDown={docked && !reason ? () => onDragPrepare?.(type.id) : undefined}
+                  onClick={() => {
+                    onDragPrepare?.(null)
+                    onPick(type.id)
+                  }}
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData(NODE_DRAG_MIME, type.id)
+                    event.dataTransfer.effectAllowed = 'copy'
+                    const card = dragImage?.()
+                    if (!card) return
+                    const rect = card.getBoundingClientRect()
+                    event.dataTransfer.setDragImage(card, rect.width / 2, rect.height / 2)
+                  }}
+                  onDragEnd={() => onDragPrepare?.(null)}
                 >
                   <span className={`${styles.rowIcon} ${tones[`tone_${type.tone}`]}`} aria-hidden>
                     <TypeIcon size={18} />

@@ -23,6 +23,10 @@
   max-height: min(480px, calc(100dvh - 260px));
 }
 
+.panel .row[draggable='true']:active {
+  cursor: grabbing;
+}
+
 /* Only the list gives way when the panel runs out of height. */
 .panel > :not(.scroll) {
   flex-shrink: 0;

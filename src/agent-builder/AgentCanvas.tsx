@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
+  type RefObject,
 } from 'react'
 import {
   ArrowCounterClockwise,
@@ -101,9 +102,10 @@ import { annotateTestFlow, buildTestWorkflow, type TestFlowKind } from './testWo
 import { NodeToolbar } from './NodeToolbar'
 import { NodeActionsBar } from './NodeActionsBar'
 import { InsertNodePanel } from './InsertNodePanel'
+import { CanvasMinimap } from './CanvasMinimap'
 import { StickyNoteCard } from './StickyNoteCard'
 import { StickyToolbar } from './StickyToolbar'
-import { STICKY_MIN_SIZE, stickyStyle, type StickyStyle } from './stickyNote'
+import { STICKY_MIN_SIZE, stickyFill, stickyStyle, type StickyStyle } from './stickyNote'
 import { defaultTriggerId, executableTriggers, type FlowState } from './triggerCard'
 import { nodeDataSides, nodeDataViews } from './cardSections'
 import { NodeConfigWindow, type NeighbourNode, type UpstreamNode } from './NodeConfigWindow'
@@ -227,7 +229,10 @@ type CanvasDoc = {
   texts: CanvasText[]
   comments: CanvasComment[]
 }
-type TriggerOption = { id: string; title: string; icon: Icon }
+/** `typeTitle` is set only when the node was renamed, so the menu can say which kind of trigger it is. */
+type TriggerOption = { id: string; title: string; typeTitle?: string; icon: Icon }
+/** What Copy or Cut took: the nodes with their places and sizes, and the lines between them. */
+type Clipboard = { nodes: readonly { node: CanvasNode; position: Point; size: Size }[]; edges: readonly WorkflowEdge[] }
 type ItemKind = 'section' | 'text' | 'comment'
 type Selection =
   | { kind: 'node' | 'edge' | ItemKind; id: string }
@@ -260,6 +265,8 @@ type Gesture = {
   apply: (dx: number, dy: number) => void
   /** Runs once on release after a drag. */
   finish?: (doc: CanvasDoc) => CanvasDoc
+  /** Runs once on release after a drag, for work that isn't a single doc update. */
+  release?: () => void
 }
 /** Where everything inside a section started, so a section drag can carry it along. */
 type SectionMembers = {
@@ -285,9 +292,41 @@ type PendingInsert = { from: PortRef; point: Point; edgeId?: string }
 
 const SHOWCASE = buildShowcase()
 const DEFAULT_NODE_SIZE: Size = { w: NODE_DEFAULT_WIDTH, h: 120 }
-/** Each node added from the library lands a little below and right of the previous one. */
-const ADD_CASCADE = 24
+/** Room left before a node added after the right-most one in view. */
+const ADD_GAP = 80
+/** Screen pixels from the canvas edge inside which a new node counts as in sight. */
+const ADD_EDGE = 24
 const DUPLICATE_OFFSET = 40
+
+type ScreenArea = { left: number; top: number; right: number; bottom: number }
+
+const areaSize = (area: ScreenArea) => Math.max(0, area.right - area.left) * Math.max(0, area.bottom - area.top)
+
+const overlaps = (a: ScreenArea, b: ScreenArea) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+
+/** Where the `[data-covers-canvas]` panels sit over the canvas, in the canvas's own pixels. */
+function coveringPanels(root: HTMLElement): ScreenArea[] {
+  const bounds = root.getBoundingClientRect()
+  return [...document.querySelectorAll('[data-covers-canvas]')].map((panel) => {
+    const rect = panel.getBoundingClientRect()
+    return { left: rect.left - bounds.left, top: rect.top - bounds.top, right: rect.right - bounds.left, bottom: rect.bottom - bounds.top }
+  })
+}
+
+/** The largest part of the canvas no panel sits over. */
+function openArea(root: HTMLElement, panels: readonly ScreenArea[]): ScreenArea {
+  let area: ScreenArea = { left: 0, top: 0, right: root.clientWidth, bottom: root.clientHeight }
+  for (const box of panels) {
+    const sides: ScreenArea[] = [
+      { ...area, bottom: Math.min(area.bottom, box.top) },
+      { ...area, top: Math.max(area.top, box.bottom) },
+      { ...area, right: Math.min(area.right, box.left) },
+      { ...area, left: Math.max(area.left, box.right) },
+    ]
+    area = sides.reduce((best, side) => (areaSize(side) > areaSize(best) ? side : best))
+  }
+  return area
+}
 const IDLE: NodeRun = { status: 'idle' }
 
 /** Which document the canvas shows: every node type, or one of the connected test flows for trying runs. */
@@ -361,8 +400,8 @@ const NODE_ACTIONS_HEIGHT = 36
 const NODE_TOOLBAR_LEAVE_MS = 250
 /** At or below this zoom, as the zoom readout rounds it, the ports hide; they still show while connecting. */
 const PORTS_MIN_ZOOM = 0.3
-/** Screen pixels around a node within which its ports show. */
-const PORT_REACH = 20
+/** World distance around a node within which its ports show; it scales with the node, so it reads the same at any zoom. */
+const PORT_REACH = 60
 /** Screen distance at which a dragged line snaps to a port. */
 const PORT_SNAP = 28
 /** Room between a dropped line's end and the new node it offers. */
@@ -371,8 +410,6 @@ const INSERT_GAP = 16
 const INSERT_PANEL_LIFT = 28
 /** Pointer travel before pressing a line picks it up rather than selecting it. */
 const EDGE_DRAG_THRESHOLD = 4
-/** World distance a drag moves between collision checks; well under a node's height. */
-const PUSH_STEP = 12
 /** How far the line from a clicked output dot reaches before the insert panel. */
 const PORT_CLICK_REACH = 80
 /** World gap between an edge's end and its port dot. */
@@ -425,25 +462,10 @@ function makeRoom(doc: CanvasDoc, fixed: ReadonlySet<string>, sizes: Readonly<Re
   return Object.keys(moved).length > 0 ? { ...doc, positions: { ...doc.positions, ...moved } } : doc
 }
 
-/**
- * Takes a drag from offset `from` to `to` in short steps, clearing room at each, so a fast flick shoves
- * nodes along the way a slow drag would rather than landing deep inside one and pushing it out sideways.
- */
-function dragWithRoom(
-  doc: CanvasDoc,
-  from: Point,
-  to: Point,
-  move: (doc: CanvasDoc, offset: Point) => CanvasDoc,
-  fixed: ReadonlySet<string>,
-  sizes: Readonly<Record<string, Size>>,
-): CanvasDoc {
-  const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / PUSH_STEP))
-  let next = doc
-  for (let step = 1; step <= steps; step += 1) {
-    const t = step / steps
-    next = makeRoom(move(next, { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }), fixed, sizes)
-  }
-  return next
+/** The dragged nodes, `by` from where the drag picked them up. */
+function shiftNodes(doc: CanvasDoc, origins: Positions, by: Point): CanvasDoc {
+  const moved = Object.fromEntries(Object.entries(origins).map(([id, origin]) => [id, { x: origin.x + by.x, y: origin.y + by.y }]))
+  return { ...doc, positions: { ...doc.positions, ...moved } }
 }
 
 /** New nodes move to the nearest free spot, leaving the rest as they are; nodes that grew push their neighbours. */
@@ -747,7 +769,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   /** The steps the last flow run failed at; stays until dismissed or the next flow run. */
   const [runFailures, setRunFailures] = useState<readonly FailedStep[] | null>(null)
   const didInitialLayoutRef = useRef(false)
-  const addedCountRef = useRef(0)
   const [panning, setPanning] = useState(false)
   const [draggingNodes, setDraggingNodes] = useState<ReadonlySet<string>>(() => new Set())
   /** Space held: drags pan, like the hand tool, until it's let go. */
@@ -866,6 +887,11 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const [selection, setSelection] = useState<Selection>(null)
   const [connection, setConnection] = useState<Connection | null>(null)
   const [pendingInsert, setPendingInsert] = useState<PendingInsert | null>(null)
+  /** The node type pressed in the add panel, rendered off screen as the drag image. */
+  const [dragGhost, setDragGhost] = useState<string | null>(null)
+  const dragGhostRef = useRef<HTMLDivElement>(null)
+  /** Nodes dropped onto the canvas and not yet measured; they keep their spot and push the others aside. */
+  const droppedRef = useRef(new Set<string>())
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null)
   /** A press on a line that becomes a drag of its nearer end once the pointer moves. */
   const edgePressRef = useRef<{ pointerId: number; edgeId: string; startX: number; startY: number } | null>(null)
@@ -927,7 +953,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     viewRef.current = view
   }, [view])
 
-  useEffect(() => {
+  // A layout effect, so the measuring below sees the doc it's measuring.
+  useLayoutEffect(() => {
     docRef.current = doc
   }, [doc])
 
@@ -1036,24 +1063,68 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     }
   }
 
-  /** Adds a node centred on `at` (world coordinates), or cascaded around the middle of the view. */
-  const addNode = (typeId: string, at?: Point, config?: NodeConfig) => {
+  /**
+   * Where something new of `size` goes: after the right-most node in view when that node is wholly visible with at
+   * least a node gap before the screen edge, else in the middle of the view, then on to the nearest free spot. `reveal`
+   * is the view that brings it to the middle when it lands out of sight; an add-node panel covering the middle moves
+   * that to the open part of the canvas.
+   */
+  const newSpot = (size: Size): { position: Point; reveal?: Viewport } | null => {
     const root = rootRef.current
+    if (!root) return null
+    const view = viewRef.current
+    const screen: ScreenArea = { left: 0, top: 0, right: root.clientWidth, bottom: root.clientHeight }
+    const panels = coveringPanels(root)
+    const onScreen = (box: Point & Size): ScreenArea => ({
+      left: box.x * view.zoom + view.x,
+      top: box.y * view.zoom + view.y,
+      right: (box.x + box.w) * view.zoom + view.x,
+      bottom: (box.y + box.h) * view.zoom + view.y,
+    })
+    const shown = (rect: ScreenArea, inset = 0) =>
+      rect.left >= inset && rect.top >= inset && rect.right <= screen.right - inset && rect.bottom <= screen.bottom - inset && !panels.some((panel) => overlaps(rect, panel))
+    const middle = { x: screen.right / 2, y: screen.bottom / 2 }
+    const halfW = (size.w * view.zoom) / 2
+    const halfH = (size.h * view.zoom) / 2
+    const middleCovered = panels.some((panel) => overlaps({ left: middle.x - halfW, top: middle.y - halfH, right: middle.x + halfW, bottom: middle.y + halfH }, panel))
+    const open = middleCovered ? openArea(root, panels) : null
+    const focus = open ? { x: (open.left + open.right) / 2, y: (open.top + open.bottom) / 2 } : middle
+
+    // Sticky notes too, unlike `collisionBoxes`: a new node shouldn't land on one.
+    const boxes = doc.nodes.flatMap((node) => {
+      const origin = doc.positions[node.id]
+      const measured = layouts[node.id]
+      return origin && measured ? [{ ...origin, w: measured.w, h: measured.h }] : []
+    })
+    const last = boxes
+      .filter((box) => overlaps(onScreen(box), screen))
+      .reduce<(typeof boxes)[number] | null>((best, box) => (!best || box.x + box.w > best.x + best.w ? box : best), null)
+    const lastRect = last && onScreen(last)
+    const roomy = Boolean(lastRect && shown(lastRect) && lastRect.right + ADD_GAP * view.zoom <= screen.right)
+    const start =
+      last && roomy
+        ? { x: last.x + last.w + ADD_GAP, y: last.y, ...size }
+        : { x: (focus.x - view.x) / view.zoom - size.w / 2, y: (focus.y - view.y) / view.zoom - size.h / 2, ...size }
+    const position = freeSpot(start, boxes)
+    const reveal = shown(onScreen({ ...position, ...size }), ADD_EDGE)
+      ? undefined
+      : { zoom: view.zoom, x: focus.x - (position.x + size.w / 2) * view.zoom, y: focus.y - (position.y + size.h / 2) * view.zoom }
+    return { position, reveal }
+  }
+
+  /** Adds a node, centred on `at` (world coordinates) or at `newSpot`; `height`, when the card's already been measured, makes `at` exact. */
+  const addNode = (typeId: string, at?: Point, config?: NodeConfig, height = DEFAULT_NODE_SIZE.h) => {
     const type = NODE_TYPES_BY_ID[typeId]
-    if (!root || !type) return
+    if (!type) return
     if (type.singleton && doc.nodes.some((node) => node.type === typeId)) return
-    let center = at
-    if (!center) {
-      const offset = (addedCountRef.current % 8) * ADD_CASCADE
-      addedCountRef.current += 1
-      const middle = toWorld(root.clientWidth / 2, root.clientHeight / 2)
-      center = { x: middle.x + offset, y: middle.y + offset }
-    }
     const id = createId(typeId)
-    const width = type.width ?? DEFAULT_NODE_SIZE.w
-    const position = { x: center.x - width / 2, y: center.y - DEFAULT_NODE_SIZE.h / 2 }
-    commit({ ...doc, nodes: [...doc.nodes, createNode(type, id, config)], positions: { ...doc.positions, [id]: position } })
+    const size = { w: type.width ?? DEFAULT_NODE_SIZE.w, h: height }
+    const spot = at ? { position: { x: at.x - size.w / 2, y: at.y - size.h / 2 }, reveal: undefined } : newSpot(size)
+    if (!spot) return
+    commit({ ...doc, nodes: [...doc.nodes, createNode(type, id, config)], positions: { ...doc.positions, [id]: spot.position } })
     setSelection({ kind: 'node', id })
+    if (spot.reveal) animateTo(spot.reveal)
+    return id
   }
 
   /** Removes nodes with the lines into and out of them, plus any other lines named. */
@@ -1105,6 +1176,73 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     })
     setSelection({ kind: 'node', id: copyId })
   }
+
+  const clipboardRef = useRef<Clipboard | null>(null)
+
+  /** Copies the selected nodes and the lines between them; false when no node is selected. */
+  const copySelection = () => {
+    const picked = new Set(selectedIds(selection, 'node'))
+    const nodes = doc.nodes.flatMap((node) => {
+      const position = doc.positions[node.id]
+      if (!picked.has(node.id) || !position) return []
+      const measured = layouts[node.id]
+      const size = measured ? { w: measured.w, h: measured.h } : { w: NODE_TYPES_BY_ID[node.type].width ?? DEFAULT_NODE_SIZE.w, h: DEFAULT_NODE_SIZE.h }
+      return [{ node, position, size }]
+    })
+    if (!nodes.length) return false
+    clipboardRef.current = { nodes, edges: doc.edges.filter((edge) => picked.has(edge.from) && picked.has(edge.to)) }
+    return true
+  }
+
+  const cutSelection = () => {
+    if (copySelection()) deleteObjects(selectedIds(selection, 'node'))
+  }
+
+  /**
+   * Pastes the copied nodes as one block placed like a new node, each keeping its place in the block, with the lines
+   * between them. A one-per-flow node that's already on the canvas stays out, and its lines with it.
+   */
+  const pasteClipboard = () => {
+    const clipboard = clipboardRef.current
+    if (!clipboard) return
+    const items = clipboard.nodes
+      .filter(({ node }) => !(NODE_TYPES_BY_ID[node.type].singleton && doc.nodes.some((other) => other.type === node.type)))
+      .map((item) => ({ ...item, id: createId(item.node.type) }))
+    if (!items.length) return
+    const left = Math.min(...items.map(({ position }) => position.x))
+    const top = Math.min(...items.map(({ position }) => position.y))
+    const right = Math.max(...items.map(({ position, size }) => position.x + size.w))
+    const bottom = Math.max(...items.map(({ position, size }) => position.y + size.h))
+    const spot = newSpot({ w: right - left, h: bottom - top })
+    if (!spot) return
+    const ids = new Map(items.map((item) => [item.node.id, item.id]))
+    const edges = clipboard.edges.flatMap((edge) => {
+      const from = ids.get(edge.from)
+      const to = ids.get(edge.to)
+      return from && to ? [{ ...edge, id: createId('edge'), from, to }] : []
+    })
+    const positions = Object.fromEntries(items.map(({ id, position }) => [id, { x: spot.position.x + position.x - left, y: spot.position.y + position.y - top }]))
+    // Placed as a block, so the measuring keeps each where it is rather than finding each its own free spot.
+    for (const { id } of items) droppedRef.current.add(id)
+    commit({
+      ...doc,
+      nodes: [...doc.nodes, ...items.map(({ node, id }) => ({ ...node, id }))],
+      positions: { ...doc.positions, ...positions },
+      edges: [...doc.edges, ...edges],
+    })
+    setSelection(
+      pickedSelection(
+        items.map(({ id }) => id),
+        edges.map((edge) => edge.id),
+      ),
+    )
+    if (spot.reveal) animateTo(spot.reveal)
+  }
+
+  const clipboardKeysRef = useRef({ copy: copySelection, cut: cutSelection, paste: pasteClipboard })
+  useEffect(() => {
+    clipboardKeysRef.current = { copy: copySelection, cut: cutSelection, paste: pasteClipboard }
+  })
 
   const appearanceNode =
     selection?.kind === 'node' && selection.id === appearanceFor ? doc.nodes.find((node) => node.id === appearanceFor) : undefined
@@ -1271,6 +1409,32 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     })
   }
 
+  /** Shows `target`, sliding each node there from where it is in `from`; the frames between stay out of the history. */
+  const glideTo = useCallback(
+    (from: CanvasDoc, target: CanvasDoc) => {
+      stopArrange()
+      if (from.positions === target.positions || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setDoc(target)
+        return
+      }
+      const start = performance.now()
+      const step = (now: number) => {
+        const progress = Math.min(1, (now - start) / ARRANGE_ANIMATION_MS)
+        const eased = 1 - (1 - progress) ** 3
+        const frame: Positions = {}
+        for (const [id, end] of Object.entries(target.positions)) {
+          const begin = from.positions[id] ?? end
+          frame[id] = { x: begin.x + (end.x - begin.x) * eased, y: begin.y + (end.y - begin.y) * eased }
+        }
+        setDoc(progress < 1 ? { ...target, positions: frame } : target)
+        arrangeFrameRef.current = progress < 1 ? requestAnimationFrame(step) : null
+      }
+      setDoc({ ...target, positions: from.positions })
+      arrangeFrameRef.current = requestAnimationFrame(step)
+    },
+    [stopArrange],
+  )
+
   /** Auto-arranges the canvas, animating each node to its new spot; one undo step. */
   const tidyUp = () => {
     const root = rootRef.current
@@ -1282,24 +1446,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     setFuture([])
     const fit = fitViewport(target, layouts, root.clientWidth, root.clientHeight)
     if (fit) animateTo(fit)
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setDoc(target)
-      return
-    }
-    const from = doc.positions
-    const start = performance.now()
-    const step = (now: number) => {
-      const progress = Math.min(1, (now - start) / ARRANGE_ANIMATION_MS)
-      const eased = 1 - (1 - progress) ** 3
-      const frame: Positions = {}
-      for (const [id, end] of Object.entries(target.positions)) {
-        const begin = from[id] ?? end
-        frame[id] = { x: begin.x + (end.x - begin.x) * eased, y: begin.y + (end.y - begin.y) * eased }
-      }
-      setDoc(progress < 1 ? { ...target, positions: frame } : target)
-      arrangeFrameRef.current = progress < 1 ? requestAnimationFrame(step) : null
-    }
-    arrangeFrameRef.current = requestAnimationFrame(step)
+    glideTo(doc, target)
   }
 
   const tidyUpRef = useRef(tidyUp)
@@ -1630,7 +1777,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         const ids = Object.keys(next)
         const added = ids.filter((id) => !previous[id])
         const grown = new Set(ids.filter((id) => previous[id] && (next[id].w > previous[id].w || next[id].h > previous[id].h)))
-        if (added.length > 0 || grown.size > 0) setDoc((current) => settleNodes(current, next, added, grown))
+        const dropped = added.filter((id) => droppedRef.current.delete(id))
+        if (dropped.length > 0) {
+          const current = docRef.current
+          const free = added.filter((id) => !dropped.includes(id))
+          glideTo(current, settleNodes(current, next, free, new Set([...grown, ...dropped])))
+        } else if (added.length > 0 || grown.size > 0) setDoc((current) => settleNodes(current, next, added, grown))
       }
       const root = rootRef.current
       if (!didInitialLayoutRef.current && root) {
@@ -1664,7 +1816,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       if (element) observer.observe(element)
     }
     return () => observer.disconnect()
-  }, [doc.nodes, animateTo])
+  }, [doc.nodes, animateTo, glideTo])
 
   useEffect(() => {
     const root = rootRef.current
@@ -1698,6 +1850,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       if (event.code === 'Space' && !mod) {
         event.preventDefault()
         setSpaceHeld(true)
+      } else if (mod && (event.code === 'KeyC' || event.code === 'KeyX') && !window.getSelection()?.toString()) {
+        if (event.code === 'KeyC') clipboardKeysRef.current.copy()
+        else clipboardKeysRef.current.cut()
+      } else if (mod && event.code === 'KeyV') {
+        event.preventDefault()
+        clipboardKeysRef.current.paste()
       } else if (mod && event.code === 'KeyA') {
         event.preventDefault()
         setSelection(pickedSelection(doc.nodes.map((node) => node.id), doc.edges.map((edge) => edge.id)))
@@ -1787,7 +1945,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   /** Flags nodes the pointer is close to so their ports show before it reaches the card; set on the DOM to skip a render per move. */
   const markNearNodes = (surface: HTMLElement, clientX: number, clientY: number) => {
     const point = toWorld(clientX, clientY)
-    const reach = PORT_REACH / viewRef.current.zoom
     const near = new Set(
       doc.nodes
         .filter((node) => {
@@ -1796,7 +1953,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           if (!position) return false
           const dx = Math.max(position.x - point.x, 0, point.x - position.x - size.w)
           const dy = Math.max(position.y - point.y, 0, point.y - position.y - size.h)
-          return Math.hypot(dx, dy) <= reach
+          return Math.hypot(dx, dy) <= PORT_REACH
         })
         .map((node) => node.id),
     )
@@ -1923,10 +2080,10 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     setSelection({ kind: 'section', id })
   }
 
-  const startGesture = (event: ReactPointerEvent<Element>, apply: Gesture['apply'], finish?: Gesture['finish']) => {
+  const startGesture = (event: ReactPointerEvent<Element>, apply: Gesture['apply'], finish?: Gesture['finish'], release?: Gesture['release']) => {
     stopArrange()
     event.currentTarget.setPointerCapture(event.pointerId)
-    gestureRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, snapshot: doc, moved: false, apply, finish }
+    gestureRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, snapshot: doc, moved: false, apply, finish, release }
   }
 
   const endGesture = (event: ReactPointerEvent<Element>) => {
@@ -1934,6 +2091,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     if (!gesture || gesture.pointerId !== event.pointerId) return
     if (gesture.moved) {
       if (gesture.finish) setDoc(gesture.finish)
+      gesture.release?.()
       setPast((stack) => [...stack, gesture.snapshot])
       setFuture([])
     }
@@ -2005,15 +2163,19 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const section = doc.sections.find((candidate) => candidate.id === id)
     if (!section || section.locked || (event.target as Element).closest('input')) return
     const members = sectionMembers(section)
-    const inside = new Set(Object.keys(members.nodes))
-    const shift = (current: CanvasDoc, by: Point) => moveMembers(current, members, by.x, by.y)
     let offset: Point = { x: 0, y: 0 }
-    startGesture(event, (dx, dy) => {
-      const from = offset
-      const to = { x: dx, y: dy }
-      offset = to
-      setDoc((current) => dragWithRoom(current, from, to, shift, inside, layouts))
-    })
+    startGesture(
+      event,
+      (dx, dy) => {
+        offset = { x: dx, y: dy }
+        setDoc((current) => moveMembers(current, members, dx, dy))
+      },
+      undefined,
+      () => {
+        const dropped = moveMembers(doc, members, offset.x, offset.y)
+        glideTo(dropped, makeRoom(dropped, new Set(Object.keys(members.nodes)), layouts))
+      },
+    )
   }
 
   const onSectionResizePointerDown = (event: ReactPointerEvent<HTMLSpanElement>, id: string, corner: SectionCorner) => {
@@ -2187,22 +2349,16 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const dy = (event.clientY - drag.startY) / view.zoom
     if (!drag.moved && Math.hypot(dx, dy) < 2) return
     drag.moved = true
-    const from = drag.offset
-    const to = { x: dx, y: dy }
-    drag.offset = to
-    const { origins } = drag
-    const dragged = new Set(Object.keys(origins))
-    const shift = (current: CanvasDoc, by: Point): CanvasDoc => ({
-      ...current,
-      positions: { ...current.positions, ...Object.fromEntries(Object.entries(origins).map(([id, origin]) => [id, { x: origin.x + by.x, y: origin.y + by.y }])) },
-    })
-    setDoc((current) => dragWithRoom(current, from, to, shift, dragged, layouts))
+    drag.offset = { x: dx, y: dy }
+    setDoc((current) => shiftNodes(current, drag.origins, drag.offset))
   }
 
   const endNodeDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== event.pointerId) return
     if (drag.moved) {
+      const dropped = shiftNodes(doc, drag.origins, drag.offset)
+      glideTo(dropped, makeRoom(dropped, new Set(Object.keys(drag.origins)), layouts))
       setPast((stack) => [...stack, drag.snapshot])
       setFuture([])
     } else if (drag.narrow) setSelection({ kind: 'node', id: drag.id })
@@ -2468,7 +2624,10 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const typeId = event.dataTransfer.getData(NODE_DRAG_MIME)
     if (!typeId) return
     event.preventDefault()
-    addNode(typeId, toWorld(event.clientX, event.clientY))
+    const ghost = dragGhostRef.current
+    const height = ghost && dragGhost === typeId ? ghost.getBoundingClientRect().height / viewRef.current.zoom : undefined
+    const id = addNode(typeId, toWorld(event.clientX, event.clientY), undefined, height)
+    if (id) droppedRef.current.add(id)
   }
 
   const portWorldPoint = (port: PortRef): Point | null => {
@@ -2663,7 +2822,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   /** Chat runs need a chat session, so the run buttons offer the other triggers, default first. */
   const triggers: TriggerOption[] = executableTriggers(doc.nodes).map((node) => {
     const type = nodeType(node)
-    return { id: node.id, title: nodeName(node, type), icon: type.icon }
+    const title = nodeName(node, type)
+    return { id: node.id, title, typeTitle: title === type.title ? undefined : type.title, icon: type.icon }
   })
   const triggerFor = (id: string | null) => triggers.find((option) => option.id === id) ?? triggers[0]
   const testTrigger = triggerFor(testTriggerId)
@@ -2797,6 +2957,24 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </button>
       )
     })
+  const minimap = (
+    <CanvasMinimap
+      nodes={doc.nodes.flatMap((node) => {
+        const position = doc.positions[node.id]
+        if (!position) return []
+        const type = nodeType(node)
+        const { w, h } = layouts[node.id] ?? DEFAULT_NODE_SIZE
+        return [{ id: node.id, ...position, w, h, tone: type.tone, fill: isAnnotation(type) ? stickyFill(stickyStyle(node.config.sticky).color) : undefined }]
+      })}
+      sections={doc.sections}
+      view={view}
+      canvasRef={rootRef}
+      onPan={(next) => {
+        stopAnimation()
+        setView(next)
+      }}
+    />
+  )
   const askButton = (
     <button
       type="button"
@@ -3214,6 +3392,9 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           onClose={() => setPendingInsert(null)}
         />
       ) : null}
+      {dragGhost && NODE_TYPES_BY_ID[dragGhost] ? (
+        <NodeDragGhost key={dragGhost} type={NODE_TYPES_BY_ID[dragGhost]} zoom={view.zoom} ports={portHandlers} ghostRef={dragGhostRef} />
+      ) : null}
       {selectedText ? (
         <TextToolbar
           item={selectedText}
@@ -3240,7 +3421,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 
       <div className={styles.headerScrim} aria-hidden />
 
-      <header className={styles.header}>
+      <header className={styles.header} data-covers-canvas>
         <button type="button" className={controls.iconButton} aria-label="Back to home" onClick={onClose}>
           <ArrowLeft size={20} weight="regular" aria-hidden />
         </button>
@@ -3255,7 +3436,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </div>
       </header>
 
-      <div className={styles.tabs} role="tablist" aria-label="Agent view">
+      <div className={styles.tabs} role="tablist" aria-label="Agent view" data-covers-canvas>
         {(['builder', 'executions'] as const).map((value) => (
           <button
             key={value}
@@ -3277,7 +3458,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </button>
       ) : null}
 
-      <div className={styles.topRight}>
+      <div className={styles.topRight} data-covers-canvas>
         {flowKind && flowCustomised ? (
           <button
             type="button"
@@ -3380,14 +3561,17 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 
       {tab === 'executions' ? null : toolbarStyle === 'split' ? (
         <footer className={styles.footer}>
-          <div className={`${controls.bar} ${styles.footerBar} ${styles.contentBar}`} role="toolbar" aria-label="Add to canvas">
-            {toolButtons(CONTENT_TOOLS, true)}
+          <div className={styles.footerStart}>
+            {minimap}
+            <div className={`${controls.bar} ${styles.footerBar}`} role="toolbar" aria-label="Add to canvas" data-covers-canvas>
+              {toolButtons(CONTENT_TOOLS, true)}
+            </div>
           </div>
-          <div className={styles.toolbarGroup} ref={setToolbarGroup}>
+          <div className={styles.toolbarGroup} ref={setToolbarGroup} data-covers-canvas>
             {askButton}
             <NodeToolbar className={styles.footerBar} usedTypes={usedTypes} panelContainer={toolbarGroup} onAdd={(typeId) => addNode(typeId)} />
           </div>
-          <div className={`${controls.bar} ${styles.footerBar} ${styles.controlsBar}`} role="toolbar" aria-label="Canvas controls">
+          <div className={`${controls.bar} ${styles.footerBar} ${styles.controlsBar}`} role="toolbar" aria-label="Canvas controls" data-covers-canvas>
             {toolButtons(POINTER_TOOLS, false)}
             <span className={controls.barDivider} aria-hidden />
             {canvasControls(true)}
@@ -3395,12 +3579,20 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </footer>
       ) : (
         <footer className={styles.footer}>
-          <div className={styles.toolbarGroup}>
+          <div className={styles.footerStart}>{minimap}</div>
+          <div className={styles.toolbarGroup} data-covers-canvas>
             {askButton}
             <div ref={singleBarRef} className={styles.singleBar}>
               {barFlyout === 'nodes' ? (
                 <div className={`${styles.barFlyout} ${styles.barFlyoutFull}`}>
-                  <InsertNodePanel usedTypes={usedTypes} anchorRef={addNodeButtonRef} onPick={(typeId) => addNode(typeId)} onClose={closeBarFlyout} />
+                  <InsertNodePanel
+                    usedTypes={usedTypes}
+                    anchorRef={addNodeButtonRef}
+                    onPick={(typeId) => addNode(typeId)}
+                    onClose={closeBarFlyout}
+                    onDragPrepare={setDragGhost}
+                    dragImage={() => dragGhostRef.current}
+                  />
                 </div>
               ) : null}
               {barFlyout === 'insert' ? (
@@ -3515,6 +3707,45 @@ type DevMenuProps = {
   onShaderPaused: () => void
   toolbarStyle: ToolbarStyle
   onToolbarStyle: (style: ToolbarStyle) => void
+}
+
+const NOOP = () => {}
+const NO_PORTS: ReadonlySet<string> = new Set()
+const STILL = { onPointerDown: NOOP, onPointerMove: NOOP, onPointerUp: NOOP }
+
+type NodeDragGhostProps = { type: NodeType; zoom: number; ports: PortHandlers; ghostRef: RefObject<HTMLDivElement | null> }
+
+/** The card a node dragged from the add panel will be, at the canvas zoom, off screen for the drag image. */
+function NodeDragGhost({ type, zoom, ports, ghostRef }: NodeDragGhostProps) {
+  const [node] = useState(() => createNode(type, 'drag-ghost'))
+  const card = { node, position: { x: 0, y: 0 }, selected: false, dragging: false, resize: STILL, cardRef: NOOP, onNoteChange: NOOP, ...STILL }
+  return (
+    // The zoom sits inside, so the outer box measures the same in browsers that do and don't scale a zoomed element's rect.
+    <div ref={ghostRef} className={styles.dragGhost} aria-hidden>
+      <div style={{ zoom, '--zoom': zoom } as CSSProperties}>
+        {isAnnotation(type) ? (
+          <StickyNoteCard {...card} />
+        ) : (
+          <NodeCardSections
+            {...card}
+            type={type}
+            run={IDLE}
+            input={null}
+            output={null}
+            activePorts={NO_PORTS}
+            targetPort={null}
+            connectedPorts={NO_PORTS}
+            ports={ports}
+            onDoubleClick={NOOP}
+            onAddOutput={NOOP}
+            appearanceOpen={false}
+            dataOpen={false}
+            onDataOpen={NOOP}
+          />
+        )}
+      </div>
+    </div>
+  )
 }
 
 type DevItemProps = { icon: Icon; label: string; hint?: string; checked?: boolean; disabled?: boolean; onSelect: () => void }
@@ -3795,14 +4026,17 @@ function RunAgentButton({
                 type="button"
                 role="menuitemradio"
                 aria-checked={selected}
-                className={`${controls.menuItem}${selected ? ` ${controls.menuItemActive}` : ''}`}
+                className={`${controls.menuItem} ${styles.styleOption}${selected ? ` ${controls.menuItemActive}` : ''}`}
                 onClick={() => {
                   onTrigger(node.id)
                   setMenuOpen(false)
                 }}
               >
                 <NodeIcon size={18} weight="regular" aria-hidden />
-                {node.title}
+                <span className={styles.styleOptionText}>
+                  {node.title}
+                  {node.typeTitle ? <span className={styles.styleOptionHint}>{node.typeTitle}</span> : null}
+                </span>
                 {selected ? <Check size={16} weight="bold" className={styles.triggerCheck} aria-hidden /> : null}
               </button>
             )

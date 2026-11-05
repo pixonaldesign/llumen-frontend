@@ -14,7 +14,7 @@ import type { CanvasGroupLabel } from './showcase'
 export type MeasuredNode = Size & { ports: Record<string, Point> }
 
 const COLUMN_GAP = 140
-const ROW_GAP = 48
+const ROW_GAP = 64
 const BLOCK_GAP = 160
 const GRID_COLUMN_GAP = 120
 const GRID_ROWS = 7

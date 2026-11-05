@@ -1,7 +1,7 @@
 import type { Point, Size } from './nodeCatalog'
 
-/** The least room kept between two nodes; under the layouts' 48px row gap so a tidy canvas never trips it. */
-export const NODE_GAP = 32
+/** The least room kept between two nodes; no more than the layouts' row gap, so a tidy canvas never trips it. */
+export const NODE_GAP = 64
 
 type Box = Point & Size
 export type NodeBoxes = Readonly<Record<string, Box>>

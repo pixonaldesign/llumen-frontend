@@ -40,7 +40,7 @@ export function NodeLibrarySheet({ usedTypes, onAdd, onClose }: NodeLibrarySheet
   }
 
   return (
-    <aside className={styles.panel} aria-label="Add node" data-native-scroll>
+    <aside className={styles.panel} aria-label="Add node" data-native-scroll data-covers-canvas>
       <header className={styles.header}>
         <div className={styles.headerIdentity}>
           {category ? (

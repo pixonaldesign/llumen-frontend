@@ -71,9 +71,6 @@ const RECORD_LAYOUTS: Partial<Record<string, RecordLayout>> = {
   },
 }
 
-/** Branches the Output side leaves out: a filter shows only the rows that passed. */
-const HIDDEN_OUTPUTS: Partial<Record<string, readonly string[]>> = { filter: ['discarded'] }
-
 const CONFIDENCE_TONE: Record<string, string> = { high: 'positive', medium: 'warning', low: 'negative' }
 
 const formatValue = (value: DataValue) => (typeof value === 'number' ? value.toLocaleString() : displayValue(value))
@@ -310,9 +307,8 @@ export function NodeDataDialog({
   const titleId = useId()
   const TypeIcon = type.icon
   const hasInputs = type.inputs.length > 0
-  const hidden = HIDDEN_OUTPUTS[type.id] ?? []
-  const branches = nodeOutputs(node, type).filter((port) => !hidden.includes(port.id))
-  const ports = run.ports && (branches.length > 1 || hidden.length) ? run.ports : undefined
+  const branches = nodeOutputs(node, type)
+  const ports = run.ports && branches.length > 1 ? run.ports : undefined
   const outputGroups: DataGroup[] | undefined =
     ports && branches.length > 1
       ? branches.map((port) => ({ id: port.id, name: port.label ?? port.id, typeId: type.id, muted: isFallbackBranch(port.id), records: ports[port.id] ?? [] }))

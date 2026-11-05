@@ -293,9 +293,8 @@
   left: 50%;
   display: flex;
   height: 36px;
-  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
+  border-radius: 999px;
   background: rgba(30, 31, 36, 0.82);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
@@ -310,6 +309,7 @@
   margin: 0;
   padding: 0 var(--space-xl);
   border: none;
+  border-radius: 999px;
   background: transparent;
   color: #fff;
   font-size: 13px;
@@ -318,10 +318,6 @@
   white-space: nowrap;
   cursor: pointer;
   transition: background var(--lc-duration) var(--lc-ease);
-}
-
-.root .tab + .tab {
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .root .tab:hover {
@@ -553,9 +549,14 @@
   transform: none;
 }
 
-.footer .contentBar {
+/* The canvas overview, with the content tools under it in the split style. */
+.footerStart {
   grid-column: 1;
   justify-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-md);
 }
 
 .footer .controlsBar {
@@ -635,6 +636,20 @@
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 25V14A11 11 0 1 1 14 25Z' fill='white' stroke='black' stroke-opacity='0.55' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M14 9.5v9M9.5 14h9' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E")
       3 25,
     crosshair;
+}
+
+/* Rendered, so the browser can paint it as a drag image, but never seen. */
+.dragGhost {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: max-content;
+  pointer-events: none;
+}
+
+/* In flow, so the ghost is the card's size. */
+.dragGhost [data-node-id] {
+  position: relative;
 }
 
 /* Node a comment is about to pin to, or is pinned to. */

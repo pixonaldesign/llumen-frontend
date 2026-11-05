@@ -81,7 +81,7 @@ export function NodeToolbar({ className, usedTypes, panelContainer, onAdd }: Nod
 
       {group && panelContainer ? createPortal(
         <div ref={panelRef} className={styles.flyout}>
-          <section className={styles.panel} aria-label={`${group.title} nodes`}>
+          <section className={styles.panel} aria-label={`${group.title} nodes`} data-covers-canvas>
             <header className={styles.panelHead}>
               <div className={styles.panelCopy}>
                 <h3 className={styles.panelTitle}>{group.title}</h3>

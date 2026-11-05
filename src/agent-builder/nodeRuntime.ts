@@ -1087,7 +1087,7 @@ export function executeStep(input: StepInput): StepResult {
       return done({ out: [] }, 0.05)
     case 'filter': {
       const { where } = paramsFor('filter', input.node.config.params)
-      return done({ kept: rows.filter((row) => matches(where, row, scope)), discarded: rows.filter((row) => !matches(where, row, scope)) }, 0.15)
+      return done({ kept: rows.filter((row) => matches(where, row, scope)) }, 0.15)
     }
     case 'ifElse': {
       const { when } = paramsFor('ifElse', input.node.config.params)

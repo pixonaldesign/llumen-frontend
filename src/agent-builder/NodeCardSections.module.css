@@ -250,14 +250,6 @@
   text-align: center;
 }
 
-/* Waiting on a run, so nothing to click. */
-.content .placeholder[data-static],
-.content .placeholder[data-static]:hover {
-  background: transparent;
-  color: rgb(var(--ink-rgb) / 0.45);
-  cursor: inherit;
-}
-
 /* The asset a Create Asset step made: a chart or map keeps the placeholder's 16:9, a table hugs its rows. */
 .made {
   aspect-ratio: 16 / 9;
@@ -372,6 +364,26 @@
 }
 
 /* The node type beside its icon, once the user has renamed the node. */
+/* Runs edge to edge across the black panel, past the content's own padding. */
+.assetDivider {
+  flex-shrink: 0;
+  margin: 0 calc(-1 * var(--panel-pad, var(--card-pad)));
+  border: none;
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+}
+
+/* Sits closer to the asset it names than the content's gap. */
+.assetName {
+  margin: 0 0 calc(var(--space-sm) - var(--space-lg));
+  overflow: hidden;
+  color: rgb(var(--ink-rgb) / 0.9);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .typeName {
   min-width: 0;
   margin-left: var(--space-sm);

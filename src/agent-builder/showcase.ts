@@ -26,8 +26,8 @@ export type ShowcaseColumn = { label?: { id: string; title: string }; ids: strin
 
 /** Showcase cards are configured the way an author would leave them; a few keep their setup warning on purpose. */
 const SHOWCASE_CONFIG: Readonly<Record<string, NodeConfig>> = {
-  'asset-1': { name: 'Detected Contamination Anomalies', params: { assetId: 'ast_anomalies' } },
-  'asset-2': { name: 'High Risk Contaminated Sites', params: { assetId: 'ast_sites' } },
+  'asset-1': { params: { assetId: 'ast_anomalies' } },
+  'asset-2': { params: { assetId: 'ast_sites' } },
   'source-1': { name: 'Get custom view' },
   'mlModel-1': { params: { modelId: 'mdl_risk' } },
   'forecast-1': { params: { timeColumn: 'reading_date', targetColumn: 'pm10', seriesIdColumns: ['station'], grain: 'day', horizon: 7 } },
@@ -102,7 +102,7 @@ export function buildShowcase() {
 }
 
 const SHOWCASE_COLUMN_GAP = 120
-const SHOWCASE_ROW_GAP = 48
+const SHOWCASE_ROW_GAP = 64
 const SHOWCASE_LABEL_OFFSET = 40
 
 /** Stacks showcase columns from measured card sizes, centred on the canvas origin. */

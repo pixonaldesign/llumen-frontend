@@ -44,9 +44,9 @@ function MatchCount({ group, fields: { records, scope }, yes, no }: { group: Con
 export function FilterConfig({ params, set, ctx }: EditorProps<FilterParams>) {
   const fields = conditionFields(ctx)
   return (
-    <Card icon={<Funnel size={16} aria-hidden />} title="Keep rows where" description="Rows that pass go to Kept; the rest go to Discarded. An empty branch sends nothing on.">
+    <Card icon={<Funnel size={16} aria-hidden />} title="Keep rows where" description="Only the rows that pass go on; the rest are dropped.">
       <ConditionEditor label="Filter conditions" group={params.where} fields={fields} onChange={(where, key) => set({ where }, `where:${key}`)} />
-      <MatchCount group={params.where} fields={fields} yes="kept" no="discarded" />
+      <MatchCount group={params.where} fields={fields} yes="kept" no="dropped" />
     </Card>
   )
 }
