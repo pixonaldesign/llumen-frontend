@@ -21,7 +21,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     title: 'Drone Supply: Bridge Through Türkiye',
     description:
       'The Poland–Russia conflict cut off 20 imported components; 3 are critical to the UAV programmes. Turkish suppliers deliver in 30 days.',
-    image: `${APPS_BASE}/gami-alert.jpg`,
+    image: `${APPS_BASE}/gami-turkiye.jpg`,
     focus: 'center',
   },
   {
@@ -29,7 +29,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     storyId: 'gami-overview',
     title: 'GAMI National Performance — 2026 Plan',
     description: 'Saudi Made at 29.4%, 94.8% of plan, with SAR 46.5bn of military market and 66.4k jobs.',
-    image: `${APPS_BASE}/gami-overview.jpg`,
+    image: `${APPS_BASE}/gami-kingdom.jpg`,
     focus: 'center',
   },
   {
@@ -37,7 +37,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     storyId: 'gami-wds',
     title: 'World Defense Show 2028 — Exhibitor Pipeline',
     description: '1,940 exhibitors from 94 countries, 32% ahead of 2026, 15 months before the show.',
-    image: `${APPS_BASE}/gami-wds.jpg`,
+    image: `${APPS_BASE}/gami-world.jpg`,
     focus: 'center',
   },
   {
@@ -45,7 +45,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     storyId: 'gami-localization',
     title: 'Localization Opportunities',
     description: 'SAR 32.0bn a year can be made in the Kingdom; Jubail can take SAR 10.6bn of it now.',
-    image: `${APPS_BASE}/gami-localization.jpg`,
+    image: `${APPS_BASE}/gami-eastern.jpg`,
     focus: 'center',
   },
   {
@@ -53,7 +53,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     storyId: 'gami-talent',
     title: 'Defence Skills Gap — Western Region',
     description: '6,350 skilled people short today, 10,600 by 2030; KAEC needs a second intake.',
-    image: `${APPS_BASE}/gami-talent.jpg`,
+    image: `${APPS_BASE}/gami-western.jpg`,
     focus: 'center',
   },
 ]

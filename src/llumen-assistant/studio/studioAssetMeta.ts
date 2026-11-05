@@ -1,3 +1,4 @@
+import { PALETTE } from '../gami/gamiTypes'
 import { STUDIO_ASSETS, STUDIO_MEMBERS, ageMinutes, type StudioAsset, type StudioPage } from './studioData'
 
 export type Go = (page: StudioPage | 'home') => void
@@ -9,14 +10,15 @@ export const ASSET_CATEGORIES = [...new Set(STUDIO_ASSETS.map((asset) => asset.c
 
 /** A colour per category, for the dots that stand in for it in lists and filters. */
 export const CATEGORY_COLOR: Record<string, string> = {
-  Emissions: '#5aae87',
-  Safety: '#e43963',
-  Groundwater: '#3fa7a0',
-  Biodiversity: '#e39b4c',
-  'Net-Zero': '#a6e06f',
-  Monitoring: '#70aeff',
-  'Water Quality': '#e0c27a',
-  Energy: '#c3a6ff',
+  'National KPIs': PALETTE.teal[2],
+  Licensing: PALETTE.categorical[0],
+  Investment: PALETTE.categorical[1],
+  Localization: PALETTE.purple[3],
+  'Supply Chain': PALETTE.diverging[1],
+  Inventory: PALETTE.categorical[5],
+  'Industrial Sites': PALETTE.categorical[3],
+  'World Defense Show': PALETTE.categorical[4],
+  'Human Capital': PALETTE.categorical[9],
 }
 
 export const STATUS_COLOR: Record<string, string> = {

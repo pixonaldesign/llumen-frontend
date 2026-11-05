@@ -70,32 +70,32 @@ const SOURCES = [
 
 const INSIGHTS: { asset: string; kind: string; tone: 'alert' | 'watch' | 'good'; text: ReactNode }[] = [
   {
-    asset: 'abstraction-recharge',
+    asset: 'uav-motor-stock',
     kind: 'Alert',
     tone: 'alert',
     text: (
       <>
-        Abstraction is outpacing recharge <strong>24 to 1</strong>, and the gap widened since last week.
+        UAV motor stock is down to <strong>41 days</strong>, and Poland’s export freeze has no end date.
       </>
     ),
   },
   {
-    asset: 'water-quality',
+    asset: 'inventory-readiness',
     kind: 'Watch',
     tone: 'watch',
     text: (
       <>
-        Wells within quality standards sit at <strong>82%</strong>, eight points under the 90% target.
+        Inventory readiness sits at <strong>86%</strong>, four points under the 90% target.
       </>
     ),
   },
   {
-    asset: 'monitoring-sites',
+    asset: 'plan-progress',
     kind: 'Milestone',
     tone: 'good',
     text: (
       <>
-        Monitoring uptime held at <strong>94%</strong> this month, with a single outage day flagged.
+        Saudi Made reached <strong>94.8%</strong> of the 2026 plan, with ten weeks of the year left.
       </>
     ),
   },
@@ -108,10 +108,10 @@ const INSIGHT_ICON = {
 }
 
 const SCHEDULE: { when: string; time: string; title: string; detail: string; icon: ReactNode; page: StudioPage }[] = [
-  { when: 'Today', time: '14:00', title: 'Weekly emissions briefing', detail: 'Delivered to 12 readers', icon: <Newspaper size={16} aria-hidden />, page: 'briefings' },
-  { when: 'Today', time: '16:30', title: 'Aimsun traffic sync', detail: 'PostgreSQL · full refresh', icon: <ArrowsClockwise size={16} aria-hidden />, page: 'database' },
-  { when: 'Tomorrow', time: '09:00', title: 'Operations dashboard refresh', detail: 'Live KPIs for the quarter', icon: <PresentationChart size={16} aria-hidden />, page: 'dashboards' },
-  { when: 'Fri', time: '11:00', title: 'User onboarding workflow', detail: '4 agents scheduled', icon: <FlowArrow size={16} aria-hidden />, page: 'workflows' },
+  { when: 'Today', time: '14:00', title: 'Weekly supply-risk briefing', detail: 'Delivered to 12 readers', icon: <Newspaper size={16} aria-hidden />, page: 'briefings' },
+  { when: 'Today', time: '16:30', title: 'Licensing Registry sync', detail: 'PostgreSQL · full refresh', icon: <ArrowsClockwise size={16} aria-hidden />, page: 'database' },
+  { when: 'Tomorrow', time: '09:00', title: 'National performance refresh', detail: 'Live KPIs for the 2026 plan', icon: <PresentationChart size={16} aria-hidden />, page: 'dashboards' },
+  { when: 'Sun', time: '11:00', title: 'Supplier risk watch', detail: '4 agents scheduled', icon: <FlowArrow size={16} aria-hidden />, page: 'workflows' },
 ]
 
 const VERBS = ['updated', 'commented on', 'published', 'changed the source of', 'shared', 'restyled']
@@ -195,7 +195,7 @@ export function RichHome({
     const trimmed = text.trim()
     if (!trimmed) return
     setReply(
-      `Since Monday ${stats.updated} assets changed and ${review.length} wait for review. Abstraction is outpacing recharge 24 to 1, and ${pausedText}.`,
+      `Since Monday ${stats.updated} assets changed and ${review.length} wait for review. UAV motor stock is down to 41 days, and ${pausedText}.`,
     )
     setQuestion('')
   }
@@ -210,7 +210,7 @@ export function RichHome({
           </span>
           <h1 className={h.title}>Good afternoon, Omar</h1>
           <p className={h.lede}>
-            {review.length} assets need your review, {pausedText}, and the emissions briefing goes out at 14:00.
+            {review.length} assets need your review, {pausedText}, and the supply-risk briefing goes out at 14:00.
           </p>
         </div>
         <div className={h.headTools}>

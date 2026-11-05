@@ -94,9 +94,9 @@ export function Dot({ color }: { color: string }) {
 /* ── 2 · Home hub ──────────────────────────────────────────────────────── */
 
 const ASK_SUGGESTIONS = [
-  'Groundwater abstraction by month',
-  'Incidents by sector this quarter',
-  'Species detections per habitat',
+  'UAV motor stock by week',
+  'Licence applications by stage this quarter',
+  'Unfilled roles per region',
 ]
 
 export function HomeHub({
@@ -875,9 +875,9 @@ export function GalleryAssets({ onCreate }: { onCreate: () => void }) {
 /** Browsing shelves: everything by recency, then themes that each gather a few related categories. */
 const GALLERY_SHELVES: { name: string; categories?: string[] }[] = [
   { name: 'Recently updated' },
-  { name: 'Climate and energy', categories: ['Emissions', 'Net-Zero', 'Energy'] },
-  { name: 'Water', categories: ['Groundwater', 'Water Quality'] },
-  { name: 'Nature and field safety', categories: ['Biodiversity', 'Monitoring', 'Safety'] },
+  { name: 'National performance', categories: ['National KPIs', 'Licensing', 'Investment'] },
+  { name: 'Supply and industry', categories: ['Supply Chain', 'Inventory', 'Industrial Sites', 'Localization'] },
+  { name: 'People and events', categories: ['Human Capital', 'World Defense Show'] },
 ]
 
 function Shelf({

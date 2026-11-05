@@ -42,7 +42,7 @@ type ShellProps = {
 type Nav = { page: ShellPage; go: Go }
 
 /** Assets pinned to the sidebar and the home's spotlight in experience 7. */
-const PINNED = ['emissions-trajectory', 'groundwater-abstraction', 'species-detection', 'water-quality']
+const PINNED = ['saudi-made-trajectory', 'uav-motor-stock', 'inventory-source', 'wds-exhibitors']
 
 /** Studio experiences 2–10: each its own navigation around its own take on Assets; other pages are shared. */
 export function ScenarioShell({

@@ -194,7 +194,9 @@ function StudioSettings({
 }) {
   const [tab, setTab] = useState<SettingsTab>('General')
   const [name, setName] = useState(workspace)
-  const [description, setDescription] = useState('sales-team-perf-v2')
+  const [description, setDescription] = useState(
+    'National performance, supply chain, localization and talent for the Kingdom’s military industries, shared with GAMI leadership.',
+  )
   const [permissions, setPermissions] = useState({
     members: 'Admins only',
     content: 'Admins and editors',

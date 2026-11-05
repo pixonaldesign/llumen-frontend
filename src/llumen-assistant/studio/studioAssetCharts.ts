@@ -1,3 +1,5 @@
+import { PALETTE, STATUS } from '../gami/gamiTypes'
+
 export type ChartHeadline = {
   value: number
   decimals?: number
@@ -69,234 +71,248 @@ export type StudioChart = { title: string } & (
 )
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const YEARS = Array.from({ length: 21 }, (_, i) => String(2030 + i))
+const YEARS = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => String(from + i))
 
-const GREEN = '#5aae87'
-const TEAL = '#3fa7a0'
-const ROSE = '#e43963'
-const ORANGE = '#e39b4c'
-const OCEAN = '#1f8aa8'
+const TEAL = PALETTE.teal[2]
+const BLUE = PALETTE.blue[3]
+const PURPLE = PALETTE.purple[3]
+const PLAN = '#c9d6cf'
 
-const thousands = (unit: string) => (value: number) => `${value.toLocaleString('en-US')}K ${unit}`
+const percent = (value: number) => `${value.toFixed(1)}%`
+const sarBn = (value: number) => `SAR ${value.toFixed(1)}bn`
 
-const UPTIME_DAYS: UptimeDay[] = Array.from({ length: 47 }, (_, i) => {
-  const day = new Date(2026, 9, 28 - (46 - i))
+/** The Kingdom's 15 defence industrial sites on plan, day by day; the dip is the day Poland froze exports. */
+const SITE_DAYS: UptimeDay[] = Array.from({ length: 47 }, (_, i) => {
+  const day = new Date(2026, 10, 5 - (46 - i))
   return {
     label: day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    uptime: i === 35 ? 71.4 : 93 + ((i * 37) % 9) * 0.45,
+    uptime: i === 35 ? 73.3 : 93.3 + ((i * 37) % 4) * 1.7,
   }
 })
 
 /** The Assets page's visuals, drawn live; keyed by `StudioAsset` id. */
 export const STUDIO_ASSET_CHARTS: Record<string, StudioChart> = {
-  'emissions-trajectory': {
+  'saudi-made-trajectory': {
     kind: 'trend',
-    title: 'Emissions trajectory vs Net-Zero pathway',
+    title: 'Saudi Made trajectory vs 2030 goal',
     legend: true,
     ticks: [
-      { value: 0, label: '0' },
-      { value: 250, label: '250K' },
-      { value: 500, label: '500K' },
-      { value: 750, label: '750K' },
+      { value: 0, label: '0%' },
+      { value: 20, label: '20%' },
+      { value: 40, label: '40%' },
+      { value: 60, label: '60%' },
     ],
-    labels: YEARS,
-    axisEvery: 5,
+    labels: YEARS(2020, 2030),
+    axisEvery: 2,
     series: [
       {
         name: 'Projected',
-        color: GREEN,
+        color: TEAL,
         fill: 'accent',
-        points: [680, 735, 660, 610, 575, 548, 538, 534, 515, 470, 390, 290, 268, 262, 240, 215, 195, 172, 162, 168, 121],
+        points: [8, 11.5, 15.2, 19.4, 22.8, 26.1, 29.4, 33.2, 37.6, 42.1, 46.5],
       },
-      {
-        name: 'Planned',
-        color: '#c9d6cf',
-        dashed: true,
-        points: YEARS.map((_, i) => Math.round(715 - i * 35.75)),
-      },
+      { name: 'Planned', color: PLAN, dashed: true, points: [8, 12, 16, 20, 24, 27.5, 31, 35.5, 40, 45, 50] },
     ],
-    format: thousands('tCO₂e'),
+    format: percent,
   },
-  'incidents-by-sector': {
-    kind: 'donut',
-    title: 'Incidents classification by sector',
+  'plan-progress': {
+    kind: 'rows',
+    title: '2026 Plan Progress',
     parts: [
-      { name: 'Air', value: 14, share: 41, color: ROSE, display: '14 (41%)' },
-      { name: 'Biodiversity', value: 9, share: 25, color: ORANGE, display: '9 (25%)' },
-      { name: 'Marine', value: 5, share: 14, color: '#e0c27a', display: '5 (14%)' },
-      { name: 'Water', value: 3, share: 10, color: '#4aae8c', display: '3 (10%)' },
-      { name: 'Soil', value: 3, share: 10, color: '#8c4a2f', display: '3 (10%)' },
+      { name: 'Saudi Made', value: 94.8, share: 94.8, color: TEAL, display: '94.8%' },
+      { name: 'Military market', value: 93, share: 93, color: PALETTE.categorical[0], display: '93.0%' },
+      { name: 'Jobs', value: 90.3, share: 90.3, color: PURPLE, display: '90.3%' },
     ],
   },
-  'groundwater-change': {
-    kind: 'trend',
-    title: 'Average Groundwater Level Change (m/year)',
-    headline: { value: 0.45, decimals: 2, prefix: '-', unit: 'm/year' },
-    ticks: [
-      { value: -0.5, label: '-0.50' },
-      { value: 0, label: '0' },
-      { value: 0.5, label: '+0.5' },
-    ],
-    labels: MONTHS,
-    series: [
-      {
-        name: 'Level change',
-        color: '#d6305a',
-        fill: 'accent',
-        points: [0.26, 0.02, -0.16, -0.19, -0.02, -0.08, -0.03, 0.02, -0.03, -0.12, -0.3, -0.34],
-      },
-    ],
-    format: (value) => `${value > 0 ? '+' : ''}${value.toFixed(2)} m`,
-  },
-  'emissions-reduction': {
-    kind: 'columns',
-    title: 'Total Emissions Reduction Achieved (tCO₂e)',
-    headline: { value: 1.2, decimals: 1, suffix: 'M', unit: 'Tons' },
-    ticks: [
-      { value: 0, label: '0' },
-      { value: 200, label: '200K' },
-      { value: 400, label: '400K' },
-      { value: 600, label: '600K' },
-    ],
-    color: TEAL,
-    bars: MONTHS.map((label, i) => ({ label, value: [160, 190, 290, 420, 380, 310, 250, 300, 275, 320, 370, 340][i] })),
-    format: thousands('tCO₂e'),
-  },
-  'biodiversity-events': {
-    kind: 'split',
-    title: 'Biodiversity Activity Events',
-    headline: { value: 14_200, unit: 'Triggers' },
-    parts: [
-      { name: 'Terrestrial Cameras', value: 8500, share: 60, color: ORANGE, display: '8,500 (60%)' },
-      { name: 'Marine Sensors', value: 5700, share: 40, color: OCEAN, display: '5,700 (40%)' },
-    ],
-  },
-  'net-zero-initiatives': {
-    kind: 'trend',
-    title: 'Total Active Net-Zero Initiatives',
-    headline: { value: 84 },
-    ticks: [
-      { value: 0, label: '0' },
-      { value: 30, label: '30' },
-      { value: 60, label: '60' },
-      { value: 90, label: '90' },
-    ],
-    labels: MONTHS,
-    series: [
-      {
-        name: 'Active initiatives',
-        color: GREEN,
-        fill: 'accent',
-        points: [31, 38, 44, 54, 57, 55, 53, 58, 52, 47, 55, 70],
-      },
-    ],
-    format: (value) => `${value} active`,
-  },
-  'net-zero-contribution': {
+  'saudi-made-goal': {
     kind: 'meter',
-    title: 'Contribution of Initiatives to Net-Zero Target (%)',
-    headline: { value: 18, suffix: '%', sans: true },
-    value: 18,
+    title: 'Saudi Made vs 2030 Goal',
+    headline: { value: 29.4, decimals: 1, suffix: '%', sans: true },
+    value: 59,
     mode: 'progress',
-    stops: ['#d3c07b', '#6eb388'],
-    handle: '#86c7ae',
-    caption: 'Current trajectory vs. 2030 milestone.',
+    stops: [PALETTE.teal[0], PALETTE.teal[3]],
+    handle: PALETTE.teal[4],
+    caption: '59% of the way to the 50% goal.',
     rows: [
-      { name: 'Contributed', value: '18%' },
-      { name: 'Remaining to 2030', value: '82%' },
+      { name: 'Saudi Made', value: '29.4%' },
+      { name: '2030 goal', value: '50%' },
     ],
   },
-  'monitoring-sites': {
+  'licensed-domains': {
+    kind: 'donut',
+    title: 'Licensed Companies by Domain',
+    parts: [
+      { name: 'Electronics', value: 173, share: 29, color: PALETTE.categorical[0], display: '173 (29%)' },
+      { name: 'Land', value: 151, share: 25, color: PALETTE.categorical[2], display: '151 (25%)' },
+      { name: 'Air', value: 128, share: 21, color: PALETTE.categorical[1], display: '128 (21%)' },
+      { name: 'Armament', value: 104, share: 17, color: PALETTE.categorical[5], display: '104 (17%)' },
+      { name: 'Naval', value: 46, share: 8, color: PALETTE.categorical[9], display: '46 (8%)' },
+    ],
+  },
+  'license-status': {
+    kind: 'donut',
+    title: '2026 License Status',
+    parts: [
+      { name: 'Granted', value: 514, share: 51, color: STATUS.good, display: '514 (51%)' },
+      { name: 'Under review', value: 242, share: 24, color: PALETTE.diverging[4], display: '242 (24%)' },
+      { name: 'Applied', value: 191, share: 19, color: PALETTE.categorical[4], display: '191 (19%)' },
+      { name: 'Failed', value: 60, share: 6, color: STATUS.critical, display: '60 (6%)' },
+    ],
+  },
+  'investment-pipeline': {
+    kind: 'columns',
+    title: '2026 Investment Pipeline',
+    headline: { value: 18.6, decimals: 1, unit: 'SAR bn' },
+    ticks: [
+      { value: 0, label: '0' },
+      { value: 1, label: '1bn' },
+      { value: 2, label: '2bn' },
+      { value: 3, label: '3bn' },
+    ],
+    color: PALETTE.categorical[1],
+    bars: MONTHS.slice(0, 11).map((label, i) => ({
+      label,
+      value: [1.1, 1.4, 1.8, 1.5, 1.9, 1.7, 1.6, 2.0, 1.8, 2.1, 1.7][i],
+    })),
+    format: sarBn,
+  },
+  'localization-opportunities': {
+    kind: 'columns',
+    title: 'Localization Opportunities',
+    headline: { value: 32, decimals: 1, unit: 'SAR bn a year' },
+    ticks: [
+      { value: 0, label: '0' },
+      { value: 4, label: '4bn' },
+      { value: 8, label: '8bn' },
+    ],
+    color: PURPLE,
+    bars: [
+      { label: 'UAV', value: 6.8 },
+      { label: 'Ammo', value: 5.9 },
+      { label: 'Armor', value: 4.7 },
+      { label: 'Radar', value: 4.2 },
+      { label: 'MRO', value: 3.9 },
+      { label: 'Other', value: 3.9 },
+      { label: 'Naval', value: 2.6 },
+    ],
+    format: sarBn,
+  },
+  'uav-motor-stock': {
+    kind: 'trend',
+    title: 'UAV Propulsion Motor Stock',
+    headline: { value: 41, unit: 'days left' },
+    ticks: [
+      { value: 0, label: '0' },
+      { value: 50, label: '50' },
+      { value: 100, label: '100' },
+    ],
+    labels: ['-8w', '-7w', '-6w', '-5w', '-4w', '-3w', '-2w', '-1w', 'Now'],
+    series: [{ name: 'Days of stock', color: STATUS.critical, fill: 'accent', points: [96, 90, 84, 77, 70, 63, 56, 49, 41] }],
+    format: (value) => `${value} days`,
+  },
+  'industrial-sites': {
     kind: 'uptime',
-    title: 'Active Monitoring Sites',
-    headline: { value: 425, unit: '/450 Online', sans: true, tight: true },
-    pill: { label: '94% Uptime', color: '#4aae8c' },
-    days: UPTIME_DAYS,
+    title: 'Defence Industrial Sites on Plan',
+    headline: { value: 13, unit: '/15 On plan', sans: true, tight: true },
+    pill: { label: '2 at risk', color: TEAL },
+    days: SITE_DAYS,
     alertBelow: 90,
   },
-  'groundwater-abstraction': {
-    kind: 'columns',
-    title: 'Total Groundwater Abstraction',
-    headline: { value: 120, suffix: 'K', unit: 'm³' },
-    ticks: [
-      { value: 0, label: '0' },
-      { value: 50, label: '50K' },
-      { value: 100, label: '100K' },
-      { value: 150, label: '150K' },
-    ],
-    color: TEAL,
-    bars: MONTHS.map((label, i) => ({ label, value: [40, 47, 74, 106, 96, 79, 63, 77, 70, 81, 94, 117][i] })),
-    format: thousands('m³'),
-  },
-  'water-quality': {
+  'plant-capacity': {
     kind: 'meter',
-    title: '% Wells Within Acceptable Water Quality Standards',
-    headline: { value: 82, suffix: '%', sans: true },
-    value: 82,
+    title: 'Al-Yamamah Plant Utilisation',
+    headline: { value: 94, suffix: '%', sans: true },
+    value: 94,
     mode: 'scale',
-    stops: ['#e43a63', '#e38f4f', '#e1b267', '#e0c27a', '#50af8b'],
-    handle: '#e9d4a1',
-    pill: { label: 'Target: >90%', color: '#d8ba76' },
+    stops: [PALETTE.teal[1], PALETTE.categorical[4], STATUS.moderate, STATUS.critical],
+    handle: '#f3e6cf',
+    pill: { label: 'Busiest in the Kingdom', color: STATUS.moderate },
     rows: [
-      { name: 'Within standards', value: '82%' },
+      { name: 'Utilisation', value: '94%' },
+      { name: 'Hall B from Q2 2027', value: '+120 vehicles a year' },
+    ],
+  },
+  'inventory-source': {
+    kind: 'split',
+    title: 'Inventory Value by Source',
+    headline: { value: 106.8, decimals: 1, prefix: 'SAR ', unit: 'bn held' },
+    pill: { label: '11 cut off', color: STATUS.critical },
+    parts: [
+      { name: 'Imported · 66 products', value: 82.2, share: 77, color: BLUE, display: 'SAR 82.2bn (77%)' },
+      { name: 'Local · 34 products', value: 24.6, share: 23, color: TEAL, display: 'SAR 24.6bn (23%)' },
+    ],
+  },
+  'inventory-readiness': {
+    kind: 'meter',
+    title: 'Inventory Readiness (%)',
+    headline: { value: 86, suffix: '%', sans: true },
+    value: 86,
+    mode: 'scale',
+    stops: [STATUS.critical, STATUS.moderate, PALETTE.categorical[4], PALETTE.teal[2]],
+    handle: '#e9f4f1',
+    pill: { label: 'Target: >90%', color: PALETTE.categorical[4] },
+    rows: [
+      { name: 'Weighted by value', value: '86%' },
       { name: 'Target', value: '>90%' },
     ],
   },
-  'species-by-habitat': {
-    kind: 'rows',
-    title: 'Species Population by Habitat',
-    parts: [
-      { name: 'Desert Dunes', value: 1250, share: 65, color: '#e3c16f', display: '1,250' },
-      { name: 'Coastal Mangroves', value: 480, share: 25, color: '#9bbf6a', display: '480' },
-      { name: 'Urban Periphery', value: 190, share: 10, color: '#5e6f85', display: '190' },
-    ],
-  },
-  'species-detection': {
+  'wds-exhibitors': {
     kind: 'split',
-    title: 'Species detection frequency',
-    headline: { value: 1240, unit: 'Detections/Week' },
+    title: 'WDS 2028 Exhibitor Applications',
+    headline: { value: 1940, unit: 'Applications' },
     parts: [
-      { name: 'Arabian Oryx', value: 744, share: 60, color: OCEAN, display: '744 (60%)' },
-      { name: 'Sand Gazelle', value: 320, share: 26, color: '#8bc17c', display: '320 (26%)' },
-      { name: 'Hawksbill Turtle', value: 176, share: 14, color: ORANGE, display: '176 (14%)' },
+      { name: 'Confirmed', value: 1085, share: 56, color: TEAL, display: '1,085 (56%)' },
+      { name: 'Under review', value: 435, share: 22, color: PALETTE.categorical[0], display: '435 (22%)' },
+      { name: 'Applied', value: 420, share: 22, color: PALETTE.categorical[4], display: '420 (22%)' },
     ],
   },
-  'abstraction-recharge': {
-    kind: 'split',
-    title: 'Abstraction vs Recharge Ratio',
-    headline: { value: 24, suffix: ':1' },
-    pill: { label: 'Severe Deficit', color: '#db4064' },
-    parts: [
-      { name: 'Abstraction', value: 120, share: 96, color: '#e0744c', display: '120K m³' },
-      { name: 'Recharge', value: 5, share: 4, color: TEAL, display: '5k m³' },
-    ],
-  },
-  'fuel-consumption': {
+  'wds-pace': {
     kind: 'trend',
-    title: 'Fuel Consumption Trends',
+    title: 'WDS Applications vs 2026 Pace',
     legend: true,
     ticks: [
       { value: 0, label: '0' },
-      { value: 10, label: '10K' },
-      { value: 20, label: '20K' },
-      { value: 30, label: '30K' },
+      { value: 1000, label: '1K' },
+      { value: 2000, label: '2K' },
     ],
     labels: MONTHS,
     series: [
       {
-        name: 'Actual',
-        color: ROSE,
+        name: 'WDS 2028',
+        color: PALETTE.categorical[0],
         fill: 'accent',
-        points: [9, 9.6, 14.5, 16.2, 16.6, 15.6, 16.4, 17.6, 23.4, 21.5, 17, 22.6],
+        points: [210, 380, 560, 720, 880, 1030, 1180, 1330, 1480, 1640, 1800, 1940],
       },
       {
-        name: 'Planned',
-        color: '#d4d8dc',
+        name: 'WDS 2026',
+        color: PLAN,
         dashed: true,
         fill: 'muted',
-        points: [6.8, 7.2, 9.6, 12, 13.2, 13.6, 12.2, 13.6, 11.4, 9.8, 12.2, 17.8],
+        points: [160, 290, 420, 550, 670, 780, 900, 1010, 1120, 1240, 1360, 1470],
       },
     ],
-    format: (value) => `${value.toLocaleString('en-US')}K L`,
+    format: (value) => `${value.toLocaleString('en-US')} applications`,
+  },
+  'skills-gap': {
+    kind: 'trend',
+    title: 'Defence Skills Gap to 2030',
+    headline: { value: 6350, unit: 'people short' },
+    ticks: [
+      { value: 0, label: '0' },
+      { value: 6000, label: '6K' },
+      { value: 12000, label: '12K' },
+    ],
+    labels: YEARS(2023, 2030),
+    series: [{ name: 'Skills gap', color: PURPLE, fill: 'accent', points: [3900, 4800, 5600, 6350, 7500, 8600, 9600, 10600] }],
+    format: (value) => `${value.toLocaleString('en-US')} people`,
+  },
+  'unfilled-roles': {
+    kind: 'rows',
+    title: 'Unfilled Roles by Region',
+    parts: [
+      { name: 'Western Region', value: 2140, share: 37, color: PURPLE, display: '2,140' },
+      { name: 'Riyadh', value: 1980, share: 34, color: PALETTE.purple[4], display: '1,980' },
+      { name: 'Eastern Region', value: 1610, share: 29, color: PALETTE.categorical[1], display: '1,610' },
+    ],
   },
 }

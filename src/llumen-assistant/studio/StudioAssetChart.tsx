@@ -535,7 +535,8 @@ function Headline({ headline, ctx }: { headline: ChartHeadline; ctx: Ctx }) {
 }
 
 function SeriesLegend({ series }: { series: Of<'trend'>['series'] }) {
-  const itemWidth = (name: string) => 15 + name.length * 6.5 + 14
+  const itemWidth = (name: string) =>
+    15 + [...name].reduce((sum, ch) => sum + (/[A-Z0-9]/.test(ch) ? 8.4 : 6.5), 0) + 14
   return (
     <>
       {series.map((item, i) => {
