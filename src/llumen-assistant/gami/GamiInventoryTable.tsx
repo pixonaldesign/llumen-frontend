@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, Info, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { ArrowDown, ArrowUp, MagnifyingGlass, X } from '@phosphor-icons/react'
 import styles from '../story/StoryView.module.css'
 import {
-  INVENTORY_FILTERS,
+  matchesPicks,
   PRODUCT_STATUS,
   PRODUCT_STATUSES,
   PRODUCTS,
@@ -37,7 +37,7 @@ const COLUMNS: { id: SortId; label: string; numeric?: boolean }[] = [
 const sortValue = (product: Product, id: SortId): string | number =>
   id === 'value' ? productValue(product) : id === 'status' ? PRODUCT_STATUSES.indexOf(product.status) : product[id]
 
-/** The inventory app's 100 products: search and sortable columns under the story's filters; the first ten open their details. */
+/** The inventory app's 100 products: search and sortable columns under the story's filters; the first ten rows open their details. */
 export function GamiInventoryTable({ onInfo, controls }: { onInfo?: ProductInfo; controls?: InventoryControls }) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<{ id: SortId; desc: boolean } | null>(null)
@@ -49,7 +49,7 @@ export function GamiInventoryTable({ onInfo, controls }: { onInfo?: ProductInfo;
     const shown = PRODUCTS.filter(
       (product) =>
         (!words || `${product.name} ${product.type} ${product.maker} ${product.country}`.toLowerCase().includes(words)) &&
-        INVENTORY_FILTERS.every(({ id }) => !picked?.[id] || product[id] === picked[id]),
+        matchesPicks(product, picked ?? {}),
     )
     if (!sort) return shown
     return [...shown].sort((a, b) => {
@@ -117,7 +117,6 @@ export function GamiInventoryTable({ onInfo, controls }: { onInfo?: ProductInfo;
                   </span>
                 )
               })}
-              <span role="columnheader" aria-label="Details" />
             </div>
           </div>
         </div>
@@ -129,7 +128,23 @@ export function GamiInventoryTable({ onInfo, controls }: { onInfo?: ProductInfo;
         >
           <div className={css.table} role="rowgroup">
             {rows.map((product) => (
-              <div key={product.id} className={css.row} role="row">
+              <div
+                key={product.id}
+                className={product.detail ? `${css.row} ${css.rowOpen}` : css.row}
+                role="row"
+                {...(product.detail
+                  ? {
+                      tabIndex: 0,
+                      'aria-label': `${product.name}, open details`,
+                      onClick: () => onInfo?.(product.id),
+                      onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return
+                        event.preventDefault()
+                        onInfo?.(product.id)
+                      },
+                    }
+                  : {})}
+              >
                 <span role="cell" className={css.product}>
                   <b>{product.name}</b>
                   <small>{product.type}</small>
@@ -165,13 +180,6 @@ export function GamiInventoryTable({ onInfo, controls }: { onInfo?: ProductInfo;
                 <span role="cell" className={css.status}>
                   <i style={{ background: STATUS[PRODUCT_STATUS[product.status]] }} aria-hidden />
                   {product.status}
-                </span>
-                <span role="cell">
-                  {product.detail ? (
-                    <button type="button" className={css.info} aria-label={`${product.name} details`} onClick={() => onInfo?.(product.id)}>
-                      <Info size={16} weight="regular" aria-hidden />
-                    </button>
-                  ) : null}
                 </span>
               </div>
             ))}

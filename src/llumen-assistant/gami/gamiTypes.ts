@@ -1,5 +1,6 @@
 import type { SummaryPart } from '../story/StorySummaryText'
 import type { LngLat } from './gamiGeo'
+import type { InventoryPicks } from './gamiInventory'
 import type { GamiMapScene } from './gamiMapLayers'
 import type { GamiModelId } from './gamiModelIds'
 
@@ -126,6 +127,8 @@ export type GamiCard = CardBase &
         note: string
         /** A sparkline under the note, oldest first, in the status colour. */
         spark?: number[]
+        /** The sparkline's top, so filtered selections draw against the same scale; defaults to its own peak. */
+        sparkMax?: number
         status?: Status
       }
     | { kind: 'progress'; rows: { label: string; value: string; target: string; pct: number }[] }
@@ -208,6 +211,8 @@ export type GamiPage = {
    * cards switch to them, and options without are listed but not yet connected.
    */
   countries?: { id: string; label: string; cards?: GamiCard[] }[]
+  /** The inventory page's cards for the products its filter row has picked; `cards` is the unfiltered set. */
+  cardsFor?: (picks: InventoryPicks) => GamiCard[]
 }
 
 export type GamiStory = {

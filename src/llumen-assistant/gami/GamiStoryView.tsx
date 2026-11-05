@@ -76,7 +76,7 @@ import { GamiMap, type GamiMapHandle } from './GamiMap'
 import { GamiLocalPartModal, GamiPartModal } from './GamiPartModal'
 import { GamiProductModal } from './GamiProductModal'
 import { GamiInventoryFilters } from './GamiInventoryFilters'
-import type { InventoryPicks } from './gamiInventory'
+import { INVENTORY_FILTERS, type InventoryPicks } from './gamiInventory'
 import { GamiFacilityModal } from './GamiFacilityModal'
 import { cardClass, cardFootprint, gridSpan, gridVars } from './gamiCardLayout'
 import { GAMI_STORIES } from './gamiScenario'
@@ -429,7 +429,8 @@ export function GamiStoryView({
   const removed = removedCards[slide.id]
   const added = addedCards[slide.id]
   const country = page.countries?.find((item) => item.id === countryBySlide[slide.id]) ?? page.countries?.[0]
-  const pageCards = country?.cards ?? page.cards
+  const filteredCards = useMemo(() => page.cardsFor?.(inventoryPicks), [page, inventoryPicks])
+  const pageCards = country?.cards ?? filteredCards ?? page.cards
   const cards = useMemo(
     () => [...pageCards, ...(added ?? [])].filter((card) => !removed?.includes(card.id)),
     [added, pageCards, removed],
@@ -653,6 +654,13 @@ export function GamiStoryView({
 
   /* —— Cards —— */
 
+  /** New inventory filters: the cards re-read the products and the summary is rewritten for them. */
+  const pickInventory = (next: InventoryPicks) => {
+    if (INVENTORY_FILTERS.every(({ id }) => next[id] === inventoryPicks[id])) return
+    setInventoryPicks(next)
+    if (page.cardsFor) setRegeneratingSlideId(slide.id)
+  }
+
   const summaryStatusStyle = { '--actions-w': `${cardActionsWidth(canAddToChat ? 2 : 1)}px` } as CSSProperties
   const summaryUpdated = (
     <span className={styles.summaryUpdated} data-busy={summaryRegenerating || undefined} role="status">
@@ -685,7 +693,7 @@ export function GamiStoryView({
         card={card}
         onPartInfo={(id, facet) => setPart({ id, facet })}
         onProductInfo={setProduct}
-        inventory={card.kind === 'inventory' ? { picks: inventoryPicks, onClear: () => setInventoryPicks({}) } : undefined}
+        inventory={card.kind === 'inventory' ? { picks: inventoryPicks, onClear: () => pickInventory({}) } : undefined}
         summaryStatus={summary ? summaryUpdated : undefined}
         summaryTyping={summary && summaryRegenerating}
       />
@@ -918,7 +926,7 @@ export function GamiStoryView({
       {!editing && cards.some((card) => card.kind === 'inventory') ? (
         <GamiInventoryFilters
           picks={inventoryPicks}
-          onPick={(filter, value) => setInventoryPicks((current) => ({ ...current, [filter]: value }))}
+          onPick={(filter, value) => pickInventory({ ...inventoryPicks, [filter]: value })}
         />
       ) : null}
     </div>

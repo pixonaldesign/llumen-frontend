@@ -1746,6 +1746,7 @@ const INVENTORY: GamiStory = {
       filters: ['Kingdom', '2026 YTD'],
       layers: [],
       cards: inventoryCards(),
+      cardsFor: inventoryCards,
     },
   ],
 }

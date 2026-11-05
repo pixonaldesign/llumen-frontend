@@ -533,71 +533,119 @@ export const INVENTORY_TOTALS = {
   byStatus: PRODUCT_STATUSES.map((status) => ({ status, count: PRODUCTS.filter((product) => product.status === status).length })),
 }
 
+/** Whether `product` passes every filter `picks` has set. */
+export const matchesPicks = (product: Product, picks: InventoryPicks) =>
+  INVENTORY_FILTERS.every(({ id }) => !picks[id] || product[id] === picks[id])
+
 /** SAR millions held from each country, largest first. */
-export function valueByOrigin() {
+export function valueByOrigin(products: Product[] = PRODUCTS) {
   const values = new Map<string, number>()
-  for (const product of PRODUCTS) values.set(product.country, (values.get(product.country) ?? 0) + productValue(product))
+  for (const product of products) values.set(product.country, (values.get(product.country) ?? 0) + productValue(product))
   return [...values.entries()].sort((a, b) => b[1] - a[1])
 }
 
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
+
 /**
  * The inventory app's one page: the product listing docked on the right, seven rows tall, beside a two-cell
- * column of the summary, headline cells and three charts.
+ * column of the summary, headline cells and three charts, all read from the products `picks` lets through.
  */
-export function inventoryCards(): GamiCard[] {
-  const countries = valueByOrigin()
-  const statusCounts = PRODUCT_STATUSES.map((status) => PRODUCTS.filter((product) => product.status === status).length)
-  const value = bn(TOTAL)
+export function inventoryCards(picks: InventoryPicks = {}): GamiCard[] {
+  const shown = PRODUCTS.filter((product) => matchesPicks(product, picks))
+  const total = sum(shown, productValue)
+  const local = shown.filter((product) => product.source === 'Local')
+  const imported = shown.filter((product) => product.source === 'Imported')
+  const cutOff = shown.filter((product) => product.status === 'Cut off')
+  const readiness = total ? Math.round(sum(shown, (item) => item.readiness * productValue(item)) / total) : 0
+  const localShare = total ? Math.round((sum(local, productValue) / total) * 100) : 0
+  const maxLead = Math.max(0, ...imported.map((product) => product.lead))
+  const domains = new Set(shown.map((product) => product.domain)).size
+  const held = sar(total)
   const growth = [0.9, 0.92, 0.94, 0.95, 0.98, 1]
+  const summary: GamiCard = {
+    id: 'summary',
+    kind: 'summary',
+    title: 'Llumen AI Summary',
+    cols: 2,
+    parts: shown.length
+      ? [
+          `${Object.values(picks).some(Boolean) ? 'This selection holds' : 'The sector holds'} ${plural(shown.length, 'product')} worth ${held}, `,
+          { em: [`${localShare}% of it made in the Kingdom`] },
+          `. Readiness averages ${readiness}%. `,
+          cutOff.length
+            ? { em: [`${plural(cutOff.length, 'product')} from Poland ${cutOff.length === 1 ? 'is' : 'are'} cut off`] }
+            : 'None is cut off',
+          imported.length ? `, and imported lead times run up to ${maxLead} months.` : '.',
+        ]
+      : ['No products match these filters.'],
+  }
   return [
+    summary,
+    { id: 'products', kind: 'cell', title: 'Products', value: String(shown.length), note: `${imported.length} imported · ${local.length} local` },
+    { id: 'value', kind: 'cell', title: 'Inventory value', value: held, note: `Across ${plural(domains, 'domain')}`, spark: growth.map((g) => g * total), sparkMax: TOTAL },
     {
-      id: 'summary',
-      kind: 'summary',
-      title: 'Llumen AI Summary',
-      cols: 2,
-      parts: [
-        `The sector holds ${PRODUCTS.length} products worth SAR ${value}bn, `,
-        { em: [`${LOCAL_SHARE}% of it made in the Kingdom`] },
-        `. Readiness averages ${READINESS}%. `,
-        { em: [`${CUT_OFF.length} products from Poland are cut off`] },
-        `, and imported lead times run up to ${INVENTORY_TOTALS.maxLead} months.`,
-      ],
+      id: 'readiness',
+      kind: 'cell',
+      title: 'Readiness',
+      value: `${readiness}%`,
+      note: 'Weighted by value',
+      status: readiness < 80 ? 'moderate' : 'mild',
+      spark: [3, 3, 2, 2, 1, 0, 0].map((step) => readiness + step),
+      sparkMax: 100,
     },
-    { id: 'products', kind: 'cell', title: 'Products', value: String(PRODUCTS.length), note: `${IMPORTED.length} imported · ${LOCAL.length} local` },
-    { id: 'value', kind: 'cell', title: 'Inventory value', value: `SAR ${value}bn`, note: 'Across 5 domains', spark: growth.map((g) => g * value) },
-    { id: 'readiness', kind: 'cell', title: 'Readiness', value: `${READINESS}%`, note: 'Weighted by value', status: 'mild', spark: [89, 89, 88, 88, 87, 86, READINESS] },
-    { id: 'cut-off', kind: 'cell', title: 'Cut off', value: String(CUT_OFF.length), note: 'All from Poland', status: 'critical', spark: [0, 0, 0, 0, CUT_OFF.length, CUT_OFF.length] },
-    { id: 'avg-lead', kind: 'cell', title: 'Imported lead time', value: `${Math.round(sum(IMPORTED, (item) => item.lead) / IMPORTED.length)} mo`, note: 'Average, order to delivery' },
-    { id: 'local-content', kind: 'cell', title: 'Local content', value: `${LOCAL_SHARE}%`, note: 'Of inventory value, 2030 goal 50%' },
+    {
+      id: 'cut-off',
+      kind: 'cell',
+      title: 'Cut off',
+      value: String(cutOff.length),
+      note: cutOff.length ? 'All from Poland' : 'None in this selection',
+      status: cutOff.length ? 'critical' : 'good',
+      spark: [0, 0, 0, 0, cutOff.length, cutOff.length],
+      sparkMax: CUT_OFF.length,
+    },
+    {
+      id: 'avg-lead',
+      kind: 'cell',
+      title: 'Imported lead time',
+      value: imported.length ? `${Math.round(sum(imported, (item) => item.lead) / imported.length)} mo` : '—',
+      note: imported.length ? 'Average, order to delivery' : 'No imported products',
+    },
+    { id: 'local-content', kind: 'cell', title: 'Local content', value: `${localShare}%`, note: 'Of inventory value, 2030 goal 50%' },
     {
       id: 'status',
       kind: 'donut',
       title: 'Products by Status',
-      total: String(PRODUCTS.length),
+      total: String(shown.length),
       totalLabel: 'products',
-      slices: PRODUCT_STATUSES.map((status, index) => ({ name: status, value: statusCounts[index], status: PRODUCT_STATUS[status] })),
+      slices: PRODUCT_STATUSES.map((status) => ({
+        name: status,
+        value: shown.filter((product) => product.status === status).length,
+        status: PRODUCT_STATUS[status],
+      })),
     },
     {
       id: 'domains',
       kind: 'donut',
       title: 'Value by Domain',
-      total: `${value}bn`,
+      total: held.replace('SAR ', ''),
       totalLabel: 'SAR',
       slices: PRODUCT_DOMAINS.map((domain) => ({
         name: domain,
-        value: bn(sum(PRODUCTS.filter((product) => product.domain === domain), productValue)),
+        value: sum(shown.filter((product) => product.domain === domain), productValue),
       })),
     },
     {
       id: 'origins',
       kind: 'hbars',
       title: 'Value by Origin',
-      bars: countries.slice(0, 6).map(([country, total]) => ({
-        label: country === KINGDOM ? 'Kingdom' : country,
-        value: total,
-        display: sar(total),
-        status: country === 'Poland' ? 'critical' : undefined,
-      })),
+      bars: valueByOrigin(shown)
+        .slice(0, 6)
+        .map(([country, value]) => ({
+          label: country === KINGDOM ? 'Kingdom' : country,
+          value,
+          display: sar(value),
+          status: country === 'Poland' ? 'critical' : undefined,
+        })),
     },
     { id: 'listing', kind: 'inventory', title: `All Products · ${PRODUCTS.length}`, dock: true, height: 7 },
   ]

@@ -152,9 +152,9 @@
   display: grid;
   grid-template-columns:
     minmax(200px, 1.6fr) minmax(84px, 0.6fr) minmax(84px, 0.6fr) minmax(96px, 0.7fr) minmax(170px, 1.3fr)
-    minmax(76px, 0.6fr) minmax(84px, 0.6fr) minmax(120px, 0.8fr) minmax(72px, 0.5fr) minmax(84px, 0.6fr) 32px;
+    minmax(76px, 0.6fr) minmax(84px, 0.6fr) minmax(120px, 0.8fr) minmax(72px, 0.5fr) minmax(84px, 0.6fr);
   column-gap: 12px;
-  min-width: 1180px;
+  min-width: 1136px;
   font-size: 12px;
   line-height: 16px;
 }
@@ -298,28 +298,18 @@
   border-radius: 999px;
 }
 
-.info {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  background: rgba(112, 174, 255, 0.14);
-  color: #a8c9fa;
+/* A product with details: the whole row opens them. */
+.rowOpen {
   cursor: pointer;
 }
 
-.info:hover {
-  background: rgba(112, 174, 255, 0.28);
-  color: #fff;
+.rowOpen:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.info:focus-visible {
+.rowOpen:focus-visible {
   outline: 2px solid #70aeff;
-  outline-offset: 1px;
+  outline-offset: -2px;
 }
 
 .empty {

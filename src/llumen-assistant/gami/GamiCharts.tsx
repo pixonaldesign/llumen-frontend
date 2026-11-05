@@ -3,7 +3,7 @@
  * `GamiCard` kind, coloured from the Create Asset palettes. The card shell and its hover actions are
  * the story view's.
  */
-import { useContext, useEffect, useId, useState, type CSSProperties, type ReactNode } from 'react'
+import { useContext, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Info } from '@phosphor-icons/react'
 import styles from '../story/StoryView.module.css'
 import { formatCount } from '../story/StoryCharts'
@@ -45,33 +45,48 @@ function countable(text: string) {
   return match && !/^(19|20)\d\d$/.test(match[0]) ? match : null
 }
 
-/** `text` with its first number counting up from zero after the card's fill delay. */
+/**
+ * `text` with its first number counting up from zero after the card's fill delay, then from the figure
+ * shown to the new one whenever the number changes.
+ */
 function useCountUp(text: string) {
   const delay = useContext(GamiFillDelay)
   const match = countable(text)
-  const [t, setT] = useState(delay === null || !match ? 1 : 0)
+  const target = match ? Number(match[0].replace(/,/g, '')) : null
+  const [shown, setShown] = useState(delay === null ? target : 0)
+  const shownRef = useRef(delay === null ? target : 0)
+  const countedRef = useRef(false)
   useEffect(() => {
-    if (delay === null || delay < 0 || !countable(text)) return
+    if (delay === null || delay < 0 || target === null) return
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const from = shownRef.current ?? 0
+    const wait = countedRef.current ? 0 : delay
+    countedRef.current = true
     let frame = window.requestAnimationFrame((start) => {
       const tick = (now: number) => {
-        const p = still ? 1 : Math.min(1, Math.max(0, now - start - delay) / COUNT_MS)
-        setT(p)
+        const p = still ? 1 : Math.min(1, Math.max(0, now - start - wait) / COUNT_MS)
+        const value = p >= 1 ? target : from + (target - from) * (1 - (1 - p) ** 3)
+        shownRef.current = value
+        setShown(value)
         if (p < 1) frame = window.requestAnimationFrame(tick)
       }
       tick(start)
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [delay, text])
-  if (!match || t >= 1) return text
-  const target = Number(match[0].replace(/,/g, ''))
+  }, [delay, target])
+  if (!match || shown === null || shown === target) return text
   const decimals = match[1] ? match[1].length - 1 : 0
-  const shown = (target * (1 - (1 - t) ** 3)).toLocaleString('en-US', {
+  const figure = shown.toLocaleString('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
     useGrouping: match[0].includes(','),
   })
-  return text.slice(0, match.index) + shown + text.slice(match.index + match[0].length)
+  return text.slice(0, match.index) + figure + text.slice(match.index + match[0].length)
+}
+
+/** A figure in running text that counts like `useCountUp`. */
+function Counted({ text }: { text: string }) {
+  return <>{useCountUp(text)}</>
 }
 
 function Title({ card }: { card: GamiCard }) {
@@ -250,30 +265,50 @@ function LineChart({ card, flat = false }: { card: CardOf<'line'>; flat?: boolea
   )
 }
 
-/** A cell's trend: the line over a faint fill, filling the room left under the note. */
-function Sparkline({ points, color }: { points: number[]; color: string }) {
+/** A cell's trend: the line over a faint fill on small axes, filling the room left under the note. */
+function Sparkline({
+  points,
+  color,
+  max,
+  x,
+  suffix,
+}: {
+  points: number[]
+  color: string
+  max?: number
+  x?: string[]
+  suffix?: string
+}) {
   const gradientId = useId()
-  const run = linePath(points, Math.max(...points, 1) * 1.15)[0]
+  const scale = sparkScale(points, { suffix, max })
+  const run = linePath(
+    points.map((value) => value - scale.lo),
+    scale.hi - scale.lo,
+  )[0]
   if (!run) return null
+  const area = `${run.d} L${run.last} 100 L${run.first} 100 Z`
   return (
-    <svg className={css.spark} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.32" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${run.d} L${run.last} 100 L${run.first} 100 Z`} fill={`url(#${gradientId})`} />
-      <path
-        d={run.d}
-        fill="none"
-        stroke={color}
-        strokeWidth={1.75}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
+    <SparkAxes y={scale.labels} x={sparkX(points.length, x)}>
+      <svg className={css.spark} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.32" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={area} style={{ d: `path("${area}")` }} fill={`url(#${gradientId})`} />
+        <path
+          d={run.d}
+          style={{ d: `path("${run.d}")` }}
+          fill="none"
+          stroke={color}
+          strokeWidth={1.75}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    </SparkAxes>
   )
 }
 
@@ -314,7 +349,7 @@ function HBars({ card }: { card: CardOf<'hbars'> }) {
             <span className={css.track}>
               <span className={css.fill} style={{ width: `${(bar.value / max) * 100}%`, background: statusColor(bar.status, accent) }} />
             </span>
-            <b className={css.hbarValue}>{bar.display}</b>
+            <b className={css.hbarValue}>{bar.display ? <Counted text={bar.display} /> : null}</b>
           </div>
         ))}
       </div>
@@ -410,7 +445,7 @@ function Grouped({ card }: { card: CardOf<'grouped'> }) {
 
 function Donut({ card }: { card: CardOf<'donut'> }) {
   const tone = toneOf(card)
-  const total = card.slices.reduce((sum, slice) => sum + slice.value, 0)
+  const total = card.slices.reduce((sum, slice) => sum + slice.value, 0) || 1
   const r = 50
   const c = 2 * Math.PI * r
   const lengths = card.slices.map((slice) => (slice.value / total) * c)
@@ -435,7 +470,9 @@ function Donut({ card }: { card: CardOf<'donut'> }) {
           ))}
         </svg>
         <div className={css.donutCenter}>
-          <strong>{card.total}</strong>
+          <strong>
+            <Counted text={card.total} />
+          </strong>
           <span>{card.totalLabel}</span>
         </div>
       </div>
@@ -446,7 +483,9 @@ function Donut({ card }: { card: CardOf<'donut'> }) {
               <i className={styles.swatchTerrestrial} style={{ background: statusColor(slice.status, category(i, tone)) }} />
               {slice.name}
             </span>
-            <b>{(Math.round((slice.value / total) * 1000) / 10).toFixed(1)}%</b>
+            <b>
+              <Counted text={`${(Math.round((slice.value / total) * 1000) / 10).toFixed(1)}%`} />
+            </b>
           </div>
         ))}
       </div>
@@ -711,7 +750,7 @@ export function GamiCardBody({
           <p className={styles.kpiCellLabel}>{card.title}</p>
           <CellValue value={card.value} />
           <p className={styles.kpiCellNote}>{card.note}</p>
-          {card.spark ? <Sparkline points={card.spark} color={statusColor(card.status, TONE_ACCENT[toneOf(card)])} /> : null}
+          {card.spark ? <Sparkline points={card.spark} max={card.sparkMax} color={statusColor(card.status, TONE_ACCENT[toneOf(card)])} /> : null}
         </>
       )
     case 'part':
