@@ -489,6 +489,18 @@ export const PRODUCT_COUNTRIES = [...new Set(PRODUCTS.map((product) => product.c
   a === KINGDOM ? -1 : b === KINGDOM ? 1 : a.localeCompare(b),
 )
 
+export type InventoryFilterId = 'source' | 'domain' | 'country' | 'status'
+/** The value each inventory filter has picked; a missing one shows every product. */
+export type InventoryPicks = Partial<Record<InventoryFilterId, string>>
+
+/** The inventory page's filters, in the story's filter row; each narrows the product listing. */
+export const INVENTORY_FILTERS: { id: InventoryFilterId; label: string; all: string; options: readonly string[] }[] = [
+  { id: 'source', label: 'Source', all: 'Local and imported', options: ['Local', 'Imported'] },
+  { id: 'domain', label: 'Domain', all: 'All domains', options: PRODUCT_DOMAINS },
+  { id: 'country', label: 'Origin', all: 'All countries', options: PRODUCT_COUNTRIES },
+  { id: 'status', label: 'Status', all: 'Any status', options: PRODUCT_STATUSES },
+]
+
 export const productValue = (product: Product) => product.units * product.unitValue
 
 /** SAR millions as the listing reads it: 'SAR 1.2bn', 'SAR 340m' or 'SAR 90k'. */
@@ -529,7 +541,10 @@ export function valueByOrigin() {
   return [...values.entries()].sort((a, b) => b[1] - a[1])
 }
 
-/** The inventory app's one page: headline cells, the product listing, then how the inventory performs. */
+/**
+ * The inventory app's one page: the product listing docked on the right, seven rows tall, beside a two-cell
+ * column of the summary, headline cells and three charts; then how the inventory performs.
+ */
 export function inventoryCards(): GamiCard[] {
   const countries = valueByOrigin()
   const leads = [...new Set(IMPORTED.map((product) => product.country))]
@@ -548,7 +563,7 @@ export function inventoryCards(): GamiCard[] {
       id: 'summary',
       kind: 'summary',
       title: 'Llumen AI Summary',
-      cols: 4,
+      cols: 2,
       parts: [
         `The sector holds ${PRODUCTS.length} products worth SAR ${value}bn, `,
         { em: [`${LOCAL_SHARE}% of it made in the Kingdom`] },
@@ -561,9 +576,39 @@ export function inventoryCards(): GamiCard[] {
     { id: 'value', kind: 'cell', title: 'Inventory value', value: `SAR ${value}bn`, note: 'Across 5 domains', spark: growth.map((g) => g * value) },
     { id: 'readiness', kind: 'cell', title: 'Readiness', value: `${READINESS}%`, note: 'Weighted by value', status: 'mild', spark: [89, 89, 88, 88, 87, 86, READINESS] },
     { id: 'cut-off', kind: 'cell', title: 'Cut off', value: String(CUT_OFF.length), note: 'All from Poland', status: 'critical', spark: [0, 0, 0, 0, CUT_OFF.length, CUT_OFF.length] },
-
-    { id: 'listing-section', kind: 'section', title: `Product Inventory · ${PRODUCTS.length}` },
-    { id: 'listing', kind: 'inventory', title: 'All Products', cols: 12, height: 4 },
+    { id: 'avg-lead', kind: 'cell', title: 'Imported lead time', value: `${Math.round(sum(IMPORTED, (item) => item.lead) / IMPORTED.length)} mo`, note: 'Average, order to delivery' },
+    { id: 'local-content', kind: 'cell', title: 'Local content', value: `${LOCAL_SHARE}%`, note: 'Of inventory value, 2030 goal 50%' },
+    {
+      id: 'status',
+      kind: 'donut',
+      title: 'Products by Status',
+      total: String(PRODUCTS.length),
+      totalLabel: 'products',
+      slices: PRODUCT_STATUSES.map((status, index) => ({ name: status, value: statusCounts[index], status: PRODUCT_STATUS[status] })),
+    },
+    {
+      id: 'domains',
+      kind: 'donut',
+      title: 'Value by Domain',
+      total: `${value}bn`,
+      totalLabel: 'SAR',
+      slices: PRODUCT_DOMAINS.map((domain) => ({
+        name: domain,
+        value: bn(sum(PRODUCTS.filter((product) => product.domain === domain), productValue)),
+      })),
+    },
+    {
+      id: 'origins',
+      kind: 'hbars',
+      title: 'Value by Origin',
+      bars: countries.slice(0, 6).map(([country, total]) => ({
+        label: country === KINGDOM ? 'Kingdom' : country,
+        value: total,
+        display: sar(total),
+        status: country === 'Poland' ? 'critical' : undefined,
+      })),
+    },
+    { id: 'listing', kind: 'inventory', title: `All Products · ${PRODUCTS.length}`, dock: true, height: 7 },
 
     { id: 'performance-section', kind: 'section', title: 'Inventory Performance' },
     {
@@ -582,27 +627,6 @@ export function inventoryCards(): GamiCard[] {
       ],
     },
     {
-      id: 'status',
-      kind: 'donut',
-      title: 'Products by Status',
-      height: 2,
-      total: String(PRODUCTS.length),
-      totalLabel: 'products',
-      slices: PRODUCT_STATUSES.map((status, index) => ({ name: status, value: statusCounts[index], status: PRODUCT_STATUS[status] })),
-    },
-    {
-      id: 'domains',
-      kind: 'donut',
-      title: 'Value by Domain',
-      height: 2,
-      total: `${value}bn`,
-      totalLabel: 'SAR',
-      slices: PRODUCT_DOMAINS.map((domain) => ({
-        name: domain,
-        value: bn(sum(PRODUCTS.filter((product) => product.domain === domain), productValue)),
-      })),
-    },
-    {
       id: 'sources',
       kind: 'stacked',
       title: 'Local vs Imported by Domain',
@@ -614,18 +638,6 @@ export function inventoryCards(): GamiCard[] {
           LOCAL.filter((product) => product.domain === domain).length,
           IMPORTED.filter((product) => product.domain === domain).length,
         ],
-      })),
-    },
-    {
-      id: 'origins',
-      kind: 'hbars',
-      title: 'Value by Origin',
-      height: 2,
-      bars: countries.slice(0, 7).map(([country, total]) => ({
-        label: country === KINGDOM ? 'Kingdom' : country,
-        value: total,
-        display: sar(total),
-        status: country === 'Poland' ? 'critical' : undefined,
       })),
     },
     {
@@ -643,7 +655,6 @@ export function inventoryCards(): GamiCard[] {
       id: 'lead-times',
       kind: 'hbars',
       title: 'Average Lead Time by Origin',
-      height: 2,
       bars: leads.map((item) => ({
         label: item.country,
         value: item.lead,
@@ -671,9 +682,7 @@ export function inventoryCards(): GamiCard[] {
       ],
     },
     { id: 'open-orders', kind: 'cell', title: 'Open orders', value: 'SAR 6.2bn', note: '1,240 purchase orders' },
-    { id: 'avg-lead', kind: 'cell', title: 'Imported lead time', value: `${Math.round(sum(IMPORTED, (item) => item.lead) / IMPORTED.length)} mo`, note: 'Average, order to delivery' },
     { id: 'due', kind: 'cell', title: 'Due this month', value: '38', note: 'Deliveries, 9 of them local', status: 'good' },
-    { id: 'local-content', kind: 'cell', title: 'Local content', value: `${LOCAL_SHARE}%`, note: 'Of inventory value, 2030 goal 50%' },
   ]
 }
 

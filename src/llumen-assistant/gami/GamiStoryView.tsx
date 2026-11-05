@@ -75,6 +75,8 @@ import { GamiFillDelay } from './gamiFill'
 import { GamiMap, type GamiMapHandle } from './GamiMap'
 import { GamiLocalPartModal, GamiPartModal } from './GamiPartModal'
 import { GamiProductModal } from './GamiProductModal'
+import { GamiInventoryFilters } from './GamiInventoryFilters'
+import type { InventoryPicks } from './gamiInventory'
 import { GamiFacilityModal } from './GamiFacilityModal'
 import { cardClass, cardFootprint, gridSpan, gridVars } from './gamiCardLayout'
 import { GAMI_STORIES } from './gamiScenario'
@@ -379,6 +381,7 @@ export function GamiStoryView({
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NO_GROUPS)
   const [part, setPart] = useState<{ id: LocalPartId; facet: 'stock' | 'local' } | null>(null)
   const [product, setProduct] = useState<string | null>(null)
+  const [inventoryPicks, setInventoryPicks] = useState<InventoryPicks>({})
   const [facility, setFacility] = useState<string | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [pageRename, setPageRename] = useState<{ slideId: string; title: string } | null>(null)
@@ -682,6 +685,7 @@ export function GamiStoryView({
         card={card}
         onPartInfo={(id, facet) => setPart({ id, facet })}
         onProductInfo={setProduct}
+        inventory={card.kind === 'inventory' ? { picks: inventoryPicks, onClear: () => setInventoryPicks({}) } : undefined}
         summaryStatus={summary ? summaryUpdated : undefined}
         summaryTyping={summary && summaryRegenerating}
       />
@@ -911,6 +915,12 @@ export function GamiStoryView({
         </span>
         ),
       )}
+      {!editing && cards.some((card) => card.kind === 'inventory') ? (
+        <GamiInventoryFilters
+          picks={inventoryPicks}
+          onPick={(filter, value) => setInventoryPicks((current) => ({ ...current, [filter]: value }))}
+        />
+      ) : null}
     </div>
   )
 

@@ -17,7 +17,7 @@ export function cardFootprint(card: GamiCard, columns: number) {
 /** Width and height in the grid layout's square cells; a section takes the whole row and no height. */
 export function gridSpan(card: GamiCard, columns: number) {
   if (card.kind === 'section') return { cols: columns, rows: 0 }
-  const cols = Math.min(columns, card.cols ?? (isCell(card) ? 1 : 2))
+  const cols = card.dock ? Math.max(1, columns - 2) : Math.min(columns, card.cols ?? (isCell(card) ? 1 : 2))
   return { cols, rows: card.height ?? (isLarge(card) ? 2 : 1) }
 }
 
@@ -38,6 +38,7 @@ export function cardClass(card: GamiCard) {
     card.height === 2 || isLarge(card) ? css.tall : '',
     isPart(card) ? css.partCard : '',
     card.kind === 'summary' ? css.summary : '',
+    card.dock ? css.docked : '',
   ]
     .filter(Boolean)
     .join(' ')

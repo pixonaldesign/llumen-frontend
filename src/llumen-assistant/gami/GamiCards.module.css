@@ -692,6 +692,12 @@ aside.grid > .section {
   height: calc(var(--rows, 1) * var(--cell) + (var(--rows, 1) - 1) * 12px);
 }
 
+/* Placed before the auto-flowed cards, so the cards after it pack into the two columns on its left. */
+.dash > .card.card.docked {
+  grid-column: span var(--cols, 1) / -1;
+  grid-row: 1 / span var(--rows, 1);
+}
+
 .dash > .section {
   grid-column: 1 / -1;
 }

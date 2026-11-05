@@ -11,7 +11,7 @@ import { StorySummaryText } from '../story/StorySummaryText'
 import { SUMMARY_REGENERATE_MS } from '../story/storySummary'
 import { Gami3DModel } from './Gami3DModel'
 import { GamiFillDelay } from './gamiFill'
-import { GamiInventoryTable, type ProductInfo } from './GamiInventoryTable'
+import { GamiInventoryTable, type InventoryControls, type ProductInfo } from './GamiInventoryTable'
 import { isVehicle } from './gamiModelIds'
 import { LOCAL_COLOR } from './gamiPlaces'
 import { GAMI_PARTS, LOCAL_PARTS } from './gamiScenario'
@@ -673,6 +673,7 @@ export function GamiCardBody({
   card,
   onPartInfo,
   onProductInfo,
+  inventory,
   summaryStatus,
   summaryTyping = false,
   flat = false,
@@ -680,6 +681,7 @@ export function GamiCardBody({
   card: GamiCard
   onPartInfo?: PartInfo
   onProductInfo?: ProductInfo
+  inventory?: InventoryControls
   /** The summary's "Last updated" chip. */
   summaryStatus?: ReactNode
   summaryTyping?: boolean
@@ -774,7 +776,7 @@ export function GamiCardBody({
     table: () => <Table card={card as CardOf<'table'>} />,
     range: () => <Range card={card as CardOf<'range'>} />,
     countdown: () => <Countdown card={card as CardOf<'countdown'>} />,
-    inventory: () => <GamiInventoryTable onInfo={onProductInfo} />,
+    inventory: () => <GamiInventoryTable onInfo={onProductInfo} controls={inventory} />,
   }
   return (
     <>

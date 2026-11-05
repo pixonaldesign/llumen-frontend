@@ -102,10 +102,12 @@ type CardBase = {
   title: string
   /** `cell` is one 184px square; `full` spans the row. */
   span?: 'full' | 'cell'
-  /** Height in 184px rows; grid layouts take up to 4. */
-  height?: 1 | 2 | 3 | 4
+  /** Height in 184px rows; the sidebar takes 1 or 2. */
+  height?: number
   /** Grid layout only: width in cells (one for `cell` cards, two otherwise). */
   cols?: number
+  /** Grid layout only: pinned to the page's top right, all but two columns wide; the cards after it fill those two. */
+  dock?: boolean
   /** The headline number over a chart, as the story's chart cards show it. */
   kpi?: { value: string; unit?: string }
   /** The chart's colour family; stories assign one per card in turn. */

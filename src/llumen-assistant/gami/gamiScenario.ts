@@ -1743,7 +1743,7 @@ const INVENTORY: GamiStory = {
       camera: GAMI_PLACES.kingdom.camera,
       scene: EMPTY_SCENE,
       polygons: [],
-      filters: ['Kingdom', '2026 YTD', 'All domains'],
+      filters: ['Kingdom', '2026 YTD'],
       layers: [],
       cards: inventoryCards(),
     },
