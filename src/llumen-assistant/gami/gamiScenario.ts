@@ -480,7 +480,6 @@ const WDS: GamiStory = {
             ', with USD 10.2bn in contracts expected.',
           ],
         },
-        { id: 'countdown', kind: 'countdown', title: 'WDS 2028 Countdown', target: WDS_OPENS },
         { id: 'countries', kind: 'cell', title: 'Countries', value: '94', note: '2026: 76' },
         { id: 'visitors', kind: 'cell', title: 'Visitors', value: '155k', note: '2026: 137k' },
         { id: 'contracts', kind: 'cell', title: 'Contracts', value: '10.2', unit: 'USD bn', note: '+16% on 2026' },
