@@ -1389,10 +1389,10 @@
   height: 184px;
   padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  background: rgba(34, 42, 42, 0.5);
-  backdrop-filter: blur(46px);
-  -webkit-backdrop-filter: blur(46px);
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
   color: #fff;
   overflow-wrap: break-word;
 }
