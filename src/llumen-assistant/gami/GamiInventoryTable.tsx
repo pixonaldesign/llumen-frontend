@@ -56,6 +56,7 @@ export function GamiInventoryTable({ onInfo }: { onInfo?: ProductInfo }) {
   const [sort, setSort] = useState<{ id: SortId; desc: boolean } | null>(null)
   const [menu, setMenu] = useState<Menu | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const headRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!menu) return
@@ -172,74 +173,85 @@ export function GamiInventoryTable({ onInfo }: { onInfo?: ProductInfo }) {
         ) : null}
       </div>
 
-      <div className={css.scroll}>
-        <div className={css.table} role="table" aria-label="Product inventory" aria-rowcount={rows.length}>
-          <div className={css.head} role="row">
-            {COLUMNS.map((column) => {
-              const active = sort?.id === column.id
-              return (
-                <span key={column.id} role="columnheader" aria-sort={active ? (sort.desc ? 'descending' : 'ascending') : 'none'}>
-                  <button
-                    type="button"
-                    className={`${css.sort}${column.numeric ? ` ${css.numeric}` : ''}${active ? ` ${css.sortActive}` : ''}`}
-                    onClick={() => toggleSort(column.id, column.numeric)}
-                  >
-                    {column.label}
-                    {active ? sort.desc ? <ArrowDown size={12} weight="bold" aria-hidden /> : <ArrowUp size={12} weight="bold" aria-hidden /> : null}
-                  </button>
-                </span>
-              )
-            })}
-            <span role="columnheader" aria-label="Details" />
-          </div>
-          {rows.map((product) => (
-            <div key={product.id} className={css.row} role="row">
-              <span role="cell" className={css.product}>
-                <b>{product.name}</b>
-                <small>{product.type}</small>
-              </span>
-              <span role="cell">{product.domain}</span>
-              <span role="cell">
-                <span className={product.source === 'Local' ? css.local : css.imported}>{product.source}</span>
-              </span>
-              <span role="cell">{product.country}</span>
-              <span role="cell" className={css.maker}>
-                {product.maker}
-              </span>
-              <span role="cell" className={css.numeric}>
-                {product.units.toLocaleString('en-US')}
-              </span>
-              <span role="cell" className={css.numeric}>
-                {sar(productValue(product))}
-              </span>
-              <span role="cell" className={css.readiness}>
-                <i aria-hidden>
-                  <i
-                    style={{
-                      width: `${product.readiness}%`,
-                      background: product.readiness < 80 ? STATUS.moderate : 'rgba(255, 255, 255, 0.56)',
-                    }}
-                  />
-                </i>
-                {product.readiness}%
-              </span>
-              <span role="cell" className={css.numeric}>
-                {product.status === 'Cut off' ? '—' : `${product.lead} mo`}
-              </span>
-              <span role="cell" className={css.status}>
-                <i style={{ background: STATUS[PRODUCT_STATUS[product.status]] }} aria-hidden />
-                {product.status}
-              </span>
-              <span role="cell">
-                {product.detail ? (
-                  <button type="button" className={css.info} aria-label={`${product.name} details`} onClick={() => onInfo?.(product.id)}>
-                    <Info size={16} weight="regular" aria-hidden />
-                  </button>
-                ) : null}
-              </span>
+      <div className={css.frame} role="table" aria-label="Product inventory" aria-rowcount={rows.length}>
+        <div ref={headRef} className={css.headScroll}>
+          <div className={css.table} role="rowgroup">
+            <div className={css.head} role="row">
+              {COLUMNS.map((column) => {
+                const active = sort?.id === column.id
+                return (
+                  <span key={column.id} role="columnheader" aria-sort={active ? (sort.desc ? 'descending' : 'ascending') : 'none'}>
+                    <button
+                      type="button"
+                      className={`${css.sort}${column.numeric ? ` ${css.numeric}` : ''}${active ? ` ${css.sortActive}` : ''}`}
+                      onClick={() => toggleSort(column.id, column.numeric)}
+                    >
+                      {column.label}
+                      {active ? sort.desc ? <ArrowDown size={12} weight="bold" aria-hidden /> : <ArrowUp size={12} weight="bold" aria-hidden /> : null}
+                    </button>
+                  </span>
+                )
+              })}
+              <span role="columnheader" aria-label="Details" />
             </div>
-          ))}
-          {rows.length === 0 ? <p className={css.empty}>No products match these filters.</p> : null}
+          </div>
+        </div>
+        <div
+          className={css.scroll}
+          onScroll={(event) => {
+            if (headRef.current) headRef.current.scrollLeft = event.currentTarget.scrollLeft
+          }}
+        >
+          <div className={css.table} role="rowgroup">
+            {rows.map((product) => (
+              <div key={product.id} className={css.row} role="row">
+                <span role="cell" className={css.product}>
+                  <b>{product.name}</b>
+                  <small>{product.type}</small>
+                </span>
+                <span role="cell">{product.domain}</span>
+                <span role="cell">
+                  <span className={product.source === 'Local' ? css.local : css.imported}>{product.source}</span>
+                </span>
+                <span role="cell">{product.country}</span>
+                <span role="cell" className={css.maker}>
+                  {product.maker}
+                </span>
+                <span role="cell" className={css.numeric}>
+                  {product.units.toLocaleString('en-US')}
+                </span>
+                <span role="cell" className={css.numeric}>
+                  {sar(productValue(product))}
+                </span>
+                <span role="cell" className={css.readiness}>
+                  <i aria-hidden>
+                    <i
+                      style={{
+                        width: `${product.readiness}%`,
+                        background: product.readiness < 80 ? STATUS.moderate : 'rgba(255, 255, 255, 0.56)',
+                      }}
+                    />
+                  </i>
+                  {product.readiness}%
+                </span>
+                <span role="cell" className={css.numeric}>
+                  {product.status === 'Cut off' ? '—' : `${product.lead} mo`}
+                </span>
+                <span role="cell" className={css.status}>
+                  <i style={{ background: STATUS[PRODUCT_STATUS[product.status]] }} aria-hidden />
+                  {product.status}
+                </span>
+                <span role="cell">
+                  {product.detail ? (
+                    <button type="button" className={css.info} aria-label={`${product.name} details`} onClick={() => onInfo?.(product.id)}>
+                      <Info size={16} weight="regular" aria-hidden />
+                    </button>
+                  ) : null}
+                </span>
+              </div>
+            ))}
+            {rows.length === 0 ? <p className={css.empty}>No products match these filters.</p> : null}
+          </div>
         </div>
       </div>
 

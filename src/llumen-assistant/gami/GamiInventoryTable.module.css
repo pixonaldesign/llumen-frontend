@@ -5,26 +5,6 @@
   gap: 12px;
   min-height: 0;
 }
-
-/* A backdrop blur on the card itself stops the header's blur from seeing the rows, so the surface sits on a layer behind them. */
-section:has(> .root) {
-  isolation: isolate;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-section:has(> .root)::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: rgba(26, 26, 26, 0.5);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-}
-
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -110,30 +90,54 @@ section:has(> .root)::before {
   scrollbar-width: none;
 }
 
+.frame {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/*
+ * The header stays out of the row scroller so rows cut off beneath it; it follows the rows' horizontal scroll.
+ * Both always carry the vertical scrollbar (empty on the header) so their columns stay the same width.
+ */
+.headScroll {
+  flex-shrink: 0;
+  margin-right: -12px;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
 /* Runs out to the card's right and bottom edges so the thumb sits on the border; rows keep the inset. */
 .scroll {
   flex: 1;
   min-height: 0;
   margin: 0 -12px -12px 0;
   padding: 0;
-  overflow: auto;
-  overflow: overlay;
+  overflow-x: auto;
+  overflow-y: scroll;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
 }
 
 @supports selector(::-webkit-scrollbar) {
+  .headScroll,
   .scroll {
     scrollbar-width: auto;
     scrollbar-color: auto;
   }
 }
 
+.headScroll::-webkit-scrollbar,
 .scroll::-webkit-scrollbar {
   width: var(--lc-scrollbar-size, 4px);
   height: var(--lc-scrollbar-size, 4px);
 }
 
+.headScroll::-webkit-scrollbar,
+.headScroll::-webkit-scrollbar-thumb,
 .scroll::-webkit-scrollbar-track,
 .scroll::-webkit-scrollbar-corner {
   background: transparent;
@@ -165,13 +169,7 @@ section:has(> .root)::before {
 }
 
 .head {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: transparent;
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
   white-space: nowrap;
 }
 
