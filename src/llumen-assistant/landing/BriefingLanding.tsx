@@ -1657,14 +1657,15 @@ function FindingBody({
           type="button"
           className={`${home.actionBtn} ${styles.tellMoreBtn}`}
           aria-label="Tell me more"
-          onClick={() =>
+          onClick={() => {
+            if (stop.tellMeMore === false) return
             onTellMeMore?.({
               id: stop.id,
               title: stop.title,
               domain: stop.domain,
               finding,
             })
-          }
+          }}
         >
           <span className={home.actionInner}>
             <ChatText size={20} weight="regular" aria-hidden />

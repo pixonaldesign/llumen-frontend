@@ -37,6 +37,8 @@ export type FeedStop = {
   after: string
   storyId?: string
   chart?: FeedChart
+  /** False keeps Tell Me More on screen but does nothing when pressed. */
+  tellMeMore?: false
 }
 
 /** The listing's products by status; matches the inventory app's Products by Status card. */
@@ -76,6 +78,7 @@ export const FEED_STOPS: FeedStop[] = [
     after: `; imported lead times run up to ${INVENTORY_TOTALS.maxLead} months.`,
     storyId: 'gami-inventory',
     chart: STOCK_HEALTH,
+    tellMeMore: false,
   },
   {
     id: 'gami-riyadh-plant',
