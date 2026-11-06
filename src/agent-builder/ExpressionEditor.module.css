@@ -1,0 +1,489 @@
+/*
+ * The expression editor and operator select. Inputs, triggers, and options come from ConfigControls;
+ * button and element-qualified rules carry the element so they win over those whatever the stylesheet order.
+ */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* The mode button and its field join into one control, sharing the border between them. */
+.row {
+  display: flex;
+  min-width: 0;
+}
+
+.row > * {
+  position: relative;
+}
+
+.row > :first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.row > :last-child {
+  flex: 1;
+  min-width: 0;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.row > .expression > input {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* The focused half draws its whole border and ring over the other's. */
+.row > [aria-invalid='true'],
+.row > :has(> [aria-invalid='true']),
+.row > :hover,
+.row > :focus,
+.row > :focus-within,
+.row > [aria-expanded='true'] {
+  z-index: 1;
+}
+
+.mono {
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+}
+
+.kindIcon {
+  flex-shrink: 0;
+  color: var(--canvas-accent);
+}
+
+/* ---------- Mode ---------- */
+
+button.modeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex-shrink: 0;
+  width: 44px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition:
+    border-color var(--lc-duration) var(--lc-ease),
+    box-shadow var(--lc-duration) var(--lc-ease),
+    color var(--lc-duration) var(--lc-ease);
+}
+
+button.modeButton:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+button.modeButton[data-expression] {
+  color: var(--canvas-accent);
+}
+
+button.modeButton:focus-visible,
+button.modeButton[aria-expanded='true'] {
+  border-color: var(--canvas-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--canvas-accent) 22%, transparent);
+}
+
+.modeCaret {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* A chip dragged over a field select drops in as its field. */
+.row button[data-dropping] {
+  border-color: var(--canvas-accent);
+  background: color-mix(in srgb, var(--canvas-accent) 10%, rgba(0, 0, 0, 0.2));
+}
+
+/* ---------- Field picker ---------- */
+
+/* The list scrolls rather than the popover, so the search stays put. */
+div.picker {
+  width: 280px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.pickerBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pickerSearch {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: var(--space-md);
+  height: 32px;
+  margin: 6px 6px 0;
+  padding: 0 var(--space-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.16);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.pickerSearch:focus-within {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.pickerSearchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.pickerSearchInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.pickerList {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+.pickerList::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.pickerList::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+button.sourceRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: calc(100% - 12px);
+  height: 36px;
+  margin: 0 6px;
+  padding: 0 var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.sourceRow:hover,
+button.sourceRow:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  outline: none;
+}
+
+.sourceCaret {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.6);
+  transition: transform var(--lc-duration) var(--lc-ease);
+}
+
+button.sourceRow[aria-expanded='true'] > .sourceCaret {
+  transform: rotate(90deg);
+}
+
+.sourceIcon {
+  display: flex;
+  flex-shrink: 0;
+  color: var(--node-accent);
+}
+
+.sourceIconPlain {
+  color: var(--canvas-accent);
+}
+
+.sourceName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--lc-font-data);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sourceMeta {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.source + .source {
+  margin-top: 2px;
+}
+
+.pickerNote {
+  margin: 0;
+  padding: var(--space-xs) var(--space-lg);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  line-height: 17px;
+}
+
+/* Under the source's icon, as the input column's tree does. */
+.pickerNoteNested {
+  padding-left: calc(6px + var(--space-md) * 2 + 12px);
+}
+
+.level {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.levelNested {
+  padding: 2px 0 var(--space-xs) calc(var(--space-md) + 12px);
+}
+
+/* A field's name and, apart from it, the arrow into its fields; each lights up on its own. */
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 6px;
+}
+
+button.fieldPick {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 var(--space-md);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: left;
+  cursor: pointer;
+}
+
+button.fieldPick:hover,
+button.fieldPick:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.fieldName {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fieldMeta {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+button.fieldPick[data-picked] .fieldName {
+  color: var(--canvas-accent);
+}
+
+button.fieldPick > svg:last-child:not(:first-child) {
+  margin-left: auto;
+}
+
+button.fieldOpen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+button.fieldOpen:hover,
+button.fieldOpen[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+div.flyout {
+  min-width: 200px;
+  max-width: 280px;
+}
+
+/* ---------- Expression ---------- */
+
+/* The input's text is see-through over a copy that colours the references; both scroll together. */
+.expression {
+  position: relative;
+  min-width: 0;
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.mirror {
+  position: absolute;
+  inset: 1px;
+  padding: 0 var(--space-lg);
+  overflow: hidden;
+  color: #fff;
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  line-height: 34px;
+  white-space: pre;
+  pointer-events: none;
+}
+
+.reference {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--canvas-accent) 22%, transparent);
+  color: color-mix(in srgb, var(--canvas-accent) 60%, #fff);
+}
+
+input.expressionInput {
+  position: relative;
+  background: transparent;
+  color: transparent;
+  caret-color: #fff;
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+}
+
+input.expressionInput::selection {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.preview {
+  margin: 0;
+  padding-left: 44px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.previewValue {
+  color: rgba(255, 255, 255, 0.75);
+  font-family: var(--lc-font-data);
+}
+
+input.dateInput {
+  color-scheme: dark;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Operator ---------- */
+
+button.operatorTrigger {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 var(--space-md) 0 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--lc-duration) var(--lc-ease),
+    box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+button.operatorTrigger:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+button.operatorTrigger:focus-visible,
+button.operatorTrigger[aria-expanded='true'] {
+  border-color: var(--canvas-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--canvas-accent) 22%, transparent);
+}
+
+/* As wide as the mode buttons, so the type cells read alike. */
+.operatorIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  flex-shrink: 0;
+  width: 43px;
+  margin-right: var(--space-lg);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--canvas-accent);
+}
+
+.operatorLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+div.operatorMenu {
+  min-width: 200px;
+}
+
+button.groupOption[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+button.groupOption[data-current] .groupCaret,
+button.groupOption[data-current] > span:first-child {
+  color: var(--canvas-accent);
+}
+
+.groupCaret {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+div.operatorList {
+  min-width: 250px;
+}
+
+button.operatorOption[aria-checked='true'] {
+  color: var(--canvas-accent);
+}

@@ -1,0 +1,123 @@
+/* The design system's alert (small, outlined, negative), centred just above the toolbar row. Its tokens resolve inside the asset builder scope. */
+.toast {
+  position: absolute;
+  bottom: 76px;
+  left: 50%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 350px;
+  max-width: calc(100% - 48px);
+  padding: 8px;
+  border: 1px solid var(--lc-border-negative-subtle);
+  border-radius: 8px;
+  background: var(--lc-bg-negative-subtle);
+  backdrop-filter: blur(calc(var(--blur-3xl) / 2));
+  -webkit-backdrop-filter: blur(calc(var(--blur-3xl) / 2));
+  box-shadow:
+    0 12px 16px -4px rgba(10, 13, 18, 0.08),
+    0 4px 6px -2px rgba(10, 13, 18, 0.03),
+    0 2px 2px -1px rgba(10, 13, 18, 0.04);
+  font-family: var(--lc-font-sans);
+  font-size: 12px;
+  line-height: 16px;
+  transform: translateX(-50%);
+  animation: toastIn 500ms ease-out both;
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--lc-text-negative);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.title,
+.message {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.title {
+  color: var(--lc-text-negative);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.message {
+  color: var(--lc-text-secondary);
+  font-weight: 400;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Under `.toast` to outrank the canvas's `button { font: inherit }` reset. */
+.toast .action,
+.toast .close {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--lc-text-primary);
+  cursor: pointer;
+}
+
+.toast .action {
+  gap: 4px;
+  border-radius: 9999px;
+  font-family: var(--lc-font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.toast .action:hover {
+  text-decoration: underline;
+}
+
+.toast .close {
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+}
+
+@keyframes toastFade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Still fades in, just without the rise. */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation-name: toastFade;
+  }
+}

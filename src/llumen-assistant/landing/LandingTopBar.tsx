@@ -3,12 +3,12 @@ import {
   AppWindow,
   Bell,
   CaretDown,
-  ChartBar,
   Cube,
   GearSix,
   LockSimple,
   MagnifyingGlass,
   Plus,
+  Sparkle,
   SquaresFour,
   User,
   Users,
@@ -100,16 +100,17 @@ export function LandingTopBar({
 }
 
 const AssetBuilder = lazy(() => import('../../asset-builder/AssetBuilder'))
+const AgentBuilder = lazy(() => import('../../agent-builder/AgentBuilder'))
 
-type CreateKind = 'asset' | 'dashboard' | 'data-app'
+type CreateKind = 'asset' | 'app' | 'agent'
 
 const CREATE_OPTIONS: readonly { kind: CreateKind; label: string; icon: ReactNode; active: boolean }[] = [
   { kind: 'asset', label: 'Asset', icon: <Cube size={20} weight="regular" aria-hidden />, active: true },
-  { kind: 'dashboard', label: 'Dashboard', icon: <ChartBar size={20} weight="regular" aria-hidden />, active: false },
-  { kind: 'data-app', label: 'Data app', icon: <AppWindow size={20} weight="regular" aria-hidden />, active: false },
+  { kind: 'app', label: 'App', icon: <AppWindow size={20} weight="regular" aria-hidden />, active: false },
+  { kind: 'agent', label: 'Agent', icon: <Sparkle size={20} weight="regular" aria-hidden />, active: true },
 ]
 
-function CreateMenu({ triggerClassName }: { triggerClassName: string }) {
+function CreateMenu({ triggerClassName, workspace }: { triggerClassName: string; workspace?: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [building, setBuilding] = useState<CreateKind | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -167,6 +168,11 @@ function CreateMenu({ triggerClassName }: { triggerClassName: string }) {
       {building === 'asset' ? (
         <Suspense fallback={null}>
           <AssetBuilder onClose={() => setBuilding(null)} />
+        </Suspense>
+      ) : null}
+      {building === 'agent' ? (
+        <Suspense fallback={null}>
+          <AgentBuilder workspace={workspace} onClose={() => setBuilding(null)} />
         </Suspense>
       ) : null}
     </div>
@@ -354,7 +360,7 @@ function StudioBar({
         </button>
       </div>
       <div className={styles.actions}>
-        <CreateMenu triggerClassName={styles.create} />
+        <CreateMenu triggerClassName={styles.create} workspace={triggerLabel} />
         <button type="button" className={styles.icon} aria-label="Search">
           <MagnifyingGlass size={20} weight="regular" />
         </button>
