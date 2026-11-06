@@ -140,6 +140,40 @@
   pointer-events: none;
 }
 
+/* Kept the same size on screen at any zoom, like the node's + dot it matches. */
+button.edgeAdd {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--canvas-accent);
+  color: #0b1220;
+  cursor: pointer;
+  transform: translate(-50%, -50%) scale(calc(1 / var(--zoom, 1)));
+  transition: box-shadow var(--lc-duration) var(--lc-ease);
+  animation: edgeAddIn var(--lc-duration) var(--lc-ease);
+}
+
+button.edgeAdd:hover,
+button.edgeAdd[aria-expanded='true'] {
+  box-shadow: 0 0 0 4px rgba(115, 173, 245, 0.25);
+}
+
+button.edgeAdd:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@keyframes edgeAddIn {
+  from {
+    opacity: 0;
+  }
+}
+
 /* ---------- Group labels ---------- */
 
 .groupLabel {

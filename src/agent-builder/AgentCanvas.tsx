@@ -58,7 +58,7 @@ import { HubChatbox } from '../llumen-assistant/landing/HubChatbox'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import { useCoverPage } from '../llumen-assistant/pageCover'
 import { autoLayout, type MeasuredNode } from './autoLayout'
-import { freeSpot, pushApart, type NodeBoxes } from './nodeCollision'
+import { freeSpot, NODE_GAP, pushApart, type NodeBoxes } from './nodeCollision'
 import { NodeCardSections } from './NodeCardSections'
 import { AppearancePanel } from './AppearancePanel'
 import { AmbientLayer } from './AmbientLayer'
@@ -294,8 +294,6 @@ const SHOWCASE = buildShowcase()
 const DEFAULT_NODE_SIZE: Size = { w: NODE_DEFAULT_WIDTH, h: 120 }
 /** Room left before a node added after the right-most one in view. */
 const ADD_GAP = 80
-/** Screen pixels from the canvas edge inside which a new node counts as in sight. */
-const ADD_EDGE = 24
 const DUPLICATE_OFFSET = 40
 
 type ScreenArea = { left: number; top: number; right: number; bottom: number }
@@ -408,6 +406,10 @@ const PORT_SNAP = 28
 const INSERT_GAP = 16
 /** How far the insert panel's top sits above the line, so its header lines up with it. */
 const INSERT_PANEL_LIFT = 28
+/** How far under a line's + the add-node panel opens, in screen pixels: clear of the button. */
+const SPLIT_PANEL_DROP = 24
+/** Room each side of a node put into a line: twice the usual, so both lines stay long enough to read. */
+const SPLIT_GAP = NODE_GAP * 2
 /** Pointer travel before pressing a line picks it up rather than selecting it. */
 const EDGE_DRAG_THRESHOLD = 4
 /** How far the line from a clicked output dot reaches before the insert panel. */
@@ -887,6 +889,9 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const [selection, setSelection] = useState<Selection>(null)
   const [connection, setConnection] = useState<Connection | null>(null)
   const [pendingInsert, setPendingInsert] = useState<PendingInsert | null>(null)
+  /** The line whose + was pressed, and its middle, where the add-node panel opens. */
+  const [splitting, setSplitting] = useState<{ edgeId: string; at: Point } | null>(null)
+  const splitButtonRef = useRef<HTMLButtonElement>(null)
   /** The node type pressed in the add panel, rendered off screen as the drag image. */
   const [dragGhost, setDragGhost] = useState<string | null>(null)
   const dragGhostRef = useRef<HTMLDivElement>(null)
@@ -898,7 +903,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   /** A press on an output dot; let go without moving, it opens the insert panel. */
   const portPressRef = useRef<{ pointerId: number; startX: number; startY: number } | null>(null)
   /** A node just inserted from a dropped line; once measured it shifts so its port meets the line. */
-  const alignRef = useRef<{ port: PortRef; at: Point } | null>(null)
+  /** A new node's port to put at `at` once the card is measured; `levelOnly` moves it up or down only. */
+  const alignRef = useRef<{ port: PortRef; at: Point; levelOnly?: boolean } | null>(null)
   const [tool, setTool] = useState<CanvasTool>('select')
   /** A tool press on the surface; the item is placed on release. */
   const placeRef = useRef<{ pointerId: number } | null>(null)
@@ -1064,12 +1070,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   }
 
   /**
-   * Where something new of `size` goes: after the right-most node in view when that node is wholly visible with at
-   * least a node gap before the screen edge, else in the middle of the view, then on to the nearest free spot. `reveal`
-   * is the view that brings it to the middle when it lands out of sight; an add-node panel covering the middle moves
-   * that to the open part of the canvas.
+   * Where something new of `size` goes: right after the selected node, the right-most one when several are, or with
+   * nothing selected the right-most node in view. When that node is out of view or the spot after it is taken, it goes
+   * in the middle of the view, or the nearest free spot around it. `reveal` is the view that brings it to the middle;
+   * an add-node panel covering the middle moves that to the open part of the canvas.
    */
-  const newSpot = (size: Size): { position: Point; reveal?: Viewport } | null => {
+  const newSpot = (size: Size): { position: Point; reveal: Viewport } | null => {
     const root = rootRef.current
     if (!root) return null
     const view = viewRef.current
@@ -1081,8 +1087,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       right: (box.x + box.w) * view.zoom + view.x,
       bottom: (box.y + box.h) * view.zoom + view.y,
     })
-    const shown = (rect: ScreenArea, inset = 0) =>
-      rect.left >= inset && rect.top >= inset && rect.right <= screen.right - inset && rect.bottom <= screen.bottom - inset && !panels.some((panel) => overlaps(rect, panel))
     const middle = { x: screen.right / 2, y: screen.bottom / 2 }
     const halfW = (size.w * view.zoom) / 2
     const halfH = (size.h * view.zoom) / 2
@@ -1094,32 +1098,42 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const boxes = doc.nodes.flatMap((node) => {
       const origin = doc.positions[node.id]
       const measured = layouts[node.id]
-      return origin && measured ? [{ ...origin, w: measured.w, h: measured.h }] : []
+      return origin && measured ? [{ id: node.id, ...origin, w: measured.w, h: measured.h }] : []
     })
-    const last = boxes
-      .filter((box) => overlaps(onScreen(box), screen))
-      .reduce<(typeof boxes)[number] | null>((best, box) => (!best || box.x + box.w > best.x + best.w ? box : best), null)
-    const lastRect = last && onScreen(last)
-    const roomy = Boolean(lastRect && shown(lastRect) && lastRect.right + ADD_GAP * view.zoom <= screen.right)
-    const start =
-      last && roomy
-        ? { x: last.x + last.w + ADD_GAP, y: last.y, ...size }
-        : { x: (focus.x - view.x) / view.zoom - size.w / 2, y: (focus.y - view.y) / view.zoom - size.h / 2, ...size }
-    const position = freeSpot(start, boxes)
-    const reveal = shown(onScreen({ ...position, ...size }), ADD_EDGE)
-      ? undefined
-      : { zoom: view.zoom, x: focus.x - (position.x + size.w / 2) * view.zoom, y: focus.y - (position.y + size.h / 2) * view.zoom }
+    const rightMost = (from: typeof boxes) =>
+      from.reduce<(typeof boxes)[number] | null>((best, box) => (!best || box.x + box.w > best.x + best.w ? box : best), null)
+    const picked = new Set(selectedIds(selection, 'node'))
+    const anchor = picked.size ? rightMost(boxes.filter((box) => picked.has(box.id))) : rightMost(boxes.filter((box) => overlaps(onScreen(box), screen)))
+    const last = anchor && overlaps(onScreen(anchor), screen) ? anchor : null
+    const after = last && { x: last.x + last.w + ADD_GAP, y: last.y, ...size }
+    const afterFree = after && freeSpot(after, boxes)
+    const position =
+      after && afterFree && afterFree.x === after.x && afterFree.y === after.y
+        ? afterFree
+        : freeSpot({ x: (focus.x - view.x) / view.zoom - size.w / 2, y: (focus.y - view.y) / view.zoom - size.h / 2, ...size }, boxes)
+    const reveal = { zoom: view.zoom, x: focus.x - (position.x + size.w / 2) * view.zoom, y: focus.y - (position.y + size.h / 2) * view.zoom }
     return { position, reveal }
   }
 
-  /** Adds a node, centred on `at` (world coordinates) or at `newSpot`; `height`, when the card's already been measured, makes `at` exact. */
+  /** Pans, at the current zoom, so `box` (world coordinates) sits in the middle of the canvas. */
+  const centreOn = (box: Point & Size) => {
+    const root = rootRef.current
+    if (!root) return
+    const { zoom } = viewRef.current
+    animateTo({ zoom, x: root.clientWidth / 2 - (box.x + box.w / 2) * zoom, y: root.clientHeight / 2 - (box.y + box.h / 2) * zoom })
+  }
+
+  /**
+   * Adds a node, centred on `at` (world coordinates), where the pointer put it, or at `newSpot`, which the canvas pans
+   * to; `height`, when the card's already been measured, makes `at` exact.
+   */
   const addNode = (typeId: string, at?: Point, config?: NodeConfig, height = DEFAULT_NODE_SIZE.h) => {
     const type = NODE_TYPES_BY_ID[typeId]
     if (!type) return
     if (type.singleton && doc.nodes.some((node) => node.type === typeId)) return
     const id = createId(typeId)
     const size = { w: type.width ?? DEFAULT_NODE_SIZE.w, h: height }
-    const spot = at ? { position: { x: at.x - size.w / 2, y: at.y - size.h / 2 }, reveal: undefined } : newSpot(size)
+    const spot = at ? { position: { x: at.x - size.w / 2, y: at.y - size.h / 2 }, reveal: null } : newSpot(size)
     if (!spot) return
     commit({ ...doc, nodes: [...doc.nodes, createNode(type, id, config)], positions: { ...doc.positions, [id]: spot.position } })
     setSelection({ kind: 'node', id })
@@ -1581,12 +1595,9 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 
   /** Centres the step at the current zoom, selects it, and opens its input and output. */
   const showStep = (id: string) => {
-    const root = rootRef.current
     const position = docRef.current.positions[id]
-    if (!root || !position) return
-    const size = layouts[id] ?? DEFAULT_NODE_SIZE
-    const { zoom } = viewRef.current
-    animateTo({ zoom, x: root.clientWidth / 2 - (position.x + size.w / 2) * zoom, y: root.clientHeight / 2 - (position.y + size.h / 2) * zoom })
+    if (!position) return
+    centreOn({ ...position, ...(layouts[id] ?? DEFAULT_NODE_SIZE) })
     setSelection({ kind: 'node', id })
     setDataDialogId(id)
   }
@@ -1770,7 +1781,12 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         alignRef.current = null
         const id = align.port.nodeId
         setDoc((current) =>
-          current.positions[id] ? { ...current, positions: { ...current.positions, [id]: { x: align.at.x - offset.x, y: align.at.y - offset.y } } } : current,
+          current.positions[id]
+            ? {
+                ...current,
+                positions: { ...current.positions, [id]: { x: align.levelOnly ? current.positions[id].x : align.at.x - offset.x, y: align.at.y - offset.y } },
+              }
+            : current,
         )
       }
       if (!laying) {
@@ -2492,6 +2508,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const beginConnection = (from: PortRef, clientX: number, clientY: number, edgeId?: string) => {
     stopAnimation()
     setPendingInsert(null)
+    setSplitting(null)
     setConnection({ from, pointer: toWorld(clientX, clientY), target: null, free: false, edgeId })
   }
 
@@ -2612,6 +2629,79 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const clearance = side === 'in' ? portClearance : -portClearance
     alignRef.current = { port: { nodeId: id, portId: port.id, side }, at: { x: pending.point.x + clearance, y: pending.point.y } }
     setSelection({ kind: 'node', id })
+    centreOn(box)
+  }
+
+  /**
+   * Puts the picked node into the line whose + was pressed, wired between its two ends, in one undo step. When the
+   * gap is too narrow, the line's far end and everything after it move right to make room.
+   */
+  const insertBetween = (typeId: string) => {
+    const split = splitting
+    setSplitting(null)
+    const edge = split && doc.edges.find((item) => item.id === split.edgeId)
+    const type = NODE_TYPES_BY_ID[typeId]
+    if (!split || !edge || !type || (type.singleton && doc.nodes.some((node) => node.type === typeId))) return
+    const id = createId(typeId)
+    const node = createNode(type, id)
+    const input = type.inputs[0]
+    const output = nodeOutputs(node, type)[0]
+    if (!input || !output) return
+    const width = type.width ?? DEFAULT_NODE_SIZE.w
+    const boxOf = (nodeId: string) => {
+      const position = doc.positions[nodeId]
+      const size = layouts[nodeId]
+      return position && size ? { ...position, w: size.w, h: size.h } : null
+    }
+    const source = boxOf(edge.from)
+    const target = boxOf(edge.to)
+    let positions = doc.positions
+    const shifted = new Set<string>()
+    let x = split.at.x - width / 2
+    const needs = width + SPLIT_GAP * 2
+    if (source && target && target.x > source.x) {
+      const room = target.x - (source.x + source.w)
+      const by = needs - room
+      if (by > 0) {
+        // Everything the far end leads to, short of the line's own start and what leads into it, so a loop doesn't move it.
+        const upstream = new Set([edge.from])
+        for (let grew = true; grew; ) {
+          grew = false
+          for (const item of doc.edges) {
+            if (upstream.has(item.to) && !upstream.has(item.from)) {
+              upstream.add(item.from)
+              grew = true
+            }
+          }
+        }
+        const queue = [edge.to]
+        while (queue.length) {
+          const next = queue.pop()
+          if (!next || shifted.has(next) || upstream.has(next)) continue
+          shifted.add(next)
+          for (const item of doc.edges) if (item.from === next) queue.push(item.to)
+        }
+        positions = { ...positions }
+        for (const nodeId of shifted) if (positions[nodeId]) positions[nodeId] = { x: positions[nodeId].x + by, y: positions[nodeId].y }
+      }
+      x = source.x + source.w + (Math.max(room, needs) - width) / 2
+    }
+    const start = portWorldPoint({ nodeId: edge.from, portId: edge.fromPort, side: 'out' })
+    const level = start?.y ?? split.at.y
+    const placed: CanvasDoc = {
+      ...doc,
+      nodes: [...doc.nodes, node],
+      positions: { ...positions, [id]: { x, y: level - DEFAULT_NODE_SIZE.h / 2 } },
+      edges: [
+        ...doc.edges.filter((item) => item.id !== edge.id),
+        { ...edge, to: id, toPort: input.id },
+        { id: createId('edge'), from: id, fromPort: output.id, to: edge.to, toPort: edge.toPort },
+      ],
+    }
+    commit(shifted.size ? makeRoom(placed, shifted, layouts) : placed)
+    alignRef.current = { port: { nodeId: id, portId: input.id, side: 'in' }, at: { x, y: level }, levelOnly: true }
+    setSelection({ kind: 'node', id })
+    centreOn({ x, y: level - DEFAULT_NODE_SIZE.h / 2, w: width, h: DEFAULT_NODE_SIZE.h })
   }
 
   const onLibraryDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
@@ -2664,6 +2754,9 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     return `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`
   })()
   const insertGhost = connection?.free ? insertBox(connection.from, connection.pointer) : null
+  /** The line with a + at its middle: the one whose panel is open, else the hovered one, else the one selected on its own. */
+  const plusEdge =
+    connection || pendingInsert || tool !== 'select' ? null : (splitting?.edgeId ?? hoveredEdge ?? (selection?.kind === 'edge' ? selection.id : null))
   /** Lit: the hovered or selected lines' ends, and the end a drawn line leaves from. */
   const litEdges = new Set([...(hoveredEdge ? [hoveredEdge] : []), ...selectedIds(selection, 'edge')])
   const activePorts = new Set([
@@ -2853,6 +2946,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const connectsOn: PortSide = from.side === 'out' ? 'in' : 'out'
     return { x: from.side === 'out' ? screen.left + gap : screen.left - gap, top: screen.top - INSERT_PANEL_LIFT, connectsOn }
   }
+  const splitAnchor = splitting ? toScreen(splitting.at) : null
   /** Bigger sections first, so a section drawn inside another sits on top of it. */
   const sectionsByArea = [...doc.sections].sort((a, b) => b.w * b.h - a.w * a.h)
   const selectedSection = selection?.kind === 'section' ? doc.sections.find((item) => item.id === selection.id) : undefined
@@ -3166,7 +3260,24 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           ) : null}
 
           {edges.map((edge) =>
-            edge.label ? (
+            edge.id === plusEdge ? (
+              <button
+                key={edge.id}
+                ref={splitButtonRef}
+                type="button"
+                className={styles.edgeAdd}
+                style={{ left: edge.mid.x, top: edge.mid.y }}
+                aria-label="Add a node between"
+                aria-expanded={splitting?.edgeId === edge.id}
+                data-tooltip="Add node"
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerEnter={() => setHoveredEdge(edge.id)}
+                onPointerLeave={() => setHoveredEdge((current) => (current === edge.id ? null : current))}
+                onClick={() => setSplitting((current) => (current?.edgeId === edge.id ? null : { edgeId: edge.id, at: edge.mid }))}
+              >
+                <Plus size={14} weight="bold" aria-hidden />
+              </button>
+            ) : edge.label ? (
               <span key={edge.id} className={styles.edgeLabel} style={{ left: edge.mid.x, top: edge.mid.y }}>
                 {edge.label}
               </span>
@@ -3390,6 +3501,17 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           usedTypes={usedTypes}
           onPick={insertConnected}
           onClose={() => setPendingInsert(null)}
+        />
+      ) : null}
+      {splitAnchor ? (
+        <InsertNodePanel
+          x={splitAnchor.left}
+          top={splitAnchor.top + SPLIT_PANEL_DROP}
+          connectsOn="both"
+          usedTypes={usedTypes}
+          anchorRef={splitButtonRef}
+          onPick={insertBetween}
+          onClose={() => setSplitting(null)}
         />
       ) : null}
       {dragGhost && NODE_TYPES_BY_ID[dragGhost] ? (

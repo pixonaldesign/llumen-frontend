@@ -11,11 +11,11 @@ const EDGE = 12
 /** Beside a dropped line, where the new node will sit, or docked to a toolbar that places it. */
 type InsertNodePlacement =
   | {
-      /** The edge nearest the line, in the canvas's screen space: the panel opens away from it. */
+      /** The edge nearest the line, in the canvas's screen space: the panel opens away from it; its middle for `both`. */
       x: number
       top: number
-      /** The side the new node is wired on: `in` when the line comes from an output. */
-      connectsOn: PortSide
+      /** The side the new node is wired on: `in` when the line comes from an output, `both` when it goes into a line. */
+      connectsOn: PortSide | 'both'
     }
   | { x?: undefined; top?: undefined; connectsOn?: undefined }
 
@@ -44,8 +44,8 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
   /** Why a node can't be added here, or null when it can. */
   const unavailable = (type: NodeType) => {
     if (type.singleton && usedTypes.has(type.id)) return 'Already on the canvas'
-    if (connectsOn === 'in' && type.inputs.length === 0) return 'Starts a flow, so nothing can lead into it'
-    if (connectsOn === 'out' && type.outputs.length === 0) return 'Ends a flow, so it can’t lead into another node'
+    if ((connectsOn === 'in' || connectsOn === 'both') && type.inputs.length === 0) return 'Starts a flow, so nothing can lead into it'
+    if ((connectsOn === 'out' || connectsOn === 'both') && type.outputs.length === 0) return 'Ends a flow, so it can’t lead into another node'
     return null
   }
   const groups = NODE_GROUPS.map((group) => ({ group, types: groupTypes(group) }))
@@ -62,7 +62,7 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
     const element = ref.current
     const parent = element?.offsetParent as HTMLElement | null
     if (!element || !parent || x === undefined) return
-    const left = connectsOn === 'in' ? x : x - element.offsetWidth
+    const left = connectsOn === 'in' ? x : connectsOn === 'both' ? x - element.offsetWidth / 2 : x - element.offsetWidth
     element.style.left = `${Math.max(EDGE, Math.min(left, parent.clientWidth - element.offsetWidth - EDGE))}px`
     element.style.top = `${Math.max(EDGE, Math.min(top, parent.clientHeight - element.offsetHeight - EDGE))}px`
   }, [x, top, connectsOn])
