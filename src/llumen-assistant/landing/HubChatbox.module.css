@@ -486,6 +486,11 @@
   cursor: default;
 }
 
+.iconStatic {
+  cursor: default;
+  pointer-events: none;
+}
+
 .iconAction:focus-visible {
   outline: 2px solid rgba(109, 233, 225, 0.7);
   outline-offset: 2px;

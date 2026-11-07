@@ -268,7 +268,6 @@ export function HubChatbox({
   onSubmit,
   chips = [],
   onRemoveChip,
-  onOpenSessions,
   onOpenChat,
   focusToken = 0,
   exiting = false,
@@ -743,21 +742,11 @@ export function HubChatbox({
   })
   useEffect(() => () => window.clearTimeout(typedSendTimerRef.current), [])
 
-  const openChatButton = (tabIndex?: number) =>
-    onOpenChat ? (
-      <button
-        type="button"
-        className={styles.iconAction}
-        aria-label="Open AI chat panel"
-        title="Open AI chat panel"
-        disabled={interactionLocked}
-        tabIndex={tabIndex}
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onOpenChat}
-      >
-        <ChatsCircle size={18} weight="regular" aria-hidden />
-      </button>
-    ) : null
+  const openChatIcon = onOpenChat ? (
+    <span className={`${styles.iconAction} ${styles.iconStatic}`} aria-hidden>
+      <ChatsCircle size={18} weight="regular" />
+    </span>
+  ) : null
 
   const showPlaceholder = !toasting && editorEmpty && files.length === 0
   const placeholderText = components.length > 0 ? 'Ask about the attached chart…' : 'Ask Llumen anything…'
@@ -1085,18 +1074,10 @@ export function HubChatbox({
               </div>
               {expanded ? (
                 <div className={styles.toolbarRight}>
-                  {openChatButton(expanded ? 0 : -1)}
-                  <button
-                    type="button"
-                    className={styles.iconAction}
-                    aria-label="Past sessions"
-                    disabled={interactionLocked}
-                    tabIndex={expanded ? 0 : -1}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={onOpenSessions}
-                  >
-                    <ClockCounterClockwise size={18} weight="regular" aria-hidden />
-                  </button>
+                  {openChatIcon}
+                  <span className={`${styles.iconAction} ${styles.iconStatic}`} aria-hidden>
+                    <ClockCounterClockwise size={18} weight="regular" />
+                  </span>
                   <button
                     type="submit"
                     className={styles.send}
