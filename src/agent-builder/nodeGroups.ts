@@ -49,6 +49,11 @@ export const NODE_GROUPS: readonly NodeGroup[] = [
   },
 ]
 
+/** The nodes most flows reach for, listed first in the insert panel. */
+const QUICK_TYPE_IDS = ['asset', 'ifElse', 'generalAgent', 'createApp']
+
+export const quickTypes = (): NodeType[] => QUICK_TYPE_IDS.flatMap((id) => NODE_TYPES.filter((type) => type.id === id))
+
 export const groupTypes = (group: NodeGroup): NodeType[] =>
   group.categories.flatMap((id) => NODE_TYPES.filter((type) => type.category === id))
 

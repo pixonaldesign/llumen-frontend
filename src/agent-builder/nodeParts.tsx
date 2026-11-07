@@ -38,6 +38,8 @@ export type NodeCardProps = {
   type: NodeType
   position: Point
   selected: boolean
+  /** One of several selected nodes: its inline controls give way, so a press anywhere on it moves them all. */
+  grouped?: boolean
   dragging: boolean
   run: NodeRun
   /** Output of the upstream nodes, or null when nothing upstream has run. */
@@ -188,6 +190,8 @@ type PortProps = {
   side: PortSide
   active: boolean
   connected: boolean
+  /** Kept in view like a connected port, e.g. because another port on the same side is connected. */
+  shown?: boolean
   target?: boolean
   handlers: PortHandlers
   /** Look and placement come from the node style. */
@@ -195,13 +199,14 @@ type PortProps = {
   activeClassName: string
 }
 
-export function Port({ nodeId, port, side, active, connected, target, handlers, className, activeClassName }: PortProps) {
+export function Port({ nodeId, port, side, active, connected, shown, target, handlers, className, activeClassName }: PortProps) {
   const ref: PortRef = { nodeId, portId: port.id, side }
   return (
     <span
       className={active ? `${className} ${activeClassName}` : className}
       aria-hidden
       data-connected={connected || undefined}
+      data-shown={shown || connected || undefined}
       data-target={target || undefined}
       data-port-node={nodeId}
       data-port-id={port.id}

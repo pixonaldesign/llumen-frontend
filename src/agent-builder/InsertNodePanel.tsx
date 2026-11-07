@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from 'react'
-import { ArrowLeft, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { ArrowLeft, MagnifyingGlass, Warning, X } from '@phosphor-icons/react'
 import { NODE_DRAG_MIME, type NodeType, type PortSide } from './nodeCatalog'
-import { groupTypes, matchesQuery, NODE_GROUPS, type NodeGroupId } from './nodeGroups'
+import { groupTypes, matchesQuery, NODE_GROUPS, quickTypes, type NodeGroupId } from './nodeGroups'
 import { useDismiss } from './useDismiss'
 import tones from './nodeTones.module.css'
 import styles from './InsertNodePanel.module.css'
@@ -51,10 +51,16 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
   const groups = NODE_GROUPS.map((group) => ({ group, types: groupTypes(group) }))
   const picked = groups.find((entry) => entry.group.id === groupId)
   const search = query.trim().toLowerCase()
-  const sections = (picked ? [picked] : groups)
-    .map((entry) => ({ ...entry, types: entry.types.filter((type) => matchesQuery(type, search)) }))
-    .filter((entry) => entry.types.length > 0)
-  const flat = sections.flatMap((entry) => entry.types).filter((type) => !unavailable(type))
+  const quick = picked || search ? [] : [{ id: 'quick', title: 'Quick actions', types: quickTypes() }]
+  const sections = [
+    ...quick,
+    ...(picked ? [picked] : groups)
+      .map(({ group, types }) => ({ id: group.id, title: group.title, types: types.filter((type) => matchesQuery(type, search)) }))
+      .filter((entry) => entry.types.length > 0),
+  ]
+  // A node can be listed twice (in quick actions and in its group), so a row is its section and its type.
+  const rowKey = (sectionId: string, type: NodeType) => `${sectionId}:${type.id}`
+  const flat = sections.flatMap((section) => section.types.filter((type) => !unavailable(type)).map((type) => ({ key: rowKey(section.id, type), type })))
   const current = Math.min(active, flat.length - 1)
 
   // Stays inside the canvas: shifted in from its edges once its size is known.
@@ -83,7 +89,7 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
       setActive((current + step + flat.length) % Math.max(flat.length, 1))
     } else if (event.key === 'Enter' && flat[current]) {
       event.preventDefault()
-      onPick(flat[current].id)
+      onPick(flat[current].type.id)
     } else if (event.key === 'Backspace' && !query && picked) {
       setGroupId(null)
     }
@@ -147,12 +153,13 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
 
       <div className={styles.scroll} data-native-scroll role="listbox" aria-label="Nodes">
         {sections.length === 0 ? <p className={styles.empty}>No nodes match “{query.trim()}”</p> : null}
-        {sections.map(({ group, types }) => (
-          <section key={group.id} className={styles.section} aria-label={group.title}>
-            {picked ? null : <p className={styles.sectionLabel}>{group.title}</p>}
-            {types.map((type) => {
+        {sections.map((section) => (
+          <section key={section.id} className={styles.section} aria-label={section.title}>
+            {picked ? null : <p className={styles.sectionLabel}>{section.title}</p>}
+            {section.types.map((type) => {
               const TypeIcon = type.icon
-              const isActive = flat[current] === type
+              const key = rowKey(section.id, type)
+              const isActive = flat[current]?.key === key
               const reason = unavailable(type)
               return (
                 <button
@@ -165,7 +172,7 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
                   className={styles.row}
                   data-active={isActive || undefined}
                   draggable={docked && !reason}
-                  onPointerMove={reason ? undefined : () => setActive(flat.indexOf(type))}
+                  onPointerMove={reason ? undefined : () => setActive(flat.findIndex((row) => row.key === key))}
                   onPointerDown={docked && !reason ? () => onDragPrepare?.(type.id) : undefined}
                   onClick={() => {
                     onDragPrepare?.(null)
@@ -186,7 +193,13 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
                   </span>
                   <span className={styles.rowCopy}>
                     <span className={styles.rowTitle}>{type.title}</span>
-                    <span className={styles.rowDescription}>{reason ?? type.description}</span>
+                    <span className={styles.rowDescription}>{type.description}</span>
+                    {reason ? (
+                      <span className={styles.rowWarning}>
+                        <Warning size={12} weight="fill" aria-hidden />
+                        {reason}
+                      </span>
+                    ) : null}
                   </span>
                 </button>
               )

@@ -87,6 +87,8 @@ export function rectFromPoints(a: Point, b: Point): Rect {
 export const rectContains = (outer: Rect, inner: Rect) =>
   inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.w <= outer.x + outer.w && inner.y + inner.h <= outer.y + outer.h
 
+export const rectsTouch = (a: Rect, b: Rect) => a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h
+
 export const rectContainsPoint = (rect: Rect, point: Point) =>
   point.x >= rect.x && point.y >= rect.y && point.x <= rect.x + rect.w && point.y <= rect.y + rect.h
 

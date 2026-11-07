@@ -28,7 +28,7 @@ export function RunFailureToast({ steps, onShow, onClose }: { steps: readonly Fa
           </div>
           <div className={styles.actions}>
             <button type="button" className={styles.action} onClick={() => onShow(first.id)}>
-              {first.problems > 1 ? 'Show problems' : 'Show problem'}
+              {first.problems > 1 ? 'Show errors' : 'Show error'}
             </button>
           </div>
         </div>

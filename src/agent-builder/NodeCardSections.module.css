@@ -184,8 +184,33 @@
 .node:hover .edgeOutputLabel,
 .node[data-near] .edgeOutputLabel,
 .selected .edgeOutputLabel,
-.edgeOutput:has([data-connected]) .edgeOutputLabel {
+.edgeOutput:has([data-shown]) .edgeOutputLabel,
+.edgeOutputLabel[data-counted] {
   opacity: 1;
+}
+
+.edgeOutputCount {
+  margin-left: var(--space-sm);
+  color: rgb(var(--ink-rgb) / 0.55);
+}
+
+/* A branch row's count, beside the row's own dot; `top` is measured, since the rows sit wherever the card's content puts them. */
+.rowCounts {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 1px;
+  width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.rowCounts > .edgeOutput {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
 }
 
 /* ---------- Content ---------- */
@@ -287,24 +312,6 @@
 
 .madePlot text {
   font-family: inherit;
-}
-
-/* Only as wide as its text, so the count badge sits right after the name. */
-.branch > .branchLabel {
-  flex: 0 1 auto;
-}
-
-/* Rows an input received, or a branch sent, on the last run. */
-.branchCount {
-  flex-shrink: 0;
-  padding: 1px var(--space-sm);
-  border: 1px solid rgb(var(--ink-rgb) / 0.08);
-  border-radius: 11px;
-  background: rgb(var(--ink-rgb) / 0.08);
-  color: rgb(var(--ink-rgb) / 0.75);
-  font-size: var(--lc-font-small-size);
-  line-height: 16px;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Fixed height inside the row's 20px line, so showing them on hover doesn't change the row's height; pushed to

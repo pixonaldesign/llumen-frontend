@@ -9,21 +9,22 @@ export type NodeBoxes = Readonly<Record<string, Box>>
 /** Closer than `gap` on both axes; exactly `gap` apart is fine. */
 const crowds = (a: Box, b: Box, gap: number) => a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap
 
-/** The shortest move that takes `b` clear of `a`, away from `a`'s centre along the axis that needs less. */
-function pushOut(a: Box, b: Box, gap: number): Point {
-  const right = a.x + a.w + gap - b.x
-  const left = b.x + b.w + gap - a.x
-  const down = a.y + a.h + gap - b.y
-  const up = b.y + b.h + gap - a.y
-  const dx = right < left ? right : -left
-  const dy = down < up ? down : -up
-  return Math.abs(dx) <= Math.abs(dy) ? { x: dx, y: 0 } : { x: 0, y: dy }
+/** The moves that take `b` clear of `a`, shortest first; on a tie, sideways before up or down, and right or down before left or up. */
+function pushOuts(a: Box, b: Box, gap: number): Point[] {
+  const moves = [
+    { x: a.x + a.w + gap - b.x, y: 0 },
+    { x: -(b.x + b.w + gap - a.x), y: 0 },
+    { x: 0, y: a.y + a.h + gap - b.y },
+    { x: 0, y: -(b.y + b.h + gap - a.y) },
+  ]
+  return moves.sort((first, second) => Math.abs(first.x + first.y) - Math.abs(second.x + second.y))
 }
 
 /**
  * Clears room around the `fixed` nodes: anything crowding them is pushed out, and anything a pushed node
  * now crowds is pushed in turn. A node only gives way to one nearer the start of the chain, so a push never
- * comes back to move the node that caused it. Returns the new positions of the nodes that moved.
+ * comes back to move the node that caused it, and it's pushed the shortest way that doesn't land it on one of
+ * those. Returns the new positions of the nodes that moved.
  */
 export function pushApart(boxes: NodeBoxes, fixed: ReadonlySet<string>, gap = NODE_GAP): Record<string, Point> {
   const at: Record<string, Box> = Object.fromEntries(Object.entries(boxes).map(([id, box]) => [id, { ...box }]))
@@ -42,7 +43,9 @@ export function pushApart(boxes: NodeBoxes, fixed: ReadonlySet<string>, gap = NO
       if (other === id || fixed.has(other) || (depth.get(other) ?? Infinity) < level) continue
       const target = at[other]
       if (!crowds(box, target, gap)) continue
-      const push = pushOut(box, target, gap)
+      const moves = pushOuts(box, target, gap)
+      const settled = ids.filter((id2) => id2 !== other && id2 !== id && (depth.get(id2) ?? Infinity) <= level)
+      const push = moves.find((move) => !settled.some((id2) => crowds({ ...target, x: target.x + move.x, y: target.y + move.y }, at[id2], gap))) ?? moves[0]
       target.x += push.x
       target.y += push.y
       depth.set(other, level + 1)

@@ -207,8 +207,14 @@
 }
 
 .panel .row:disabled {
-  opacity: 0.45;
   cursor: default;
+}
+
+/* Faded, all but the warning saying why. */
+.panel .row:disabled > .rowIcon,
+.panel .row:disabled .rowTitle,
+.panel .row:disabled .rowDescription {
+  opacity: 0.45;
 }
 
 /* The node toolbar panel's card icon. */
@@ -242,6 +248,20 @@
   line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rowWarning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: 2px;
+  color: #fcd34d;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.rowWarning > svg {
+  flex-shrink: 0;
 }
 
 .empty {

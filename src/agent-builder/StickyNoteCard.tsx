@@ -8,7 +8,7 @@ const PLACEHOLDER = 'Add text'
 
 type StickyNoteCardProps = Pick<
   NodeCardProps,
-  'node' | 'position' | 'selected' | 'dragging' | 'resize' | 'cardRef' | 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onNoteChange'
+  'node' | 'position' | 'selected' | 'grouped' | 'dragging' | 'resize' | 'cardRef' | 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onNoteChange'
 >
 
 /** FigJam-style sticky; its look comes from the sticky toolbar, not the card style. Double-click anywhere on it to write. */
@@ -16,6 +16,7 @@ export function StickyNoteCard({
   node,
   position,
   selected,
+  grouped,
   dragging,
   resize,
   cardRef,
@@ -47,6 +48,7 @@ export function StickyNoteCard({
       aria-label="Sticky note"
       data-node-id={node.id}
       data-selected={selected || undefined}
+      data-grouped={grouped || undefined}
       data-font={look.font === 'simple' ? undefined : look.font}
       data-bold={look.bold || undefined}
       data-strike={look.strike || undefined}
@@ -55,7 +57,7 @@ export function StickyNoteCard({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onDoubleClick={(event) => {
-        if (!(event.target as Element).closest('a')) setEditing(true)
+        if (!grouped && !(event.target as Element).closest('a')) setEditing(true)
       }}
     >
       <StickyText note={note} editing={editing} onDone={() => setEditing(false)} onChange={onNoteChange} />

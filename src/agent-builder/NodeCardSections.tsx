@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { BracketsAngle, CircleNotch, Minus, PencilSimple, Plus, Warning } from '@phosphor-icons/react'
 import { ContentBlockView } from './CardSectionViews'
 import { cardAssetName, cardContent, cardEdgeOutputs, cardPlaceholder, cardSetup, cardValues, type HeaderAction } from './cardSections'
@@ -128,6 +128,7 @@ export function NodeCardSections({
   type,
   position,
   selected,
+  grouped,
   dragging,
   run,
   input,
@@ -203,6 +204,40 @@ export function NodeCardSections({
     </div>
   ) : null
 
+  const wired = (side: PortSide) => (side === 'in' ? inputs : outputs).some((value) => connectedPorts.has(portKey({ nodeId: node.id, portId: value.id, side })))
+  const inputsWired = wired('in')
+  const outputsWired = wired('out')
+  /** The items an output sent on the last run; null before it ran, or while nothing is wired to it. */
+  const sent = (value: NodePort) => {
+    if (!connectedPorts.has(portKey({ nodeId: node.id, portId: value.id, side: 'out' }))) return null
+    const rows = outputs.length > 1 ? run.ports?.[value.id] : output
+    return rows ? plural(rows.length, 'item') : null
+  }
+  const singleSent = outputs.length === 1 ? sent(outputs[0]) : null
+  const rowsSent = branchOutputs && outputs.some((value) => sent(value))
+
+  // Where each branch row's dot sits, down from the card's top, so its count can sit beside it outside the card.
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const [rowLevels, setRowLevels] = useState<Readonly<Record<string, number>>>({})
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    if (!root || !rowsSent) return
+    const measure = () => {
+      const box = root.getBoundingClientRect()
+      const scale = box.height / root.offsetHeight || 1
+      const levels: Record<string, number> = {}
+      for (const dot of root.querySelectorAll<HTMLElement>('[data-port-side="out"]')) {
+        const rect = dot.getBoundingClientRect()
+        if (dot.dataset.portId) levels[dot.dataset.portId] = (rect.top + rect.height / 2 - box.top) / scale
+      }
+      setRowLevels((current) => (Object.keys(levels).every((id) => current[id] === levels[id]) ? current : levels))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(root)
+    return () => observer.disconnect()
+  }, [rowsSent, run, node.config])
+
   const port = (value: NodePort, side: PortSide, placement: string) => {
     const key = portKey({ nodeId: node.id, portId: value.id, side })
     return (
@@ -213,6 +248,7 @@ export function NodeCardSections({
         active={activePorts.has(key)}
         target={targetPort === key}
         connected={connectedPorts.has(key)}
+        shown={side === 'in' ? inputsWired : outputsWired}
         handlers={ports}
         className={`${minimal.port} ${placement}`}
         activeClassName={minimal.portActive}
@@ -233,7 +269,10 @@ export function NodeCardSections({
 
   return (
     <div
-      ref={cardRef}
+      ref={(element) => {
+        rootRef.current = element
+        cardRef(element)
+      }}
       className={className}
       style={{
         left: position.x,
@@ -245,6 +284,7 @@ export function NodeCardSections({
       aria-label={title}
       data-node-id={node.id}
       data-selected={selected || undefined}
+      data-grouped={grouped || undefined}
       data-sized={frame?.h !== undefined || undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -258,13 +298,41 @@ export function NodeCardSections({
 
       {edgeOutputs ? (
         <ul className={styles.edgeOutputs} aria-label="Outputs">
-          {outputs.map((value) => (
-            <li key={value.id} className={styles.edgeOutput}>
-              {port(value, 'out', minimal.portOut)}
-              <span className={styles.edgeOutputLabel}>{value.label}</span>
-            </li>
-          ))}
+          {outputs.map((value) => {
+            const count = sent(value)
+            return (
+              <li key={value.id} className={styles.edgeOutput}>
+                {port(value, 'out', minimal.portOut)}
+                <span className={styles.edgeOutputLabel} data-counted={count ? true : undefined}>
+                  {value.label}
+                  {count ? <span className={styles.edgeOutputCount}>{count}</span> : null}
+                </span>
+              </li>
+            )
+          })}
         </ul>
+      ) : rowsSent ? (
+        <ul className={styles.rowCounts} aria-label="Items sent">
+          {outputs.map((value) => {
+            const count = sent(value)
+            const level = rowLevels[value.id]
+            return count && level !== undefined ? (
+              <li key={value.id} className={styles.edgeOutput} style={{ top: level }}>
+                <span className={styles.edgeOutputLabel} data-counted>
+                  {count}
+                </span>
+              </li>
+            ) : null
+          })}
+        </ul>
+      ) : singleSent ? (
+        <div className={styles.edgeOutputs} aria-label="Output">
+          <div className={styles.edgeOutput}>
+            <span className={styles.edgeOutputLabel} data-counted>
+              {singleSent}
+            </span>
+          </div>
+        </div>
       ) : null}
 
       <div
@@ -322,7 +390,6 @@ export function NodeCardSections({
                     <span className={`${minimal.rowLabel} ${styles.branchLabel}`} title={source ? `${value.label}: ${source.names.join(', ')}` : undefined}>
                       {source ? source.names.join(', ') : value.label}
                     </span>
-                    {source && source.rows !== null ? <span className={styles.branchCount}>{plural(source.rows, 'row')}</span> : null}
                     {removableInputs ? (
                       <span className={styles.branchActions}>
                         <button type="button" className={styles.branchAction} aria-label={`Remove ${value.label}`} data-tooltip="Remove" onClick={() => onRemoveInput?.(value.id)}>
@@ -354,7 +421,6 @@ export function NodeCardSections({
                     <span className={minimal.rowIndex}>{isFallbackBranch(value.id) ? '–' : index + 1}</span>
                   )}
                   <span className={`${minimal.rowLabel} ${styles.branchLabel} ${isFallbackBranch(value.id) ? minimal.rowLabelMuted : ''}`}>{value.label}</span>
-                  {run.ports?.[value.id] ? <span className={styles.branchCount}>{plural(run.ports[value.id].length, 'row')}</span> : null}
                   {isAuthoredBranch(type.id, value.id) && (onOpenConfig || onRemoveOutput) ? (
                     <span className={styles.branchActions}>
                       {onOpenConfig ? (

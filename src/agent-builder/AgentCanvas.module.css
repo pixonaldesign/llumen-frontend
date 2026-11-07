@@ -66,6 +66,11 @@
   cursor: default;
 }
 
+/* One of several selected nodes: a press anywhere on it moves them all, so only its ports and resize edges stay live. */
+.surface [data-grouped] *:not([data-port-id], [data-edge]) {
+  pointer-events: none;
+}
+
 .panning .surface,
 .panning .surface * {
   cursor: grabbing;
@@ -596,15 +601,6 @@ button.edgeAdd:focus-visible {
 .footer .controlsBar {
   grid-column: 3;
   justify-self: end;
-}
-
-.footerBar .zoomLevel {
-  width: auto;
-  min-width: 48px;
-  padding: 0 6px;
-  font-family: var(--lc-font-data);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
 }
 
 .placing .surface,

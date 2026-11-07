@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MagnifyingGlass } from '@phosphor-icons/react'
+import { MagnifyingGlass, Warning } from '@phosphor-icons/react'
 import controls from '../llumen-assistant/FloatingControls.module.css'
 import { NODE_DRAG_MIME } from './nodeCatalog'
 import { groupTypes, matchesQuery, NODE_GROUPS, type NodeGroupId } from './nodeGroups'
@@ -124,7 +124,13 @@ export function NodeToolbar({ className, usedTypes, panelContainer, onAdd }: Nod
                         <TypeIcon size={20} weight="regular" />
                       </span>
                       <span className={styles.cardTitle}>{type.title}</span>
-                      <span className={styles.cardDescription}>{used ? 'Already on the canvas' : type.description}</span>
+                      <span className={styles.cardDescription}>{type.description}</span>
+                      {used ? (
+                        <span className={styles.cardWarning}>
+                          <Warning size={12} weight="fill" aria-hidden />
+                          Already on the canvas
+                        </span>
+                      ) : null}
                     </button>
                   )
                 })}

@@ -214,8 +214,12 @@ button.card[draggable='true']:active:not(:disabled) {
 }
 
 button.card:disabled {
-  opacity: 0.45;
   cursor: default;
+}
+
+/* Faded, all but the warning saying why. */
+button.card:disabled > :not(.cardWarning) {
+  opacity: 0.45;
 }
 
 .cardIcon {
@@ -243,4 +247,17 @@ button.card:disabled {
   line-height: 16px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+.cardWarning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: #fcd34d;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cardWarning > svg {
+  flex-shrink: 0;
 }

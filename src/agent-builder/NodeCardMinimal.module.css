@@ -327,7 +327,7 @@ button.badgeButton:focus-visible {
 .selected .port,
 .node:hover .port,
 .node[data-near] .port,
-.port[data-connected] {
+.port[data-shown] {
   opacity: 1;
   pointer-events: auto;
 }

@@ -72,6 +72,7 @@ import {
   placeComment,
   rectContains,
   rectContainsPoint,
+  rectsTouch,
   rectFromPoints,
   SECTION_DEFAULT_SIZE,
   SECTION_DEFAULTS,
@@ -652,15 +653,6 @@ function bezierPoint(a: Point, c1: Point, c2: Point, b: Point, t: number): Point
     x: u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x,
     y: u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y,
   }
-}
-
-const EDGE_SAMPLES = 24
-
-function curveInsideRect(a: Point, c1: Point, c2: Point, b: Point, rect: Rect) {
-  for (let step = 0; step <= EDGE_SAMPLES; step++) {
-    if (!rectContainsPoint(rect, bezierPoint(a, c1, c2, b, step / EDGE_SAMPLES))) return false
-  }
-  return true
 }
 
 /** The start node followed by everything reachable downstream of it, breadth first. */
@@ -1832,7 +1824,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       if (element) observer.observe(element)
     }
     return () => observer.disconnect()
-  }, [doc.nodes, animateTo, glideTo])
+    // `runs` too: a run's result resizes cards (a Create Asset's chart), and the observer only reports on a rendered frame, which a hidden canvas skips.
+  }, [doc.nodes, runs, animateTo, glideTo])
 
   useEffect(() => {
     const root = rootRef.current
@@ -2037,17 +2030,15 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     endPan(event)
   }
 
-  /** The nodes and lines wholly inside a selection box, added to `base`. */
+  /** The nodes a selection box touches, added to `base`; lines are only picked by clicking them. */
   const boxSelection = (rect: Rect, base: Selection): Selection => {
     const nodes = doc.nodes
       .filter((node) => {
         const position = doc.positions[node.id]
-        return position ? rectContains(rect, { ...position, ...(layouts[node.id] ?? DEFAULT_NODE_SIZE) }) : false
+        return position ? rectsTouch(rect, { ...position, ...(layouts[node.id] ?? DEFAULT_NODE_SIZE) }) : false
       })
       .map((node) => node.id)
-    const lines = edges.filter((edge) => curveInsideRect(edge.a, edge.c1, edge.c2, edge.b, rect)).map((edge) => edge.id)
-    const union = (picked: readonly string[], hits: readonly string[]) => [...new Set([...picked, ...hits])]
-    return pickedSelection(union(selectedIds(base, 'node'), nodes), union(selectedIds(base, 'edge'), lines))
+    return pickedSelection([...new Set([...selectedIds(base, 'node'), ...nodes])], selectedIds(base, 'edge'))
   }
 
   /** Drops a sticky note, text, or comment where the placement tool was clicked. */
@@ -2936,6 +2927,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     .filter(Boolean)
     .join(' ')
   const selectedNodes = new Set(selectedIds(selection, 'node'))
+  const groupedNodes = selectedNodes.size > 1
   const selectedEdges = new Set(selectedIds(selection, 'edge'))
 
   const toScreen = (point: Point) => ({ left: view.x + point.x * view.zoom, top: view.y + point.y * view.zoom })
@@ -3033,21 +3025,25 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       ? { left: hoveredFrame.left, top: hoveredFrame.top - NODE_TOOLBAR_GAP, below: false }
       : { left: hoveredFrame.left, top: hoveredFrame.bottom + NODE_TOOLBAR_GAP, below: true })
 
-  const toolButtons = (options: readonly ToolOption[], toggles: boolean) =>
+  /** The insert tools toggle off on a second press and show their labels; the pointer tools are icons only. */
+  const toolButtons = (options: readonly ToolOption[], insert: boolean) =>
     options.map((option) => {
       const ToolIcon = option.icon
       const active = tool === option.id
+      const base = insert ? controls.barAction : controls.barButton
+      const activeClass = insert ? controls.barActionActive : controls.barButtonActive
       return (
         <button
           key={option.id}
           type="button"
-          className={`${controls.barButton}${active ? ` ${controls.barButtonActive}` : ''}`}
+          className={`${base}${active ? ` ${activeClass}` : ''}`}
           aria-label={option.label}
           data-shortcut={option.shortcut}
           aria-pressed={active}
-          onClick={() => setTool(toggles && active ? 'select' : option.id)}
+          onClick={() => setTool(insert && active ? 'select' : option.id)}
         >
           <ToolIcon size={20} weight={active ? 'fill' : 'regular'} aria-hidden />
+          {insert ? option.label : null}
         </button>
       )
     })
@@ -3083,8 +3079,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       <img className={controls.askIcon} src={llumenAssets.launcherOrb} alt="" width={24} height={24} />
     </button>
   )
-  /** Undo and redo, zoom, fit and tidy up: the right-hand bar in the split style. The single bar sets tidy up beside fit. */
-  const canvasControls = (tidyApart: boolean) => (
+  /** Undo and redo, zoom and fit: the right-hand bar in the split style. */
+  const canvasControls = (
     <>
       <button type="button" className={controls.barButton} aria-label="Undo" data-shortcut={SHORTCUTS.undo} disabled={past.length === 0} onClick={undo}>
         <ArrowUUpLeft size={20} weight="regular" aria-hidden />
@@ -3105,15 +3101,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       </button>
       <button
         type="button"
-        className={`${controls.barButton} ${styles.zoomLevel}`}
-        aria-label={`Zoom ${Math.round(view.zoom * 100)}%, reset to 100%`}
-        data-tooltip="Reset to 100%"
-        onClick={() => zoomFromCenter(1 / view.zoom)}
-      >
-        {Math.round(view.zoom * 100)}%
-      </button>
-      <button
-        type="button"
         className={controls.barButton}
         aria-label="Zoom in"
         data-shortcut={SHORTCUTS.zoomIn}
@@ -3124,10 +3111,6 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       </button>
       <button type="button" className={controls.barButton} aria-label="Zoom to fit" data-shortcut={SHORTCUTS.fit} onClick={fitToView}>
         <Scan size={20} weight="regular" aria-hidden />
-      </button>
-      {tidyApart ? <span className={controls.barDivider} aria-hidden /> : null}
-      <button type="button" className={controls.barButton} aria-label="Tidy up" data-shortcut={SHORTCUTS.tidy} disabled={doc.nodes.length === 0} onClick={tidyUp}>
-        <TreeStructure size={20} weight="regular" aria-hidden />
       </button>
     </>
   )
@@ -3299,6 +3282,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                   node={node}
                   position={doc.positions[node.id]}
                   selected={selectedNodes.has(node.id)}
+                  grouped={groupedNodes && selectedNodes.has(node.id)}
                   dragging={draggingNodes.has(node.id)}
                   resize={{
                     onPointerDown: (event, edge) => onResizePointerDown(event, node.id, edge),
@@ -3328,6 +3312,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                 type={type}
                 position={doc.positions[node.id]}
                 selected={selectedNodes.has(node.id)}
+                grouped={groupedNodes && selectedNodes.has(node.id)}
                 dragging={draggingNodes.has(node.id)}
                 run={nodeRun}
                 input={nodeInput}
@@ -3696,7 +3681,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
           <div className={`${controls.bar} ${styles.footerBar} ${styles.controlsBar}`} role="toolbar" aria-label="Canvas controls" data-covers-canvas>
             {toolButtons(POINTER_TOOLS, false)}
             <span className={controls.barDivider} aria-hidden />
-            {canvasControls(true)}
+            {canvasControls}
           </div>
         </footer>
       ) : (
@@ -3752,7 +3737,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
                   Insert
                 </button>
                 <span className={controls.barDivider} aria-hidden />
-                {canvasControls(false)}
+                {canvasControls}
               </div>
             </div>
           </div>
