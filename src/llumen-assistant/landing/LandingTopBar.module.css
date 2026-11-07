@@ -25,6 +25,20 @@
   min-width: 0;
 }
 
+.logoRule {
+  flex-shrink: 0;
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.partnerLogo {
+  display: block;
+  flex-shrink: 0;
+  width: auto;
+  height: 20px;
+}
+
 .center {
   display: flex;
   align-items: center;

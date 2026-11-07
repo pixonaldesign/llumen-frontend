@@ -1,6 +1,6 @@
 /**
- * Briefing backdrop: each finding's night Dubai scene (its towers lit, sales heat and roof labels),
- * slowly orbiting and flying to each map stop's place. Dragging, rotating or pinching pauses the orbit.
+ * Briefing backdrop: each finding's night Abu Dhabi scene (its catchment fences, street traffic and site
+ * pins), slowly orbiting and flying to each map stop's place. Dragging, rotating or pinching pauses the orbit.
  */
 import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
@@ -9,6 +9,7 @@ import type { StoryMapView } from '../story/StoryMap'
 import type { BriefingPlace } from './briefingMapPlaces'
 import {
   TOMTOM_MAP_STYLE,
+  TomtomPins,
   TowerLabels,
   drawTomtomScene,
   forgetTowers,
@@ -45,11 +46,14 @@ const LAYERS = 'briefing'
 type Drawn = { place: BriefingPlace; grow: number }
 
 const labelsByMap = new WeakMap<mapboxgl.Map, TowerLabels>()
+const pinsByMap = new WeakMap<mapboxgl.Map, TomtomPins>()
+const NO_PINS: never[] = []
 
 function drawPlace(map: mapboxgl.Map, drawn: { current: Drawn }, place: BriefingPlace, grow: number) {
   drawn.current = { place, grow }
   drawTomtomScene(map, LAYERS, place.scene, grow)
   labelsByMap.get(map)?.sync(place.scene.towers, grow)
+  pinsByMap.get(map)?.sync(place.scene.pins ?? NO_PINS, grow)
 }
 
 function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {
@@ -61,6 +65,12 @@ function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {
     labelsByMap.set(map, labels)
   }
   labels.mount()
+  let pins = pinsByMap.get(map)
+  if (!pins) {
+    pins = new TomtomPins(map, LAYERS)
+    pinsByMap.set(map, pins)
+  }
+  pins.mount()
 }
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
@@ -85,7 +95,7 @@ function flyHome(map: mapboxgl.Map, place: BriefingPlace, padding: mapboxgl.Padd
 export type BriefingMapEnter = StoryMapView
 
 /**
- * `blank` hides the columns and disks, leaving the bare base map (behind blurred stops). `enter` flies
+ * `blank` hides the scene, leaving the bare base map (behind blurred stops). `enter` flies
  * the camera to a story's opening view and holds it there, the orbit stopped; `onArrive` follows.
  * `start` (read on mount) opens on a story's view instead, columns fully grown and the orbit held,
  * until it turns null and the camera flies back to `place`. `onReady` reports the first load: `loaded`
@@ -275,6 +285,7 @@ export function BriefingMap({
       observer.disconnect()
       onSamplerRef.current?.(null)
       labelsByMap.get(map)?.clear()
+      pinsByMap.get(map)?.clear()
       map.remove()
       mapRef.current = null
       readyRef.current = false

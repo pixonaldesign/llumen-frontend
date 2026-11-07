@@ -1,7 +1,7 @@
 /**
- * A real-tomtom story over the night Dubai map, built from the landing story's own parts: its header,
- * page pills, filters, insight cards with their hover actions, Map Data, edit mode and modals. The
- * map lights the page's towers; clicking one opens its details panel from the right.
+ * A TomTom site-selection story over the night Abu Dhabi map, built from the landing story's own parts:
+ * its header, page pills, filters, insight cards with their hover actions, Map Data, edit mode and
+ * modals. The map pins the page's sites; clicking a shortlisted one opens its details from the right.
  */
 import {
   useEffect,
@@ -69,13 +69,14 @@ import { defaultMonitorConfig, monitorPrompt, monitorWorkflowProposal, type Moni
 import { SUMMARY_REGENERATE_MS, defaultSummaryConfig, gradientVars, type SummaryConfig } from '../story/storySummary'
 import gradientStyles from '../story/storyGradientBorder.module.css'
 import styles from '../story/StoryView.module.css'
-import { TomtomBuildingPanel } from './TomtomBuildingPanel'
 import { TomtomCardBody } from './TomtomCharts'
+import { TomtomLegendGlyph } from './TomtomLegendGlyph'
 import { TomtomMap, type TomtomMapFocus, type TomtomMapHandle } from './TomtomMap'
 import { cardClass, cardFootprint } from './tomtomCardLayout'
 import { TOMTOM_MAP_STYLE } from './tomtomMapLayers'
-import { TOMTOM_BUILDINGS, TOMTOM_STORIES, isBuildingId } from './tomtomScenario'
-import type { BuildingId, TomtomCard, TomtomPage, MapDataLayer } from './tomtomTypes'
+import { TOMTOM_SITES, TOMTOM_STORIES, isSiteId } from './tomtomScenario'
+import type { MapDataLayer, SiteId, TomtomCard, TomtomPage } from './tomtomTypes'
+import { TomtomSitePanel } from './TomtomSitePanel'
 import cardCss from './TomtomCards.module.css'
 import css from './TomtomStory.module.css'
 
@@ -140,8 +141,8 @@ function panelInset() {
   return Math.min(1200, Math.max(720, window.innerWidth - 640)) + 48
 }
 
-/** Dive: the tower close up in the room the cards leave, its base low enough that the top stays in view. */
-function diveFocus(id: BuildingId): TomtomMapFocus {
+/** Dive: the site close up in the room the cards leave, low enough that its catchment rises behind it. */
+function diveFocus(id: SiteId): TomtomMapFocus {
   return {
     id,
     padding: { top: Math.round(window.innerHeight * 0.5), right: panelInset(), bottom: 0, left: 24 },
@@ -151,7 +152,7 @@ function diveFocus(id: BuildingId): TomtomMapFocus {
   }
 }
 
-const BUILDING_BY_NAME = new Map(Object.values(TOMTOM_BUILDINGS).map((building) => [building.name, building.id]))
+const SITE_BY_NAME = new Map(Object.values(TOMTOM_SITES).map((site) => [site.name, site.id]))
 
 function toSlide(page: TomtomPage): StorySlide {
   return {
@@ -258,12 +259,6 @@ function ColumnsControl<T extends number>({
   )
 }
 
-/** The mark a legend row ends with: a lit tower, or the heat swatch. */
-function LegendGlyph({ layer, color }: { layer: MapDataLayer; color: string }) {
-  if (layer.mark === 'tower') return <i className={css.towerGlyph} style={{ background: color }} aria-hidden />
-  return <i className={css.heatGlyph} style={{ background: `${color}66` }} aria-hidden />
-}
-
 type MenuAt = { top: number; left: number }
 
 /** Below the button, or above it when the menu would run off the bottom. */
@@ -300,11 +295,9 @@ function useDismiss(open: boolean, keep: string, close: () => void) {
   }, [open, keep])
 }
 
-/** The tower a card is about, which its Explore opens. */
-function cardTower(card: TomtomCard): BuildingId | null {
-  if (card.id.includes('dreamscape')) return 'dreamscape'
-  if (card.id.includes('opera')) return 'opera-crest'
-  return null
+/** The site a card is about, which its Explore opens: cards about one site lead their id with it. */
+function cardSite(card: TomtomCard): SiteId | null {
+  return (Object.keys(TOMTOM_SITES) as SiteId[]).find((id) => card.id.startsWith(`${id}-`)) ?? null
 }
 
 export function TomtomStoryView({
@@ -340,8 +333,8 @@ export function TomtomStoryView({
   const [info, setInfo] = useState<{ kind: 'story' | 'slide'; left: number; top: number } | null>(null)
   const [legendOpen, setLegendOpen] = useState(true)
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NO_GROUPS)
-  /** The tower whose details panel is open. */
-  const [building, setBuilding] = useState<BuildingId | null>(null)
+  /** The site whose details panel is open. */
+  const [site, setSite] = useState<SiteId | null>(null)
   const [focus, setFocus] = useState<TomtomMapFocus | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [pageRename, setPageRename] = useState<{ slideId: string; title: string } | null>(null)
@@ -476,21 +469,21 @@ export function TomtomStoryView({
   }
 
   /**
-   * Dives into a tower: its details open on the right in place of an open edit panel, the cards and Map
+   * Dives into a site: its details open on the right in place of an open edit panel, the cards and Map
    * Data step aside, and the map closes in on it in the room they leave.
    */
-  const openBuilding = (id: BuildingId) => {
+  const openSite = (id: SiteId) => {
     setEditSection(null)
     setDirectSlideEditor(false)
     closeMenus()
     setInfo(null)
     setFocus(diveFocus(id))
-    setBuilding(id)
+    setSite(id)
   }
 
-  const closeBuilding = () => {
+  const closeSite = () => {
     setFocus(null)
-    setBuilding(null)
+    setSite(null)
   }
 
   const goTo = (index: number) => {
@@ -512,7 +505,7 @@ export function TomtomStoryView({
   }
 
   const toggleSection = (section: StoryEditSection) => {
-    closeBuilding()
+    closeSite()
     setDirectSlideEditor(false)
     setEditSection((current) => (current === section ? null : section))
   }
@@ -853,12 +846,12 @@ export function TomtomStoryView({
         ) : (
           layer.color.items.map((item) => (
             <div key={item.label} className={styles.legendRow}>
-              {layer.mark === 'tower' && BUILDING_BY_NAME.has(item.label) ? (
+              {layer.mark === 'pin' && SITE_BY_NAME.has(item.label) ? (
                 <button
                   type="button"
                   className={`${styles.legendMark} ${css.legendLabel} ${css.legendButton}`}
                   aria-label={`Open ${item.label} details`}
-                  onClick={() => openBuilding(BUILDING_BY_NAME.get(item.label)!)}
+                  onClick={() => openSite(SITE_BY_NAME.get(item.label)!)}
                 >
                   {item.label}
                 </button>
@@ -867,7 +860,7 @@ export function TomtomStoryView({
               )}
               <span className={styles.legendMark}>
                 {item.count ? <span className={styles.legendCount}>{item.count}</span> : null}
-                <LegendGlyph layer={layer} color={item.color} />
+                <TomtomLegendGlyph layer={layer} color={item.color} />
               </span>
             </div>
           ))
@@ -1111,7 +1104,7 @@ export function TomtomStoryView({
       aria-label={`${storyTitle} story`}
       data-entrance={entrance}
       data-map-hidden={mapHidden || undefined}
-      data-dive={building ? true : undefined}
+      data-dive={site ? true : undefined}
       inert={entrance === 'leave' || entrance === 'gone'}
     >
       <div className={styles.mapPane}>
@@ -1123,9 +1116,10 @@ export function TomtomStoryView({
           flat={flat}
           styleUrl={mapStyle.url}
           focus={focus}
-          onTowerClick={(id) => {
-            if (isBuildingId(id)) openBuilding(id)
+          onPick={(id) => {
+            if (isSiteId(id)) openSite(id)
           }}
+          pickable={isSiteId}
           onReady={onMapReady}
           handleRef={mapRef}
         />
@@ -1271,7 +1265,7 @@ export function TomtomStoryView({
             key={slide.id}
             className={`${styles.insight} ${cardCss.grid} ${css.diveLeft}`}
             aria-label="Story insight"
-            inert={Boolean(building)}
+            inert={Boolean(site)}
           >
             {cards.map(insightCard)}
             {Array.from({ length: emptyCells }, (_, index) => (
@@ -1323,11 +1317,11 @@ export function TomtomStoryView({
           />
         ) : null}
 
-        <div className={`${styles.mapStack} ${css.diveRight}`} inert={Boolean(building)}>
+        <div className={`${styles.mapStack} ${css.diveRight}`} inert={Boolean(site)}>
           {mapData}
         </div>
 
-        {building ? <TomtomBuildingPanel key={building} buildingId={building} onClose={closeBuilding} /> : null}
+        {site ? <TomtomSitePanel key={site} siteId={site} onClose={closeSite} /> : null}
 
         <div className={`${styles.lowerNav} ${css.diveNav}`} aria-label="Story navigation">
           {askButton}
@@ -1536,11 +1530,11 @@ export function TomtomStoryView({
               <button
                 type="button"
                 role="menuitem"
-                disabled={!cardTower(cardMenu.card)}
+                disabled={!cardSite(cardMenu.card)}
                 onClick={() => {
-                  const tower = cardTower(cardMenu.card)
+                  const target = cardSite(cardMenu.card)
                   setCardMenu(null)
-                  if (tower) openBuilding(tower)
+                  if (target) openSite(target)
                 }}
               >
                 <Compass size={16} weight="regular" aria-hidden />

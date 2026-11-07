@@ -16,36 +16,35 @@ export type AppHighlight = {
 
 export const APP_HIGHLIGHTS: AppHighlight[] = [
   {
-    id: 're-downtown-app',
-    storyId: 're-downtown',
-    title: 'Downtown Off-Plan Sales — Two Towers Lead',
+    id: 'tt-shortlist-app',
+    storyId: 'tt-shortlist',
+    title: 'Next Site Shortlist — Abu Dhabi Island',
     description:
-      'Dreamscape Tower and Opera Crest Residences took AED 6.1bn of Downtown’s AED 16.0bn in off-plan sales this quarter.',
-    image: `${APPS_BASE}/re-downtown.jpg`,
+      'Al Zahiyah leads 12 candidate sites at 87, with 48,200 vehicles a day and only 6% overlap with your stations.',
+    image: `${APPS_BASE}/tt-shortlist.jpg`,
     focus: 'center',
   },
   {
-    id: 're-creek-app',
-    title: 'Handover Wave Ahead — Dubai Creek Harbour',
+    id: 'tt-network-app',
+    title: 'Catchment Overlap — Your 8 Stations',
     description:
-      '9,400 off-plan units hand over in Creek Harbour by the end of 2027, more than the area’s last five years combined.',
-    image: `${APPS_BASE}/re-creek-harbour.jpg`,
+      'Khalidiyah Park shares 22% of its catchment with the Al Khalidiyah candidate; every other pairing overlaps under 10%.',
+    image: `${APPS_BASE}/tt-network.jpg`,
     focus: 'center',
   },
   {
-    id: 're-marina-app',
-    title: 'Rents Outpacing Supply — Dubai Marina',
-    description:
-      'Marina rents rose 11% this year while only 640 new units completed, keeping occupancy above 94%.',
-    image: `${APPS_BASE}/re-marina.jpg`,
+    id: 'tt-evening-app',
+    storyId: 'tt-evening',
+    title: 'Evening Demand — Sheikh Rashid Bin Saeed St',
+    description: '38% of the corridor’s traffic passes between 5 and 9pm, lifting Al Markaziyah from fourth to third.',
+    image: `${APPS_BASE}/tt-evening.jpg`,
     focus: 'center',
   },
   {
-    id: 're-business-bay-app',
-    title: 'Resale Prices Catching Off-Plan — Business Bay',
-    description:
-      'Ready homes in Business Bay now resell within 6% of new launch prices, down from a 19% gap in 2023.',
-    image: `${APPS_BASE}/re-business-bay.jpg`,
+    id: 'tt-rivals-app',
+    title: 'Rival Openings — Karamah Square',
+    description: 'Two rival forecourts opened within 1 km of Karamah Square this year, and its volume fell 9% to 5.4M litres.',
+    image: `${APPS_BASE}/tt-rivals.jpg`,
     focus: 'center',
   },
 ]

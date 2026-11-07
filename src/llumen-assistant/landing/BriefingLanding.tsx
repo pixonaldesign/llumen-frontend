@@ -44,6 +44,7 @@ import { STORY_CAMERA_PADDING } from '../story/StoryMap'
 import { TOMTOM_STORIES } from '../tomtom/tomtomScenario'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
+import { landingAssets } from './landingAssets'
 import { VoteButton } from './VoteButton'
 import {
   DEFAULT_FINDINGS_STYLE,
@@ -67,45 +68,45 @@ type SummaryPart = { text: string; highlight?: boolean }
 
 /** What is happening now, in two lines at most. */
 const ASSETS_STATEMENT: SummaryPart[] = [
-  { text: 'Downtown off\u2011plan sales reached AED 16.0bn this quarter, and two towers took ' },
-  { text: '38% of it', highlight: true },
+  { text: 'Al Zahiyah on Sheikh Zayed Bin Sultan St leads your 12 candidate sites at ' },
+  { text: '87 of 100', highlight: true },
   { text: '.' },
 ]
 
 /** What the assets below say about it. */
 const ASSETS_DETAIL: SummaryPart[] = [
-  { text: 'Downtown prices reached ' },
-  { text: 'AED 3,240 per sq ft', highlight: true },
-  { text: ', up 14% on a year ago, and off-plan homes made up 61% of Dubai’s sales in 2025. The city closed ' },
-  { text: '3,412 sales this week', highlight: true },
+  { text: 'It sees ' },
+  { text: '48,200 vehicles a day', highlight: true },
+  { text: ', and 31,840 have passed so far today. Its due diligence is 62% done. Your network sold ' },
+  { text: '954k litres this week', highlight: true },
   {
-    text: ', 9% more than last week. Dreamscape Tower is 84% built and 66% sold, ahead of Opera Crest at 58%, and a Downtown 1-bedroom now rents for ',
+    text: ', up 3%, and 30% of forecourt visits include a shop purchase. Evening traffic on Sheikh Rashid Bin Saeed St reached ',
   },
-  { text: 'AED 142k a year', highlight: true },
-  { text: ', up 11%.' },
+  { text: '15k vehicles', highlight: true },
+  { text: ' between 5 and 9pm, up 8% since May.' },
 ]
 
 /** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
 const ASSETS_INSIGHTS: SummaryPart[][] = [
   [
-    { text: 'Downtown prices reached ' },
-    { text: 'AED 3,240 per sq ft', highlight: true },
-    { text: ', up 14% on a year ago.' },
+    { text: 'Al Zahiyah sees ' },
+    { text: '48,200 vehicles a day', highlight: true },
+    { text: ', the most of the five sites scoring above 70.' },
   ],
   [
-    { text: 'Dubai closed ' },
-    { text: '3,412 sales this week', highlight: true },
-    { text: ', 9% more than last week, and 61% of 2025’s sales were off-plan.' },
+    { text: 'Your network sold ' },
+    { text: '954k litres this week', highlight: true },
+    { text: ', up 3%, with Special 95 at 48% of it.' },
   ],
   [
     {
-      text: 'Dreamscape Tower is 84% built and 66% sold, ahead of Opera Crest Residences at 58%.',
+      text: 'Al Zahiyah’s due diligence is 62% done, ahead of its site visit on 18 November.',
     },
   ],
   [
-    { text: 'A Downtown 1-bedroom now rents for ' },
-    { text: 'AED 142k a year', highlight: true },
-    { text: ', up 11% on a year ago.' },
+    { text: 'Evening traffic on Sheikh Rashid Bin Saeed St reached ' },
+    { text: '15k vehicles', highlight: true },
+    { text: ' between 5 and 9pm, up 8% since May.' },
   ],
 ]
 
@@ -128,9 +129,25 @@ const ASSETS_SPLIT_MS = 1700
 const ASSETS_OPEN_PX = 8
 
 /** Findings style 6's slide between the findings and Assets and Apps; keep in step with --side-slide. */
-/** A story opens on its first scene, framed clear of its insight column. */
-const STORY_OPENING_PLACE = BRIEFING_PLACES.downtown
-const STORY_ENTER: BriefingMapEnter = { camera: TOMTOM_STORIES['re-downtown'].pages[0].camera, padding: STORY_CAMERA_PADDING }
+/** A story opens on its first page's camera, framed clear of its insight column. */
+const storyEnters = new Map<string, BriefingMapEnter>()
+
+function storyEnter(storyId: string): BriefingMapEnter {
+  let enter = storyEnters.get(storyId)
+  if (!enter) {
+    const camera = TOMTOM_STORIES[storyId]?.pages[0].camera ?? BRIEFING_PLACES.island.camera
+    enter = { camera, padding: STORY_CAMERA_PADDING }
+    storyEnters.set(storyId, enter)
+  }
+  return enter
+}
+
+function storyPlace(storyId: string | null) {
+  const story = storyId ? TOMTOM_STORIES[storyId] : undefined
+  return BRIEFING_PLACES[story?.place ?? 'island']
+}
+const TOMTOM_LOGO = { src: landingAssets.tomtomLogo, alt: 'TomTom' }
+
 /** BriefingMap's flight (2200ms) plus slack. */
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
@@ -349,14 +366,17 @@ export function BriefingLanding({
   const returnHeld = storyReturn?.phase === 'hold'
   /** The map is flying into the story, or holding that view underneath it. */
   const opening = storyFlight !== null && !storyRelease && !returnHeld
+  /** The story the map last flew into, so the return holds its place until the flight home. */
+  const [lastStory, setLastStory] = useState<string | null>(null)
+  if (storyFlight && storyFlight !== lastStory) setLastStory(storyFlight)
   const mapPlace = useMemo(() => {
-    if (opening || returnHeld) return STORY_OPENING_PLACE
+    if (opening || returnHeld) return storyPlace(storyFlight ?? lastStory)
     for (let index = active; index >= 0; index -= 1) {
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
-    return BRIEFING_PLACES.downtown
-  }, [active, opening, returnHeld])
+    return BRIEFING_PLACES.island
+  }, [active, opening, returnHeld, storyFlight, lastStory])
 
   const enterStory = useCallback(
     (storyId: string) => {
@@ -804,6 +824,7 @@ export function BriefingLanding({
           briefingTab
           view={view}
           onViewChange={changeView}
+          partnerLogo={TOMTOM_LOGO}
         />
       </header>
       {inStudio ? (
@@ -832,7 +853,7 @@ export function BriefingLanding({
               blank={mapBlurred}
               focusRight={findingsStyle === 2 || findingsStyle === 5}
               focusLow={findingsStyle === 8}
-              enter={opening ? STORY_ENTER : null}
+              enter={opening && storyFlight ? storyEnter(storyFlight) : null}
               onArrive={arriveAtStory}
               align={storyRelease && storyRelease !== 'home' ? storyRelease : null}
               start={returnHeld ? storyReturn.from : null}
@@ -966,7 +987,7 @@ export function BriefingLanding({
   )
 }
 
-const ASSET_LOCATIONS = ['Dubai', 'Downtown Dubai', 'Business Bay', 'Dubai Marina'] as const
+const ASSET_LOCATIONS = ['Abu Dhabi Island', 'Al Markaziyah', 'Al Khalidiyah', 'Al Zahiyah'] as const
 const ASSET_PERIODS = ['Today', 'Last 7 days', 'Last 30 days', 'This year'] as const
 
 /**
@@ -1059,7 +1080,7 @@ function FilterSelect<T extends string>({
 
 /** Global filters for the Assets section: location and time. */
 function AssetsFilters() {
-  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Dubai')
+  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Abu Dhabi Island')
   const [period, setPeriod] = useState<(typeof ASSET_PERIODS)[number]>('Last 7 days')
   return (
     <div className={styles.assetsFilters} role="group" aria-label="Filters">

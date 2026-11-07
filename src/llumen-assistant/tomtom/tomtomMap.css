@@ -1,6 +1,7 @@
 /* Global: the labels and tooltip live in the Mapbox container, outside the CSS-module tree. Matches the story map's `.annotationTip`. */
 .tomtom-label,
-.tomtom-tip {
+.tomtom-tip,
+.tomtom-pin-card {
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -126,4 +127,149 @@
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-weight: 500;
   white-space: nowrap;
+}
+
+/*
+ * A pin stands on its ground point (the element is translated there): candidate sites and stations as
+ * map pins in their colour, rivals as glowing dots. `--pop` scales them in as the scene grows.
+ */
+.tomtom-pin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  transition: opacity 0.3s ease;
+  will-change: transform;
+}
+
+.tomtom-pin[data-static='true'] .tomtom-pin-card {
+  pointer-events: none;
+}
+
+button.tomtom-pin {
+  cursor: pointer;
+}
+
+.tomtom-pin-head {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50% 50% 50% 0;
+  background: var(--pin);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.45),
+    0 0 0 4px color-mix(in srgb, var(--pin) 22%, transparent);
+  transform: translate(0, -2px) scale(var(--pop, 1)) rotate(-45deg);
+  transform-origin: 0 100%;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.tomtom-pin-head > span {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  transform: rotate(45deg);
+}
+
+.tomtom-pin[data-kind='station'] .tomtom-pin-head {
+  width: 22px;
+  height: 22px;
+}
+
+/* A current station: a white fuel-nozzle dot in its pin. */
+.tomtom-pin[data-kind='station'] .tomtom-pin-head > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #fff;
+}
+
+.tomtom-pin[data-kind='site'] .tomtom-pin-head > span:empty {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+button.tomtom-pin:hover .tomtom-pin-head,
+.tomtom-pin[data-active='true'] .tomtom-pin-head {
+  transform: translate(0, -2px) scale(calc(var(--pop, 1) * 1.14)) rotate(-45deg);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.5),
+    0 0 0 6px color-mix(in srgb, var(--pin) 32%, transparent);
+}
+
+button.tomtom-pin:focus-visible {
+  outline: none;
+}
+
+button.tomtom-pin:focus-visible .tomtom-pin-head {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+.tomtom-pin-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  background: var(--pin);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pin) 26%, transparent), 0 0 12px var(--pin);
+  transform: translate(-50%, -50%) scale(var(--pop, 1));
+}
+
+/* A labelled pin's name card, above its head. */
+.tomtom-pin-card {
+  position: absolute;
+  bottom: 44px;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  text-align: left;
+  transform: translateX(-50%);
+}
+
+.tomtom-pin-card::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 10px;
+  background: linear-gradient(var(--pin), transparent);
+}
+
+.tomtom-pin-card b {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tomtom-pin,
+  .tomtom-pin-head {
+    transition: none;
+  }
 }

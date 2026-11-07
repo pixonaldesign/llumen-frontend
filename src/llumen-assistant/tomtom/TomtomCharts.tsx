@@ -1,5 +1,5 @@
 /**
- * The real-tomtom story's insight cards, drawn with the story cards' own type and chart styles: one
+ * The TomTom story's insight cards, drawn with the story cards' own type and chart styles: one
  * body per `TomtomCard` kind, coloured from the Create Asset palettes. The card shell and its hover
  * actions are the story view's.
  */

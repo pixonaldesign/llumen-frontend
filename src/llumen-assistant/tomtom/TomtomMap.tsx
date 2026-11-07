@@ -1,8 +1,8 @@
 /**
- * The real-tomtom story's map: flies to each page's camera, fades the last page's heat out and the
- * next one's in, and lights the page's towers. Towers name themselves in a tooltip on hover, and
- * clicking one (or its roof label) opens its details; the camera then turns to frame it beside them.
- * Used by the story and Tell Me More.
+ * The TomTom story's map: flies to each page's camera, fades the last page's scene out and the next
+ * one's in: fences rise round the catchments, traffic runs along the streets and the pins pop in. Pins
+ * and towers name themselves in a tooltip on hover, and clicking a site with details opens them; the
+ * camera then turns to frame it beside them. Used by the story and the ask stage.
  */
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 import mapboxgl from 'mapbox-gl'
@@ -13,6 +13,7 @@ import { captureMapView } from '../story/captureMapView'
 import type { StoryMapCapture } from '../story/storyAiScenarios'
 import {
   TOMTOM_MAP_STYLE,
+  TomtomPins,
   TowerLabels,
   drawTomtomScene,
   tomtomTipHtml,
@@ -21,6 +22,8 @@ import {
   resolveTowers,
   towerAt,
   type TomtomMapScene,
+  type TomtomPin,
+  type TomtomTip,
 } from './tomtomMapLayers'
 import type { TomtomCamera } from './tomtomTypes'
 import styles from './TomtomStory.module.css'
@@ -37,8 +40,8 @@ const MAX_PITCH = 85
 
 export type TomtomMapHandle = { view: () => StoryMapView | undefined; capture: () => Promise<StoryMapCapture | null> }
 
-/** A tower to frame beside an open panel, with the padding that keeps it clear of the panel. */
 /**
+ * A tower or pin to frame beside an open panel, with the padding that keeps it clear of the panel.
  * `zoom` and `pitch` are the closest the focus frames the tower at; it never pulls back or flattens to reach
  * them. `duration` times the move in, and the move back out when the focus clears.
  */
@@ -57,6 +60,8 @@ function cameraOptions(camera: TomtomCamera, flat = false) {
   return { center: camera.center, zoom: camera.zoom, pitch: flat ? 0 : camera.pitch, bearing: camera.bearing }
 }
 
+const NO_PINS: TomtomPin[] = []
+
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export function TomtomMap({
@@ -71,7 +76,8 @@ export function TomtomMap({
   styleUrl = TOMTOM_MAP_STYLE,
   controlsClassName,
   focus = null,
-  onTowerClick,
+  onPick,
+  pickable,
   onReady,
   handleRef,
 }: {
@@ -88,8 +94,10 @@ export function TomtomMap({
   styleUrl?: string
   controlsClassName?: string
   focus?: TomtomMapFocus | null
-  /** Makes the towers and their labels clickable. */
-  onTowerClick?: (id: string) => void
+  /** Makes the towers, their labels and the `pickable` pins clickable. */
+  onPick?: (id: string) => void
+  /** Which pins open something when clicked; none when unset. */
+  pickable?: (id: string) => boolean
   onReady?: (stage: 'loaded' | 'painted') => void
   handleRef?: Ref<TomtomMapHandle>
 }) {
@@ -97,17 +105,20 @@ export function TomtomMap({
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const readyRef = useRef(false)
   const labelsRef = useRef<TowerLabels | null>(null)
+  const pinsRef = useRef<TomtomPins | null>(null)
   const drawnRef = useRef<{ scene: TomtomMapScene; grow: number }>({ scene, grow: 0 })
   const latestRef = useRef({ camera, scene, hidden, padding, flat, focus })
   const tweenRef = useRef(0)
   const styleRef = useRef(styleUrl)
   const onReadyRef = useRef(onReady)
-  const onClickRef = useRef(onTowerClick)
+  const onClickRef = useRef(onPick)
+  const pickableRef = useRef(pickable)
 
   useEffect(() => {
     onReadyRef.current = onReady
-    onClickRef.current = onTowerClick
-  }, [onReady, onTowerClick])
+    onClickRef.current = onPick
+    pickableRef.current = pickable
+  }, [onReady, onPick, pickable])
 
   useImperativeHandle(handleRef, () => ({
     view: () => {
@@ -138,6 +149,7 @@ export function TomtomMap({
     const { hidden: off, focus: focused } = latestRef.current
     drawTomtomScene(map, PREFIX, drawn.scene, drawn.grow, off)
     labelsRef.current?.sync(drawn.scene.towers, drawn.grow, off, focused?.id ?? null)
+    pinsRef.current?.sync(drawn.scene.pins ?? NO_PINS, drawn.grow, off, focused?.id ?? null)
   }
 
   const growIn = (map: mapboxgl.Map) => {
@@ -173,12 +185,41 @@ export function TomtomMap({
     observer.observe(el)
     const labels = new TowerLabels(map, PREFIX, onClickRef.current ? (id) => onClickRef.current?.(id) : undefined)
     labelsRef.current = labels
+    const tip = document.createElement('div')
+    tip.className = 'tomtom-tip'
+    tip.hidden = true
+    map.getContainer().appendChild(tip)
+    let tipKey: string | null = null
+    const showTip = (key: string, content: TomtomTip, point: { x: number; y: number }) => {
+      if (key !== tipKey) {
+        tip.innerHTML = tomtomTipHtml(content)
+        tipKey = key
+      }
+      tip.hidden = false
+      tip.style.left = `${point.x}px`
+      tip.style.top = `${point.y}px`
+    }
+    const hideTip = () => {
+      tip.hidden = true
+      tipKey = null
+      map.getCanvas().style.cursor = ''
+    }
+    const pins = new TomtomPins(map, PREFIX, {
+      onPick: onClickRef.current ? (id) => onClickRef.current?.(id) : undefined,
+      pickable: (id) => pickableRef.current?.(id) ?? false,
+      onHover: (pin, point) => {
+        if (!pin || !point) return hideTip()
+        showTip(`pin:${pin.id}`, pin.tip, point)
+      },
+    })
+    pinsRef.current = pins
 
     // A new basemap drops the layers and the towers' states; put them back over it.
     map.on('style.load', () => {
       forgetTowers(map)
       mountTomtomLayers(map, PREFIX, latestRef.current.scene.towers)
       labels.mount()
+      pins.mount()
       if (readyRef.current) paint(map)
     })
 
@@ -195,28 +236,15 @@ export function TomtomMap({
     })
     map.on('idle', () => resolveTowers(map, drawnRef.current.scene.towers))
 
-    const tip = document.createElement('div')
-    tip.className = 'tomtom-tip'
-    tip.hidden = true
-    map.getContainer().appendChild(tip)
-    let tipKey: string | null = null
-    const hideTip = () => {
-      tip.hidden = true
-      tipKey = null
-      map.getCanvas().style.cursor = ''
-    }
     const shownTowers = () =>
       drawnRef.current.grow < 0.5 ? [] : drawnRef.current.scene.towers.filter((tower) => !latestRef.current.hidden.has(tower.group))
     const onMove = (event: mapboxgl.MapMouseEvent) => {
       const tower = towerAt(map, event.point, shownTowers(), PREFIX)
-      if (!tower) return hideTip()
-      if (tower.id !== tipKey) {
-        tip.innerHTML = tomtomTipHtml(tower.tip)
-        tipKey = tower.id
+      if (!tower) {
+        if (tipKey?.startsWith('tower:')) hideTip()
+        return
       }
-      tip.hidden = false
-      tip.style.left = `${event.point.x}px`
-      tip.style.top = `${event.point.y}px`
+      showTip(`tower:${tower.id}`, tower.tip, event.point)
       map.getCanvas().style.cursor = onClickRef.current ? 'pointer' : 'default'
     }
     const onClick = (event: mapboxgl.MapMouseEvent) => {
@@ -233,6 +261,7 @@ export function TomtomMap({
       observer.disconnect()
       tip.remove()
       labels.clear()
+      pins.clear()
       map.remove()
       mapRef.current = null
       readyRef.current = false
@@ -241,7 +270,7 @@ export function TomtomMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /* A new page: fly to its camera, fade the old heat out and the new one in. */
+  /* A new page: fly to its camera, fade the old scene out and the new one in. */
   useEffect(() => {
     const previous = latestRef.current
     latestRef.current = { ...latestRef.current, camera, scene, hidden, padding }
@@ -291,10 +320,12 @@ export function TomtomMap({
       map.easeTo({ ...cameraOptions(pageCamera, flatNow), padding: pagePadding, duration, easing: easeInOut, essential: true })
       return
     }
-    const tower = drawnRef.current.scene.towers.find((item) => item.id === focus.id)
-    if (!tower) return
+    const target =
+      drawnRef.current.scene.towers.find((item) => item.id === focus.id) ??
+      drawnRef.current.scene.pins?.find((item) => item.id === focus.id)
+    if (!target) return
     map.easeTo({
-      center: tower.at,
+      center: target.at,
       zoom: Math.max(map.getZoom(), focus.zoom ?? FOCUS_ZOOM),
       pitch: flatNow ? 0 : Math.max(focus.pitch ?? 58, pageCamera.pitch),
       bearing: map.getBearing(),

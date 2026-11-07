@@ -1,5 +1,5 @@
 /*
- * A tower's details: the story edit panel's right-hand sheet (`StoryEditPanel.module.css` `.panel`),
+ * A candidate site's details: the story edit panel's right-hand sheet (`StoryEditPanel.module.css` `.panel`),
  * widened for a side rail and tabbed charts. Both columns scroll full-bleed, so their thumbs sit on the
  * column's edge; the content inside is inset instead.
  */
@@ -37,13 +37,13 @@
   align-items: center;
 }
 
-.towerDot {
+.siteDot {
   flex-shrink: 0;
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: var(--tower);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tower) 22%, transparent);
+  background: var(--site);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--site) 22%, transparent);
 }
 
 .tags {
@@ -68,8 +68,8 @@
 }
 
 .tagId {
-  border-color: color-mix(in srgb, var(--tower) 48%, transparent);
-  background: color-mix(in srgb, var(--tower) 22%, transparent);
+  border-color: color-mix(in srgb, var(--site) 48%, transparent);
+  background: color-mix(in srgb, var(--site) 22%, transparent);
   color: var(--lc-text-primary);
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
 }
@@ -349,7 +349,7 @@
 }
 
 .reportIcon[data-done] {
-  background: color-mix(in srgb, var(--tower) 28%, transparent);
+  background: color-mix(in srgb, var(--site) 28%, transparent);
 }
 
 .main {

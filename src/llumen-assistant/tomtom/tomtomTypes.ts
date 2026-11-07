@@ -48,7 +48,8 @@ export const category = (index: number, tone: Tone = 'blue') =>
 
 export type TomtomCamera = { center: LngLat; zoom: number; pitch: number; bearing: number }
 
-export type LegendMark = 'tower' | 'heat'
+/** How a legend row draws its map mark: a lit tower, a heat swatch, a site pin, a rival dot, a street flow, a fence or a disk. */
+export type LegendMark = 'tower' | 'heat' | 'pin' | 'dot' | 'flow' | 'fence' | 'disk'
 
 /** A Map Data layer, listed the way the story's Map Data lists its attributes. */
 export type MapDataLayer = {
@@ -132,7 +133,7 @@ export type TomtomPage = {
   layers: MapDataLayer[]
 }
 
-export type TomtomPlaceId = 'downtown'
+export type TomtomPlaceId = 'island' | 'corridor'
 
 export type TomtomStory = {
   id: string
@@ -143,45 +144,43 @@ export type TomtomStory = {
   pages: [TomtomPage, ...TomtomPage[]]
 }
 
-export type BuildingId = 'dreamscape' | 'opera-crest'
+/** The candidate sites with a details panel; each is also its pin's id. */
+export type SiteId = 'site-szbs' | 'site-corniche' | 'site-khaleej' | 'site-rashid'
 
-/** A count by category: unit types, nationalities, age groups. */
+/** A count by category: vehicle types, trip purposes, brands. */
 export type CountRow = { name: string; count: number }
 
-/** One tab of a building's details: its headline figures, a breakdown, demographics and a time series. */
-export type BuildingTab = {
+/** One tab of a site's details: its headline figures, a breakdown, profile bars and a time series. */
+export type SiteTab = {
   kpis: { label: string; value: string; unit?: string }[]
   breakdown: { title: string; rows: CountRow[] }
   demographics: { title: string; groups: { title: string; bars: { label: string; value: number }[] }[] }
   series: { title: string; unit: string; x: string[]; yLabels: string[]; yMax: number; points: number[] }
 }
 
-export type BuildingTabId = 'sales' | 'utilization' | 'ownership' | 'rentals'
+export type SiteTabId = 'traffic' | 'catchment' | 'competition' | 'access'
 
-/** A tower lit up on the map, and what its details panel reads. */
-export type TomtomBuilding = {
-  id: BuildingId
+/** A candidate site pinned on the map, and what its details panel reads. */
+export type TomtomSite = {
+  id: SiteId
   name: string
-  /** The basemap building it lights up (Mapbox Standard `buildings` featureset). */
-  featureId: number
-  /** Where the building stands; the feature under it is lit if `featureId` has moved. */
+  /** The street it stands on, under its name. */
+  street: string
   at: LngLat
-  heightM: number
   color: string
-  /** Which of the basemap's two building feature-states paints it, each in its own colour. */
-  state: 'select' | 'highlight'
+  rank: number
   code: string
   use: string
   stage: string
-  developer: string
-  community: string
-  /** For the map label and tooltip. */
+  /** For the pin's card and tooltip. */
   headline: string
-  totalValue: { value: string; unit: string; years: string[]; spark: number[] }
-  units: number
-  unitTypes: CountRow[]
-  completion: number
-  handover: string
-  reports: string[]
-  tabs: Record<BuildingTabId, BuildingTab>
+  /** The panel's left column, top to bottom. */
+  rail: {
+    value: { label: string; value: string; years: string[]; spark: number[] }
+    count: { label: string; value: string }
+    mix: { label: string; center: string; rows: CountRow[] }
+    ring: { label: string; pct: number; caption: string; note: string }
+    reports: { label: string; items: string[] }
+  }
+  tabs: Record<SiteTabId, SiteTab>
 }

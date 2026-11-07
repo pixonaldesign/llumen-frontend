@@ -29,7 +29,7 @@ import styles from './LandingAskStage.module.css'
 import { findingStage, isFindingPlace, type FindingStageId } from './landingFindingExperiences'
 import { TomtomMap, type TomtomMapHandle } from '../tomtom/TomtomMap'
 import tomtomStyles from '../tomtom/TomtomStory.module.css'
-import type { TomtomTower } from '../tomtom/tomtomMapLayers'
+import { TomtomLegendGlyph } from '../tomtom/TomtomLegendGlyph'
 import type { MapDataLayer } from '../tomtom/tomtomTypes'
 import storyStyles from '../story/StoryView.module.css'
 
@@ -308,15 +308,14 @@ const PREVIEW_ZOOM_OFFSET = -1.7
 
 const NO_HIDDEN: ReadonlySet<string> = new Set()
 
-/** Hard steps between a ramp's colours, as binned towers read it. */
+/** Hard steps between a ramp's colours, as binned layers read them. */
 const steppedRamp = (ramp: readonly string[]) =>
   `linear-gradient(to right, ${ramp
     .map((color, index) => `${color} ${(index / ramp.length) * 100}% ${((index + 1) / ramp.length) * 100}%`)
     .join(', ')})`
 
-/** The story's Map Data card, read-only: each layer's colour scale, and the labelled towers it ranks. */
-function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: TomtomTower[] }) {
-  const labelled = towers.filter((tower) => tower.label !== false)
+/** The story's Map Data card, read-only: each layer's colour scale, or its categories with their marks. */
+function FindingMapData({ layers }: { layers: MapDataLayer[] }) {
   return (
     <div className={`${storyStyles.mapData} ${styles.mapData}`}>
       <div className={storyStyles.mapDataHeader}>
@@ -329,9 +328,9 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: To
               <p className={storyStyles.mapLayerTitle}>{layer.title}</p>
             </div>
             <div className={storyStyles.mapLayerAttrs}>
-              {'ramp' in layer.color ? (
-                <div className={storyStyles.mapLayerAttr}>
-                  <p className={storyStyles.mapLayerAttrLabel}>Color</p>
+              <div className={storyStyles.mapLayerAttr}>
+                <p className={storyStyles.mapLayerAttrLabel}>Color</p>
+                {'ramp' in layer.color ? (
                   <div className={storyStyles.legendScale}>
                     <span>{layer.color.low ?? 'Low'}</span>
                     <span
@@ -341,24 +340,18 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: To
                     />
                     <span>{layer.color.high ?? 'High'}</span>
                   </div>
-                </div>
-              ) : null}
-              {labelled.length ? (
-                <div className={storyStyles.mapLayerAttr}>
-                  <p className={storyStyles.mapLayerAttrLabel}>Top towers</p>
-                  {labelled
-                    .filter((tower) => tower.group === layer.group)
-                    .map((tower) => (
-                      <div key={tower.id} className={storyStyles.legendRow}>
-                        <span className={`${storyStyles.legendMark} ${tomtomStyles.legendLabel}`}>{tower.title}</span>
-                        <span className={storyStyles.legendMark}>
-                          <span className={storyStyles.legendCount}>{tower.tip.rows?.[0]?.[1]}</span>
-                          <i className={tomtomStyles.towerGlyph} style={{ background: tower.color }} aria-hidden />
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              ) : null}
+                ) : (
+                  layer.color.items.map((item) => (
+                    <div key={item.label} className={storyStyles.legendRow}>
+                      <span className={`${storyStyles.legendMark} ${tomtomStyles.legendLabel}`}>{item.label}</span>
+                      <span className={storyStyles.legendMark}>
+                        {item.count ? <span className={storyStyles.legendCount}>{item.count}</span> : null}
+                        <TomtomLegendGlyph layer={layer} color={item.color} />
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </section>
         ))}
@@ -367,7 +360,7 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: To
   )
 }
 
-/** A real-tomtom finding's place, as Tell Me More reads it: every tall tower coloured by its potential. */
+/** An answer's view of Abu Dhabi Island: its sites, traffic and catchments, and the Map Data that reads them. */
 function FindingPlaceMap({
   place,
   capture,
@@ -401,14 +394,15 @@ function FindingPlaceMap({
         controlsClassName={styles.mapControls}
         handleRef={handleRef}
       />
-      {preview ? null : <FindingMapData layers={stage.layers} towers={stage.scene.towers} />}
+      {preview ? null : <FindingMapData layers={stage.layers} />}
     </>
   )
 }
 
-/** The story map with whatever the reply annotated on it. */
+/** The story map with whatever the reply annotated on it; nothing until the reply gives it a snapshot. */
 export function LandingAskMap({ snapshot, ...rest }: LandingAskMapProps) {
-  const place = isFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
+  if (!snapshot) return null
+  const place = isFindingPlace(snapshot.findingPlace) ? snapshot.findingPlace : null
   if (place) return <FindingPlaceMap place={place} {...rest} />
   return <ReplyMap snapshot={snapshot} {...rest} />
 }

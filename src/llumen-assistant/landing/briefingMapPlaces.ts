@@ -1,4 +1,4 @@
-/** The Briefing map's places: one per real-tomtom finding, each with its own camera and map scene. */
+/** The Briefing map's places: one per TomTom map finding, each with its own camera and map scene. */
 import { TOMTOM_PLACES, type TomtomPlace } from '../tomtom/tomtomScenario'
 import type { TomtomPlaceId } from '../tomtom/tomtomTypes'
 

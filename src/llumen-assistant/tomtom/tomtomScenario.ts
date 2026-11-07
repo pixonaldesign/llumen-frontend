@@ -1,29 +1,511 @@
 /**
- * The real-tomtom demo: Downtown Dubai's off-plan sales this quarter, and the two towers that led
- * them. Each tower is lit in its own colour on the map and opens its details panel when clicked.
+ * The TomTom demo: where to open the next fuel station on Abu Dhabi Island. Twelve candidate sites
+ * along the island's arterials, scored on passing traffic, catchment, competition and access, against
+ * the network's eight stations and the rivals around them. Sites are pinned on the map; the shortlisted
+ * ones open a details panel when clicked.
  */
-import { hash, offsetKm, scatter, type LngLat } from './tomtomGeo'
-import type { TomtomHeatPoint, TomtomMapScene, TomtomTower } from './tomtomMapLayers'
+import { along, catchment, distanceKm, hash, shift, slice, type LngLat } from './tomtomGeo'
+import type { TomtomDisk, TomtomFence, TomtomFlow, TomtomHeatPoint, TomtomMapScene, TomtomPin } from './tomtomMapLayers'
 import {
   PALETTE,
-  type BuildingId,
-  type BuildingTab,
   type CountRow,
-  type TomtomBuilding,
+  type MapDataLayer,
+  type SiteId,
+  type SiteTab,
+  type SiteTabId,
   type TomtomCamera,
   type TomtomCard,
   type TomtomPlaceId,
+  type TomtomSite,
   type TomtomStory,
-  type MapDataLayer,
   type Tone,
 } from './tomtomTypes'
 
-export const TOWER_COLOR: Record<BuildingId, string> = {
-  dreamscape: PALETTE.teal[2],
-  'opera-crest': PALETTE.categorical[5],
+/* —— The island's arterials: centrelines traced from the basemap's road network —— */
+
+type StreetId = 'corniche' | 'falah' | 'hazza' | 'khaleej' | 'mbk' | 'muroor' | 'rashid' | 'szbs'
+
+const STREETS: Record<StreetId, LngLat[]> = {
+  corniche: [
+    [54.3221, 24.46117], [54.32458, 24.46323], [54.34135, 24.4733], [54.34382, 24.4755], [54.34505, 24.47711],
+    [54.34537, 24.47819], [54.35035, 24.48802], [54.35119, 24.48916], [54.35248, 24.49094], [54.35398, 24.49201],
+    [54.35713, 24.49455], [54.35861, 24.49553], [54.361, 24.49697], [54.36297, 24.4989], [54.36447, 24.5],
+    [54.36552, 24.50095], [54.37469, 24.5098], [54.37623, 24.51156], [54.37712, 24.51253], [54.3779, 24.51637],
+  ],
+  falah: [[54.34592, 24.45999], [54.34899, 24.46261], [54.36514, 24.47558], [54.38288, 24.48812], [54.38635, 24.4906]],
+  hazza: [
+    [54.34701, 24.44903], [54.34993, 24.4516], [54.35084, 24.45241], [54.35539, 24.45648], [54.36164, 24.46205],
+    [54.37064, 24.47016], [54.37531, 24.47353], [54.38166, 24.47803], [54.38417, 24.47923], [54.39262, 24.48294],
+    [54.39512, 24.48498], [54.39609, 24.48778], [54.3969, 24.49369],
+  ],
+  khaleej: [
+    [54.34088, 24.47308], [54.34349, 24.46956], [54.34621, 24.46656], [54.34717, 24.46573], [54.35001, 24.46244],
+    [54.35151, 24.46094], [54.35797, 24.4548], [54.35954, 24.45326], [54.36206, 24.44965], [54.36677, 24.44465],
+    [54.37216, 24.43915], [54.37652, 24.43488], [54.37866, 24.43306], [54.38127, 24.43199], [54.38724, 24.43056],
+    [54.39022, 24.43011], [54.40155, 24.42683], [54.40704, 24.42533], [54.42697, 24.41982],
+  ],
+  mbk: [
+    [54.35848, 24.43886], [54.36087, 24.44075], [54.3617, 24.44148], [54.36588, 24.44471], [54.3667, 24.44545],
+    [54.36908, 24.44729], [54.3697, 24.44775], [54.37238, 24.44989], [54.37298, 24.45033], [54.37471, 24.4518],
+    [54.37738, 24.45385], [54.38709, 24.46152], [54.3892, 24.46326], [54.3895, 24.46352], [54.39187, 24.46545],
+    [54.39381, 24.46703],
+  ],
+  muroor: [
+    [54.35857, 24.4955], [54.3634, 24.48986], [54.36486, 24.48719], [54.36968, 24.47966], [54.37606, 24.47326],
+    [54.39816, 24.44965], [54.40155, 24.44607], [54.40352, 24.44399], [54.40632, 24.4418], [54.42036, 24.43617],
+    [54.42419, 24.43499],
+  ],
+  rashid: [
+    [54.35287, 24.48986], [54.35656, 24.48581], [54.35961, 24.48231], [54.36206, 24.47952], [54.36539, 24.47575],
+    [54.368, 24.47304], [54.3822, 24.45711], [54.38609, 24.45369], [54.39009, 24.44965], [54.3948, 24.44465],
+    [54.3993, 24.43979], [54.40151, 24.43808], [54.40527, 24.43602], [54.42058, 24.42998], [54.42422, 24.42916],
+  ],
+  szbs: [
+    [54.36526, 24.49924], [54.37038, 24.4992], [54.37182, 24.49815], [54.37589, 24.4933], [54.38011, 24.48795],
+    [54.38069, 24.4876], [54.38262, 24.48523], [54.38448, 24.48366], [54.38625, 24.48129], [54.38718, 24.47994],
+    [54.38953, 24.47709], [54.39063, 24.47561], [54.39174, 24.47237], [54.39415, 24.46932], [54.3955, 24.46723],
+    [54.40155, 24.45791], [54.40601, 24.45104], [54.4073, 24.44972], [54.40946, 24.44822], [54.41983, 24.44428],
+    [54.42362, 24.44349],
+  ],
 }
 
-const HEAT_RAMP = [PALETTE.purple[0], PALETTE.purple[2], PALETTE.purple[4], PALETTE.purple[6]]
+const STREET_IDS = Object.keys(STREETS) as StreetId[]
+
+export const STREET_NAMES: Record<StreetId, string> = {
+  corniche: 'Corniche Rd',
+  falah: 'Al Falah St',
+  hazza: 'Hazza Bin Zayed The First St',
+  khaleej: 'Al Khaleej Al Arabi St',
+  mbk: 'Mohammed Bin Khalifa St',
+  muroor: 'Sultan Bin Zayed The First St',
+  rashid: 'Sheikh Rashid Bin Saeed St',
+  szbs: 'Sheikh Zayed Bin Sultan St',
+}
+
+/** The street's heading at `t`, in degrees clockwise from north. */
+function headingAt(path: LngLat[], t: number) {
+  const a = along(path, Math.max(0, t - 0.02))
+  const b = along(path, Math.min(1, t + 0.02))
+  return (Math.atan2((b[0] - a[0]) * Math.cos((a[1] * Math.PI) / 180), b[1] - a[1]) * 180) / Math.PI
+}
+
+/* —— Colours —— */
+
+export const SITE_COLOR = PALETTE.teal[2]
+export const STATION_COLOR = PALETTE.blue[3]
+export const RIVAL_COLOR = PALETTE.categorical[5]
+/** Traffic on a street, lighter to heavier. */
+export const FLOW_RAMP = [PALETTE.blue[1], PALETTE.blue[3], PALETTE.purple[3], PALETTE.purple[5]]
+/** Fuel demand between 5 and 9pm, low to high. */
+const DEMAND_RAMP = [PALETTE.purple[0], PALETTE.purple[2], PALETTE.purple[4], PALETTE.purple[6]]
+
+const flowColor = (weight: number) => FLOW_RAMP[Math.min(FLOW_RAMP.length - 1, Math.floor(weight * FLOW_RAMP.length))]
+
+/* —— Candidate sites —— */
+
+type SiteSpec = {
+  id: string
+  area: string
+  street: StreetId
+  /** Where along the street (0–1), and how far off its centreline to the right. */
+  t: number
+  side: number
+  /** 0–100 over the whole day: traffic, catchment, competition and access together. */
+  score: number
+  /** The same score counting only 5 to 9pm. */
+  evening: number
+  /** Thousand vehicles past the site a day. */
+  traffic: number
+  /** Share of the day's traffic between 5 and 9pm, %. */
+  eveningShare: number
+  /** Projected fuel sold, million litres a year. */
+  volume: number
+}
+
+const SITE_SPECS: SiteSpec[] = [
+  { id: 'site-szbs', area: 'Al Zahiyah', street: 'szbs', t: 0.3, side: 0.05, score: 87, evening: 89, traffic: 48.2, eveningShare: 31, volume: 9.8 },
+  { id: 'site-corniche', area: 'Al Khalidiyah', street: 'corniche', t: 0.55, side: 0.06, score: 81, evening: 76, traffic: 52.6, eveningShare: 24, volume: 8.9 },
+  { id: 'site-khaleej', area: 'Al Bateen', street: 'khaleej', t: 0.3, side: 0.05, score: 78, evening: 84, traffic: 41.8, eveningShare: 36, volume: 8.1 },
+  { id: 'site-rashid', area: 'Al Markaziyah', street: 'rashid', t: 0.14, side: 0.04, score: 74, evening: 80, traffic: 39.5, eveningShare: 38, volume: 7.6 },
+  { id: 'site-hazza', area: 'Al Manhal', street: 'hazza', t: 0.4, side: 0.05, score: 71, evening: 70, traffic: 36.1, eveningShare: 29, volume: 7.0 },
+  { id: 'site-muroor', area: 'Al Nahyan', street: 'muroor', t: 0.45, side: 0.05, score: 66, evening: 68, traffic: 33.9, eveningShare: 32, volume: 6.5 },
+  { id: 'site-falah', area: 'Madinat Zayed', street: 'falah', t: 0.75, side: 0.05, score: 62, evening: 65, traffic: 30.2, eveningShare: 33, volume: 6.0 },
+  { id: 'site-mbk', area: 'Al Mushrif', street: 'mbk', t: 0.5, side: 0.05, score: 58, evening: 55, traffic: 28.4, eveningShare: 26, volume: 5.6 },
+  { id: 'site-corniche-w', area: 'Al Bateen Corniche', street: 'corniche', t: 0.2, side: 0.06, score: 54, evening: 50, traffic: 26.1, eveningShare: 22, volume: 5.2 },
+  { id: 'site-khaleej-e', area: 'Al Karamah', street: 'khaleej', t: 0.62, side: 0.05, score: 49, evening: 52, traffic: 24.8, eveningShare: 30, volume: 4.8 },
+  { id: 'site-rashid-s', area: 'Al Rowdah', street: 'rashid', t: 0.72, side: 0.05, score: 45, evening: 47, traffic: 22.3, eveningShare: 31, volume: 4.4 },
+  { id: 'site-hazza-s', area: 'Al Khubeirah', street: 'hazza', t: 0.12, side: 0.05, score: 41, evening: 38, traffic: 19.6, eveningShare: 23, volume: 3.9 },
+]
+
+type Placed<T> = T & { at: LngLat }
+
+const place = <T extends { street: StreetId; t: number; side: number }>(spec: T): Placed<T> => ({
+  ...spec,
+  at: along(STREETS[spec.street], spec.t, spec.side),
+})
+
+const CANDIDATES = SITE_SPECS.map(place)
+
+/* —— The network's stations —— */
+
+type StationSpec = { id: string; area: string; street: StreetId; t: number; side: number; volume: number }
+
+const STATION_SPECS: StationSpec[] = [
+  { id: 'st-wahda', area: 'Al Wahda', street: 'muroor', t: 0.2, side: 0.05, volume: 7.1 },
+  { id: 'st-khalidiyah', area: 'Khalidiyah Park', street: 'corniche', t: 0.36, side: 0.35, volume: 6.8 },
+  { id: 'st-tourist-club', area: 'Tourist Club', street: 'corniche', t: 0.93, side: 0.2, volume: 6.4 },
+  { id: 'st-mushrif', area: 'Mushrif Park', street: 'rashid', t: 0.5, side: 0.05, volume: 6.3 },
+  { id: 'st-danah', area: 'Al Danah', street: 'szbs', t: 0.1, side: 0.06, volume: 6.0 },
+  { id: 'st-bateen', area: 'Bateen Marina', street: 'khaleej', t: 0.1, side: 0.25, volume: 5.9 },
+  { id: 'st-nahyan', area: 'Nahyan Camp', street: 'muroor', t: 0.7, side: 0.05, volume: 5.7 },
+  { id: 'st-karamah', area: 'Karamah Square', street: 'mbk', t: 0.2, side: 0.05, volume: 5.4 },
+]
+
+const STATIONS = STATION_SPECS.map(place)
+
+/** Fuel the average station sells, million litres a year. */
+export const NETWORK_AVERAGE = STATIONS.reduce((sum, station) => sum + station.volume, 0) / STATIONS.length
+
+/* —— Rival forecourts: spread along the arterials, clear of the sites and each other —— */
+
+const RIVALS: { id: string; at: LngLat }[] = (() => {
+  const out: { id: string; at: LngLat }[] = []
+  for (let index = 0; out.length < 24 && index < 400; index += 1) {
+    const street = STREET_IDS[index % STREET_IDS.length]
+    const t = 0.06 + 0.88 * hash(index, 41)
+    /* The sea runs along the Corniche's left and Sheikh Zayed Bin Sultan St's left. */
+    const left = street !== 'corniche' && street !== 'szbs' && hash(index, 43) > 0.5
+    const at = along(STREETS[street], t, left ? -0.05 : 0.05)
+    const clear =
+      CANDIDATES.every((site) => distanceKm(site.at, at) > 0.75) &&
+      STATIONS.every((station) => distanceKm(station.at, at) > 0.5) &&
+      out.every((rival) => distanceKm(rival.at, at) > 0.6)
+    if (clear) out.push({ id: `rival-${out.length + 1}`, at })
+  }
+  return out
+})()
+
+const nearest = (at: LngLat, points: { at: LngLat }[]) => Math.min(...points.map((point) => distanceKm(point.at, at)))
+const km = (value: number) => `${value.toFixed(1)} km`
+
+/** Each candidate with how far its nearest rival and nearest of the network's stations are. */
+const SITES = CANDIDATES.map((site) => ({
+  ...site,
+  rivalKm: nearest(site.at, RIVALS),
+  stationKm: nearest(site.at, STATIONS),
+  rivalsWithin3: RIVALS.filter((rival) => distanceKm(rival.at, site.at) <= 3).length,
+}))
+
+type Site = (typeof SITES)[number]
+
+const byScore = [...SITES].sort((a, b) => b.score - a.score)
+const byEvening = [...SITES].sort((a, b) => b.evening - a.evening)
+const rankOf = (site: Site) => byScore.indexOf(site) + 1
+const eveningRankOf = (site: Site) => byEvening.indexOf(site) + 1
+const siteById = (id: string) => SITES.find((site) => site.id === id)!
+
+/** The candidates best first over the whole day, as the replies rank them. */
+export const SITE_RANKING = byScore.map((site) => ({
+  id: site.id,
+  name: site.area,
+  street: STREET_NAMES[site.street],
+  score: site.score,
+  evening: site.evening,
+  traffic: site.traffic,
+  eveningShare: site.eveningShare,
+  volume: site.volume,
+  rivalKm: site.rivalKm,
+  stationKm: site.stationKm,
+}))
+
+/** The same, ranked on 5 to 9pm. */
+export const EVENING_RANKING = byEvening.map((site) => SITE_RANKING.find((entry) => entry.id === site.id)!)
+
+/* —— Map groups —— */
+
+const SITES_GROUP = 'sites'
+const STATIONS_GROUP = 'stations'
+const RIVALS_GROUP = 'rivals'
+const TRAFFIC_GROUP = 'traffic'
+const CATCHMENT_GROUP = 'catchments'
+const VOLUME_GROUP = 'volume'
+const DEMAND_GROUP = 'demand'
+const TRADE_GROUP = 'trade'
+
+/** Labelled pins carry a name card; the rest name themselves on hover. */
+function sitePin(site: Site, rank: number, labelled: boolean, evening = false): TomtomPin {
+  const score = evening ? site.evening : site.score
+  return {
+    id: site.id,
+    at: site.at,
+    color: SITE_COLOR,
+    kind: 'site',
+    rank,
+    label: labelled,
+    title: site.area,
+    text: `${evening ? 'Evening score' : 'Score'} ${score} · ${site.traffic.toFixed(1)}k vehicles a day`,
+    tip: {
+      title: `${site.area} · Site ${rank}`,
+      rows: [
+        ['Street', STREET_NAMES[site.street]],
+        [evening ? 'Score, 5–9pm' : 'Score', `${score} of 100`],
+        evening
+          ? ['Traffic, 5–9pm', `${Math.round(site.traffic * site.eveningShare * 10).toLocaleString('en-US')} vehicles`]
+          : ['Passing traffic', `${site.traffic.toFixed(1)}k a day`],
+        ['Nearest rival', km(site.rivalKm)],
+      ],
+    },
+    group: SITES_GROUP,
+  }
+}
+
+function stationPin(station: (typeof STATIONS)[number], labelled = false): TomtomPin {
+  return {
+    id: station.id,
+    at: station.at,
+    color: STATION_COLOR,
+    kind: 'station',
+    label: labelled,
+    title: `${station.area} station`,
+    text: `${station.volume.toFixed(1)}M litres a year`,
+    tip: {
+      title: `${station.area} station`,
+      rows: [
+        ['Street', STREET_NAMES[station.street]],
+        ['Fuel sold', `${station.volume.toFixed(1)}M litres a year`],
+        ['Nearest candidate', km(nearest(station.at, SITES))],
+      ],
+    },
+    group: STATIONS_GROUP,
+  }
+}
+
+function rivalPin(rival: (typeof RIVALS)[number], labelled = false, from?: (typeof SITES)[number]): TomtomPin {
+  const site = from ?? byScore.reduce((best, item) => (distanceKm(item.at, rival.at) < distanceKm(best.at, rival.at) ? item : best))
+  return {
+    id: rival.id,
+    at: rival.at,
+    color: RIVAL_COLOR,
+    kind: 'rival',
+    label: labelled,
+    title: 'Rival station',
+    text: `${km(distanceKm(site.at, rival.at))} from ${site.area}`,
+    tip: {
+      title: 'Rival station',
+      rows: [
+        [from ? 'Candidate' : 'Nearest candidate', site.area],
+        ['Distance', km(distanceKm(site.at, rival.at))],
+        ['Open', hash(Number(rival.id.slice(6)), 3) > 0.4 ? '24 hours' : '6am – midnight'],
+      ],
+    },
+    group: RIVALS_GROUP,
+  }
+}
+
+/** Traffic as two lanes a street, three stretches each, so the load varies along it. */
+function streetFlows(load: Record<StreetId, number>, seed: number, streets: StreetId[] = STREET_IDS): TomtomFlow[] {
+  return streets.flatMap((street, s) =>
+    [0, 1, 2].flatMap((part) => {
+      const weight = Math.max(0.05, Math.min(0.98, load[street] + (hash(part + s * 3, seed) - 0.5) * 0.18))
+      const stretch = slice(STREETS[street], part / 3, (part + 1) / 3)
+      const lane = (path: LngLat[], id: string): TomtomFlow => ({ id, path, color: flowColor(weight), weight, group: TRAFFIC_GROUP })
+      return [lane(shift(stretch, 0.012), `${street}-${part}-a`), lane(shift([...stretch].reverse(), 0.012), `${street}-${part}-b`)]
+    }),
+  )
+}
+
+const ALL_DAY_LOAD: Record<StreetId, number> = { szbs: 0.9, corniche: 0.86, muroor: 0.78, khaleej: 0.72, rashid: 0.68, hazza: 0.58, mbk: 0.52, falah: 0.48 }
+const EVENING_LOAD: Record<StreetId, number> = { szbs: 0.94, khaleej: 0.9, rashid: 0.88, muroor: 0.74, falah: 0.62, corniche: 0.56, hazza: 0.54, mbk: 0.42 }
+
+function siteFence(site: Site, radiusKm: number, heightM: number, group = CATCHMENT_GROUP): TomtomFence {
+  const ring = catchment(site.at, radiusKm, site.score, headingAt(STREETS[site.street], site.t))
+  return { id: `${site.id}-catchment`, ring, color: SITE_COLOR, heightM, group }
+}
+
+function stationFence(station: (typeof STATIONS)[number], heightM: number): TomtomFence {
+  const ring = catchment(station.at, 0.85, station.volume * 10, headingAt(STREETS[station.street], station.t))
+  return { id: `${station.id}-catchment`, ring, color: STATION_COLOR, heightM, group: CATCHMENT_GROUP }
+}
+
+const volumeDisk = (site: Site, scale = 1): TomtomDisk => ({
+  id: `${site.id}-volume`,
+  at: site.at,
+  radiusM: (60 + site.volume * 22) * scale,
+  color: SITE_COLOR,
+  group: VOLUME_GROUP,
+})
+
+/** Evening fuel demand along the streets, heaviest where the evening load is. */
+const EVENING_DEMAND: TomtomHeatPoint[] = STREET_IDS.flatMap((street, s) =>
+  Array.from({ length: 34 }, (_, index) => {
+    const t = (index + hash(index, s + 7)) / 34
+    return {
+      at: along(STREETS[street], t, (hash(index, s + 11) - 0.5) * 0.24),
+      weight: EVENING_LOAD[street] * (0.55 + 0.45 * hash(index, s + 13)),
+      group: DEMAND_GROUP,
+    }
+  }),
+)
+
+const scene = (parts: Partial<TomtomMapScene>): TomtomMapScene => ({
+  towers: [],
+  heat: [],
+  heatRadiusM: 150,
+  heatRamp: DEMAND_RAMP,
+  ...parts,
+})
+
+/** The whole island: every candidate, the network and its rivals, the day's traffic and the shortlist's catchments. */
+const ISLAND_SCENE = scene({
+  pins: [
+    ...byScore.map((site, index) => sitePin(site, index + 1, index < 3)),
+    ...STATIONS.map((station) => stationPin(station)),
+    ...RIVALS.map((rival) => rivalPin(rival)),
+  ],
+  flows: streetFlows(ALL_DAY_LOAD, 5),
+  fences: [...byScore.slice(0, 3).map((site) => siteFence(site, 0.95, 160)), ...STATIONS.map((station) => stationFence(station, 70))],
+  disks: SITES.map((site) => volumeDisk(site)),
+})
+
+const SZBS = siteById('site-szbs')
+const RASHID = siteById('site-rashid')
+
+const closest = <T extends { at: LngLat }>(at: LngLat, points: T[], count: number) =>
+  [...points].sort((a, b) => distanceKm(a.at, at) - distanceKm(b.at, at)).slice(0, count)
+
+const SZBS_RIVALS = closest(SZBS.at, RIVALS, 4)
+
+/** Site 1 close up: its catchment, both carriageways past it and the rivals nearest it. */
+const SZBS_SCENE = scene({
+  pins: [
+    sitePin(SZBS, 1, true),
+    ...closest(SZBS.at, SITES.filter((site) => site !== SZBS), 2).map((site) => sitePin(site, rankOf(site), false)),
+    ...SZBS_RIVALS.map((rival, index) => rivalPin(rival, index === 0, SZBS)),
+    ...closest(SZBS.at, STATIONS, 2).map((station) => stationPin(station, true)),
+  ],
+  flows: streetFlows(ALL_DAY_LOAD, 9, ['szbs', 'muroor', 'hazza', 'falah', 'rashid']),
+  fences: [siteFence(SZBS, 0.9, 150)],
+  disks: [volumeDisk(SZBS, 1.4)],
+})
+
+/** Evening: the island re-ranked on 5 to 9pm, the evening's traffic and demand. */
+const EVENING_SCENE = scene({
+  pins: [
+    ...byEvening.map((site, index) => sitePin(site, index + 1, index < 3, true)),
+    ...STATIONS.map((station) => stationPin(station)),
+    ...RIVALS.map((rival) => rivalPin(rival)),
+  ],
+  flows: streetFlows(EVENING_LOAD, 13),
+  fences: byEvening.slice(0, 3).map((site) => siteFence(site, 0.95, 160)),
+  disks: SITES.map((site) => ({ ...volumeDisk(site), radiusM: 60 + site.volume * site.eveningShare * 0.7 })),
+  heat: EVENING_DEMAND,
+  heatRadiusM: 260,
+})
+
+const CORRIDOR_STREETS: StreetId[] = ['rashid', 'falah', 'muroor', 'corniche', 'hazza']
+const CORRIDOR_RIVALS = closest(RASHID.at, RIVALS, 5)
+
+/** Sheikh Rashid Bin Saeed St between 5 and 9pm: the corridor's traffic and demand, and the site on it. */
+const CORRIDOR_SCENE = scene({
+  pins: [
+    ...closest(RASHID.at, SITES, 3).map((site) => sitePin(site, eveningRankOf(site), site === RASHID, true)),
+    ...closest(RASHID.at, STATIONS, 2).map((station) => stationPin(station)),
+    ...CORRIDOR_RIVALS.map((rival) => rivalPin(rival)),
+  ],
+  flows: streetFlows(EVENING_LOAD, 17, CORRIDOR_STREETS),
+  fences: [siteFence(RASHID, 0.55, 90)],
+  disks: [volumeDisk(RASHID, 1.2)],
+  heat: EVENING_DEMAND,
+  heatRadiusM: 110,
+})
+
+/** The rivals' trade areas round the corridor, and the gap the site fills. */
+const TRADE_SCENE = scene({
+  pins: [
+    sitePin(RASHID, eveningRankOf(RASHID), true, true),
+    ...CORRIDOR_RIVALS.map((rival, index) => rivalPin(rival, index < 2, RASHID)),
+    ...closest(RASHID.at, STATIONS, 2).map((station) => stationPin(station)),
+  ],
+  flows: streetFlows(EVENING_LOAD, 19, CORRIDOR_STREETS),
+  fences: CORRIDOR_RIVALS.map((rival, index) => ({
+    id: `${rival.id}-trade`,
+    ring: catchment(rival.at, 0.5, index + 31, 40),
+    color: RIVAL_COLOR,
+    heightM: 70,
+    group: TRADE_GROUP,
+  })),
+  disks: [volumeDisk(RASHID, 1.2)],
+})
+
+/* —— Cameras —— */
+
+/** The island from the south-east, Corniche to Al Mushrif in frame. */
+const ISLAND_CAMERA: TomtomCamera = { center: [54.372, 24.468], zoom: 13.3, pitch: 50, bearing: -22 }
+const SZBS_CAMERA: TomtomCamera = { center: SZBS.at, zoom: 15.6, pitch: 62, bearing: -38 }
+/** Sheikh Rashid Bin Saeed St at Al Markaziyah, looking up the corridor. */
+const CORRIDOR_CAMERA: TomtomCamera = { center: [54.362, 24.481], zoom: 15.49, pitch: 68, bearing: -16 }
+const TRADE_CAMERA: TomtomCamera = { center: [54.364, 24.479], zoom: 14.6, pitch: 58, bearing: -8 }
+
+/* —— Map Data —— */
+
+const siteItems = (sites: Site[], evening = false) =>
+  sites.map((site) => ({ label: site.area, color: SITE_COLOR, count: String(evening ? site.evening : site.score) }))
+
+const SITES_LAYER = (sites: Site[], evening = false): MapDataLayer => ({
+  group: SITES_GROUP,
+  title: evening ? 'Candidate sites, 5–9pm' : 'Candidate sites',
+  mark: 'pin',
+  color: { items: siteItems(sites, evening) },
+})
+const STATIONS_LAYER: MapDataLayer = {
+  group: STATIONS_GROUP,
+  title: 'Your stations',
+  mark: 'pin',
+  color: { items: [{ label: 'Your stations', color: STATION_COLOR, count: String(STATIONS.length) }] },
+}
+const RIVALS_LAYER = (count: number): MapDataLayer => ({
+  group: RIVALS_GROUP,
+  title: 'Rival stations',
+  mark: 'dot',
+  color: { items: [{ label: 'Rival stations', color: RIVAL_COLOR, count: String(count) }] },
+})
+const TRAFFIC_LAYER = (evening = false): MapDataLayer => ({
+  group: TRAFFIC_GROUP,
+  title: evening ? 'Traffic, 5–9pm' : 'Traffic flow',
+  mark: 'flow',
+  color: { ramp: FLOW_RAMP, low: 'Lighter', high: 'Heavier' },
+})
+const CATCHMENT_LAYER = (withStations: boolean): MapDataLayer => ({
+  group: CATCHMENT_GROUP,
+  title: '5-minute catchments',
+  mark: 'fence',
+  color: {
+    items: [
+      { label: 'Shortlisted sites', color: SITE_COLOR },
+      ...(withStations ? [{ label: 'Your stations', color: STATION_COLOR }] : []),
+    ],
+  },
+})
+const VOLUME_LAYER: MapDataLayer = {
+  group: VOLUME_GROUP,
+  title: 'Projected fuel volume',
+  mark: 'disk',
+  color: { items: [{ label: 'Litres a year, by size', color: SITE_COLOR }] },
+}
+const DEMAND_LAYER: MapDataLayer = {
+  group: DEMAND_GROUP,
+  title: 'Fuel demand, 5–9pm',
+  mark: 'heat',
+  color: { ramp: DEMAND_RAMP, low: 'Lower', high: 'Higher' },
+}
+const TRADE_LAYER: MapDataLayer = {
+  group: TRADE_GROUP,
+  title: 'Rival trade areas',
+  mark: 'fence',
+  color: { items: [{ label: 'Within 3 minutes of a rival', color: RIVAL_COLOR }] },
+}
+
+/* —— Story helpers —— */
 
 /** `count` values from `from` to `to`, with a little deterministic noise. */
 function series(count: number, from: number, to: number, seed: number, noise = 0.08) {
@@ -34,485 +516,17 @@ function series(count: number, from: number, to: number, seed: number, noise = 0
   })
 }
 
-const rows = (entries: [string, number][]): CountRow[] => entries.map(([name, count]) => ({ name, count }))
-const bars = (entries: [string, number][]) => entries.map(([label, value]) => ({ label, value }))
-
-const LAST_30_DAYS = ['6 Oct', '13 Oct', '20 Oct', '27 Oct', '3 Nov']
-const LAST_12_MONTHS = ['Dec', 'Feb', 'Apr', 'Jun', 'Aug', 'Oct']
-
-function tabs(spec: {
-  seed: number
-  sold: number
-  value: string
-  share: string
-  available: number
-  sellThrough: string
-  owners: number
-  perOwner: string
-  foreign: string
-  yieldPct: string
-  rent: string
-  comparables: number
-  soldByType: [string, number][]
-  availableByType: [string, number][]
-  ownersByType: [string, number][]
-  rentalsByType: [string, number][]
-  buyers: { nationality: [string, number][]; gender: [string, number][]; age: [string, number][]; marital: [string, number][] }
-  intent: [string, number][][]
-  ownerTypes: [string, number][][]
-  tenants: [string, number][][]
-  daily: [number, number]
-  sellCurve: [number, number]
-  newOwners: [number, number]
-  rentCurve: [number, number]
-}): Record<'sales' | 'utilization' | 'ownership' | 'rentals', BuildingTab> {
-  return {
-    sales: {
-      kpis: [
-        { label: 'Count of sales', value: spec.sold.toLocaleString('en-US') },
-        { label: 'Sales value', value: spec.value, unit: 'AED' },
-        { label: '% of sales to total value', value: spec.share },
-      ],
-      breakdown: { title: 'Unit types', rows: rows(spec.soldByType) },
-      demographics: {
-        title: 'Buyer demographics',
-        groups: [
-          { title: 'Nationality', bars: bars(spec.buyers.nationality) },
-          { title: 'Gender', bars: bars(spec.buyers.gender) },
-          { title: 'Age group', bars: bars(spec.buyers.age) },
-          { title: 'Marital status', bars: bars(spec.buyers.marital) },
-        ],
-      },
-      series: {
-        title: 'Sales, last 30 days',
-        unit: 'units a day',
-        x: LAST_30_DAYS,
-        yLabels: ['15', '10', '5', '0'],
-        yMax: 15,
-        points: series(30, spec.daily[0], spec.daily[1], spec.seed, 0.32),
-      },
-    },
-    utilization: {
-      kpis: [
-        { label: 'Units sold', value: spec.sold.toLocaleString('en-US') },
-        { label: 'Units available', value: spec.available.toLocaleString('en-US') },
-        { label: 'Sell-through', value: spec.sellThrough },
-      ],
-      breakdown: { title: 'Available units by type', rows: rows(spec.availableByType) },
-      demographics: {
-        title: 'How buyers use their units',
-        groups: [
-          { title: 'Buyer intent', bars: bars(spec.intent[0]) },
-          { title: 'Residency', bars: bars(spec.intent[1]) },
-          { title: 'Payment', bars: bars(spec.intent[2]) },
-        ],
-      },
-      series: {
-        title: 'Sell-through, last 12 months',
-        unit: '% of units',
-        x: LAST_12_MONTHS,
-        yLabels: ['80%', '40%', '0%'],
-        yMax: 80,
-        points: series(12, spec.sellCurve[0], spec.sellCurve[1], spec.seed + 3, 0.03),
-      },
-    },
-    ownership: {
-      kpis: [
-        { label: 'Owners', value: spec.owners.toLocaleString('en-US') },
-        { label: 'Units per owner', value: spec.perOwner },
-        { label: 'Foreign owners', value: spec.foreign },
-      ],
-      breakdown: { title: 'Owners by unit type', rows: rows(spec.ownersByType) },
-      demographics: {
-        title: 'Owner profile',
-        groups: [
-          { title: 'Owner type', bars: bars(spec.ownerTypes[0]) },
-          { title: 'Units owned', bars: bars(spec.ownerTypes[1]) },
-          { title: 'Resale', bars: bars(spec.ownerTypes[2]) },
-        ],
-      },
-      series: {
-        title: 'New owners, last 12 months',
-        unit: 'owners a month',
-        x: LAST_12_MONTHS,
-        yLabels: ['200', '100', '0'],
-        yMax: 200,
-        points: series(12, spec.newOwners[0], spec.newOwners[1], spec.seed + 5, 0.18),
-      },
-    },
-    rentals: {
-      kpis: [
-        { label: 'Expected gross yield', value: spec.yieldPct },
-        { label: 'Avg annual rent', value: spec.rent, unit: 'AED' },
-        { label: 'Comparable Ejari contracts', value: spec.comparables.toLocaleString('en-US') },
-      ],
-      breakdown: { title: 'Comparable contracts by type', rows: rows(spec.rentalsByType) },
-      demographics: {
-        title: 'Tenants in comparable towers',
-        groups: [
-          { title: 'Nationality', bars: bars(spec.tenants[0]) },
-          { title: 'Contract length', bars: bars(spec.tenants[1]) },
-        ],
-      },
-      series: {
-        title: 'Average rent, last 12 months',
-        unit: 'AED per sq ft a year',
-        x: LAST_12_MONTHS,
-        yLabels: ['300', '150', '0'],
-        yMax: 300,
-        points: series(12, spec.rentCurve[0], spec.rentCurve[1], spec.seed + 7, 0.02),
-      },
-    },
-  }
+/** A day's traffic by hour from 6am to 9pm, peaking in the morning and again at `evening` strength. */
+function hourly(peakK: number, evening: number, seed: number) {
+  const shape = [0.45, 0.9, 1, 0.74, 0.62, 0.6, 0.64, 0.7, 0.72, 0.78, 0.88, evening, evening * 0.98, evening * 0.8, 0.56, 0.42]
+  return shape.map((value, index) => Math.round(value * peakK * (0.96 + 0.08 * hash(index, seed)) * 10) / 10)
 }
 
-export const TOMTOM_BUILDINGS: Record<BuildingId, TomtomBuilding> = {
-  dreamscape: {
-    id: 'dreamscape',
-    name: 'Dreamscape Tower',
-    featureId: 1047612083,
-    at: [55.27202, 25.19629],
-    heightM: 356,
-    color: TOWER_COLOR.dreamscape,
-    state: 'select',
-    code: 'ID 81237',
-    use: 'Residential',
-    stage: 'Off Plan',
-    developer: 'Meridian Developments',
-    community: 'Downtown Dubai',
-    headline: 'AED 3.5bn sold this quarter · 66% sold',
-    totalValue: { value: '25.8B', unit: 'AED', years: ['2024', '2025', '2026'], spark: series(24, 14, 25.8, 11, 0.05) },
-    units: 2500,
-    unitTypes: rows([
-      ['Studio', 410],
-      ['1 Bedroom', 638],
-      ['2 Bedroom', 650],
-      ['3 Bedroom', 172],
-      ['Duplex', 400],
-      ['Penthouse', 230],
-    ]),
-    completion: 84,
-    handover: 'Q2 2027',
-    reports: ['Q3 2026 Report', 'Q2 2026 Report'],
-    tabs: tabs({
-      seed: 21,
-      sold: 1653,
-      value: '18.6B',
-      share: '72%',
-      available: 847,
-      sellThrough: '66%',
-      owners: 1412,
-      perOwner: '1.17',
-      foreign: '71%',
-      yieldPct: '6.4%',
-      rent: '168k',
-      comparables: 3240,
-      soldByType: [
-        ['Studio', 310],
-        ['1 Bedroom', 164],
-        ['2 Bedroom', 452],
-        ['3 Bedroom', 141],
-        ['Duplex', 378],
-        ['Penthouse', 208],
-      ],
-      availableByType: [
-        ['Studio', 100],
-        ['1 Bedroom', 474],
-        ['2 Bedroom', 198],
-        ['3 Bedroom', 31],
-        ['Duplex', 22],
-        ['Penthouse', 22],
-      ],
-      ownersByType: [
-        ['Studio', 262],
-        ['1 Bedroom', 141],
-        ['2 Bedroom', 386],
-        ['3 Bedroom', 122],
-        ['Duplex', 330],
-        ['Penthouse', 171],
-      ],
-      rentalsByType: [
-        ['Studio', 640],
-        ['1 Bedroom', 1140],
-        ['2 Bedroom', 1020],
-        ['3 Bedroom', 200],
-        ['Duplex', 180],
-        ['Penthouse', 60],
-      ],
-      buyers: {
-        nationality: [
-          ['UAE', 486],
-          ['USA', 312],
-          ['UK', 398],
-          ['KSA', 268],
-          ['Others', 189],
-        ],
-        gender: [
-          ['Male', 1021],
-          ['Female', 632],
-        ],
-        age: [
-          ['25-35', 402],
-          ['36-45', 588],
-          ['46-60', 381],
-          ['61-80', 282],
-        ],
-        marital: [
-          ['Family', 1034],
-          ['Single', 619],
-        ],
-      },
-      intent: [
-        [
-          ['End user', 712],
-          ['Investor', 941],
-        ],
-        [
-          ['Resident', 1108],
-          ['Non-resident', 545],
-        ],
-        [
-          ['Cash', 498],
-          ['Plan', 1155],
-        ],
-      ],
-      ownerTypes: [
-        [
-          ['Individual', 1236],
-          ['Company', 176],
-        ],
-        [
-          ['1 unit', 1214],
-          ['2 units', 146],
-          ['3+ units', 52],
-        ],
-        [
-          ['Held', 1327],
-          ['Resold', 85],
-        ],
-      ],
-      tenants: [
-        [
-          ['UAE', 290],
-          ['India', 980],
-          ['UK', 610],
-          ['KSA', 120],
-          ['Others', 1240],
-        ],
-        [
-          ['12 months', 2610],
-          ['6 months', 630],
-        ],
-      ],
-      daily: [3, 9],
-      sellCurve: [18, 66],
-      newOwners: [60, 170],
-      rentCurve: [232, 268],
-    }),
-  },
-  'opera-crest': {
-    id: 'opera-crest',
-    name: 'Opera Crest Residences',
-    featureId: 382096518,
-    at: [55.28184, 25.19416],
-    heightM: 288,
-    color: TOWER_COLOR['opera-crest'],
-    state: 'highlight',
-    code: 'ID 80954',
-    use: 'Residential',
-    stage: 'Off Plan',
-    developer: 'Harbour Line Properties',
-    community: 'Downtown Dubai · Opera District',
-    headline: 'AED 2.6bn sold this quarter · 58% sold',
-    totalValue: { value: '19.4B', unit: 'AED', years: ['2024', '2025', '2026'], spark: series(24, 11, 19.4, 37, 0.05) },
-    units: 1860,
-    unitTypes: rows([
-      ['Studio', 260],
-      ['1 Bedroom', 520],
-      ['2 Bedroom', 610],
-      ['3 Bedroom', 300],
-      ['Duplex', 110],
-      ['Penthouse', 60],
-    ]),
-    completion: 62,
-    handover: 'Q4 2027',
-    reports: ['Q3 2026 Report', 'Q2 2026 Report'],
-    tabs: tabs({
-      seed: 57,
-      sold: 1079,
-      value: '12.1B',
-      share: '62%',
-      available: 781,
-      sellThrough: '58%',
-      owners: 948,
-      perOwner: '1.14',
-      foreign: '66%',
-      yieldPct: '6.9%',
-      rent: '142k',
-      comparables: 2760,
-      soldByType: [
-        ['Studio', 198],
-        ['1 Bedroom', 341],
-        ['2 Bedroom', 322],
-        ['3 Bedroom', 131],
-        ['Duplex', 52],
-        ['Penthouse', 35],
-      ],
-      availableByType: [
-        ['Studio', 62],
-        ['1 Bedroom', 179],
-        ['2 Bedroom', 288],
-        ['3 Bedroom', 169],
-        ['Duplex', 58],
-        ['Penthouse', 25],
-      ],
-      ownersByType: [
-        ['Studio', 176],
-        ['1 Bedroom', 300],
-        ['2 Bedroom', 281],
-        ['3 Bedroom', 114],
-        ['Duplex', 46],
-        ['Penthouse', 31],
-      ],
-      rentalsByType: [
-        ['Studio', 610],
-        ['1 Bedroom', 980],
-        ['2 Bedroom', 760],
-        ['3 Bedroom', 260],
-        ['Duplex', 100],
-        ['Penthouse', 50],
-      ],
-      buyers: {
-        nationality: [
-          ['UAE', 241],
-          ['USA', 156],
-          ['UK', 302],
-          ['KSA', 190],
-          ['Others', 190],
-        ],
-        gender: [
-          ['Male', 701],
-          ['Female', 378],
-        ],
-        age: [
-          ['25-35', 330],
-          ['36-45', 371],
-          ['46-60', 248],
-          ['61-80', 130],
-        ],
-        marital: [
-          ['Family', 602],
-          ['Single', 477],
-        ],
-      },
-      intent: [
-        [
-          ['End user', 486],
-          ['Investor', 593],
-        ],
-        [
-          ['Resident', 702],
-          ['Non-resident', 377],
-        ],
-        [
-          ['Cash', 291],
-          ['Plan', 788],
-        ],
-      ],
-      ownerTypes: [
-        [
-          ['Individual', 846],
-          ['Company', 102],
-        ],
-        [
-          ['1 unit', 836],
-          ['2 units', 86],
-          ['3+ units', 26],
-        ],
-        [
-          ['Held', 911],
-          ['Resold', 37],
-        ],
-      ],
-      tenants: [
-        [
-          ['UAE', 240],
-          ['India', 860],
-          ['UK', 520],
-          ['KSA', 100],
-          ['Others', 1040],
-        ],
-        [
-          ['12 months', 2210],
-          ['6 months', 550],
-        ],
-      ],
-      daily: [2, 7],
-      sellCurve: [14, 58],
-      newOwners: [40, 120],
-      rentCurve: [214, 246],
-    }),
-  },
-}
-
-const TOWERS_GROUP = 'towers'
-const HEAT_GROUP = 'sales'
-
-function tower(building: TomtomBuilding): TomtomTower {
-  const sold = building.tabs.sales.kpis[0].value
-  return {
-    id: building.id,
-    featureId: building.featureId,
-    at: building.at,
-    heightM: building.heightM,
-    color: building.color,
-    state: building.state,
-    title: building.name,
-    text: building.headline,
-    tip: {
-      title: building.name,
-      rows: [
-        ['Units sold', `${sold} of ${building.units.toLocaleString('en-US')}`],
-        ['Total value', `AED ${building.totalValue.value}`],
-        ['Completion', `${building.completion}%`],
-      ],
-    },
-    group: TOWERS_GROUP,
-  }
-}
-
-export const TOMTOM_TOWERS: TomtomTower[] = [tower(TOMTOM_BUILDINGS.dreamscape), tower(TOMTOM_BUILDINGS['opera-crest'])]
-
-const DOWNTOWN: LngLat = [55.2765, 25.1955]
-
-/** Off-plan sales by plot across Downtown and Business Bay's edge, densest around the two towers. */
-const DOWNTOWN_HEAT: TomtomHeatPoint[] = [
-  ...scatter(DOWNTOWN, 90, 1.5, 3).map((at, index) => ({ at, weight: 0.2 + 0.4 * hash(index, 9), group: HEAT_GROUP })),
-  ...scatter(TOMTOM_BUILDINGS.dreamscape.at, 26, 0.35, 5).map((at) => ({ at, weight: 0.9, group: HEAT_GROUP })),
-  ...scatter(TOMTOM_BUILDINGS['opera-crest'].at, 22, 0.35, 7).map((at) => ({ at, weight: 0.8, group: HEAT_GROUP })),
-  ...scatter(offsetKm(DOWNTOWN, 0.6, 1.4), 30, 0.7, 13).map((at) => ({ at, weight: 0.35, group: HEAT_GROUP })),
-]
-
-export const DOWNTOWN_SCENE: TomtomMapScene = { towers: TOMTOM_TOWERS, heat: DOWNTOWN_HEAT, heatRadiusM: 160, heatRamp: HEAT_RAMP }
-const TOWERS_SCENE: TomtomMapScene = { towers: TOMTOM_TOWERS, heat: [], heatRadiusM: 160, heatRamp: HEAT_RAMP }
-
-/** The Briefing's view of Downtown: both towers in frame, the Burj Khalifa between them. */
-export const DOWNTOWN_CAMERA: TomtomCamera = { center: [55.2768, 25.1962], zoom: 15.6, pitch: 62, bearing: -26 }
-
-const LAYERS: MapDataLayer[] = [
-  {
-    group: TOWERS_GROUP,
-    title: 'Top off-plan towers',
-    mark: 'tower',
-    color: {
-      items: [
-        { label: TOMTOM_BUILDINGS.dreamscape.name, color: TOWER_COLOR.dreamscape, count: 'AED 3.5bn' },
-        { label: TOMTOM_BUILDINGS['opera-crest'].name, color: TOWER_COLOR['opera-crest'], count: 'AED 2.6bn' },
-      ],
-    },
-  },
-  { group: HEAT_GROUP, title: 'Off-plan sales density', mark: 'heat', color: { ramp: HEAT_RAMP, low: 'Fewer', high: 'More' } },
-]
+const HOURS = ['6am', '9am', '12pm', '3pm', '6pm', '9pm']
+const HOURS_16 = Array.from({ length: 16 }, (_, index) => {
+  const hour = 6 + index
+  return hour === 12 ? '12pm' : hour > 12 ? `${hour - 12}pm` : `${hour}am`
+})
 
 /** Assigns each card a tone in turn, so neighbouring charts don't all read the same colour. */
 function toned(cards: TomtomCard[]): TomtomCard[] {
@@ -521,193 +535,532 @@ function toned(cards: TomtomCard[]): TomtomCard[] {
   return cards.map((card) => (card.tone || card.kind === 'summary' ? card : { ...card, tone: order[index++ % order.length] }))
 }
 
-const DREAMSCAPE = TOMTOM_BUILDINGS.dreamscape.name
-const OPERA = TOMTOM_BUILDINGS['opera-crest'].name
+const top = byScore.slice(0, 5)
+const eveningTop = byEvening.slice(0, 5)
+const uplift = (site: Site) => Math.round((site.volume / NETWORK_AVERAGE - 1) * 100)
+
+/* —— Site details —— */
+
+const rows = (entries: [string, number][]): CountRow[] => entries.map(([name, count]) => ({ name, count }))
+const bars = (entries: [string, number][]) => entries.map(([label, value]) => ({ label, value }))
+/** `total` split by `weights`, rounded, with a little deterministic noise. */
+const split = (total: number, weights: [string, number][], seed: number): [string, number][] => {
+  const sum = weights.reduce((acc, [, weight]) => acc + weight, 0)
+  return weights.map(([name, weight], index) => [name, Math.round((total * weight * (0.92 + 0.16 * hash(index, seed))) / sum)])
+}
+const LAST_30_DAYS = ['8 Oct', '15 Oct', '22 Oct', '29 Oct', '5 Nov']
+const LAST_12_MONTHS = ['Dec', 'Feb', 'Apr', 'Jun', 'Aug', 'Oct']
+
+function siteTabs(site: Site, seed: number, residents: number): Record<SiteTabId, SiteTab> {
+  const daily = Math.round(site.traffic * 1000)
+  const evening = Math.round((daily * site.eveningShare) / 100)
+  const night = Math.round(daily * 0.09)
+  const morning = Math.round(((daily - evening - night) * 26) / 60)
+  const midday = daily - evening - night - morning
+  return {
+    traffic: {
+      kpis: [
+        { label: 'Passing vehicles a day', value: daily.toLocaleString('en-US') },
+        { label: 'Vehicles 5–9pm', value: evening.toLocaleString('en-US') },
+        { label: 'Average speed', value: String(Math.round(38 - site.eveningShare * 0.3)), unit: 'km/h' },
+      ],
+      breakdown: {
+        title: 'Traffic by time of day',
+        rows: rows([
+          ['Morning, 6–10am', morning],
+          ['Midday, 10am–5pm', midday],
+          ['Evening, 5–9pm', evening],
+          ['Night, 9pm–6am', night],
+        ]),
+      },
+      demographics: {
+        title: 'Who passes',
+        groups: [
+          { title: 'Trip purpose', bars: bars(split(daily, [['Commute', 44], ['Leisure', 24], ['Delivery', 18], ['Taxi', 14]], seed + 1)) },
+          { title: 'Comes from', bars: bars(split(daily, [['Island', 58], ['Mainland', 36], ['Other emirates', 6]], seed + 2)) },
+          { title: 'Stops nearby', bars: bars(split(daily, [['Passes through', 71], ['Stops', 29]], seed + 3)) },
+        ],
+      },
+      series: {
+        title: 'Passing vehicles, last 30 days',
+        unit: 'k vehicles a day',
+        x: LAST_30_DAYS,
+        yLabels: ['60k', '30k', '0'],
+        yMax: 60,
+        points: series(30, site.traffic * 0.92, site.traffic, seed, 0.06),
+      },
+    },
+    catchment: {
+      kpis: [
+        { label: 'Residents within 5 minutes', value: residents.toLocaleString('en-US') },
+        { label: 'Households', value: Math.round(residents / 3.6).toLocaleString('en-US') },
+        { label: 'Cars per household', value: (1.5 + hash(seed, 5) * 0.5).toFixed(1) },
+      ],
+      breakdown: {
+        title: 'Residents by drive time',
+        rows: rows(split(residents, [['Under 2 minutes', 18], ['2–3 minutes', 27], ['3–4 minutes', 30], ['4–5 minutes', 25]], seed + 4)),
+      },
+      demographics: {
+        title: 'Catchment profile',
+        groups: [
+          { title: 'Age group', bars: bars(split(residents, [['18-24', 14], ['25-34', 32], ['35-44', 28], ['45-59', 18], ['60+', 8]], seed + 5)) },
+          { title: 'Household', bars: bars(split(residents, [['Family', 58], ['Single', 27], ['Shared', 15]], seed + 6)) },
+          { title: 'Cars', bars: bars(split(residents, [['None', 12], ['One', 46], ['Two+', 42]], seed + 7)) },
+        ],
+      },
+      series: {
+        title: 'Residents in the catchment, last 12 months',
+        unit: 'k residents',
+        x: LAST_12_MONTHS,
+        yLabels: ['60k', '30k', '0'],
+        yMax: 60,
+        points: series(12, (residents / 1000) * 0.94, residents / 1000, seed + 8, 0.01),
+      },
+    },
+    competition: {
+      kpis: [
+        { label: 'Rivals within 3 km', value: String(site.rivalsWithin3) },
+        { label: 'Nearest rival', value: site.rivalKm.toFixed(1), unit: 'km' },
+        { label: 'Nearest of your stations', value: site.stationKm.toFixed(1), unit: 'km' },
+      ],
+      breakdown: {
+        title: 'Rival visits by format',
+        rows: rows(split(Math.round(daily * 0.11), [['Full forecourt', 46], ['Express', 22], ['With car wash', 19], ['With café', 13]], seed + 9)),
+      },
+      demographics: {
+        title: 'Rivals within 3 km',
+        groups: [
+          { title: 'Opening hours', bars: bars([['24 hours', Math.ceil(site.rivalsWithin3 * 0.6)], ['Daytime', Math.floor(site.rivalsWithin3 * 0.4) || 1]]) },
+          { title: 'Pumps', bars: bars([['Up to 6', 2], ['7–12', Math.max(1, site.rivalsWithin3 - 3)], ['12+', 1]]) },
+          { title: 'Shop', bars: bars([['Convenience', Math.max(1, site.rivalsWithin3 - 1)], ['None', 1]]) },
+        ],
+      },
+      series: {
+        title: 'Visits to rivals within 3 km, last 12 months',
+        unit: 'k visits a month',
+        x: LAST_12_MONTHS,
+        yLabels: ['200k', '100k', '0'],
+        yMax: 200,
+        points: series(12, 90 + site.rivalsWithin3 * 8, 104 + site.rivalsWithin3 * 9, seed + 10, 0.05),
+      },
+    },
+    access: {
+      kpis: [
+        { label: 'Entry directions', value: site.id === 'site-corniche' ? '1' : '2' },
+        { label: 'Turn-in delay, 5–9pm', value: String(Math.round(8 + site.eveningShare * 0.4)), unit: 's' },
+        { label: 'Nearest U-turn', value: String(Math.round(180 + hash(seed, 9) * 420)), unit: 'm' },
+      ],
+      breakdown: {
+        title: 'Arrivals by approach',
+        rows: rows(split(Math.round(daily * 0.035), [['Main road, inbound', 42], ['Main road, outbound', 31], ['Side street', 17], ['U-turn', 10]], seed + 11)),
+      },
+      demographics: {
+        title: 'Getting in and out',
+        groups: [
+          { title: 'Congestion, 5–9pm', bars: bars(split(100, [['Free', 34], ['Busy', 44], ['Heavy', 22]], seed + 12)) },
+          { title: 'Turn in', bars: bars(split(100, [['Right', 72], ['Left', 28]], seed + 13)) },
+          { title: 'Lanes', bars: bars([['2', 1], ['3', 3], ['4', 2]]) },
+        ],
+      },
+      series: {
+        title: 'Average speed past the site, by hour',
+        unit: 'km/h',
+        x: HOURS,
+        yLabels: ['80', '40', '0'],
+        yMax: 80,
+        points: hourly(52, 0.5, seed + 14).map((value) => Math.round(Math.max(14, 72 - value * 0.6))),
+      },
+    },
+  }
+}
+
+function siteDetails(id: SiteId, spec: { seed: number; residents: number; code: string; use: string }): TomtomSite {
+  const site = siteById(id)
+  const rank = rankOf(site)
+  const daily = Math.round(site.traffic * 1000)
+  return {
+    id,
+    name: site.area,
+    street: STREET_NAMES[site.street],
+    at: site.at,
+    color: SITE_COLOR,
+    rank,
+    code: spec.code,
+    use: spec.use,
+    stage: `Site ${rank} of ${SITES.length}`,
+    headline: `Score ${site.score} · ${site.traffic.toFixed(1)}k vehicles a day`,
+    rail: {
+      value: {
+        label: 'Projected fuel volume (M litres a year)',
+        value: site.volume.toFixed(1),
+        years: ['Year 1', 'Year 2', 'Year 3'],
+        spark: series(24, site.volume * 0.62, site.volume, spec.seed, 0.04),
+      },
+      count: { label: 'Passing vehicles a day', value: daily.toLocaleString('en-US') },
+      mix: {
+        label: 'Traffic by vehicle type',
+        center: 'vehicles',
+        rows: rows(split(daily, [['Cars', 46], ['SUVs', 28], ['Taxis', 11], ['Vans', 8], ['Trucks', 4], ['Buses', 3]], spec.seed)),
+      },
+      ring: { label: 'Site score', pct: site.score, caption: 'Score', note: `Rank ${rank} of ${SITES.length} candidates` },
+      reports: { label: 'Site reports', items: ['Traffic study, Oct 2026', 'Catchment report, Q3 2026'] },
+    },
+    tabs: siteTabs(site, spec.seed, spec.residents),
+  }
+}
+
+export const TOMTOM_SITES: Record<SiteId, TomtomSite> = {
+  'site-szbs': siteDetails('site-szbs', { seed: 21, residents: 38400, code: 'Plot 4,200 m²', use: 'Fuel + convenience' }),
+  'site-corniche': siteDetails('site-corniche', { seed: 33, residents: 31200, code: 'Plot 3,100 m²', use: 'Fuel + café' }),
+  'site-khaleej': siteDetails('site-khaleej', { seed: 47, residents: 42600, code: 'Plot 3,800 m²', use: 'Fuel + convenience' }),
+  'site-rashid': siteDetails('site-rashid', { seed: 59, residents: 46900, code: 'Plot 2,600 m²', use: 'Express fuel' }),
+}
+
+/* —— Stories —— */
+
+const S1 = SZBS.area
+const SZBS_RIVAL_KM = km(SZBS.rivalKm)
 
 export const TOMTOM_STORIES: Record<string, TomtomStory> = {
-  're-downtown': {
-    id: 're-downtown',
-    title: 'Downtown Off-Plan Sales',
+  'tt-shortlist': {
+    id: 'tt-shortlist',
+    title: 'Next Site Shortlist',
     description:
-      'Off-plan sales across Downtown Dubai this quarter, and the two towers that led them. Click a lit tower for its sales, units and buyers.',
-    place: 'downtown',
+      'Twelve candidate sites on Abu Dhabi Island, scored on passing traffic, catchment, competition and access against your eight stations. Click a shortlisted pin for its details.',
+    place: 'island',
     pages: [
       {
-        id: 're-downtown-overview',
-        title: 'Downtown Dubai',
-        finding:
-          'Off-plan sales in Downtown reached AED 16.0bn this quarter, up 34%. Dreamscape Tower and Opera Crest Residences took 38% of it.',
-        camera: { center: [55.2768, 25.1958], zoom: 15.35, pitch: 63, bearing: -24 },
-        scene: DOWNTOWN_SCENE,
-        filters: ['Downtown Dubai', 'Q3 2026', 'Off-plan'],
-        layers: LAYERS,
+        id: 'tt-shortlist-island',
+        title: 'Abu Dhabi Island',
+        finding: `Five of the 12 candidates score above 70. ${S1} on ${STREET_NAMES.szbs} leads at ${SZBS.score}, with ${SZBS.traffic.toFixed(1)}k vehicles a day passing it.`,
+        camera: ISLAND_CAMERA,
+        scene: ISLAND_SCENE,
+        filters: ['Abu Dhabi Island', 'Last 90 days', 'Fuel retail'],
+        layers: [SITES_LAYER(top), STATIONS_LAYER, RIVALS_LAYER(RIVALS.length), TRAFFIC_LAYER(), CATCHMENT_LAYER(true), VOLUME_LAYER],
         cards: toned([
           {
             id: 'summary',
             kind: 'summary',
             title: 'Summary',
             parts: [
-              'Downtown off-plan sales reached ',
-              { em: ['AED 16.0bn'] },
-              ' this quarter, up 34%. Two towers took ',
-              { em: ['38% of it'] },
-              `: ${DREAMSCAPE} at AED 3.5bn and ${OPERA} at AED 2.6bn. Prices rose 14% to AED 3,240 per sq ft.`,
+              'Of 12 candidate sites, ',
+              { em: ['5 score above 70'] },
+              `. ${S1} on ${STREET_NAMES.szbs} leads at ${SZBS.score}: `,
+              { em: [`${SZBS.traffic.toFixed(1)}k vehicles a day`] },
+              ` pass it, and it would sell ${uplift(SZBS)}% more fuel than your average station while its catchment barely overlaps theirs.`,
             ],
           },
           {
             id: 'kpis',
             kind: 'kpis',
-            title: 'This quarter',
+            title: 'The shortlist',
             tiles: [
-              { label: 'Off-plan sales', value: '16.0', unit: 'bn', note: '+34% QoQ' },
-              { label: 'Transactions', value: '4,820', note: '+21% QoQ' },
-              { label: 'AED per sq ft', value: '3,240', note: '+14% YoY' },
+              { label: 'Candidate sites', value: '12', note: '5 above 70' },
+              { label: 'Best score', value: String(SZBS.score), note: S1 },
+              { label: 'Your average station', value: NETWORK_AVERAGE.toFixed(1), unit: 'M L', note: 'a year' },
             ],
           },
           {
-            id: 'projects',
+            id: 'ranking',
             kind: 'hbars',
-            title: 'Top projects by sales value',
-            kpi: { value: '6.1', unit: 'AED bn in two towers' },
-            bars: [
-              { label: DREAMSCAPE, value: 3.5, display: '3.5bn', color: TOWER_COLOR.dreamscape },
-              { label: OPERA, value: 2.6, display: '2.6bn', color: TOWER_COLOR['opera-crest'] },
-              { label: 'Burj Crown', value: 1.4, display: '1.4bn' },
-              { label: 'Grande Signature', value: 1.1, display: '1.1bn' },
-            ],
+            title: 'Top sites by score, of 100',
+            bars: top.map((site) => ({ label: site.area, value: site.score, display: String(site.score), color: SITE_COLOR })),
           },
           {
-            id: 'monthly',
+            id: 'vs-network',
+            kind: 'grouped',
+            title: 'Projected volume vs your stations',
+            legend: ['Candidate', 'Your average'],
+            colors: [SITE_COLOR, STATION_COLOR],
+            groups: top.map((site) => ({ label: site.area.replace('Al ', ''), values: [site.volume, NETWORK_AVERAGE] })),
+          },
+          {
+            id: 'shortlist',
+            kind: 'table',
+            title: 'Shortlist',
+            columns: ['Site', 'Score', 'Traffic', 'Nearest rival'],
+            dotColumn: 0,
+            rows: top.map((site) => ({
+              cells: [site.area, String(site.score), `${site.traffic.toFixed(1)}k`, km(site.rivalKm)],
+              color: SITE_COLOR,
+            })),
+          },
+          {
+            id: 'traffic-hours',
             kind: 'line',
-            title: 'Off-plan sales value, monthly',
-            kpi: { value: '6.2', unit: 'AED bn in September' },
-            x: ['Jan', 'Mar', 'May', 'Jul', 'Sep'],
-            yLabels: ['8bn', '4bn', '0'],
-            yMax: 8,
-            series: [
-              { name: '2026', points: [2.6, 2.9, 3.1, 3.4, 3.6, 4.1, 4.6, 5.2, 6.2] },
-              { name: '2025', points: [2.1, 2.2, 2.4, 2.3, 2.7, 2.9, 3.1, 3.3, 3.6], dashed: true },
-            ],
+            title: 'Passing traffic by hour, top 3',
+            kpi: { value: '5–7pm', unit: 'evening peak' },
+            x: HOURS,
+            yLabels: ['5k', '2.5k', '0'],
+            yMax: 5,
+            series: byScore.slice(0, 3).map((site, index) => ({
+              name: site.area,
+              points: hourly((site.traffic / 13) * 1, site.eveningShare / 32, 3 + index),
+              color: [SITE_COLOR, PALETTE.blue[3], PALETTE.purple[3]][index],
+            })),
           },
           {
-            id: 'price',
+            id: 'site-szbs-volume',
             kind: 'cell',
-            title: 'Price per sq ft',
-            value: '3,240',
-            note: 'AED · +14% YoY',
-            spark: [2610, 2680, 2740, 2790, 2850, 2930, 3010, 3090, 3160, 3240],
+            title: 'Projected volume',
+            value: `${SZBS.volume.toFixed(1)}M`,
+            note: `litres a year · ${S1}`,
+            spark: series(10, SZBS.volume * 0.62, SZBS.volume, 4, 0.03),
           },
           {
-            id: 'share',
+            id: 'overlap',
             kind: 'cell',
-            title: 'Off-plan share',
-            value: '61%',
-            note: 'of Downtown sales',
-            spark: [44, 46, 49, 51, 52, 55, 57, 58, 60, 61],
+            title: 'Overlap with your stations',
+            value: '6%',
+            note: `of ${S1}'s catchment`,
+            spark: [11, 10, 10, 9, 8, 8, 7, 7, 6, 6],
           },
           {
-            id: 'buyers',
+            id: 'rivals',
             kind: 'donut',
-            title: 'Buyers by nationality',
-            total: '4,820',
-            totalLabel: 'buyers',
-            slices: [
-              { name: 'UAE', value: 1060 },
-              { name: 'India', value: 868 },
-              { name: 'UK', value: 723 },
-              { name: 'Russia', value: 530 },
-              { name: 'China', value: 434 },
-              { name: 'Others', value: 1205 },
-            ],
+            title: 'Rivals near the top 5',
+            total: String(top.reduce((sum, site) => sum + site.rivalsWithin3, 0)),
+            totalLabel: 'within 3 km',
+            slices: top.map((site) => ({ name: site.area, value: site.rivalsWithin3 })),
           },
         ]),
       },
       {
-        id: 're-downtown-towers',
-        title: 'Two towers compared',
-        finding: `${DREAMSCAPE} has sold 66% of its units and ${OPERA} 58%. Dreamscape hands over first, in Q2 2027.`,
-        camera: { center: [55.2769, 25.1952], zoom: 15.9, pitch: 66, bearing: 14 },
-        scene: TOWERS_SCENE,
-        filters: ['Downtown Dubai', 'Q3 2026', 'Off-plan'],
-        layers: LAYERS.slice(0, 1),
+        id: 'tt-shortlist-szbs',
+        title: S1,
+        finding: `${S1} sees ${SZBS.traffic.toFixed(1)}k vehicles a day from both directions, its nearest rival is ${SZBS_RIVAL_KM} away, and evening traffic peaks from 5 to 7pm.`,
+        camera: SZBS_CAMERA,
+        scene: SZBS_SCENE,
+        filters: [S1, 'Last 90 days', 'Fuel retail'],
+        layers: [SITES_LAYER([SZBS]), RIVALS_LAYER(SZBS_RIVALS.length), STATIONS_LAYER, TRAFFIC_LAYER(), CATCHMENT_LAYER(false), VOLUME_LAYER],
         cards: toned([
           {
             id: 'summary',
             kind: 'summary',
             title: 'Summary',
             parts: [
-              `${DREAMSCAPE} has sold `,
-              { em: ['1,653 of 2,500 units'] },
-              `, led by 2-bedrooms and duplexes. ${OPERA} has sold `,
-              { em: ['1,079 of 1,860'] },
-              ', mostly 1-bedrooms to investors. Dreamscape is 84% built and hands over in Q2 2027.',
+              `${S1} sits on ${STREET_NAMES.szbs} with entries from `,
+              { em: ['both directions'] },
+              `. ${SZBS.traffic.toFixed(1)}k vehicles pass it a day, the nearest rival is `,
+              { em: [SZBS_RIVAL_KM] },
+              ` away and your nearest station ${km(SZBS.stationKm)}. Traffic peaks from 5 to 7pm.`,
             ],
           },
           {
-            id: 'sold-dreamscape',
-            kind: 'cell',
-            title: DREAMSCAPE,
-            value: '66%',
-            note: '1,653 of 2,500 units sold',
-            color: TOWER_COLOR.dreamscape,
-            spark: [18, 24, 29, 35, 40, 46, 51, 55, 59, 62, 64, 66],
-          },
-          {
-            id: 'sold-opera',
-            kind: 'cell',
-            title: OPERA,
-            value: '58%',
-            note: '1,079 of 1,860 units sold',
-            color: TOWER_COLOR['opera-crest'],
-            spark: [14, 19, 23, 28, 33, 37, 41, 45, 49, 52, 55, 58],
-          },
-          {
-            id: 'by-type',
-            kind: 'grouped',
-            title: 'Units sold by type',
-            legend: [DREAMSCAPE, OPERA],
-            colors: [TOWER_COLOR.dreamscape, TOWER_COLOR['opera-crest']],
-            groups: [
-              { label: 'Studio', values: [310, 198] },
-              { label: '1 BR', values: [164, 341] },
-              { label: '2 BR', values: [452, 322] },
-              { label: '3 BR', values: [141, 131] },
-              { label: 'Duplex', values: [378, 52] },
-              { label: 'PH', values: [208, 35] },
+            id: 'site-szbs-kpis',
+            kind: 'kpis',
+            title: S1,
+            tiles: [
+              { label: 'Passing vehicles', value: `${SZBS.traffic.toFixed(1)}k`, note: 'a day' },
+              { label: 'Nearest rival', value: SZBS.rivalKm.toFixed(1), unit: 'km' },
+              { label: 'Projected volume', value: SZBS.volume.toFixed(1), unit: 'M L', note: `+${uplift(SZBS)}% on average` },
             ],
           },
           {
-            id: 'construction',
+            id: 'site-szbs-hours',
+            kind: 'line',
+            title: 'Vehicles by hour, both directions',
+            kpi: { value: '3.7k', unit: 'vehicles at 6pm' },
+            x: HOURS,
+            yLabels: ['3k', '1.5k', '0'],
+            yMax: 3,
+            series: [
+              { name: 'Inbound', points: hourly(2.3, 0.82, 11) },
+              { name: 'Outbound', points: hourly(1.5, 1.24, 12) },
+            ],
+          },
+          {
+            id: 'site-szbs-score',
             kind: 'progress',
-            title: 'Construction progress',
+            title: 'Score breakdown',
             rows: [
-              { label: DREAMSCAPE, value: '84%', target: 'Q2 2027', pct: 84, color: TOWER_COLOR.dreamscape },
-              { label: OPERA, value: '62%', target: 'Q4 2027', pct: 62, color: TOWER_COLOR['opera-crest'] },
+              { label: 'Traffic', value: '92', target: '100', pct: 92, color: SITE_COLOR },
+              { label: 'Access', value: '88', target: '100', pct: 88, color: SITE_COLOR },
+              { label: 'Catchment', value: '84', target: '100', pct: 84, color: SITE_COLOR },
+              { label: 'Competition', value: '81', target: '100', pct: 81, color: SITE_COLOR },
             ],
           },
           {
-            id: 'plans',
+            id: 'site-szbs-rivals',
             kind: 'table',
-            title: 'Pricing and payment plans',
-            columns: ['Tower', 'AED / sq ft', 'Plan'],
+            title: 'Nearest rivals',
+            columns: ['Rival', 'Distance', 'Open'],
             dotColumn: 0,
-            rows: [
-              { cells: [DREAMSCAPE, '3,680', '60/40'], color: TOWER_COLOR.dreamscape },
-              { cells: [OPERA, '3,410', '70/30'], color: TOWER_COLOR['opera-crest'] },
-              { cells: ['Burj Crown', '3,150', '80/20'] },
-              { cells: ['Grande Signature', '3,020', '60/40'] },
+            rows: SZBS_RIVALS.map((rival, index) => ({
+              cells: [`Rival ${index + 1}`, km(distanceKm(rival.at, SZBS.at)), hash(Number(rival.id.slice(6)), 3) > 0.4 ? '24 hours' : '6am – midnight'],
+              color: RIVAL_COLOR,
+            })),
+          },
+          {
+            id: 'site-szbs-approach',
+            kind: 'vbars',
+            title: 'Arrivals by approach',
+            kpi: { value: '73%', unit: 'from the main road' },
+            bars: [
+              { label: 'Inbound', value: 42, display: '42%' },
+              { label: 'Outbound', value: 31, display: '31%' },
+              { label: 'Side street', value: 17, display: '17%' },
+              { label: 'U-turn', value: 10, display: '10%' },
             ],
           },
           {
-            id: 'investors',
+            id: 'site-szbs-facts',
+            kind: 'specs',
+            title: 'Site facts',
+            items: [
+              ['Plot', '4,200 m²'],
+              ['Frontage', '68 m'],
+              ['Entries', 'Both directions'],
+              ['Zoning', 'Commercial'],
+              ['Residents, 5 min', '38,400'],
+              ['Overlap', '6% with your stations'],
+            ],
+          },
+        ]),
+      },
+    ],
+  },
+  'tt-evening': {
+    id: 'tt-evening',
+    title: 'Evening Demand, 5–9pm',
+    description:
+      'The candidates re-scored on evening traffic alone, along Sheikh Rashid Bin Saeed St and the rivals around it. Click a shortlisted pin for its details.',
+    place: 'corridor',
+    pages: [
+      {
+        id: 'tt-evening-corridor',
+        title: STREET_NAMES.rashid,
+        finding: `Between 5 and 9pm, ${RASHID.eveningShare}% of ${STREET_NAMES.rashid}'s traffic passes ${RASHID.area}, lifting it from rank ${rankOf(RASHID)} to ${eveningRankOf(RASHID)}.`,
+        camera: CORRIDOR_CAMERA,
+        scene: CORRIDOR_SCENE,
+        filters: [STREET_NAMES.rashid, '5pm – 9pm', 'Fuel retail'],
+        layers: [SITES_LAYER([RASHID], true), RIVALS_LAYER(CORRIDOR_RIVALS.length), STATIONS_LAYER, TRAFFIC_LAYER(true), DEMAND_LAYER, CATCHMENT_LAYER(false)],
+        cards: toned([
+          {
+            id: 'summary',
+            kind: 'summary',
+            title: 'Summary',
+            parts: [
+              'Count only 5 to 9pm and the order changes. ',
+              { em: [`${RASHID.area} climbs to ${eveningRankOf(RASHID)}`] },
+              ` as traffic heads home along ${STREET_NAMES.rashid}: ${RASHID.eveningShare}% of its day passes in those four hours. ${S1} stays first at `,
+              { em: [String(SZBS.evening)] },
+              '.',
+            ],
+          },
+          {
+            id: 'site-rashid-kpis',
+            kind: 'kpis',
+            title: '5pm – 9pm',
+            tiles: [
+              { label: 'Evening share', value: `${RASHID.eveningShare}%`, note: 'of the day' },
+              { label: 'Peak hour', value: '6–7pm' },
+              { label: 'Evening score', value: String(RASHID.evening), note: `+${RASHID.evening - RASHID.score} on all day` },
+            ],
+          },
+          {
+            id: 'rerank',
+            kind: 'grouped',
+            title: 'All day vs evening score',
+            legend: ['All day', '5–9pm'],
+            colors: [PALETTE.blue[3], SITE_COLOR],
+            groups: eveningTop.map((site) => ({ label: site.area.replace('Al ', ''), values: [site.score, site.evening] })),
+          },
+          {
+            id: 'site-rashid-hours',
+            kind: 'line',
+            title: 'Corridor traffic by hour',
+            kpi: { value: '3.5k', unit: 'vehicles at 6pm' },
+            x: HOURS,
+            yLabels: ['4k', '2k', '0'],
+            yMax: 4,
+            series: [
+              { name: STREET_NAMES.rashid, points: hourly(2.6, 1.38, 21) },
+              { name: 'Island average', points: hourly(2.2, 0.96, 22), dashed: true },
+            ],
+          },
+          {
+            id: 'evening-ranking',
+            kind: 'hbars',
+            title: 'Evening ranking, of 100',
+            bars: eveningTop.map((site) => ({ label: site.area, value: site.evening, display: String(site.evening), color: SITE_COLOR })),
+          },
+          {
+            id: 'site-rashid-volume',
+            kind: 'cell',
+            title: 'Evening fuel volume',
+            value: `${((RASHID.volume * RASHID.eveningShare) / 100).toFixed(1)}M`,
+            note: `litres a year · ${RASHID.area}`,
+            spark: series(10, 1.9, (RASHID.volume * RASHID.eveningShare) / 100, 6, 0.04),
+          },
+        ]),
+      },
+      {
+        id: 'tt-evening-rivals',
+        title: 'Rival trade areas',
+        finding: `${CORRIDOR_RIVALS.length} rivals sit around the corridor, but none within ${km(RASHID.rivalKm)} of ${RASHID.area}: the evening traffic passes a gap in their trade areas.`,
+        camera: TRADE_CAMERA,
+        scene: TRADE_SCENE,
+        filters: [STREET_NAMES.rashid, '5pm – 9pm', 'Fuel retail'],
+        layers: [SITES_LAYER([RASHID], true), RIVALS_LAYER(CORRIDOR_RIVALS.length), TRADE_LAYER, STATIONS_LAYER, TRAFFIC_LAYER(true)],
+        cards: toned([
+          {
+            id: 'summary',
+            kind: 'summary',
+            title: 'Summary',
+            parts: [
+              `${CORRIDOR_RIVALS.length} rivals trade around the corridor, but `,
+              { em: ['none reach the stretch'] },
+              ` at ${RASHID.area}: the nearest is ${km(RASHID.rivalKm)} away. Evening drivers heading south pass `,
+              { em: ['no forecourt for 2.4 km'] },
+              '.',
+            ],
+          },
+          {
+            id: 'trade-rivals',
+            kind: 'table',
+            title: 'Rivals around the corridor',
+            columns: ['Rival', 'Distance', 'Evening visits'],
+            dotColumn: 0,
+            rows: CORRIDOR_RIVALS.map((rival, index) => ({
+              cells: [`Rival ${index + 1}`, km(distanceKm(rival.at, RASHID.at)), Math.round(380 + hash(index, 71) * 420).toLocaleString('en-US')],
+              color: RIVAL_COLOR,
+            })),
+          },
+          {
+            id: 'trade-visits',
             kind: 'vbars',
-            title: 'Investor share of buyers',
-            kpi: { value: '57%', unit: 'across both towers' },
+            title: 'Rival visits by hour, 5–9pm',
+            kpi: { value: '1,240', unit: 'visits at 6pm' },
             bars: [
-              { label: 'Dreamscape', value: 57, display: '57%', color: TOWER_COLOR.dreamscape },
-              { label: 'Opera Crest', value: 55, display: '55%', color: TOWER_COLOR['opera-crest'] },
-              { label: 'Downtown', value: 48, display: '48%' },
-              { label: 'Dubai', value: 44, display: '44%' },
+              { label: '5pm', value: 980, display: '980' },
+              { label: '6pm', value: 1240, display: '1,240' },
+              { label: '7pm', value: 1110, display: '1,110' },
+              { label: '8pm', value: 760, display: '760' },
+            ],
+          },
+          {
+            id: 'trade-format',
+            kind: 'donut',
+            title: 'Evening fuel visits by format',
+            total: '4,090',
+            totalLabel: 'visits',
+            slices: [
+              { name: 'Full forecourt', value: 1880 },
+              { name: 'Express', value: 1020 },
+              { name: 'With car wash', value: 710 },
+              { name: 'With café', value: 480 },
+            ],
+          },
+          {
+            id: 'site-rashid-facts',
+            kind: 'specs',
+            title: `${RASHID.area} site`,
+            items: [
+              ['Plot', '2,600 m²'],
+              ['Format', 'Express fuel'],
+              ['Entries', 'Southbound'],
+              ['Residents, 5 min', '46,900'],
             ],
           },
         ]),
@@ -716,277 +1069,58 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
   },
 }
 
-export function isBuildingId(id: string): id is BuildingId {
-  return id in TOMTOM_BUILDINGS
+export function isSiteId(id: string): id is SiteId {
+  return id in TOMTOM_SITES
 }
 
 export function isTomtomStory(id: string | null | undefined): id is string {
   return id != null && id in TOMTOM_STORIES
 }
 
+/* —— Briefing places —— */
+
 export type TomtomPlace = { id: TomtomPlaceId; camera: TomtomCamera; scene: TomtomMapScene }
 
 export const TOMTOM_PLACES: Record<TomtomPlaceId, TomtomPlace> = {
-  downtown: { id: 'downtown', camera: DOWNTOWN_CAMERA, scene: DOWNTOWN_SCENE },
-}
-/* —— Tell Me More: every tall tower in Downtown, by investment potential —— */
-
-/** Investment potential, low to high: Sequential Purple into Teal, the best towers the brightest. */
-export const POTENTIAL_RAMP = [PALETTE.purple[0], PALETTE.blue[2], PALETTE.categorical[2], PALETTE.teal[2], PALETTE.teal[3]]
-
-const potentialColor = (score: number) =>
-  POTENTIAL_RAMP[score >= 85 ? 4 : score >= 75 ? 3 : score >= 60 ? 2 : score >= 45 ? 1 : 0]
-
-const POTENTIAL_GROUP = 'potential'
-
-type PotentialSpec = {
-  id: string
-  name: string
-  featureId: number
-  at: LngLat
-  heightM: number
-  /** 0–100: price growth, sell-through and rental yield together. */
-  score: number
-  /** Price growth over the last year, %. */
-  growth: number
-  /** Gross rental yield, %. */
-  yield: number
-  /** The basemap building's outline (its convex hull at full height), 1.2 m outside it. */
-  footprint: LngLat[]
+  island: { id: 'island', camera: { center: [54.373, 24.47], zoom: 13.55, pitch: 56, bearing: -22 }, scene: ISLAND_SCENE },
+  corridor: { id: 'corridor', camera: CORRIDOR_CAMERA, scene: CORRIDOR_SCENE },
 }
 
-/** Downtown's 12 tallest residential towers, best first; outlines traced from the basemap's buildings. */
-const POTENTIAL_SPECS: PotentialSpec[] = [
-  {
-    id: 'p-dreamscape',
-    name: 'Dreamscape Tower',
-    featureId: 1047612083,
-    at: [55.27201, 25.19629],
-    heightM: 356,
-    score: 92,
-    growth: 18,
-    yield: 6.8,
-    footprint: [
-      [55.271776, 25.196172], [55.271782, 25.196142], [55.271798, 25.196116], [55.271817, 25.196093],
-      [55.271843, 25.196074], [55.27187, 25.196059], [55.271901, 25.196049], [55.271978, 25.196028],
-      [55.272002, 25.196034], [55.272024, 25.196043], [55.272044, 25.196058], [55.272057, 25.196075],
-      [55.272231, 25.196349], [55.272243, 25.196369], [55.272246, 25.196393], [55.272245, 25.196416],
-      [55.272236, 25.196439], [55.272222, 25.196458], [55.27218, 25.196494], [55.272139, 25.196529],
-      [55.272121, 25.196541], [55.2721, 25.196547], [55.272077, 25.196548], [55.272055, 25.196545],
-      [55.271986, 25.196493], [55.271937, 25.196448], [55.271892, 25.1964], [55.271853, 25.196346],
-      [55.271821, 25.196289], [55.271795, 25.196231],
-    ],
-  },
-  {
-    id: 'p-opera-crest',
-    name: 'Opera Crest Residences',
-    featureId: 382096518,
-    at: [55.28236, 25.19469],
-    heightM: 329,
-    score: 87,
-    growth: 15,
-    yield: 7.1,
-    footprint: [
-      [55.282166, 25.194455], [55.282538, 25.194448], [55.282549, 25.194917], [55.282177, 25.194924],
-    ],
-  },
-  {
-    id: 'p-burj-crown',
-    name: 'Burj Crown',
-    featureId: 382072013,
-    at: [55.27619, 25.20088],
-    heightM: 370,
-    score: 81,
-    growth: 13,
-    yield: 6.4,
-    footprint: [
-      [55.275788, 25.200905], [55.275807, 25.200854], [55.275854, 25.200794], [55.275933, 25.20074],
-      [55.276057, 25.200684], [55.276213, 25.200651], [55.276332, 25.200652], [55.27646, 25.200668],
-      [55.27654, 25.200695], [55.276596, 25.200728], [55.276619, 25.20079], [55.276609, 25.200874],
-      [55.276564, 25.200946], [55.276489, 25.201013], [55.276353, 25.20107], [55.276217, 25.2011],
-      [55.276091, 25.2011], [55.275979, 25.201084], [55.275907, 25.201057], [55.275836, 25.20102],
-      [55.27579, 25.200967],
-    ],
-  },
-  {
-    id: 'p-grande-signature',
-    name: 'Grande Signature',
-    featureId: 47515674,
-    at: [55.27891, 25.19403],
-    heightM: 306,
-    score: 76,
-    growth: 12,
-    yield: 6.1,
-    footprint: [
-      [55.278642, 25.193839], [55.278653, 25.193773], [55.278693, 25.193716], [55.278751, 25.193675],
-      [55.278836, 25.19365], [55.278901, 25.193652], [55.278967, 25.193692], [55.27904, 25.193789],
-      [55.279098, 25.193898], [55.279127, 25.193999], [55.279132, 25.19409], [55.279123, 25.194157],
-      [55.279075, 25.194323], [55.279046, 25.194384], [55.279023, 25.194396], [55.278994, 25.194392],
-      [55.278932, 25.194354], [55.278859, 25.194288], [55.278789, 25.194221], [55.278739, 25.194164],
-      [55.278704, 25.194083],
-    ],
-  },
-  {
-    id: 'p-burj-royale',
-    name: 'Burj Royale',
-    featureId: 1135697350,
-    at: [55.28353, 25.1929],
-    heightM: 270,
-    score: 71,
-    growth: 11,
-    yield: 6.0,
-    footprint: [
-      [55.283306, 25.192961], [55.283525, 25.192694], [55.283752, 25.192838], [55.283539, 25.19311],
-    ],
-  },
-  {
-    id: 'p-vida',
-    name: 'Vida Residences',
-    featureId: 1047612078,
-    at: [55.27131, 25.19366],
-    heightM: 288,
-    score: 64,
-    growth: 9,
-    yield: 5.9,
-    footprint: [
-      [55.2711, 25.193758], [55.27114, 25.193667], [55.271248, 25.193543], [55.271373, 25.19347],
-      [55.271436, 25.193461], [55.271477, 25.193478], [55.271502, 25.193515], [55.27151, 25.193563],
-      [55.271454, 25.19367], [55.271353, 25.193792], [55.271261, 25.19385], [55.271202, 25.193866],
-      [55.271142, 25.193851], [55.271104, 25.193806],
-    ],
-  },
-  {
-    id: 'p-st-regis',
-    name: 'St. Regis Residences',
-    featureId: 399935565,
-    at: [55.26825, 25.19922],
-    heightM: 282,
-    score: 58,
-    growth: 8,
-    yield: 5.7,
-    footprint: [
-      [55.26808, 25.199213], [55.268087, 25.199166], [55.268215, 25.199093], [55.268292, 25.199092],
-      [55.268366, 25.199139], [55.268396, 25.199201], [55.268399, 25.19926], [55.268362, 25.199317],
-      [55.268243, 25.19937], [55.268157, 25.199342], [55.268106, 25.199281],
-    ],
-  },
-  {
-    id: 'p-boulevard-point',
-    name: 'Boulevard Point',
-    featureId: 203296254,
-    at: [55.26589, 25.19491],
-    heightM: 285,
-    score: 52,
-    growth: 7,
-    yield: 5.5,
-    footprint: [
-      [55.265608, 25.194788], [55.265867, 25.194583], [55.266148, 25.194897], [55.26596, 25.19505],
-      [55.265894, 25.1951], [55.265845, 25.195051],
-    ],
-  },
-  {
-    id: 'p-forte',
-    name: 'Forte Tower',
-    featureId: 605586686,
-    at: [55.2813, 25.20191],
-    heightM: 259,
-    score: 47,
-    growth: 5,
-    yield: 5.3,
-    footprint: [
-      [55.281068, 25.202149], [55.281287, 25.201723], [55.281355, 25.201645], [55.281578, 25.201793],
-      [55.28121, 25.202241],
-    ],
-  },
-  {
-    id: 'p-address',
-    name: 'The Address Residences',
-    featureId: 118263836,
-    at: [55.26689, 25.20088],
-    heightM: 323,
-    score: 41,
-    growth: 4,
-    yield: 5.0,
-    footprint: [
-      [55.266626, 25.200861], [55.266759, 25.200781], [55.267007, 25.200645], [55.267221, 25.20094],
-      [55.266845, 25.20116],
-    ],
-  },
-  {
-    id: 'p-burj-vista',
-    name: 'Burj Vista',
-    featureId: 1146969101,
-    at: [55.26536, 25.19337],
-    heightM: 258,
-    score: 36,
-    growth: 3,
-    yield: 4.8,
-    footprint: [
-      [55.26492, 25.193275], [55.265277, 25.192962], [55.265689, 25.193546], [55.265544, 25.193687],
-    ],
-  },
-  {
-    id: 'p-south-ridge',
-    name: 'South Ridge',
-    featureId: 382058685,
-    at: [55.27319, 25.1903],
-    heightM: 238,
-    score: 30,
-    growth: 2,
-    yield: 4.6,
-    footprint: [
-      [55.272988, 25.19023], [55.273344, 25.190165], [55.273241, 25.190512],
-    ],
-  },
-]
+/* —— The ask stage: the AI bar's three answers, each with its own map —— */
 
-/** The towers best first, as the reply's charts rank them. */
-export const POTENTIAL_RANKING = POTENTIAL_SPECS.map(({ name, score, growth, yield: rentYield }) => ({
-  name,
-  score,
-  growth,
-  rentYield,
-}))
+export type TomtomAskStageId = 'tt-ask' | 'tt-dive' | 'tt-evening'
 
-/** The top three carry roof labels; the rest name themselves on hover. */
-const LABELLED = 3
-
-export const POTENTIAL_TOWERS: TomtomTower[] = POTENTIAL_SPECS.map((spec, index) => ({
-  id: spec.id,
-  featureId: spec.featureId,
-  at: spec.at,
-  heightM: spec.heightM,
-  color: potentialColor(spec.score),
-  state: 'select',
-  footprint: spec.footprint,
-  label: index < LABELLED,
-  title: spec.name,
-  text: `Potential ${spec.score} · +${spec.growth}% price · ${spec.yield.toFixed(1)}% yield`,
-  tip: {
-    title: spec.name,
-    rows: [
-      ['Potential', `${spec.score} of 100`],
-      ['Price growth', `+${spec.growth}% a year`],
-      ['Rental yield', `${spec.yield.toFixed(1)}%`],
-    ],
-  },
-  group: POTENTIAL_GROUP,
-}))
-
-/** What Tell Me More opens for a place: its camera, the scene on the map, and the Map Data that reads it. */
+/** What an answer opens on the map: its camera, the scene on it, and the Map Data that reads it. */
 export type TomtomAskView = { camera: TomtomCamera; scene: TomtomMapScene; layers: MapDataLayer[] }
 
-export const TOMTOM_ASK_VIEWS: Record<TomtomPlaceId, TomtomAskView> = {
-  downtown: {
-    camera: { center: [55.2748, 25.1958], zoom: 15.35, pitch: 60, bearing: -18 },
-    scene: { towers: POTENTIAL_TOWERS, heat: [], heatRadiusM: 160, heatRamp: HEAT_RAMP },
-    layers: [
-      {
-        group: POTENTIAL_GROUP,
-        title: 'Investment potential',
-        mark: 'tower',
-        color: { ramp: POTENTIAL_RAMP, low: 'Lower', high: 'Higher' },
-      },
-    ],
+export const TOMTOM_ASK_VIEWS: Record<TomtomAskStageId, TomtomAskView> = {
+  'tt-ask': {
+    camera: { center: [54.374, 24.47], zoom: 13.4, pitch: 52, bearing: -22 },
+    scene: ISLAND_SCENE,
+    layers: [SITES_LAYER(top), STATIONS_LAYER, RIVALS_LAYER(RIVALS.length), TRAFFIC_LAYER(), CATCHMENT_LAYER(true)],
   },
+  'tt-dive': {
+    camera: SZBS_CAMERA,
+    scene: SZBS_SCENE,
+    layers: [SITES_LAYER([SZBS]), RIVALS_LAYER(SZBS_RIVALS.length), TRAFFIC_LAYER(), CATCHMENT_LAYER(false)],
+  },
+  'tt-evening': {
+    camera: { center: [54.372, 24.468], zoom: 13.45, pitch: 54, bearing: -6 },
+    scene: EVENING_SCENE,
+    layers: [SITES_LAYER(eveningTop, true), TRAFFIC_LAYER(true), DEMAND_LAYER, CATCHMENT_LAYER(false)],
+  },
+}
+
+/** Site 1's figures, for the dive answer. */
+export const SITE_ONE = {
+  name: S1,
+  street: STREET_NAMES.szbs,
+  score: SZBS.score,
+  traffic: SZBS.traffic,
+  volume: SZBS.volume,
+  uplift: uplift(SZBS),
+  rivalKm: SZBS.rivalKm,
+  stationKm: SZBS.stationKm,
+  rivalsWithin3: SZBS.rivalsWithin3,
+  hours: { x: HOURS_16, inbound: hourly(2.3, 0.82, 11), outbound: hourly(1.5, 1.24, 12) },
 }

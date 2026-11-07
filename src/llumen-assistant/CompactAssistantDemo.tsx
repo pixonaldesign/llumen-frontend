@@ -75,7 +75,15 @@ import type { LandingTellMeMorePayload } from './landing/LandingHomeDefault'
 import { DUMPING_ALERT_BRIEFING, DUMPING_BRIEFING_SOURCES } from './landing/dumpingBriefing'
 import { LandingAskAsset, LandingAskMap, LandingAskStage, type LandingAskStageHandle } from './landing/LandingAskStage'
 import { findingReply, tellMeMorePrompt } from './landing/landingAskReplies'
-import { findingExperience } from './landing/landingFindingExperiences'
+import {
+  TT_ASK_ID,
+  TT_ASK_PROMPT,
+  TT_DIVE_ID,
+  TT_DIVE_PROMPT,
+  TT_EVENING_ID,
+  TT_EVENING_PROMPT,
+  findingExperience,
+} from './landing/landingFindingExperiences'
 import { CommandPalette } from './CommandPalette'
 import {
   persistComparisonSplit,
@@ -471,8 +479,20 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
   }
 }
 
-/** Typed into the landing AI bar on the first keystroke: the story builder's location prompt, already set to Mussafah. */
+/** The story builder's location prompt, already set to Mussafah: answered with the annotated schools map. */
 const LANDING_DEMO_PROMPT = locationPrompt(MUSSAFAH_LOCATION)
+
+/** The TomTom demo's follow-ups in the stage, as findings so each answer brings its own map. */
+const TT_FOLLOW_UPS = {
+  dive: {
+    prompt: TT_DIVE_PROMPT,
+    finding: { id: TT_DIVE_ID, title: 'Top candidate site', domain: 'Site Selection', finding: TT_DIVE_PROMPT },
+  },
+  evening: {
+    prompt: TT_EVENING_PROMPT,
+    finding: { id: TT_EVENING_ID, title: 'Evening demand', domain: 'Site Selection', finding: TT_EVENING_PROMPT },
+  },
+}
 
 function lastMapState(messages: ChatMessage[]): { stateId: string; snapshot: StoryAiSnapshot } | undefined {
   return messages
@@ -2483,6 +2503,36 @@ export function CompactAssistantDemo() {
   }, [])
 
   /** Back to the landing; the conversation stays in past sessions. */
+  /** A follow-up in the stage that moves its map: the reply joins the conversation and the map follows its card. */
+  const continueLandingAsk = useCallback(
+    (prompt: string, subject: LandingAskSubject) => {
+      if (streaming) return
+      const { reply, stateId, map } = planLandingAsk(subject)
+      setDraft('')
+      setActiveMapStateId(map ? stateId : null)
+      setMessages((current) => [...current, { id: uid(), role: 'user', text: prompt }])
+      const messageId = startAssistantReply(reply)
+      if (map) landingAskPendingRef.current = { messageId, stateId, ...map }
+    },
+    [startAssistantReply, streaming],
+  )
+
+  /**
+   * The TomTom demo's follow-ups, offered in the stage one at a time: the top site close up once the
+   * candidates are on the map, then the evening re-rank once the site is.
+   */
+  const ttFollowUp = useMemo(() => {
+    if (landingAsk === null) return null
+    const asked = new Set(messages.flatMap((message) => (message.role === 'user' ? [message.text] : [])))
+    if (!asked.has(TT_ASK_PROMPT)) return null
+    if (!asked.has(TT_DIVE_PROMPT)) return TT_FOLLOW_UPS.dive
+    if (!asked.has(TT_EVENING_PROMPT)) return TT_FOLLOW_UPS.evening
+    return null
+  }, [landingAsk, messages])
+  const sendTtFollowUp = useCallback(() => {
+    if (ttFollowUp) continueLandingAsk(ttFollowUp.prompt, { finding: ttFollowUp.finding })
+  }, [continueLandingAsk, ttFollowUp])
+
   const closeLandingAsk = useCallback(() => {
     window.clearTimeout(landingAskMapTimer.current)
     landingAskPendingRef.current = null
@@ -2602,6 +2652,13 @@ export function CompactAssistantDemo() {
       const slash = parseSlashCommand(text)
       if (landingTakeover && chips.length === 0) {
         const prompt = text.trim()
+        if (prompt === TT_ASK_PROMPT) {
+          setFirstResponse(null)
+          runLandingAsk(prompt, {
+            finding: { id: TT_ASK_ID, title: 'Candidate sites', domain: 'Site Selection', finding: prompt },
+          })
+          return
+        }
         const demo = parseFirstResponseCommand(prompt)
         // A second prompt while the first answer is up (or still loading) continues full screen.
         if (firstResponse && prompt && !slash && !demo) {
@@ -2690,6 +2747,7 @@ export function CompactAssistantDemo() {
       openLandingAsk,
       firstResponse,
       openFirstResponse,
+      runLandingAsk,
     ],
   )
 
@@ -2973,7 +3031,7 @@ export function CompactAssistantDemo() {
         ref={composerRef}
         value={draft}
         onChange={setDraft}
-        onSend={send}
+        onSend={ttFollowUp && draft.trim() === ttFollowUp.prompt ? sendTtFollowUp : send}
         onStop={stop}
         sendState={sendVisual}
         showParameters
@@ -2994,8 +3052,8 @@ export function CompactAssistantDemo() {
             />
           ) : null
         }
-        suggestedPrompt={streaming ? undefined : (railComponentPrompt ?? storyAnnotationPrompt)}
-        onSendSuggested={sendRailSuggested}
+        suggestedPrompt={streaming ? undefined : (railComponentPrompt ?? storyAnnotationPrompt ?? ttFollowUp?.prompt)}
+        onSendSuggested={!railComponentPrompt && !storyAnnotationPrompt && ttFollowUp ? sendTtFollowUp : sendRailSuggested}
         onPickLocation={storyPrompts ? openLocationPicker : undefined}
       />
       {locationPickerOpen ? (
@@ -3339,7 +3397,7 @@ export function CompactAssistantDemo() {
                     ? undefined
                     : firstResponse
                       ? FOLLOW_UP_PROMPTS[firstResponse.response.kind]
-                      : LANDING_DEMO_PROMPT
+                      : TT_ASK_PROMPT
                 }
               />
           </div>
@@ -3389,7 +3447,7 @@ export function CompactAssistantDemo() {
               <LandingAskAsset
                 stateId={landingAskAsset?.stateId ?? null}
                 title={landingAskAsset?.title ?? chatTitle}
-                place={landingAskAsset?.place ?? 'Dubai'}
+                place={landingAskAsset?.place ?? 'Abu Dhabi'}
                 caption={landingAskAsset?.caption}
                 analysis={landingAskAsset?.analysis}
                 onShowInConversation={

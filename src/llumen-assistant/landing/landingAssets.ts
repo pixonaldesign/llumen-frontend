@@ -3,6 +3,8 @@ const b = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/landing`
 
 export const landingAssets = {
   logoMark: `${b}/llumen-logo.png`,
+  /** TomTom's logo from tomtom.com's header, its wordmark white for dark backgrounds. */
+  tomtomLogo: `${b}/tomtom-logo.svg`,
   wordmark: `${b}/llumen-wordmark.svg`,
   userBtn: `${b}/user-btn.png`,
   slideMap: `${b}/slide-map.png`,
