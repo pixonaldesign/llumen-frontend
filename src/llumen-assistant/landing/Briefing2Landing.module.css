@@ -1,0 +1,65 @@
+.root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #060a14;
+  color: #fff;
+}
+
+.bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 20;
+}
+
+/* Stays mounted under My Assets, so the map and the scroll position survive the switch. */
+.briefing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.root[data-view='assets'] .briefing {
+  visibility: hidden;
+}
+
+/* Each stop fills the page under the top bar, which floats over the map. */
+.root .stop {
+  padding-top: calc(var(--briefing-bar-h, 64px) + 24px);
+}
+
+.copy {
+  text-shadow: 0 1px 16px rgba(0, 0, 0, 0.32);
+}
+
+.assetsView {
+  --page-h: 100%;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  background: linear-gradient(180deg, #3d4350 0%, #4b5261 55%, #59606f 100%);
+  animation: assetsIn 420ms ease both;
+}
+
+.assetsView > * {
+  margin-top: var(--briefing-bar-h, 64px);
+}
+
+@keyframes assetsIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assetsView {
+    animation: none;
+  }
+}

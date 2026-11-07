@@ -1,0 +1,257 @@
+/* Studio UX 9's overview. Tokens (--st-*) come from StudioView.module.css's .root. */
+
+.overview {
+  --inset: 40px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 100%;
+  padding: 36px var(--inset) 160px;
+  box-sizing: border-box;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 40px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+
+.section + .section {
+  padding-top: 32px;
+  border-top: 1px solid var(--st-border);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.sectionHead h2 {
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  line-height: 28px;
+}
+
+/* ── Quick actions ── */
+
+.quick {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.quickCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--st-border);
+  border-radius: 18px;
+  background: var(--st-card);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.quickCard:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background-color: color-mix(in srgb, var(--st-card), white 5%);
+}
+
+/* As tall as the title's line box, so the icon centres on the title. */
+.quickIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 24px;
+  color: var(--st-text-secondary);
+}
+
+.quickText {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.quickTitle {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.quickHint {
+  color: var(--st-text-muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.quickArrow {
+  flex: none;
+  align-self: center;
+  color: var(--st-text-muted);
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.quickCard:hover .quickArrow {
+  color: var(--st-text-secondary);
+  transform: translateX(3px);
+}
+
+/* ── Shelves ── */
+
+.shelfTools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pageButton {
+  width: 32px;
+  height: 32px;
+}
+
+/*
+ * The design system's secondary outline button (pg-btn--outline pg-btn--secondary), as tall as the page
+ * arrows beside it; literal, since its tokens aren't in the Studio's scope.
+ */
+.sectionHead .shelfLink {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  border: 1px solid #ffffff1a;
+  border-radius: 999px;
+  background: #ffffff1a;
+  color: #d4d5d7;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.sectionHead .shelfLink:hover,
+.sectionHead .shelfLink:active {
+  border-color: transparent;
+  background: #ffffff12;
+  color: #fff;
+}
+
+.sectionHead .shelfLink:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--st-brand) 30%, transparent);
+  outline-offset: 2px;
+}
+
+/*
+ * Bleeds to the overview's edges; the first and last cards keep its inset. --columns whole cards fill the
+ * row after the inset, leaving --peek of the next showing at the far edge.
+ */
+.shelfRow {
+  --gap: 16px;
+  --peek: 56px;
+
+  display: flex;
+  gap: var(--gap);
+  margin: -6px calc(-1 * var(--inset)) 0;
+  padding: 6px 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.shelfRow::-webkit-scrollbar {
+  display: none;
+}
+
+.shelfRow[data-dragging] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.shelfRow > * {
+  flex: 0 0 calc((100% - var(--inset) - var(--columns) * var(--gap) - var(--peek)) / var(--columns));
+  min-width: 0;
+}
+
+.shelfRow > :first-child {
+  margin-left: var(--inset);
+}
+
+.shelfRow > :last-child {
+  margin-right: var(--inset);
+}
+
+@media (max-width: 900px) {
+  .overview {
+    --inset: 24px;
+  }
+
+  .quick {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Tablet and mobile: shelves stack instead of scrolling, the first few cards with the shelf's link to the rest. */
+@media (max-width: 1024px) {
+  .shelfRow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: -6px 0 0;
+    overflow: visible;
+  }
+
+  .shelfRow > :first-child,
+  .shelfRow > :last-child {
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .shelfRow > :nth-child(n + 5) {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .overview {
+    --inset: 16px;
+  }
+
+  .shelfRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quickCard,
+  .quickArrow {
+    transition: none;
+  }
+}

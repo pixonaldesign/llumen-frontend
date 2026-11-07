@@ -1,0 +1,95 @@
+/* Global: Mapbox markers live outside the CSS-module tree. Matches the story map's `.annotationTip`. */
+.gami-label,
+.gami-tip {
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+}
+
+.gami-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.gami-label b {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.gami-area-label {
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+.gami-area-label[data-shown='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* A column's or disk's details, beside the pointer. */
+.gami-tip {
+  position: absolute;
+  z-index: 4;
+  width: 244px;
+  padding: 10px 12px;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 14px));
+}
+
+.gami-tip-title {
+  margin: 0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.gami-tip-rows {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gami-tip-rows div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gami-tip-rows dt {
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.gami-tip-rows dd {
+  margin: 0;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.gami-tip-hint {
+  margin: 8px 0 0;
+  color: #a8c9fa;
+  font-size: 11px;
+  font-weight: 500;
+}
