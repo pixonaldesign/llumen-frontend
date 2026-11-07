@@ -1,4 +1,4 @@
-/** Small geometry helpers for the real-estate demo maps: deterministic scatter around a point. */
+/** Small geometry helpers for the real-tomtom demo maps: deterministic scatter around a point. */
 export type LngLat = [number, number]
 
 const KM_PER_DEG_LAT = 110.8

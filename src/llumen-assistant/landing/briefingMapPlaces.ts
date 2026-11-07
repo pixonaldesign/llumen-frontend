@@ -1,9 +1,9 @@
-/** The Briefing map's places: one per real-estate finding, each with its own camera and map scene. */
-import { ESTATE_PLACES, type EstatePlace } from '../realEstate/estateScenario'
-import type { EstatePlaceId } from '../realEstate/estateTypes'
+/** The Briefing map's places: one per real-tomtom finding, each with its own camera and map scene. */
+import { TOMTOM_PLACES, type TomtomPlace } from '../tomtom/tomtomScenario'
+import type { TomtomPlaceId } from '../tomtom/tomtomTypes'
 
-export type BriefingPlaceId = EstatePlaceId
+export type BriefingPlaceId = TomtomPlaceId
 
-export type BriefingPlace = EstatePlace
+export type BriefingPlace = TomtomPlace
 
-export const BRIEFING_PLACES: Record<BriefingPlaceId, BriefingPlace> = ESTATE_PLACES
+export const BRIEFING_PLACES: Record<BriefingPlaceId, BriefingPlace> = TOMTOM_PLACES

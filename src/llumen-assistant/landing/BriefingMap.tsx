@@ -8,13 +8,13 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import type { StoryMapView } from '../story/StoryMap'
 import type { BriefingPlace } from './briefingMapPlaces'
 import {
-  ESTATE_MAP_STYLE,
+  TOMTOM_MAP_STYLE,
   TowerLabels,
-  drawEstateScene,
+  drawTomtomScene,
   forgetTowers,
-  mountEstateLayers,
+  mountTomtomLayers,
   resolveTowers,
-} from '../realEstate/estateMapLayers'
+} from '../tomtom/tomtomMapLayers'
 import styles from './BriefingLanding.module.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
@@ -48,13 +48,13 @@ const labelsByMap = new WeakMap<mapboxgl.Map, TowerLabels>()
 
 function drawPlace(map: mapboxgl.Map, drawn: { current: Drawn }, place: BriefingPlace, grow: number) {
   drawn.current = { place, grow }
-  drawEstateScene(map, LAYERS, place.scene, grow)
+  drawTomtomScene(map, LAYERS, place.scene, grow)
   labelsByMap.get(map)?.sync(place.scene.towers, grow)
 }
 
 function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {
   forgetTowers(map)
-  mountEstateLayers(map, LAYERS, place.scene.towers)
+  mountTomtomLayers(map, LAYERS, place.scene.towers)
   let labels = labelsByMap.get(map)
   if (!labels) {
     labels = new TowerLabels(map, LAYERS)
@@ -153,7 +153,7 @@ export function BriefingMap({
     mapboxgl.accessToken = MAPBOX_TOKEN
     const map = new mapboxgl.Map({
       container: el,
-      style: ESTATE_MAP_STYLE,
+      style: TOMTOM_MAP_STYLE,
       ...(heldRef.current?.camera ?? placeRef.current.camera),
       maxPitch: MAX_PITCH,
       antialias: true,
@@ -333,7 +333,7 @@ export function BriefingMap({
       if (entering) map.jumpTo({ ...enter.camera, padding: enter.padding })
       else if (moved || releasing) map.jumpTo({ ...place.camera, padding })
       if (releasing) holdUntilRef.current = 0
-      mountEstateLayers(map, LAYERS, place.scene.towers)
+      mountTomtomLayers(map, LAYERS, place.scene.towers)
       drawPlace(map, drawnRef, place, target)
       if (entering) onArriveRef.current?.()
       return
@@ -373,7 +373,7 @@ export function BriefingMap({
           return
         }
         swapped = true
-        mountEstateLayers(map, LAYERS, place.scene.towers)
+        mountTomtomLayers(map, LAYERS, place.scene.towers)
       }
       const t = Math.max(0, Math.min(1, (elapsed - delay) / span))
       drawPlace(map, drawnRef, place, growFrom + (target - growFrom) * easeOut(t))

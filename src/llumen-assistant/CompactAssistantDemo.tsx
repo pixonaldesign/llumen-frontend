@@ -104,8 +104,8 @@ import {
   type ChatInteractionModel,
 } from './interactionModel'
 import { StoryView } from './story/StoryView'
-import { EstateStoryView, type EstateAskContext } from './realEstate/EstateStoryView'
-import { ESTATE_STORIES, isEstateStory } from './realEstate/estateScenario'
+import { TomtomStoryView, type TomtomAskContext } from './tomtom/TomtomStoryView'
+import { TOMTOM_STORIES, isTomtomStory } from './tomtom/tomtomScenario'
 import type { StoryMapView } from './story/StoryMap'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
 import { StoryMapStatesContext, type StoryMapStates } from './story/storyMapStates'
@@ -1503,8 +1503,8 @@ export function CompactAssistantDemo() {
       }
       setStoryChatComponents((prev) => (prev.some((item) => item.id === component.id) ? prev : [...prev, component]))
       if (isHub && activeStoryId != null) {
-        const chip: LandingContextChip = isEstateStory(activeStoryId)
-          ? { id: `story-${activeStoryId}`, label: ESTATE_STORIES[activeStoryId].title, categoryId: 'slides' }
+        const chip: LandingContextChip = isTomtomStory(activeStoryId)
+          ? { id: `story-${activeStoryId}`, label: TOMTOM_STORIES[activeStoryId].title, categoryId: 'slides' }
           : storyContextChip(getLandingStory(activeStoryId))
         setLandingChips((prev) => (prev.some((item) => item.id === chip.id) ? prev : [...prev, chip]))
       }
@@ -2826,8 +2826,8 @@ export function CompactAssistantDemo() {
     return grouped
   }, [messages])
 
-  const openEstateAsk = useCallback(
-    ({ storyId, title, pageTitle, sourceRect }: EstateAskContext) => {
+  const openTomtomAsk = useCallback(
+    ({ storyId, title, pageTitle, sourceRect }: TomtomAskContext) => {
       if (isHub) {
         setLandingChips([{ id: `story-${storyId}`, label: title, categoryId: 'slides' }])
         setHubMorphFrom(sourceRect)
@@ -3107,15 +3107,15 @@ export function CompactAssistantDemo() {
           ref={(node) => setLandingScrollEl((current) => (current === node ? current : node))}
         >
           {!storyActive || storyHandoff || storyRelease ? landingHome : null}
-          {storyActive && isEstateStory(activeStoryId) ? (
-            <EstateStoryView
+          {storyActive && isTomtomStory(activeStoryId) ? (
+            <TomtomStoryView
               key={activeStoryId}
               storyId={activeStoryId}
               entrance={storyEntrance}
               mapHidden={storyHandoff === 'cover' || storyRelease !== null}
               onMapReady={passStoryGate}
               onBack={leaveStory}
-              onAsk={openEstateAsk}
+              onAsk={openTomtomAsk}
               agentOpen={open || hubStoryOpen}
               onCloseAsk={hubStoryOpen ? () => setCompactRestoreToken((n) => n + 1) : undefined}
               onSlideIndexChange={setStorySlideIndex}

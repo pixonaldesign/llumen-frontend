@@ -5,11 +5,11 @@
  */
 /*
  * Hugs its content between the sheet's top and bottom insets, centred between them; taller content scrolls.
- * The story's dive sets the width (`EstateStory.module.css` `--estate-panel-w`), with the cards out of the way.
+ * The story's dive sets the width (`TomtomStory.module.css` `--tomtom-panel-w`), with the cards out of the way.
  */
 .panel {
   z-index: 30;
-  width: var(--estate-panel-w, min(880px, max(560px, calc(100% - 444px))));
+  width: var(--tomtom-panel-w, min(880px, max(560px, calc(100% - 444px))));
   height: fit-content;
   max-height: calc(100% - 2 * var(--space-2xl));
   margin-block: auto;

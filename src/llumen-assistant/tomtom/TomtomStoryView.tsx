@@ -1,5 +1,5 @@
 /**
- * A real-estate story over the night Dubai map, built from the landing story's own parts: its header,
+ * A real-tomtom story over the night Dubai map, built from the landing story's own parts: its header,
  * page pills, filters, insight cards with their hover actions, Map Data, edit mode and modals. The
  * map lights the page's towers; clicking one opens its details panel from the right.
  */
@@ -69,22 +69,22 @@ import { defaultMonitorConfig, monitorPrompt, monitorWorkflowProposal, type Moni
 import { SUMMARY_REGENERATE_MS, defaultSummaryConfig, gradientVars, type SummaryConfig } from '../story/storySummary'
 import gradientStyles from '../story/storyGradientBorder.module.css'
 import styles from '../story/StoryView.module.css'
-import { EstateBuildingPanel } from './EstateBuildingPanel'
-import { EstateCardBody } from './EstateCharts'
-import { EstateMap, type EstateMapFocus, type EstateMapHandle } from './EstateMap'
-import { cardClass, cardFootprint } from './estateCardLayout'
-import { ESTATE_MAP_STYLE } from './estateMapLayers'
-import { ESTATE_BUILDINGS, ESTATE_STORIES, isBuildingId } from './estateScenario'
-import type { BuildingId, EstateCard, EstatePage, MapDataLayer } from './estateTypes'
-import cardCss from './EstateCards.module.css'
-import css from './EstateStory.module.css'
+import { TomtomBuildingPanel } from './TomtomBuildingPanel'
+import { TomtomCardBody } from './TomtomCharts'
+import { TomtomMap, type TomtomMapFocus, type TomtomMapHandle } from './TomtomMap'
+import { cardClass, cardFootprint } from './tomtomCardLayout'
+import { TOMTOM_MAP_STYLE } from './tomtomMapLayers'
+import { TOMTOM_BUILDINGS, TOMTOM_STORIES, isBuildingId } from './tomtomScenario'
+import type { BuildingId, TomtomCard, TomtomPage, MapDataLayer } from './tomtomTypes'
+import cardCss from './TomtomCards.module.css'
+import css from './TomtomStory.module.css'
 
-export type EstateAskContext = { storyId: string; title: string; pageTitle: string; sourceRect: DOMRect }
+export type TomtomAskContext = { storyId: string; title: string; pageTitle: string; sourceRect: DOMRect }
 
 type Props = {
   storyId: string
   onBack: (from?: StoryMapView) => void
-  onAsk?: (context: EstateAskContext) => void
+  onAsk?: (context: TomtomAskContext) => void
   agentOpen?: boolean
   onCloseAsk?: () => void
   /** Shows "Add to chat" in a hovered card's toolbar; `sourceRect` is the clicked button. */
@@ -100,7 +100,7 @@ type Props = {
 const NO_GROUPS: ReadonlySet<string> = new Set()
 
 /** The Assets picker's categories for each chart kind. */
-const CHART_CATEGORY: Record<EstateCard['kind'], string> = {
+const CHART_CATEGORY: Record<TomtomCard['kind'], string> = {
   summary: 'Trends',
   section: 'Distribution',
   note: 'Distribution',
@@ -116,7 +116,7 @@ const CHART_CATEGORY: Record<EstateCard['kind'], string> = {
   donut: 'Distribution',
   table: 'Distribution',
 }
-const CHAPTER = 'estate'
+const CHAPTER = 'tomtom'
 const FILTER_IDS = ['loc', 'year', 'domain']
 const SIDEBAR_COLUMN_OPTIONS = [2, 3, 4] as const
 type SidebarColumns = (typeof SIDEBAR_COLUMN_OPTIONS)[number]
@@ -135,13 +135,13 @@ const SUMMARY_TIME = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minut
 /** Width of a card's hover toolbar with `buttons` icons; the summary pill slides left by it. */
 const cardActionsWidth = (buttons: number) => buttons * 26 + (buttons - 1) * 2 + 6
 
-/** Keep in step with `EstateStory.module.css` `--estate-panel-w`: the panel's width, the 24px it sits in from the edge, and a gap. */
+/** Keep in step with `TomtomStory.module.css` `--tomtom-panel-w`: the panel's width, the 24px it sits in from the edge, and a gap. */
 function panelInset() {
   return Math.min(1200, Math.max(720, window.innerWidth - 640)) + 48
 }
 
 /** Dive: the tower close up in the room the cards leave, its base low enough that the top stays in view. */
-function diveFocus(id: BuildingId): EstateMapFocus {
+function diveFocus(id: BuildingId): TomtomMapFocus {
   return {
     id,
     padding: { top: Math.round(window.innerHeight * 0.5), right: panelInset(), bottom: 0, left: 24 },
@@ -151,9 +151,9 @@ function diveFocus(id: BuildingId): EstateMapFocus {
   }
 }
 
-const BUILDING_BY_NAME = new Map(Object.values(ESTATE_BUILDINGS).map((building) => [building.name, building.id]))
+const BUILDING_BY_NAME = new Map(Object.values(TOMTOM_BUILDINGS).map((building) => [building.name, building.id]))
 
-function toSlide(page: EstatePage): StorySlide {
+function toSlide(page: TomtomPage): StorySlide {
   return {
     id: page.id,
     chapterId: CHAPTER,
@@ -169,7 +169,7 @@ function toSlide(page: EstatePage): StorySlide {
   }
 }
 
-function toFilters(page: EstatePage): StoryFilter[] {
+function toFilters(page: TomtomPage): StoryFilter[] {
   return page.filters.map((label, index) => ({ id: FILTER_IDS[index] ?? `filter-${index}`, label }))
 }
 
@@ -209,7 +209,7 @@ function CardActionButton({
         data-card-menu-trigger={menu ? '' : undefined}
         aria-haspopup={menu ? 'menu' : undefined}
         aria-expanded={menu?.open}
-        aria-controls={menu?.open ? 'estate-card-menu' : undefined}
+        aria-controls={menu?.open ? 'tomtom-card-menu' : undefined}
         aria-describedby={tooltip.describedBy}
         onClick={(event) => {
           tooltip.hide()
@@ -301,13 +301,13 @@ function useDismiss(open: boolean, keep: string, close: () => void) {
 }
 
 /** The tower a card is about, which its Explore opens. */
-function cardTower(card: EstateCard): BuildingId | null {
+function cardTower(card: TomtomCard): BuildingId | null {
   if (card.id.includes('dreamscape')) return 'dreamscape'
   if (card.id.includes('opera')) return 'opera-crest'
   return null
 }
 
-export function EstateStoryView({
+export function TomtomStoryView({
   storyId,
   onBack,
   onAsk,
@@ -320,14 +320,14 @@ export function EstateStoryView({
   onMapReady,
   onSlideIndexChange,
 }: Props) {
-  const story = ESTATE_STORIES[storyId]
+  const story = TOMTOM_STORIES[storyId]
   const [storyTitle, setStoryTitle] = useState(story.title)
   const [storyDescription, setStoryDescription] = useState(story.description)
   const [presentationSettings, setPresentationSettings] = useState(makePresentationSettings)
   const [autoplaying, setAutoplaying] = useState(false)
   const [slides, setSlides] = useState<StorySlide[]>(() => story.pages.map(toSlide))
   /** The page each slide shows; added and duplicated slides show their source's. */
-  const [pageOf, setPageOf] = useState<Record<string, EstatePage>>(() =>
+  const [pageOf, setPageOf] = useState<Record<string, TomtomPage>>(() =>
     Object.fromEntries(story.pages.map((page) => [page.id, page])),
   )
   const [filtersBySlide, setFiltersBySlide] = useState<Record<string, StoryFilter[]>>(() =>
@@ -342,12 +342,12 @@ export function EstateStoryView({
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NO_GROUPS)
   /** The tower whose details panel is open. */
   const [building, setBuilding] = useState<BuildingId | null>(null)
-  const [focus, setFocus] = useState<EstateMapFocus | null>(null)
+  const [focus, setFocus] = useState<TomtomMapFocus | null>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const [pageRename, setPageRename] = useState<{ slideId: string; title: string } | null>(null)
   const [columnsBySlide, setColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
   const [removedCards, setRemovedCards] = useState<Record<string, string[]>>({})
-  const [addedCards, setAddedCards] = useState<Record<string, EstateCard[]>>({})
+  const [addedCards, setAddedCards] = useState<Record<string, TomtomCard[]>>({})
   const [layerOrder, setLayerOrder] = useState<Record<string, string[]>>({})
   const [layerTitles, setLayerTitles] = useState<Record<string, string>>({})
   const [draggingLayer, setDraggingLayer] = useState<string | null>(null)
@@ -362,7 +362,7 @@ export function EstateStoryView({
   const [mapStyle, setMapStyle] = useState<BackgroundBasemap>({
     kind: 'basemap',
     id: 'aimsun-teal',
-    url: ESTATE_MAP_STYLE,
+    url: TOMTOM_MAP_STYLE,
     dimension: '3d',
   })
   const [background, setBackground] = useState<StoryBackground>(mapStyle)
@@ -370,11 +370,11 @@ export function EstateStoryView({
   const [storyMenu, setStoryMenu] = useState<MenuAt | null>(null)
   const [slideMenu, setSlideMenu] = useState<MenuAt | null>(null)
   const [layoutMenu, setLayoutMenu] = useState<MenuAt | null>(null)
-  const [cardMenu, setCardMenu] = useState<(MenuAt & { card: EstateCard }) | null>(null)
+  const [cardMenu, setCardMenu] = useState<(MenuAt & { card: TomtomCard }) | null>(null)
   const [filterMenu, setFilterMenu] = useState<(MenuAt & { filter: StoryFilter }) | null>(null)
   const [layerMenu, setLayerMenu] = useState<(MenuAt & { group: string; title: string }) | null>(null)
 
-  const mapRef = useRef<EstateMapHandle>(null)
+  const mapRef = useRef<TomtomMapHandle>(null)
   const titleGroupRef = useRef<HTMLDivElement>(null)
 
   const activeSlideIndex = Math.min(slideIndex, slides.length - 1)
@@ -399,7 +399,7 @@ export function EstateStoryView({
             id: `${source.id}:${card.id}`,
             title: card.title,
             category: CHART_CATEGORY[card.kind],
-            preview: <EstateCardBody card={card} />,
+            preview: <TomtomCardBody card={card} />,
           })),
       ),
     [story],
@@ -438,7 +438,7 @@ export function EstateStoryView({
   useEffect(() => {
     if (!info) return
     const close = (event: PointerEvent) => {
-      if (!(event.target as HTMLElement).closest('[data-estate-info]')) setInfo(null)
+      if (!(event.target as HTMLElement).closest('[data-tomtom-info]')) setInfo(null)
     }
     window.addEventListener('pointerdown', close)
     return () => window.removeEventListener('pointerdown', close)
@@ -459,12 +459,12 @@ export function EstateStoryView({
     return () => window.clearInterval(timer)
   }, [autoplaying, pagesMode, presentationSettings.autoplay, presentationSettings.multiSlide, slides.length])
 
-  useDismiss(Boolean(storyMenu), '#estate-story-menu, [data-story-menu-trigger]', () => setStoryMenu(null))
-  useDismiss(Boolean(slideMenu), '#estate-slide-menu, [data-slide-menu-trigger]', () => setSlideMenu(null))
-  useDismiss(Boolean(layoutMenu), '#estate-layout-menu, [data-layout-menu-trigger]', () => setLayoutMenu(null))
-  useDismiss(Boolean(cardMenu), '#estate-card-menu, [data-card-menu-trigger]', () => setCardMenu(null))
-  useDismiss(Boolean(filterMenu), '#estate-filter-menu, [data-filter-menu-trigger]', () => setFilterMenu(null))
-  useDismiss(Boolean(layerMenu), '#estate-layer-menu, [data-layer-menu-trigger]', () => setLayerMenu(null))
+  useDismiss(Boolean(storyMenu), '#tomtom-story-menu, [data-story-menu-trigger]', () => setStoryMenu(null))
+  useDismiss(Boolean(slideMenu), '#tomtom-slide-menu, [data-slide-menu-trigger]', () => setSlideMenu(null))
+  useDismiss(Boolean(layoutMenu), '#tomtom-layout-menu, [data-layout-menu-trigger]', () => setLayoutMenu(null))
+  useDismiss(Boolean(cardMenu), '#tomtom-card-menu, [data-card-menu-trigger]', () => setCardMenu(null))
+  useDismiss(Boolean(filterMenu), '#tomtom-filter-menu, [data-filter-menu-trigger]', () => setFilterMenu(null))
+  useDismiss(Boolean(layerMenu), '#tomtom-layer-menu, [data-layer-menu-trigger]', () => setLayerMenu(null))
 
   const closeMenus = () => {
     setStoryMenu(null)
@@ -622,11 +622,11 @@ export function EstateStoryView({
     </span>
   )
 
-  const insightCard = (card: EstateCard) => {
+  const insightCard = (card: TomtomCard) => {
     if (card.kind === 'section')
       return (
         <header key={card.id} className={cardClass(card)}>
-          <EstateCardBody card={card} />
+          <TomtomCardBody card={card} />
         </header>
       )
     const summary = card.kind === 'summary'
@@ -640,7 +640,7 @@ export function EstateStoryView({
         className={[cardClass(card), summary ? gradientStyles.gradientBorder : '', styles.insightCard].filter(Boolean).join(' ')}
         style={style}
       >
-        <EstateCardBody
+        <TomtomCardBody
           card={card}
           summaryStatus={summary ? summaryUpdated : undefined}
           summaryTyping={summary && summaryRegenerating}
@@ -780,7 +780,7 @@ export function EstateStoryView({
           className={styles.infoBtn}
           aria-label="Show page description"
           aria-expanded={info?.kind === 'slide'}
-          data-estate-info
+          data-tomtom-info
           onClick={(event) => toggleInfo('slide', event.currentTarget)}
         >
           <Info size={22} weight="regular" aria-hidden />
@@ -1115,7 +1115,7 @@ export function EstateStoryView({
       inert={entrance === 'leave' || entrance === 'gone'}
     >
       <div className={styles.mapPane}>
-        <EstateMap
+        <TomtomMap
           camera={page.camera}
           scene={page.scene}
           hidden={mapHiddenGroups}
@@ -1178,7 +1178,7 @@ export function EstateStoryView({
                       className={`${styles.infoBtn} ${styles.infoBtnSmall}`}
                       aria-label="Show story description"
                       aria-expanded={info?.kind === 'story'}
-                      data-estate-info
+                      data-tomtom-info
                       onClick={(event) => toggleInfo('story', event.currentTarget)}
                     >
                       <Info size={22} weight="regular" aria-hidden />
@@ -1220,7 +1220,7 @@ export function EstateStoryView({
                       className={styles.infoBtn}
                       aria-label="Show slide description"
                       aria-expanded={info?.kind === 'slide'}
-                      data-estate-info
+                      data-tomtom-info
                       onClick={(event) => toggleInfo('slide', event.currentTarget)}
                     >
                       <Info size={22} weight="regular" aria-hidden />
@@ -1229,7 +1229,7 @@ export function EstateStoryView({
                 </div>
               )}
               {!editing && info ? (
-                <div className={styles.infoPopover} style={{ left: info.left, top: info.top }} role="tooltip" data-estate-info>
+                <div className={styles.infoPopover} style={{ left: info.left, top: info.top }} role="tooltip" data-tomtom-info>
                   {(info.kind === 'story' ? storyDescription : slide.finding) || 'No description added.'}
                 </div>
               ) : null}
@@ -1327,7 +1327,7 @@ export function EstateStoryView({
           {mapData}
         </div>
 
-        {building ? <EstateBuildingPanel key={building} buildingId={building} onClose={closeBuilding} /> : null}
+        {building ? <TomtomBuildingPanel key={building} buildingId={building} onClose={closeBuilding} /> : null}
 
         <div className={`${styles.lowerNav} ${css.diveNav}`} aria-label="Story navigation">
           {askButton}
@@ -1395,7 +1395,7 @@ export function EstateStoryView({
 
       {storyMenu
         ? createPortal(
-            <div id="estate-story-menu" className={styles.storyMenu} role="menu" aria-label="Story actions" style={storyMenu}>
+            <div id="tomtom-story-menu" className={styles.storyMenu} role="menu" aria-label="Story actions" style={storyMenu}>
               <button
                 type="button"
                 role="menuitem"
@@ -1438,7 +1438,7 @@ export function EstateStoryView({
         : null}
       {slideMenu
         ? createPortal(
-            <div id="estate-slide-menu" className={styles.storyMenu} role="menu" aria-label="Slide actions" style={slideMenu}>
+            <div id="tomtom-slide-menu" className={styles.storyMenu} role="menu" aria-label="Slide actions" style={slideMenu}>
               <button
                 type="button"
                 role="menuitem"
@@ -1497,7 +1497,7 @@ export function EstateStoryView({
       {layoutMenu
         ? createPortal(
             <div
-              id="estate-layout-menu"
+              id="tomtom-layout-menu"
               className={`${styles.storyMenu} ${styles.layoutMenu}`}
               role="menu"
               aria-label="Layout"
@@ -1520,7 +1520,7 @@ export function EstateStoryView({
         : null}
       {cardMenu
         ? createPortal(
-            <div id="estate-card-menu" className={styles.storyMenu} role="menu" aria-label="Card actions" style={{ top: cardMenu.top, left: cardMenu.left }}>
+            <div id="tomtom-card-menu" className={styles.storyMenu} role="menu" aria-label="Card actions" style={{ top: cardMenu.top, left: cardMenu.left }}>
               <button
                 type="button"
                 role="menuitem"
@@ -1565,7 +1565,7 @@ export function EstateStoryView({
       {filterMenu
         ? createPortal(
             <div
-              id="estate-filter-menu"
+              id="tomtom-filter-menu"
               className={styles.storyMenu}
               role="menu"
               aria-label={`${filterMenu.filter.label} filter`}
@@ -1602,7 +1602,7 @@ export function EstateStoryView({
         : null}
       {layerMenu
         ? createPortal(
-            <div id="estate-layer-menu" className={styles.storyMenu} role="menu" aria-label="Map layer actions" style={{ top: layerMenu.top, left: layerMenu.left }}>
+            <div id="tomtom-layer-menu" className={styles.storyMenu} role="menu" aria-label="Map layer actions" style={{ top: layerMenu.top, left: layerMenu.left }}>
               <button
                 type="button"
                 role="menuitem"

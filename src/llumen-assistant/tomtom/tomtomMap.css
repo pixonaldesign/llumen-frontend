@@ -1,6 +1,6 @@
 /* Global: the labels and tooltip live in the Mapbox container, outside the CSS-module tree. Matches the story map's `.annotationTip`. */
-.estate-label,
-.estate-tip {
+.tomtom-label,
+.tomtom-tip {
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -14,7 +14,7 @@
 }
 
 /* A tower's name on its roof, pinned by a stem in the tower's colour. */
-.estate-label {
+.tomtom-label {
   position: absolute;
   top: 0;
   left: 0;
@@ -35,22 +35,22 @@
   will-change: transform;
 }
 
-.estate-label[data-static='true'] {
+.tomtom-label[data-static='true'] {
   pointer-events: none;
 }
 
-.estate-label:hover,
-.estate-label[data-active='true'] {
+.tomtom-label:hover,
+.tomtom-label[data-active='true'] {
   border-color: color-mix(in srgb, var(--tower) 60%, transparent);
   background: rgba(40, 40, 40, 0.64);
 }
 
-.estate-label:focus-visible {
+.tomtom-label:focus-visible {
   outline: 2px solid #70aeff;
   outline-offset: 2px;
 }
 
-.estate-label::after {
+.tomtom-label::after {
   content: '';
   position: absolute;
   top: 100%;
@@ -61,7 +61,7 @@
   pointer-events: none;
 }
 
-.estate-label > i {
+.tomtom-label > i {
   flex-shrink: 0;
   width: 8px;
   height: 8px;
@@ -71,13 +71,13 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tower) 24%, transparent);
 }
 
-.estate-label > span {
+.tomtom-label > span {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.estate-label b {
+.tomtom-label b {
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -85,7 +85,7 @@
 }
 
 /* A tower's details, beside the pointer. */
-.estate-tip {
+.tomtom-tip {
   position: absolute;
   z-index: 4;
   width: 232px;
@@ -94,7 +94,7 @@
   transform: translate(-50%, calc(-100% - 14px));
 }
 
-.estate-tip-title {
+.tomtom-tip-title {
   margin: 0;
   color: #fff;
   font-size: 13px;
@@ -102,7 +102,7 @@
   line-height: 18px;
 }
 
-.estate-tip-rows {
+.tomtom-tip-rows {
   display: grid;
   gap: 4px;
   margin: 8px 0 0;
@@ -110,17 +110,17 @@
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.estate-tip-rows div {
+.tomtom-tip-rows div {
   display: flex;
   justify-content: space-between;
   gap: 12px;
 }
 
-.estate-tip-rows dt {
+.tomtom-tip-rows dt {
   color: rgba(255, 255, 255, 0.56);
 }
 
-.estate-tip-rows dd {
+.tomtom-tip-rows dd {
   margin: 0;
   color: #fff;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;

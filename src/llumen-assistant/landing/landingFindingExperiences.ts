@@ -10,8 +10,8 @@ import type {
   ThinkingStep,
   TimelineStep,
 } from '../assistantReplyTypes'
-import { ESTATE_ASK_VIEWS, POTENTIAL_RAMP, POTENTIAL_RANKING, type EstateAskView } from '../realEstate/estateScenario'
-import { PALETTE } from '../realEstate/estateTypes'
+import { TOMTOM_ASK_VIEWS, POTENTIAL_RAMP, POTENTIAL_RANKING, type TomtomAskView } from '../tomtom/tomtomScenario'
+import { PALETTE } from '../tomtom/tomtomTypes'
 import { BRIEFING_PLACES, type BriefingPlaceId } from './briefingMapPlaces'
 
 export type FindingStageId = BriefingPlaceId
@@ -31,8 +31,8 @@ export function isFindingPlace(id: string | undefined): id is FindingStageId {
 }
 
 /** The map Tell Me More opens for a place: every tall tower coloured by its potential. */
-export function findingStage(place: FindingStageId): EstateAskView {
-  return ESTATE_ASK_VIEWS[place]
+export function findingStage(place: FindingStageId): TomtomAskView {
+  return TOMTOM_ASK_VIEWS[place]
 }
 
 function timeline(steps: ThinkingStep[]): TimelineStep[] {
@@ -253,7 +253,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
               rows: barRows([
                 ['Jumeirah Village Circle', 14.2, '14.2k'],
                 ['Business Bay', 11.8, '11.8k'],
-                ['Dubai Hills Estate', 9.6, '9.6k'],
+                ['Dubai Hills Tomtom', 9.6, '9.6k'],
                 ['Downtown Dubai', 8.4, '8.4k'],
                 ['Dubai Creek Harbour', 7.9, '7.9k'],
               ]),

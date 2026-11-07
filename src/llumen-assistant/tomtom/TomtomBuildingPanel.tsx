@@ -20,10 +20,10 @@ import {
 } from '@phosphor-icons/react'
 import panelStyles from '../story/StoryEditPanel.module.css'
 import cardStyles from '../story/StoryView.module.css'
-import { EstateCardBody, Sparkline } from './EstateCharts'
-import { ESTATE_BUILDINGS } from './estateScenario'
-import { PALETTE, type BuildingId, type BuildingTabId, type CountRow } from './estateTypes'
-import css from './EstateBuildingPanel.module.css'
+import { TomtomCardBody, Sparkline } from './TomtomCharts'
+import { TOMTOM_BUILDINGS } from './tomtomScenario'
+import { PALETTE, type BuildingId, type BuildingTabId, type CountRow } from './tomtomTypes'
+import css from './TomtomBuildingPanel.module.css'
 
 const TABS: { id: BuildingTabId; label: string; icon: Icon }[] = [
   { id: 'sales', label: 'Sales', icon: PresentationChart },
@@ -246,8 +246,8 @@ function SectionBar({ icon: IconCmp, title }: { icon: Icon; title: string }) {
   )
 }
 
-export function EstateBuildingPanel({ buildingId, onClose }: { buildingId: BuildingId; onClose: () => void }) {
-  const building = ESTATE_BUILDINGS[buildingId]
+export function TomtomBuildingPanel({ buildingId, onClose }: { buildingId: BuildingId; onClose: () => void }) {
+  const building = TOMTOM_BUILDINGS[buildingId]
   const [tab, setTab] = useState<BuildingTabId>('sales')
   /** The first tab fills as the panel lands; a tab picked later fills at once. */
   const [switched, setSwitched] = useState(false)
@@ -360,9 +360,9 @@ export function EstateBuildingPanel({ buildingId, onClose }: { buildingId: Build
                   key={item.id}
                   type="button"
                   role="tab"
-                  id={`estate-tab-${item.id}`}
+                  id={`tomtom-tab-${item.id}`}
                   aria-selected={selected}
-                  aria-controls="estate-tab-panel"
+                  aria-controls="tomtom-tab-panel"
                   className={`${panelStyles.locationTab} ${css.tab}${selected ? ` ${panelStyles.locationTabActive}` : ''}`}
                   onClick={() => {
                     setTab(item.id)
@@ -380,9 +380,9 @@ export function EstateBuildingPanel({ buildingId, onClose }: { buildingId: Build
           <div
             key={tab}
             className={css.scroll}
-            id="estate-tab-panel"
+            id="tomtom-tab-panel"
             role="tabpanel"
-            aria-labelledby={`estate-tab-${tab}`}
+            aria-labelledby={`tomtom-tab-${tab}`}
           >
             <div className={css.kpis}>
               {data.kpis.map((kpi) => (
@@ -467,7 +467,7 @@ export function EstateBuildingPanel({ buildingId, onClose }: { buildingId: Build
 
             <SectionBar icon={Hourglass} title="Time series" />
             <div className={css.series} style={fillStyle(tabDelay + 420)}>
-              <EstateCardBody
+              <TomtomCardBody
                 card={{
                   id: `${tab}-series`,
                   kind: 'line',

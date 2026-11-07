@@ -1,6 +1,6 @@
 /**
- * The real-estate story's insight cards, drawn with the story cards' own type and chart styles: one
- * body per `EstateCard` kind, coloured from the Create Asset palettes. The card shell and its hover
+ * The real-tomtom story's insight cards, drawn with the story cards' own type and chart styles: one
+ * body per `TomtomCard` kind, coloured from the Create Asset palettes. The card shell and its hover
  * actions are the story view's.
  */
 import { useId, type CSSProperties, type ReactNode } from 'react'
@@ -8,16 +8,16 @@ import styles from '../story/StoryView.module.css'
 import { formatCount } from '../story/StoryCharts'
 import { StorySummaryText } from '../story/StorySummaryText'
 import { SUMMARY_REGENERATE_MS } from '../story/storySummary'
-import { STATUS, TONE_ACCENT, category, type EstateCard, type Status, type Tone } from './estateTypes'
-import css from './EstateCards.module.css'
+import { STATUS, TONE_ACCENT, category, type TomtomCard, type Status, type Tone } from './tomtomTypes'
+import css from './TomtomCards.module.css'
 
-type CardOf<K extends EstateCard['kind']> = Extract<EstateCard, { kind: K }>
+type CardOf<K extends TomtomCard['kind']> = Extract<TomtomCard, { kind: K }>
 
 const statusColor = (status: Status | undefined, fallback: string) => (status ? STATUS[status] : fallback)
 
-const toneOf = (card: EstateCard): Tone => card.tone ?? 'blue'
+const toneOf = (card: TomtomCard): Tone => card.tone ?? 'blue'
 
-function Title({ card }: { card: EstateCard }) {
+function Title({ card }: { card: TomtomCard }) {
   return <p className={styles.visualTitle}>{card.title}</p>
 }
 
@@ -400,13 +400,13 @@ function Table({ card }: { card: CardOf<'table'> }) {
   )
 }
 
-export function EstateCardBody({
+export function TomtomCardBody({
   card,
   summaryStatus,
   summaryTyping = false,
   flat = false,
 }: {
-  card: EstateCard
+  card: TomtomCard
   /** The summary's "Last updated" chip. */
   summaryStatus?: ReactNode
   summaryTyping?: boolean
@@ -444,7 +444,7 @@ export function EstateCardBody({
     case 'section':
       return <h3 className={css.sectionTitle}>{card.title}</h3>
   }
-  const body: Record<Exclude<EstateCard['kind'], 'summary' | 'cell' | 'section'>, () => ReactNode> = {
+  const body: Record<Exclude<TomtomCard['kind'], 'summary' | 'cell' | 'section'>, () => ReactNode> = {
     note: () => <p className={css.note}>{(card as CardOf<'note'>).text}</p>,
     specs: () => (
       <dl className={css.specs}>

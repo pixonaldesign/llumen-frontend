@@ -1,22 +1,22 @@
 /**
- * The real-estate demo: Downtown Dubai's off-plan sales this quarter, and the two towers that led
+ * The real-tomtom demo: Downtown Dubai's off-plan sales this quarter, and the two towers that led
  * them. Each tower is lit in its own colour on the map and opens its details panel when clicked.
  */
-import { hash, offsetKm, scatter, type LngLat } from './estateGeo'
-import type { EstateHeatPoint, EstateMapScene, EstateTower } from './estateMapLayers'
+import { hash, offsetKm, scatter, type LngLat } from './tomtomGeo'
+import type { TomtomHeatPoint, TomtomMapScene, TomtomTower } from './tomtomMapLayers'
 import {
   PALETTE,
   type BuildingId,
   type BuildingTab,
   type CountRow,
-  type EstateBuilding,
-  type EstateCamera,
-  type EstateCard,
-  type EstatePlaceId,
-  type EstateStory,
+  type TomtomBuilding,
+  type TomtomCamera,
+  type TomtomCard,
+  type TomtomPlaceId,
+  type TomtomStory,
   type MapDataLayer,
   type Tone,
-} from './estateTypes'
+} from './tomtomTypes'
 
 export const TOWER_COLOR: Record<BuildingId, string> = {
   dreamscape: PALETTE.teal[2],
@@ -166,7 +166,7 @@ function tabs(spec: {
   }
 }
 
-export const ESTATE_BUILDINGS: Record<BuildingId, EstateBuilding> = {
+export const TOMTOM_BUILDINGS: Record<BuildingId, TomtomBuilding> = {
   dreamscape: {
     id: 'dreamscape',
     name: 'Dreamscape Tower',
@@ -458,7 +458,7 @@ export const ESTATE_BUILDINGS: Record<BuildingId, EstateBuilding> = {
 const TOWERS_GROUP = 'towers'
 const HEAT_GROUP = 'sales'
 
-function tower(building: EstateBuilding): EstateTower {
+function tower(building: TomtomBuilding): TomtomTower {
   const sold = building.tabs.sales.kpis[0].value
   return {
     id: building.id,
@@ -481,23 +481,23 @@ function tower(building: EstateBuilding): EstateTower {
   }
 }
 
-export const ESTATE_TOWERS: EstateTower[] = [tower(ESTATE_BUILDINGS.dreamscape), tower(ESTATE_BUILDINGS['opera-crest'])]
+export const TOMTOM_TOWERS: TomtomTower[] = [tower(TOMTOM_BUILDINGS.dreamscape), tower(TOMTOM_BUILDINGS['opera-crest'])]
 
 const DOWNTOWN: LngLat = [55.2765, 25.1955]
 
 /** Off-plan sales by plot across Downtown and Business Bay's edge, densest around the two towers. */
-const DOWNTOWN_HEAT: EstateHeatPoint[] = [
+const DOWNTOWN_HEAT: TomtomHeatPoint[] = [
   ...scatter(DOWNTOWN, 90, 1.5, 3).map((at, index) => ({ at, weight: 0.2 + 0.4 * hash(index, 9), group: HEAT_GROUP })),
-  ...scatter(ESTATE_BUILDINGS.dreamscape.at, 26, 0.35, 5).map((at) => ({ at, weight: 0.9, group: HEAT_GROUP })),
-  ...scatter(ESTATE_BUILDINGS['opera-crest'].at, 22, 0.35, 7).map((at) => ({ at, weight: 0.8, group: HEAT_GROUP })),
+  ...scatter(TOMTOM_BUILDINGS.dreamscape.at, 26, 0.35, 5).map((at) => ({ at, weight: 0.9, group: HEAT_GROUP })),
+  ...scatter(TOMTOM_BUILDINGS['opera-crest'].at, 22, 0.35, 7).map((at) => ({ at, weight: 0.8, group: HEAT_GROUP })),
   ...scatter(offsetKm(DOWNTOWN, 0.6, 1.4), 30, 0.7, 13).map((at) => ({ at, weight: 0.35, group: HEAT_GROUP })),
 ]
 
-export const DOWNTOWN_SCENE: EstateMapScene = { towers: ESTATE_TOWERS, heat: DOWNTOWN_HEAT, heatRadiusM: 160, heatRamp: HEAT_RAMP }
-const TOWERS_SCENE: EstateMapScene = { towers: ESTATE_TOWERS, heat: [], heatRadiusM: 160, heatRamp: HEAT_RAMP }
+export const DOWNTOWN_SCENE: TomtomMapScene = { towers: TOMTOM_TOWERS, heat: DOWNTOWN_HEAT, heatRadiusM: 160, heatRamp: HEAT_RAMP }
+const TOWERS_SCENE: TomtomMapScene = { towers: TOMTOM_TOWERS, heat: [], heatRadiusM: 160, heatRamp: HEAT_RAMP }
 
 /** The Briefing's view of Downtown: both towers in frame, the Burj Khalifa between them. */
-export const DOWNTOWN_CAMERA: EstateCamera = { center: [55.2768, 25.1962], zoom: 15.6, pitch: 62, bearing: -26 }
+export const DOWNTOWN_CAMERA: TomtomCamera = { center: [55.2768, 25.1962], zoom: 15.6, pitch: 62, bearing: -26 }
 
 const LAYERS: MapDataLayer[] = [
   {
@@ -506,8 +506,8 @@ const LAYERS: MapDataLayer[] = [
     mark: 'tower',
     color: {
       items: [
-        { label: ESTATE_BUILDINGS.dreamscape.name, color: TOWER_COLOR.dreamscape, count: 'AED 3.5bn' },
-        { label: ESTATE_BUILDINGS['opera-crest'].name, color: TOWER_COLOR['opera-crest'], count: 'AED 2.6bn' },
+        { label: TOMTOM_BUILDINGS.dreamscape.name, color: TOWER_COLOR.dreamscape, count: 'AED 3.5bn' },
+        { label: TOMTOM_BUILDINGS['opera-crest'].name, color: TOWER_COLOR['opera-crest'], count: 'AED 2.6bn' },
       ],
     },
   },
@@ -515,16 +515,16 @@ const LAYERS: MapDataLayer[] = [
 ]
 
 /** Assigns each card a tone in turn, so neighbouring charts don't all read the same colour. */
-function toned(cards: EstateCard[]): EstateCard[] {
+function toned(cards: TomtomCard[]): TomtomCard[] {
   const order: Tone[] = ['teal', 'blue', 'purple']
   let index = 0
   return cards.map((card) => (card.tone || card.kind === 'summary' ? card : { ...card, tone: order[index++ % order.length] }))
 }
 
-const DREAMSCAPE = ESTATE_BUILDINGS.dreamscape.name
-const OPERA = ESTATE_BUILDINGS['opera-crest'].name
+const DREAMSCAPE = TOMTOM_BUILDINGS.dreamscape.name
+const OPERA = TOMTOM_BUILDINGS['opera-crest'].name
 
-export const ESTATE_STORIES: Record<string, EstateStory> = {
+export const TOMTOM_STORIES: Record<string, TomtomStory> = {
   're-downtown': {
     id: 're-downtown',
     title: 'Downtown Off-Plan Sales',
@@ -717,16 +717,16 @@ export const ESTATE_STORIES: Record<string, EstateStory> = {
 }
 
 export function isBuildingId(id: string): id is BuildingId {
-  return id in ESTATE_BUILDINGS
+  return id in TOMTOM_BUILDINGS
 }
 
-export function isEstateStory(id: string | null | undefined): id is string {
-  return id != null && id in ESTATE_STORIES
+export function isTomtomStory(id: string | null | undefined): id is string {
+  return id != null && id in TOMTOM_STORIES
 }
 
-export type EstatePlace = { id: EstatePlaceId; camera: EstateCamera; scene: EstateMapScene }
+export type TomtomPlace = { id: TomtomPlaceId; camera: TomtomCamera; scene: TomtomMapScene }
 
-export const ESTATE_PLACES: Record<EstatePlaceId, EstatePlace> = {
+export const TOMTOM_PLACES: Record<TomtomPlaceId, TomtomPlace> = {
   downtown: { id: 'downtown', camera: DOWNTOWN_CAMERA, scene: DOWNTOWN_SCENE },
 }
 /* —— Tell Me More: every tall tower in Downtown, by investment potential —— */
@@ -951,7 +951,7 @@ export const POTENTIAL_RANKING = POTENTIAL_SPECS.map(({ name, score, growth, yie
 /** The top three carry roof labels; the rest name themselves on hover. */
 const LABELLED = 3
 
-export const POTENTIAL_TOWERS: EstateTower[] = POTENTIAL_SPECS.map((spec, index) => ({
+export const POTENTIAL_TOWERS: TomtomTower[] = POTENTIAL_SPECS.map((spec, index) => ({
   id: spec.id,
   featureId: spec.featureId,
   at: spec.at,
@@ -974,9 +974,9 @@ export const POTENTIAL_TOWERS: EstateTower[] = POTENTIAL_SPECS.map((spec, index)
 }))
 
 /** What Tell Me More opens for a place: its camera, the scene on the map, and the Map Data that reads it. */
-export type EstateAskView = { camera: EstateCamera; scene: EstateMapScene; layers: MapDataLayer[] }
+export type TomtomAskView = { camera: TomtomCamera; scene: TomtomMapScene; layers: MapDataLayer[] }
 
-export const ESTATE_ASK_VIEWS: Record<EstatePlaceId, EstateAskView> = {
+export const TOMTOM_ASK_VIEWS: Record<TomtomPlaceId, TomtomAskView> = {
   downtown: {
     camera: { center: [55.2748, 25.1958], zoom: 15.35, pitch: 60, bearing: -18 },
     scene: { towers: POTENTIAL_TOWERS, heat: [], heatRadiusM: 160, heatRamp: HEAT_RAMP },

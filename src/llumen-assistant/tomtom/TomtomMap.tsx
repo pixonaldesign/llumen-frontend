@@ -1,5 +1,5 @@
 /**
- * The real-estate story's map: flies to each page's camera, fades the last page's heat out and the
+ * The real-tomtom story's map: flies to each page's camera, fades the last page's heat out and the
  * next one's in, and lights the page's towers. Towers name themselves in a tooltip on hover, and
  * clicking one (or its roof label) opens its details; the camera then turns to frame it beside them.
  * Used by the story and Tell Me More.
@@ -12,21 +12,21 @@ import type { StoryMapView } from '../story/StoryMap'
 import { captureMapView } from '../story/captureMapView'
 import type { StoryMapCapture } from '../story/storyAiScenarios'
 import {
-  ESTATE_MAP_STYLE,
+  TOMTOM_MAP_STYLE,
   TowerLabels,
-  drawEstateScene,
-  estateTipHtml,
+  drawTomtomScene,
+  tomtomTipHtml,
   forgetTowers,
-  mountEstateLayers,
+  mountTomtomLayers,
   resolveTowers,
   towerAt,
-  type EstateMapScene,
-} from './estateMapLayers'
-import type { EstateCamera } from './estateTypes'
-import styles from './EstateStory.module.css'
+  type TomtomMapScene,
+} from './tomtomMapLayers'
+import type { TomtomCamera } from './tomtomTypes'
+import styles from './TomtomStory.module.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
-const PREFIX = 'estate'
+const PREFIX = 'tomtom'
 const FLY_MS = 2600
 const SHRINK_MS = 500
 const GROW_MS = 1500
@@ -35,14 +35,14 @@ const FOCUS_MS = 1400
 const FOCUS_ZOOM = 16.4
 const MAX_PITCH = 85
 
-export type EstateMapHandle = { view: () => StoryMapView | undefined; capture: () => Promise<StoryMapCapture | null> }
+export type TomtomMapHandle = { view: () => StoryMapView | undefined; capture: () => Promise<StoryMapCapture | null> }
 
 /** A tower to frame beside an open panel, with the padding that keeps it clear of the panel. */
 /**
  * `zoom` and `pitch` are the closest the focus frames the tower at; it never pulls back or flattens to reach
  * them. `duration` times the move in, and the move back out when the focus clears.
  */
-export type EstateMapFocus = {
+export type TomtomMapFocus = {
   id: string
   padding: mapboxgl.PaddingOptions
   zoom?: number
@@ -53,13 +53,13 @@ export type EstateMapFocus = {
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2)
 
-function cameraOptions(camera: EstateCamera, flat = false) {
+function cameraOptions(camera: TomtomCamera, flat = false) {
   return { center: camera.center, zoom: camera.zoom, pitch: flat ? 0 : camera.pitch, bearing: camera.bearing }
 }
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export function EstateMap({
+export function TomtomMap({
   className,
   camera,
   scene,
@@ -68,7 +68,7 @@ export function EstateMap({
   controls = true,
   interactive = true,
   flat = false,
-  styleUrl = ESTATE_MAP_STYLE,
+  styleUrl = TOMTOM_MAP_STYLE,
   controlsClassName,
   focus = null,
   onTowerClick,
@@ -76,8 +76,8 @@ export function EstateMap({
   handleRef,
 }: {
   className?: string
-  camera: EstateCamera
-  scene: EstateMapScene
+  camera: TomtomCamera
+  scene: TomtomMapScene
   /** Scene groups switched off in Map Data. */
   hidden: ReadonlySet<string>
   padding: mapboxgl.PaddingOptions
@@ -87,17 +87,17 @@ export function EstateMap({
   flat?: boolean
   styleUrl?: string
   controlsClassName?: string
-  focus?: EstateMapFocus | null
+  focus?: TomtomMapFocus | null
   /** Makes the towers and their labels clickable. */
   onTowerClick?: (id: string) => void
   onReady?: (stage: 'loaded' | 'painted') => void
-  handleRef?: Ref<EstateMapHandle>
+  handleRef?: Ref<TomtomMapHandle>
 }) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const readyRef = useRef(false)
   const labelsRef = useRef<TowerLabels | null>(null)
-  const drawnRef = useRef<{ scene: EstateMapScene; grow: number }>({ scene, grow: 0 })
+  const drawnRef = useRef<{ scene: TomtomMapScene; grow: number }>({ scene, grow: 0 })
   const latestRef = useRef({ camera, scene, hidden, padding, flat, focus })
   const tweenRef = useRef(0)
   const styleRef = useRef(styleUrl)
@@ -136,7 +136,7 @@ export function EstateMap({
   const paint = (map: mapboxgl.Map) => {
     const drawn = drawnRef.current
     const { hidden: off, focus: focused } = latestRef.current
-    drawEstateScene(map, PREFIX, drawn.scene, drawn.grow, off)
+    drawTomtomScene(map, PREFIX, drawn.scene, drawn.grow, off)
     labelsRef.current?.sync(drawn.scene.towers, drawn.grow, off, focused?.id ?? null)
   }
 
@@ -177,7 +177,7 @@ export function EstateMap({
     // A new basemap drops the layers and the towers' states; put them back over it.
     map.on('style.load', () => {
       forgetTowers(map)
-      mountEstateLayers(map, PREFIX, latestRef.current.scene.towers)
+      mountTomtomLayers(map, PREFIX, latestRef.current.scene.towers)
       labels.mount()
       if (readyRef.current) paint(map)
     })
@@ -196,7 +196,7 @@ export function EstateMap({
     map.on('idle', () => resolveTowers(map, drawnRef.current.scene.towers))
 
     const tip = document.createElement('div')
-    tip.className = 'estate-tip'
+    tip.className = 'tomtom-tip'
     tip.hidden = true
     map.getContainer().appendChild(tip)
     let tipKey: string | null = null
@@ -211,7 +211,7 @@ export function EstateMap({
       const tower = towerAt(map, event.point, shownTowers(), PREFIX)
       if (!tower) return hideTip()
       if (tower.id !== tipKey) {
-        tip.innerHTML = estateTipHtml(tower.tip)
+        tip.innerHTML = tomtomTipHtml(tower.tip)
         tipKey = tower.id
       }
       tip.hidden = false

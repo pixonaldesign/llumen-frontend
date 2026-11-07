@@ -89,7 +89,7 @@
  * room left beside the panel. `translate` leaves the cards' own transforms, and the entrance's, alone.
  */
 .root {
-  --estate-panel-w: min(1200px, max(720px, calc(100% - 640px)));
+  --tomtom-panel-w: min(1200px, max(720px, calc(100% - 640px)));
 }
 
 .diveLeft > * {
@@ -141,7 +141,7 @@
 }
 
 .root[data-dive] .diveNav {
-  left: calc((100% - var(--estate-panel-w) - 24px) / 2);
+  left: calc((100% - var(--tomtom-panel-w) - 24px) / 2);
 }
 
 @media (prefers-reduced-motion: reduce) {

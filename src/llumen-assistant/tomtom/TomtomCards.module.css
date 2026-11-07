@@ -1,5 +1,5 @@
 /*
- * Real-estate insight cards. The shell (`summaryCard`, `visualCard`, `kpiCellCard`) and the type come from the
+ * Real-tomtom insight cards. The shell (`summaryCard`, `visualCard`, `kpiCellCard`) and the type come from the
  * story's own card styles; this only lays the cards on the 184px grid and draws the chart kinds the story
  * cards don't have, in the same neutral strokes.
  */

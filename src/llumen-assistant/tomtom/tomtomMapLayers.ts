@@ -1,15 +1,15 @@
 /**
- * The real-estate demo's map layers, shared by the Briefing backdrop, the story and Tell Me More: the
+ * The real-tomtom demo's map layers, shared by the Briefing backdrop, the story and Tell Me More: the
  * night Dubai basemap with towers lit in their own colours, off-plan sales heat under the buildings, and
  * a label on each tower's roof. Two towers can light through the Standard style's building `select` and
  * `highlight` states; any number more are painted as their own extrusions over the basemap's buildings.
  * Every element belongs to a `group`, which the Map Data panel can hide.
  */
 import mapboxgl from 'mapbox-gl'
-import type { LngLat } from './estateGeo'
-import './estateMap.css'
+import type { LngLat } from './tomtomGeo'
+import './tomtomMap.css'
 
-export const ESTATE_MAP_STYLE = 'mapbox://styles/pixonal/cmu15yibh003r01r16sdc7t05'
+export const TOMTOM_MAP_STYLE = 'mapbox://styles/pixonal/cmu15yibh003r01r16sdc7t05'
 
 const BASEMAP = 'basemap'
 const BUILDINGS = { featuresetId: 'buildings', importId: BASEMAP }
@@ -18,9 +18,9 @@ const BUILDINGS = { featuresetId: 'buildings', importId: BASEMAP }
 const building = (id: number) => ({ id, target: BUILDINGS }) as unknown as mapboxgl.TargetFeature
 
 /** What a tower's hover tooltip reads. */
-export type EstateTip = { title: string; rows?: [string, string][] }
+export type TomtomTip = { title: string; rows?: [string, string][] }
 
-export type EstateTower = {
+export type TomtomTower = {
   id: string
   featureId: number
   at: LngLat
@@ -36,25 +36,25 @@ export type EstateTower = {
   label?: boolean
   title: string
   text: string
-  tip: EstateTip
+  tip: TomtomTip
   group: string
 }
 
-const painted = (tower: EstateTower) => tower.footprint !== undefined
+const painted = (tower: TomtomTower) => tower.footprint !== undefined
 /** Clears the basemap roof the painted extrusion caps. */
 const PAINT_TOP_M = 1.5
 
-export type EstateHeatPoint = { at: LngLat; weight: number; group: string }
+export type TomtomHeatPoint = { at: LngLat; weight: number; group: string }
 
-export type EstateMapScene = {
-  towers: EstateTower[]
-  heat: EstateHeatPoint[]
+export type TomtomMapScene = {
+  towers: TomtomTower[]
+  heat: TomtomHeatPoint[]
   heatRadiusM: number
   /** Low to high density. */
   heatRamp: string[]
 }
 
-export const EMPTY_SCENE: EstateMapScene = { towers: [], heat: [], heatRadiusM: 220, heatRamp: ['#5a2fc7', '#f6f2ff'] }
+export const EMPTY_SCENE: TomtomMapScene = { towers: [], heat: [], heatRadiusM: 220, heatRamp: ['#5a2fc7', '#f6f2ff'] }
 
 const NO_GROUPS: ReadonlySet<string> = new Set()
 
@@ -80,7 +80,7 @@ function heatColor(ramp: string[]): mapboxgl.ExpressionSpecification {
 }
 
 /** Paints the basemap's two building states in the towers' colours, and adds the heat under the buildings. */
-export function mountEstateLayers(map: mapboxgl.Map, prefix: string, towers: EstateTower[]) {
+export function mountTomtomLayers(map: mapboxgl.Map, prefix: string, towers: TomtomTower[]) {
   for (const tower of towers) {
     if (painted(tower)) continue
     map.setConfigProperty(BASEMAP, tower.state === 'select' ? 'colorBuildingSelect' : 'colorBuildingHighlight', tower.color)
@@ -138,7 +138,7 @@ export function forgetTowers(map: mapboxgl.Map) {
   towerState.delete(map)
 }
 
-function lightTower(map: mapboxgl.Map, tower: EstateTower, lit: boolean) {
+function lightTower(map: mapboxgl.Map, tower: TomtomTower, lit: boolean) {
   const states = stateOf(map)
   const current = states.get(tower.id) ?? { featureId: tower.featureId, lit: false }
   if (current.lit === lit && states.has(tower.id)) return
@@ -151,7 +151,7 @@ function lightTower(map: mapboxgl.Map, tower: EstateTower, lit: boolean) {
  * basemap's ids have moved, lights the building found there instead. A state set before the building
  * tiles loaded is dropped, so lit towers that lost theirs are lit again.
  */
-export function resolveTowers(map: mapboxgl.Map, towers: EstateTower[]) {
+export function resolveTowers(map: mapboxgl.Map, towers: TomtomTower[]) {
   const states = stateOf(map)
   for (const tower of towers) {
     if (painted(tower)) continue
@@ -186,9 +186,9 @@ export function resolveTowers(map: mapboxgl.Map, towers: EstateTower[]) {
 export function towerAt(
   map: mapboxgl.Map,
   point: mapboxgl.PointLike,
-  towers: EstateTower[],
+  towers: TomtomTower[],
   prefix: string,
-): EstateTower | null {
+): TomtomTower | null {
   if (!towers.length) return null
   if (map.getLayer(paintId(prefix))) {
     const hit = map.queryRenderedFeatures(point, { layers: [paintId(prefix)] })[0]?.properties?.tower
@@ -201,10 +201,10 @@ export function towerAt(
 }
 
 /** Draws `scene` at `grow` (0 hidden, 1 full): the towers light up and the heat fades in. Hidden groups are left out. */
-export function drawEstateScene(
+export function drawTomtomScene(
   map: mapboxgl.Map,
   prefix: string,
-  scene: EstateMapScene,
+  scene: TomtomMapScene,
   grow: number,
   hidden: ReadonlySet<string> = NO_GROUPS,
 ) {
@@ -246,14 +246,14 @@ function escapeHtml(text: string) {
 }
 
 /** A tooltip's markup: the title, then label and value rows. */
-export function estateTipHtml(tip: EstateTip) {
+export function tomtomTipHtml(tip: TomtomTip) {
   const rows = (tip.rows ?? [])
     .map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`)
     .join('')
-  return `<p class="estate-tip-title">${escapeHtml(tip.title)}</p>${rows ? `<dl class="estate-tip-rows">${rows}</dl>` : ''}`
+  return `<p class="tomtom-tip-title">${escapeHtml(tip.title)}</p>${rows ? `<dl class="tomtom-tip-rows">${rows}</dl>` : ''}`
 }
 
-type LabelEntry = { el: HTMLButtonElement; tower: EstateTower; anchor: [number, number, number] }
+type LabelEntry = { el: HTMLButtonElement; tower: TomtomTower; anchor: [number, number, number] }
 
 /**
  * Each tower's name and headline on its roof, with the story tooltips' blurred card. A no-op custom
@@ -262,7 +262,7 @@ type LabelEntry = { el: HTMLButtonElement; tower: EstateTower; anchor: [number, 
 export class TowerLabels {
   private map: mapboxgl.Map
   private entries: LabelEntry[] = []
-  private towers: EstateTower[] = []
+  private towers: TomtomTower[] = []
   private onPick?: (id: string) => void
   readonly layer: mapboxgl.CustomLayerInterface
 
@@ -282,7 +282,7 @@ export class TowerLabels {
     if (!this.map.getLayer(this.layer.id)) this.map.addLayer(this.layer)
   }
 
-  sync(towers: EstateTower[], grow: number, hidden: ReadonlySet<string> = NO_GROUPS, active: string | null = null) {
+  sync(towers: TomtomTower[], grow: number, hidden: ReadonlySet<string> = NO_GROUPS, active: string | null = null) {
     if (towers !== this.towers) {
       this.clear()
       this.towers = towers
@@ -290,7 +290,7 @@ export class TowerLabels {
       this.entries = towers.filter((tower) => tower.label !== false).map((tower) => {
         const el = document.createElement('button')
         el.type = 'button'
-        el.className = 'estate-label'
+        el.className = 'tomtom-label'
         el.style.setProperty('--tower', tower.color)
         el.tabIndex = this.onPick ? 0 : -1
         el.setAttribute('aria-label', `${tower.title}: open details`)

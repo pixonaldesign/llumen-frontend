@@ -27,10 +27,10 @@ import { StoryMap, type StoryMapHandle } from '../story/StoryMap'
 import mapStyles from '../story/StoryMap.module.css'
 import styles from './LandingAskStage.module.css'
 import { findingStage, isFindingPlace, type FindingStageId } from './landingFindingExperiences'
-import { EstateMap, type EstateMapHandle } from '../realEstate/EstateMap'
-import estateStyles from '../realEstate/EstateStory.module.css'
-import type { EstateTower } from '../realEstate/estateMapLayers'
-import type { MapDataLayer } from '../realEstate/estateTypes'
+import { TomtomMap, type TomtomMapHandle } from '../tomtom/TomtomMap'
+import tomtomStyles from '../tomtom/TomtomStory.module.css'
+import type { TomtomTower } from '../tomtom/tomtomMapLayers'
+import type { MapDataLayer } from '../tomtom/tomtomTypes'
 import storyStyles from '../story/StoryView.module.css'
 
 /** Loads the asset builder's styles only once Data or Source is opened. */
@@ -315,7 +315,7 @@ const steppedRamp = (ramp: readonly string[]) =>
     .join(', ')})`
 
 /** The story's Map Data card, read-only: each layer's colour scale, and the labelled towers it ranks. */
-function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: EstateTower[] }) {
+function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: TomtomTower[] }) {
   const labelled = towers.filter((tower) => tower.label !== false)
   return (
     <div className={`${storyStyles.mapData} ${styles.mapData}`}>
@@ -350,10 +350,10 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: Es
                     .filter((tower) => tower.group === layer.group)
                     .map((tower) => (
                       <div key={tower.id} className={storyStyles.legendRow}>
-                        <span className={`${storyStyles.legendMark} ${estateStyles.legendLabel}`}>{tower.title}</span>
+                        <span className={`${storyStyles.legendMark} ${tomtomStyles.legendLabel}`}>{tower.title}</span>
                         <span className={storyStyles.legendMark}>
                           <span className={storyStyles.legendCount}>{tower.tip.rows?.[0]?.[1]}</span>
-                          <i className={estateStyles.towerGlyph} style={{ background: tower.color }} aria-hidden />
+                          <i className={tomtomStyles.towerGlyph} style={{ background: tower.color }} aria-hidden />
                         </span>
                       </div>
                     ))}
@@ -367,14 +367,14 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: Es
   )
 }
 
-/** A real-estate finding's place, as Tell Me More reads it: every tall tower coloured by its potential. */
+/** A real-tomtom finding's place, as Tell Me More reads it: every tall tower coloured by its potential. */
 function FindingPlaceMap({
   place,
   capture,
   onCapture,
   preview,
 }: Omit<LandingAskMapProps, 'snapshot'> & { place: FindingStageId }) {
-  const handleRef = useRef<EstateMapHandle>(null)
+  const handleRef = useRef<TomtomMapHandle>(null)
   const stage = findingStage(place)
   const camera = useMemo(
     () => (preview ? { ...stage.camera, zoom: stage.camera.zoom + PREVIEW_ZOOM_OFFSET } : stage.camera),
@@ -391,7 +391,7 @@ function FindingPlaceMap({
   }, [capture, onCapture])
   return (
     <>
-      <EstateMap
+      <TomtomMap
         camera={camera}
         scene={stage.scene}
         hidden={NO_HIDDEN}

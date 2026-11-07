@@ -41,7 +41,7 @@ import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
 import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
 import { BRIEFING_PLACES } from './briefingMapPlaces'
 import { STORY_CAMERA_PADDING } from '../story/StoryMap'
-import { ESTATE_STORIES } from '../realEstate/estateScenario'
+import { TOMTOM_STORIES } from '../tomtom/tomtomScenario'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
 import { VoteButton } from './VoteButton'
@@ -130,7 +130,7 @@ const ASSETS_OPEN_PX = 8
 /** Findings style 6's slide between the findings and Assets and Apps; keep in step with --side-slide. */
 /** A story opens on its first scene, framed clear of its insight column. */
 const STORY_OPENING_PLACE = BRIEFING_PLACES.downtown
-const STORY_ENTER: BriefingMapEnter = { camera: ESTATE_STORIES['re-downtown'].pages[0].camera, padding: STORY_CAMERA_PADDING }
+const STORY_ENTER: BriefingMapEnter = { camera: TOMTOM_STORIES['re-downtown'].pages[0].camera, padding: STORY_CAMERA_PADDING }
 /** BriefingMap's flight (2200ms) plus slack. */
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900

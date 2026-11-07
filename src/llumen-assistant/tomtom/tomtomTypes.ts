@@ -1,6 +1,6 @@
 import type { SummaryPart } from '../story/StorySummaryText'
-import type { LngLat } from './estateGeo'
-import type { EstateMapScene } from './estateMapLayers'
+import type { LngLat } from './tomtomGeo'
+import type { TomtomMapScene } from './tomtomMapLayers'
 
 /**
  * The Create Asset flow's palettes (the asset builder's `ColorPalette` presets). Cards and map layers
@@ -46,7 +46,7 @@ const TONE_START: Record<Tone, number> = { blue: 0, teal: 2, purple: 1 }
 export const category = (index: number, tone: Tone = 'blue') =>
   PALETTE.categorical[(index + TONE_START[tone]) % PALETTE.categorical.length]
 
-export type EstateCamera = { center: LngLat; zoom: number; pitch: number; bearing: number }
+export type TomtomCamera = { center: LngLat; zoom: number; pitch: number; bearing: number }
 
 export type LegendMark = 'tower' | 'heat'
 
@@ -73,7 +73,7 @@ type CardBase = {
   tone?: Tone
 }
 
-export type EstateCard = CardBase &
+export type TomtomCard = CardBase &
   (
     | { kind: 'summary'; parts: SummaryPart[] }
     /** A separator across the row that heads the cards after it: the title centred on a rule. */
@@ -120,27 +120,27 @@ export type EstateCard = CardBase &
     | { kind: 'specs'; items: [string, string][] }
   )
 
-export type EstatePage = {
+export type TomtomPage = {
   id: string
   title: string
   /** What this page says, for the page's info popover. */
   finding: string
-  camera: EstateCamera
-  scene: EstateMapScene
+  camera: TomtomCamera
+  scene: TomtomMapScene
   filters: string[]
-  cards: EstateCard[]
+  cards: TomtomCard[]
   layers: MapDataLayer[]
 }
 
-export type EstatePlaceId = 'downtown'
+export type TomtomPlaceId = 'downtown'
 
-export type EstateStory = {
+export type TomtomStory = {
   id: string
   title: string
   description: string
   /** The Briefing place its first page opens on. */
-  place: EstatePlaceId
-  pages: [EstatePage, ...EstatePage[]]
+  place: TomtomPlaceId
+  pages: [TomtomPage, ...TomtomPage[]]
 }
 
 export type BuildingId = 'dreamscape' | 'opera-crest'
@@ -159,7 +159,7 @@ export type BuildingTab = {
 export type BuildingTabId = 'sales' | 'utilization' | 'ownership' | 'rentals'
 
 /** A tower lit up on the map, and what its details panel reads. */
-export type EstateBuilding = {
+export type TomtomBuilding = {
   id: BuildingId
   name: string
   /** The basemap building it lights up (Mapbox Standard `buildings` featureset). */
