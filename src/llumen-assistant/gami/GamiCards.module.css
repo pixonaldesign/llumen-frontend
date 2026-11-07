@@ -460,6 +460,8 @@ aside.grid > .section {
   flex-direction: column;
   justify-content: center;
   gap: 10px;
+  /* Room for the last tick label, which is centred on the track's end. */
+  padding-inline-end: 14px;
 }
 
 .rangeRow,
