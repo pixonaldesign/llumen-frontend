@@ -3151,17 +3151,26 @@
   flex-shrink: 0;
 }
 
+/* A file: its icon in a tile, then its name over its type, on a frosted rounded rectangle. */
 .contextChip {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 80px;
-  height: 80px;
-  padding: var(--space-sm);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'icon name'
+    'icon badge';
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 1px;
+  max-width: 280px;
+  height: 48px;
+  padding: 7px 14px 7px 7px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -3171,6 +3180,9 @@
 }
 
 .contextChipImage {
+  display: block;
+  width: 80px;
+  height: 80px;
   padding: 0;
   background: transparent;
 }
@@ -3192,34 +3204,41 @@
 .contextChipName {
   position: relative;
   z-index: 1;
+  grid-area: name;
+  align-self: end;
+  min-width: 0;
   margin: 0;
-  font-size: var(--lc-text-micro);
-  font-weight: var(--lc-weight-regular);
-  line-height: 1.25;
-  color: var(--lc-text-primary);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
   overflow: hidden;
-  word-break: break-word;
+  color: var(--lc-text-primary);
+  font-size: var(--lc-text-caption);
+  font-weight: var(--lc-weight-medium);
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* Its icon and type sit in the chip's grid, not in a row of their own. */
 .contextChipFooter {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  min-width: 0;
+  display: contents;
 }
 
 .contextChipKindIcon {
+  position: relative;
+  z-index: 1;
+  grid-area: icon;
   flex-shrink: 0;
+  box-sizing: content-box;
+  padding: 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
   color: var(--lc-text-primary);
-  opacity: 0.85;
 }
 
 .contextChipBadge {
+  position: relative;
+  z-index: 1;
+  grid-area: badge;
+  align-self: start;
   margin: 0;
   padding: 0;
   border: none;
@@ -3232,13 +3251,13 @@
   letter-spacing: 0.02em;
   text-transform: uppercase;
   white-space: nowrap;
-  opacity: 0.85;
+  opacity: 0.6;
 }
 
 .contextChipRemove {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 6px;
+  right: 6px;
   z-index: 2;
   display: none;
   align-items: center;
