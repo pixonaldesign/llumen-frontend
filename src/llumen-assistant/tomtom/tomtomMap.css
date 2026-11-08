@@ -181,6 +181,12 @@
   --dot: 16px;
 }
 
+/* Rivals sit back: smaller, edged in the night basemap's dark. */
+.tomtom-pin[data-kind='rival'] .tomtom-pin-dot {
+  --dot: 10px;
+  border: 1.5px solid rgba(14, 16, 22, 0.85);
+}
+
 .tomtom-pin-card {
   position: absolute;
   bottom: 19px;

@@ -48,8 +48,8 @@ export const category = (index: number, tone: Tone = 'blue') =>
 
 export type TomtomCamera = { center: LngLat; zoom: number; pitch: number; bearing: number }
 
-/** How a legend row draws its map mark: a lit tower, a heat swatch, a pin's tooltip, a traffic fence or a disk. */
-export type LegendMark = 'tower' | 'heat' | 'pin' | 'fence' | 'disk'
+/** How a legend row draws its map mark: a lit tower, a heat swatch, a pin's tooltip, a traffic fence, a disk or a dashed catchment disk. */
+export type LegendMark = 'tower' | 'heat' | 'pin' | 'fence' | 'disk' | 'catchment'
 
 /** A Map Data layer, listed the way the story's Map Data lists its attributes. */
 export type MapDataLayer = {

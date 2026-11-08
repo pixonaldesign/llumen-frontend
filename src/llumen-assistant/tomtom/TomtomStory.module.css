@@ -83,6 +83,10 @@
   background: color-mix(in srgb, var(--glyph) 28%, transparent);
 }
 
+.catchmentGlyph {
+  border-style: dashed;
+}
+
 /* A tower's legend row opens its details. */
 .legendButton {
   margin: 0;

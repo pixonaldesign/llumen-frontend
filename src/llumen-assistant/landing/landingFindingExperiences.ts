@@ -20,6 +20,7 @@ import {
   STATION_COLOR,
   SITE_COLOR,
   CATCHMENT_COLOR,
+  RIVAL_COUNT,
   TOMTOM_ASK_VIEWS,
   TOMTOM_STORIES,
   type TomtomAskStageId,
@@ -203,12 +204,12 @@ const ttAsk = () =>
     reason: 'Scoring each site and drawing it on the map against your network…',
     headline: `${ABOVE_70.length} of the 12 sites score above 70; ${FIRST.name} on ${FIRST.street} leads at ${FIRST.score}.`,
     headlineDetail:
-      'Pinned all 12 by rank, stood a fence on each arterial as tall as its traffic is dense, and drew the 5-minute drive-time catchment round each of the top five.',
+      'Pinned all 12 by rank with a dashed disk round each for its 5-minute catchment, marked the rival forecourts, and stood a fence on each arterial as tall as its traffic is dense.',
     intro: `I scored the 12 candidates out of 100 on passing traffic, drive-time catchment, competition and access, from TomTom traffic and map data for the last 90 days. ${ABOVE_70.length} score above 70, and all of them would sell more fuel than your average station's ${NETWORK_AVERAGE.toFixed(1)}M litres a year.`,
     sections: [
       {
         heading: 'On the map',
-        text: 'The teal pins are the candidates and the blue dots your stations. The pale teal areas are the top five sites’ catchments: everywhere within a 5-minute drive, stretched along the roads that feed them. The fences on the roads are traffic density: the taller and redder a stretch, the heavier its traffic, from green through yellow to dark red. Hover any pin, area or fence for its figures.',
+        text: `The teal pins are the candidates, the blue dots your stations and the orange dots the ${RIVAL_COUNT} rival forecourts. The dashed green disk round each site is its catchment, sized by the residents within a 5-minute drive. The fences on the roads are traffic density: the taller and redder a stretch, the heavier its traffic, from green through yellow to dark red. Hover any pin, disk or fence for its figures.`,
       },
       {
         heading: 'Top sites',
@@ -283,7 +284,7 @@ const ttDive = () => {
     sections: [
       {
         heading: 'On the map',
-        text: `The fences are traffic in both directions, tallest and reddest where it is densest, which on Sheikh Zayed Bin Sultan St is right outside the site. The pale teal area is its catchment: ${thousands(SITE_ONE.residents)} residents within a 5-minute drive, only ${SITE_ONE.overlap}% of them already within 5 minutes of one of your stations. The blue dots are your two closest stations. Click the site’s pin for its full details.`,
+        text: `The fences are traffic in both directions, tallest and reddest where it is densest, which on Sheikh Zayed Bin Sultan St is right outside the site. The dashed green disk is its catchment: ${thousands(SITE_ONE.residents)} residents within a 5-minute drive, only ${SITE_ONE.overlap}% of them already within 5 minutes of one of your stations. The orange dots are the four nearest rivals and the blue dots your two closest stations. Click the site’s pin for its full details.`,
       },
       {
         heading: 'Traffic by hour',

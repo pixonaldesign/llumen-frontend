@@ -1,8 +1,8 @@
 /**
  * The TomTom demo's map layers, shared by the Briefing backdrop, the story and the ask stage: the night
  * Abu Dhabi basemap with 3D fences standing on the arterials, as tall and as red as their traffic is
- * dense, disks under each site's trade area, drive-time zones round its catchment, and pins for candidate
- * sites, current stations and rivals. Towers
+ * dense, dashed disks round each site's catchment, rivals' trade areas, and pins for candidate sites,
+ * current stations and rivals. Towers
  * and heat from the Standard style's buildings stay available. Every element belongs to a `group`, which
  * the Map Data panel can hide.
  */
@@ -63,18 +63,18 @@ export type TomtomFence = {
 /** A disk on the ground: a site's trade area. */
 export type TomtomDisk = { id: string; at: LngLat; radiusM: number; color: string; group: string }
 
-/** An area on the ground around `at`, e.g. a site's drive-time catchment; `ring` is its closed outline. */
+/** An area on the ground round `at` with a dashed outline, e.g. a site's catchment disk; `ring` closes it. */
 export type TomtomZone = { id: string; at: LngLat; ring: LngLat[]; color: string; tip: TomtomTip; group: string }
 
 /**
  * A place on the map, a dot in its colour: a candidate `site`, named in a pill outlined in that colour
- * and stacked by `rank`, or a current `station`, named only in its hover `tip`.
+ * and stacked by `rank`, or a current `station` or a `rival`, named only in its hover `tip`.
  */
 export type TomtomPin = {
   id: string
   at: LngLat
   color: string
-  kind: 'site' | 'station'
+  kind: 'site' | 'station' | 'rival'
   rank?: number
   title: string
   tip: TomtomTip
@@ -142,7 +142,7 @@ function mountSiteLayers(map: mapboxgl.Map, prefix: string) {
     type: 'fill',
     source: zone,
     slot: 'middle',
-    paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.13, 'fill-emissive-strength': 1 },
+    paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.14, 'fill-emissive-strength': 1 },
   })
   map.addLayer({
     id: `${zone}-line`,
@@ -150,7 +150,13 @@ function mountSiteLayers(map: mapboxgl.Map, prefix: string) {
     source: zone,
     slot: 'middle',
     layout: { 'line-join': 'round' },
-    paint: { 'line-color': ['get', 'color'], 'line-width': 1.2, 'line-opacity': 0.6, 'line-emissive-strength': 1 },
+    paint: {
+      'line-color': ['get', 'color'],
+      'line-width': 1.6,
+      'line-opacity': 0.9,
+      'line-dasharray': [3, 2],
+      'line-emissive-strength': 1,
+    },
   })
   addSource(map, disk)
   map.addLayer({
@@ -600,7 +606,7 @@ export type PinHover = (pin: TomtomPin | null, point?: { x: number; y: number })
 
 /**
  * The scene's pins, as dots on their places: candidate sites in teal under a pill with their name,
- * current stations in blue, each popping in one after another as the scene grows. Sites with a details
+ * current stations in blue and rivals in orange, each popping in one after another as the scene grows. Sites with a details
  * panel open it on click; every pin names itself through `onHover`.
  */
 export class TomtomPins {
@@ -671,8 +677,8 @@ export class TomtomPins {
     if (pins !== this.pins) {
       this.clear()
       this.pins = pins
-      /** Sites first, best first, then stations. */
-      const rank = (pin: TomtomPin) => (pin.kind === 'site' ? (pin.rank ?? 50) : 100)
+      /** Sites first, best first, then stations, then rivals. */
+      const rank = (pin: TomtomPin) => (pin.kind === 'site' ? (pin.rank ?? 50) : pin.kind === 'station' ? 100 : 200)
       const ordered = [...pins].sort((a, b) => rank(a) - rank(b))
       this.entries = ordered.map((pin, index) => this.build(pin, index / Math.max(1, ordered.length - 1)))
     }

@@ -14,6 +14,8 @@ export function TomtomLegendGlyph({ layer, color }: { layer: MapDataLayer; color
       return <i className={css.fenceGlyph} style={style} aria-hidden />
     case 'disk':
       return <i className={css.diskGlyph} style={style} aria-hidden />
+    case 'catchment':
+      return <i className={`${css.diskGlyph} ${css.catchmentGlyph}`} style={style} aria-hidden />
     default:
       return <i className={css.heatGlyph} style={{ background: `${color}66` }} aria-hidden />
   }
