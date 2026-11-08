@@ -16,36 +16,39 @@ export type AppHighlight = {
 
 export const APP_HIGHLIGHTS: AppHighlight[] = [
   {
-    id: 're-downtown-app',
-    storyId: 're-downtown',
-    title: 'Downtown Off-Plan Sales — Two Towers Lead',
+    id: 'dm-odor-app',
+    storyId: 'dm-odor',
+    title: 'Unified Odor — Al Barsha Parks',
     description:
-      'Dreamscape Tower and Opera Crest Residences took AED 6.1bn of Downtown’s AED 16.0bn in off-plan sales this quarter.',
-    image: `${APPS_BASE}/re-downtown.jpg`,
+      'Odor complaints near three parks trace to recycled-water irrigation from storage tank T-3; nine interventions are ready to test.',
+    image: `${APPS_BASE}/dm-odor.jpg`,
     focus: 'center',
   },
   {
-    id: 're-creek-app',
-    title: 'Handover Wave Ahead — Dubai Creek Harbour',
+    id: 'dm-creek-app',
+    storyId: 'dm-urban',
+    title: 'Spare Capacity — Dubai Creek Harbour',
     description:
-      '9,400 off-plan units hand over in Creek Harbour by the end of 2027, more than the area’s last five years combined.',
-    image: `${APPS_BASE}/re-creek-harbour.jpg`,
+      'Sewerage at 61% and 58 ha of developable land leave room to direct 15,300 pipeline homes here without new trunk mains.',
+    image: `${APPS_BASE}/dm-creek.jpg`,
     focus: 'center',
   },
   {
-    id: 're-marina-app',
-    title: 'Rents Outpacing Supply — Dubai Marina',
+    id: 'dm-jvc-app',
+    storyId: 'dm-urban',
+    title: 'Growth Outpacing Services — JVC',
     description:
-      'Marina rents rose 11% this year while only 640 new units completed, keeping occupancy above 94%.',
-    image: `${APPS_BASE}/re-marina.jpg`,
+      'JVC runs sewerage at 94% with 0.6 school seats per 1,000 residents, while 18,400 more homes are in the pipeline.',
+    image: `${APPS_BASE}/dm-jvc.jpg`,
     focus: 'center',
   },
   {
-    id: 're-business-bay-app',
-    title: 'Resale Prices Catching Off-Plan — Business Bay',
+    id: 'dm-quoz-app',
+    storyId: 'dm-urban',
+    title: 'Land Use Drifting — Al Quoz',
     description:
-      'Ready homes in Business Bay now resell within 6% of new launch prices, down from a 19% gap in 2023.',
-    image: `${APPS_BASE}/re-business-bay.jpg`,
+      '38 change-of-use applications in 24 months as light industry turns residential; worker accommodation is at 108%.',
+    image: `${APPS_BASE}/dm-quoz.jpg`,
     focus: 'center',
   },
 ]

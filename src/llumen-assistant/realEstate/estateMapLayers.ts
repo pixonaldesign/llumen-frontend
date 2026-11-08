@@ -46,12 +46,37 @@ const PAINT_TOP_M = 1.5
 
 export type EstateHeatPoint = { at: LngLat; weight: number; group: string }
 
+/** A zone or footprint on the ground: a tinted fill with an outline, dashed for modelled or proposed shapes. */
+export type EstateArea = {
+  id: string
+  ring: LngLat[]
+  color: string
+  /** Fill opacity; 0 leaves only the outline. */
+  opacity?: number
+  dashed?: boolean
+  group: string
+  tip?: EstateTip
+}
+
+/** A route along the ground: a pipe, a feeder main, a wind path. */
+export type EstateLine = { id: string; path: LngLat[]; color: string; width?: number; dashed?: boolean; group: string; tip?: EstateTip }
+
+/** A site: a complaint, a sampling point, a sensor. */
+export type EstatePoint = { id: string; at: LngLat; color: string; radius?: number; group: string; tip?: EstateTip }
+
+/** A roof-style label pinned over a place that is not a tower. */
+export type EstateLabel = { id: string; at: LngLat; heightM: number; color: string; title: string; text: string; group: string }
+
 export type EstateMapScene = {
   towers: EstateTower[]
   heat: EstateHeatPoint[]
   heatRadiusM: number
   /** Low to high density. */
   heatRamp: string[]
+  areas?: EstateArea[]
+  lines?: EstateLine[]
+  points?: EstatePoint[]
+  labels?: EstateLabel[]
 }
 
 export const EMPTY_SCENE: EstateMapScene = { towers: [], heat: [], heatRadiusM: 220, heatRamp: ['#5a2fc7', '#f6f2ff'] }
@@ -68,6 +93,11 @@ function metersToPixels(meters: mapboxgl.ExpressionSpecification | number): mapb
 
 const heatId = (prefix: string) => `${prefix}-heat`
 const paintId = (prefix: string) => `${prefix}-paint`
+const areaId = (prefix: string) => `${prefix}-area`
+const lineId = (prefix: string) => `${prefix}-line`
+const pointId = (prefix: string) => `${prefix}-point`
+/** The overlay layers a hover can name, top first. */
+const tipLayers = (prefix: string) => [pointId(prefix), lineId(prefix), `${lineId(prefix)}-dashed`, `${areaId(prefix)}-fill`]
 
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
@@ -85,6 +115,7 @@ export function mountEstateLayers(map: mapboxgl.Map, prefix: string, towers: Est
     if (painted(tower)) continue
     map.setConfigProperty(BASEMAP, tower.state === 'select' ? 'colorBuildingSelect' : 'colorBuildingHighlight', tower.color)
   }
+  mountOverlays(map, prefix)
   const paint = paintId(prefix)
   if (!map.getSource(paint)) {
     map.addSource(paint, { type: 'geojson', data: EMPTY })
@@ -119,6 +150,139 @@ export function mountEstateLayers(map: mapboxgl.Map, prefix: string, towers: Est
       'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 1, '#fff'],
     },
   })
+}
+
+/**
+ * Zones under the buildings, routes over them, then sites facing the camera on top. Every colour and
+ * opacity is a feature property, so one source per kind draws any scene; `o` carries the grow.
+ */
+function mountOverlays(map: mapboxgl.Map, prefix: string) {
+  const area = areaId(prefix)
+  if (!map.getSource(area)) {
+    map.addSource(area, { type: 'geojson', data: EMPTY })
+    map.addLayer({
+      id: `${area}-fill`,
+      type: 'fill',
+      source: area,
+      slot: 'middle',
+      paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'o'], 'fill-emissive-strength': 1 },
+    })
+    map.addLayer({
+      id: `${area}-outline`,
+      type: 'line',
+      source: area,
+      slot: 'middle',
+      filter: ['!=', ['get', 'dashed'], true],
+      paint: { 'line-color': ['get', 'color'], 'line-opacity': ['get', 'lo'], 'line-width': 1.5, 'line-emissive-strength': 1 },
+    })
+    map.addLayer({
+      id: `${area}-outline-dashed`,
+      type: 'line',
+      source: area,
+      slot: 'middle',
+      filter: ['==', ['get', 'dashed'], true],
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-opacity': ['get', 'lo'],
+        'line-width': 1.5,
+        'line-dasharray': [3, 2],
+        'line-emissive-strength': 1,
+      },
+    })
+  }
+  const line = lineId(prefix)
+  if (!map.getSource(line)) {
+    map.addSource(line, { type: 'geojson', data: EMPTY })
+    const paint: mapboxgl.LineLayerSpecification['paint'] = {
+      'line-color': ['get', 'color'],
+      'line-opacity': ['get', 'o'],
+      'line-width': ['get', 'width'],
+      'line-emissive-strength': 1,
+    }
+    map.addLayer({
+      id: line,
+      type: 'line',
+      source: line,
+      slot: 'middle',
+      filter: ['!=', ['get', 'dashed'], true],
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint,
+    })
+    map.addLayer({
+      id: `${line}-dashed`,
+      type: 'line',
+      source: line,
+      slot: 'middle',
+      filter: ['==', ['get', 'dashed'], true],
+      layout: { 'line-join': 'round' },
+      paint: { ...paint, 'line-dasharray': [1.6, 1.4] },
+    })
+  }
+  const point = pointId(prefix)
+  if (!map.getSource(point)) {
+    map.addSource(point, { type: 'geojson', data: EMPTY })
+    map.addLayer({
+      id: point,
+      type: 'circle',
+      source: point,
+      slot: 'top',
+      paint: {
+        'circle-color': ['get', 'color'],
+        'circle-radius': ['get', 'radius'],
+        'circle-opacity': ['*', ['get', 'o'], 0.92],
+        'circle-stroke-color': 'rgba(10, 12, 18, 0.85)',
+        'circle-stroke-width': 1.5,
+        'circle-stroke-opacity': ['get', 'o'],
+        'circle-emissive-strength': 1,
+      },
+    })
+  }
+}
+
+function setOverlays(map: mapboxgl.Map, prefix: string, scene: EstateMapScene, grow: number, hidden: ReadonlySet<string>) {
+  const shown = <T extends { group: string }>(items: T[] | undefined) =>
+    grow <= 0 ? [] : (items ?? []).filter((item) => !hidden.has(item.group))
+  const tip = (value: EstateTip | undefined) => (value ? JSON.stringify(value) : undefined)
+  ;(map.getSource(areaId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
+    type: 'FeatureCollection',
+    features: shown(scene.areas).map((area) => ({
+      type: 'Feature',
+      properties: {
+        id: area.id,
+        color: area.color,
+        o: (area.opacity ?? 0.22) * grow,
+        lo: 0.9 * grow,
+        dashed: area.dashed === true,
+        tip: tip(area.tip),
+      },
+      geometry: { type: 'Polygon', coordinates: [[...area.ring, area.ring[0]]] },
+    })),
+  })
+  ;(map.getSource(lineId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
+    type: 'FeatureCollection',
+    features: shown(scene.lines).map((line) => ({
+      type: 'Feature',
+      properties: { id: line.id, color: line.color, o: grow, width: line.width ?? 2.5, dashed: line.dashed === true, tip: tip(line.tip) },
+      geometry: { type: 'LineString', coordinates: line.path },
+    })),
+  })
+  ;(map.getSource(pointId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
+    type: 'FeatureCollection',
+    features: shown(scene.points).map((point) => ({
+      type: 'Feature',
+      properties: { id: point.id, color: point.color, o: grow, radius: point.radius ?? 5, tip: tip(point.tip) },
+      geometry: { type: 'Point', coordinates: point.at },
+    })),
+  })
+}
+
+/** The overlay under `point` that names itself on hover, with a key that changes when another does. */
+export function overlayTipAt(map: mapboxgl.Map, point: mapboxgl.PointLike, prefix: string): { key: string; tip: EstateTip } | null {
+  const layers = tipLayers(prefix).filter((id) => map.getLayer(id))
+  if (!layers.length) return null
+  const hit = map.queryRenderedFeatures(point, { layers }).find((feature) => typeof feature.properties?.tip === 'string')
+  if (!hit) return null
+  return { key: `${hit.layer?.id}:${hit.properties?.id}`, tip: JSON.parse(hit.properties!.tip as string) as EstateTip }
 }
 
 /** Per map: the feature each tower lights (its `featureId`, or the building found standing at `at`), and whether it is lit. */
@@ -218,6 +382,7 @@ export function drawEstateScene(
   for (const tower of scene.towers) {
     if (!painted(tower)) lightTower(map, tower, grow > 0.3 && !hidden.has(tower.group))
   }
+  setOverlays(map, prefix, scene, grow, hidden)
   const shown = scene.towers.filter((tower) => painted(tower) && !hidden.has(tower.group))
   const paintSource = map.getSource(paintId(prefix)) as mapboxgl.GeoJSONSource | undefined
   paintSource?.setData({
@@ -253,7 +418,22 @@ export function estateTipHtml(tip: EstateTip) {
   return `<p class="estate-tip-title">${escapeHtml(tip.title)}</p>${rows ? `<dl class="estate-tip-rows">${rows}</dl>` : ''}`
 }
 
-type LabelEntry = { el: HTMLButtonElement; tower: EstateTower; anchor: [number, number, number] }
+/** What a roof label needs: towers that carry one, and the scene's free labels. */
+type Labelled = Pick<EstateTower, 'id' | 'at' | 'heightM' | 'color' | 'title' | 'text' | 'group'>
+
+const labelsOfScene = new WeakMap<EstateMapScene, Labelled[]>()
+
+/** The scene's labels, the same array for the same scene so the label layer only rebuilds on a new one. */
+export function sceneLabels(scene: EstateMapScene): Labelled[] {
+  let labels = labelsOfScene.get(scene)
+  if (!labels) {
+    labels = [...scene.towers.filter((tower) => tower.label !== false), ...(scene.labels ?? [])]
+    labelsOfScene.set(scene, labels)
+  }
+  return labels
+}
+
+type LabelEntry = { el: HTMLButtonElement; tower: Labelled; anchor: [number, number, number] }
 
 /**
  * Each tower's name and headline on its roof, with the story tooltips' blurred card. A no-op custom
@@ -262,7 +442,7 @@ type LabelEntry = { el: HTMLButtonElement; tower: EstateTower; anchor: [number, 
 export class TowerLabels {
   private map: mapboxgl.Map
   private entries: LabelEntry[] = []
-  private towers: EstateTower[] = []
+  private towers: Labelled[] = []
   private onPick?: (id: string) => void
   readonly layer: mapboxgl.CustomLayerInterface
 
@@ -282,12 +462,13 @@ export class TowerLabels {
     if (!this.map.getLayer(this.layer.id)) this.map.addLayer(this.layer)
   }
 
-  sync(towers: EstateTower[], grow: number, hidden: ReadonlySet<string> = NO_GROUPS, active: string | null = null) {
-    if (towers !== this.towers) {
+  /** `labels` from `sceneLabels`. */
+  sync(labels: Labelled[], grow: number, hidden: ReadonlySet<string> = NO_GROUPS, active: string | null = null) {
+    if (labels !== this.towers) {
       this.clear()
-      this.towers = towers
+      this.towers = labels
       const container = this.map.getContainer()
-      this.entries = towers.filter((tower) => tower.label !== false).map((tower) => {
+      this.entries = labels.map((tower) => {
         const el = document.createElement('button')
         el.type = 'button'
         el.className = 'estate-label'

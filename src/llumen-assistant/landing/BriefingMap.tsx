@@ -14,6 +14,7 @@ import {
   forgetTowers,
   mountEstateLayers,
   resolveTowers,
+  sceneLabels,
 } from '../realEstate/estateMapLayers'
 import styles from './BriefingLanding.module.css'
 
@@ -49,7 +50,7 @@ const labelsByMap = new WeakMap<mapboxgl.Map, TowerLabels>()
 function drawPlace(map: mapboxgl.Map, drawn: { current: Drawn }, place: BriefingPlace, grow: number) {
   drawn.current = { place, grow }
   drawEstateScene(map, LAYERS, place.scene, grow)
-  labelsByMap.get(map)?.sync(place.scene.towers, grow)
+  labelsByMap.get(map)?.sync(sceneLabels(place.scene), grow)
 }
 
 function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {

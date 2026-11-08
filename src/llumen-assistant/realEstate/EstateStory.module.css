@@ -36,7 +36,7 @@
   background: rgba(255, 255, 255, 0.24);
 }
 
-/* Legend marks: a lit tower, and the heat swatch. */
+/* Legend marks: a lit tower, the heat swatch, a tinted zone, a route, and a site. */
 .towerGlyph {
   display: block;
   width: 8px;
@@ -48,6 +48,31 @@
   display: block;
   width: 16px;
   height: 16px;
+  border-radius: 999px;
+}
+
+.areaGlyph {
+  display: block;
+  box-sizing: border-box;
+  width: 16px;
+  height: 12px;
+  border: 1.5px solid;
+  border-radius: 3px;
+}
+
+.lineGlyph {
+  display: block;
+  width: 16px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.pointGlyph {
+  display: block;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(10, 12, 18, 0.85);
   border-radius: 999px;
 }
 

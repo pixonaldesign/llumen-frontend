@@ -39,7 +39,8 @@ import { AssetCard, BriefingAssetGrid } from './BriefingAssets'
 import { BOARD_ASSETS, DEFAULT_BOARD_ORDER } from './briefingAssetData'
 import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
 import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
-import { BRIEFING_PLACES } from './briefingMapPlaces'
+import { BRIEFING_PLACES, type BriefingPlace } from './briefingMapPlaces'
+import { landingAssets } from './landingAssets'
 import { STORY_CAMERA_PADDING } from '../story/StoryMap'
 import { ESTATE_STORIES } from '../realEstate/estateScenario'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
@@ -67,45 +68,41 @@ type SummaryPart = { text: string; highlight?: boolean }
 
 /** What is happening now, in two lines at most. */
 const ASSETS_STATEMENT: SummaryPart[] = [
-  { text: 'Downtown off\u2011plan sales reached AED 16.0bn this quarter, and two towers took ' },
-  { text: '38% of it', highlight: true },
-  { text: '.' },
+  { text: 'Odor complaints around Al Barsha’s parks rose ' },
+  { text: '64% in 30 days', highlight: true },
+  { text: ', and five communities are now priority planning areas.' },
 ]
 
 /** What the assets below say about it. */
 const ASSETS_DETAIL: SummaryPart[] = [
-  { text: 'Downtown prices reached ' },
-  { text: 'AED 3,240 per sq ft', highlight: true },
-  { text: ', up 14% on a year ago, and off-plan homes made up 61% of Dubai’s sales in 2025. The city closed ' },
-  { text: '3,412 sales this week', highlight: true },
+  { text: 'Dubai residents filed ' },
+  { text: '1,284 municipal reports today', highlight: true },
+  { text: ', 18% above average, and odor is the largest share at 24%. Al Barsha logged ' },
+  { text: '20 odor complaints this week', highlight: true },
   {
-    text: ', 9% more than last week. Dreamscape Tower is 84% built and 66% sold, ahead of Opera Crest at 58%, and a Downtown 1-bedroom now rents for ',
+    text: ' as hydrogen sulphide at tank T-3 climbed to 420 µg/L. In the growth areas, JVC already runs its sewerage at ',
   },
-  { text: 'AED 142k a year', highlight: true },
-  { text: ', up 11%.' },
+  { text: '94% of capacity', highlight: true },
+  { text: ', and 8 of 20 communities have drifted from their plan.' },
 ]
 
 /** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
 const ASSETS_INSIGHTS: SummaryPart[][] = [
   [
-    { text: 'Downtown prices reached ' },
-    { text: 'AED 3,240 per sq ft', highlight: true },
-    { text: ', up 14% on a year ago.' },
+    { text: 'Dubai residents filed ' },
+    { text: '1,284 municipal reports today', highlight: true },
+    { text: ', 18% above average; odor is the largest share.' },
   ],
   [
-    { text: 'Dubai closed ' },
-    { text: '3,412 sales this week', highlight: true },
-    { text: ', 9% more than last week, and 61% of 2025’s sales were off-plan.' },
+    { text: 'Al Barsha logged ' },
+    { text: '20 odor complaints this week', highlight: true },
+    { text: ', 118 in 90 days.' },
   ],
+  [{ text: 'Hydrogen sulphide at the T-3 tank outlet has nearly quadrupled since May, to 420 µg/L.' }],
   [
-    {
-      text: 'Dreamscape Tower is 84% built and 66% sold, ahead of Opera Crest Residences at 58%.',
-    },
-  ],
-  [
-    { text: 'A Downtown 1-bedroom now rents for ' },
-    { text: 'AED 142k a year', highlight: true },
-    { text: ', up 11% on a year ago.' },
+    { text: 'JVC runs its sewerage at ' },
+    { text: '94% of capacity', highlight: true },
+    { text: ', and 8 of 20 communities have drifted from their plan.' },
   ],
 ]
 
@@ -129,8 +126,17 @@ const ASSETS_OPEN_PX = 8
 
 /** Findings style 6's slide between the findings and Assets and Apps; keep in step with --side-slide. */
 /** A story opens on its first scene, framed clear of its insight column. */
-const STORY_OPENING_PLACE = BRIEFING_PLACES.downtown
-const STORY_ENTER: BriefingMapEnter = { camera: ESTATE_STORIES['re-downtown'].pages[0].camera, padding: STORY_CAMERA_PADDING }
+const STORY_OPENINGS: Record<string, { place: BriefingPlace; enter: BriefingMapEnter }> = Object.fromEntries(
+  Object.values(ESTATE_STORIES).map((story) => [
+    story.id,
+    {
+      place: { ...BRIEFING_PLACES[story.place], scene: story.pages[0].scene },
+      enter: { camera: story.pages[0].camera, padding: STORY_CAMERA_PADDING },
+    },
+  ]),
+)
+const DM_LOGO = { src: landingAssets.dmLogo, alt: 'Dubai Municipality' }
+const FIRST_STORY = FEED_STOPS.find((stop) => stop.storyId)?.storyId ?? Object.keys(ESTATE_STORIES)[0]
 /** BriefingMap's flight (2200ms) plus slack. */
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
@@ -286,6 +292,9 @@ export function BriefingLanding({
   /** The story whose opening view the map is flying to; the page's chrome steps aside meanwhile. */
   const [storyFlight, setStoryFlight] = useState<string | null>(null)
   if (storyRelease && storyFlight) setStoryFlight(null)
+  /** The story last opened: the map holds its opening view while the page comes back from it. */
+  const [lastStory, setLastStory] = useState(FIRST_STORY)
+  const storyOpening = STORY_OPENINGS[storyFlight ?? lastStory] ?? STORY_OPENINGS[FIRST_STORY]
   const arrivedRef = useRef(false)
   const [assetsOpen, setAssetsOpen] = useState(false)
   /** Findings style 8 is style 6 with Assets and Apps as a modal over the map instead of a slide past it. */
@@ -350,17 +359,18 @@ export function BriefingLanding({
   /** The map is flying into the story, or holding that view underneath it. */
   const opening = storyFlight !== null && !storyRelease && !returnHeld
   const mapPlace = useMemo(() => {
-    if (opening || returnHeld) return STORY_OPENING_PLACE
+    if (opening || returnHeld) return storyOpening.place
     for (let index = active; index >= 0; index -= 1) {
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
-    return BRIEFING_PLACES.downtown
-  }, [active, opening, returnHeld])
+    return BRIEFING_PLACES.barsha
+  }, [active, opening, returnHeld, storyOpening])
 
   const enterStory = useCallback(
     (storyId: string) => {
       if (storyFlight) return
+      setLastStory(storyId)
       if (!onStoryFlight || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         onOpenStory?.(storyId)
         return
@@ -804,6 +814,7 @@ export function BriefingLanding({
           briefingTab
           view={view}
           onViewChange={changeView}
+          partnerLogo={DM_LOGO}
         />
       </header>
       {inStudio ? (
@@ -832,7 +843,7 @@ export function BriefingLanding({
               blank={mapBlurred}
               focusRight={findingsStyle === 2 || findingsStyle === 5}
               focusLow={findingsStyle === 8}
-              enter={opening ? STORY_ENTER : null}
+              enter={opening ? storyOpening.enter : null}
               onArrive={arriveAtStory}
               align={storyRelease && storyRelease !== 'home' ? storyRelease : null}
               start={returnHeld ? storyReturn.from : null}
@@ -966,7 +977,7 @@ export function BriefingLanding({
   )
 }
 
-const ASSET_LOCATIONS = ['Dubai', 'Downtown Dubai', 'Business Bay', 'Dubai Marina'] as const
+const ASSET_LOCATIONS = ['Dubai', 'Al Barsha', 'Jumeirah Village Circle', 'Business Bay'] as const
 const ASSET_PERIODS = ['Today', 'Last 7 days', 'Last 30 days', 'This year'] as const
 
 /**

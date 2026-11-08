@@ -416,26 +416,14 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
   const slide = 0
   const finding = subject && 'finding' in subject ? subject.finding : null
   const location = subject && 'location' in subject ? subject.location : null
-  const experience = finding ? findingExperience(finding.id) : null
   const stateId = `map-state-${Date.now()}`
+  const experience = finding ? findingExperience(finding.id, (place) => `${stateId}-${place}`) : null
   if (experience) {
-    const snapshot: StoryAiSnapshot | null = experience.map
-      ? {
-          cards: null,
-          region: false,
-          areaEffect: null,
-          filterLabels: {},
-          findingPlace: experience.map.place,
-        }
-      : null
     return {
       prompt: experience.prompt,
-      stateId,
-      reply:
-        experience.map && snapshot
-          ? withMapState(experience.reply, { stateId, snapshot, ...experience.map })
-          : experience.reply,
-      map: snapshot ? { snapshot, captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS } : null,
+      stateId: experience.map?.stateId ?? stateId,
+      reply: experience.reply,
+      map: experience.map ? { snapshot: experience.map.snapshot, captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS } : null,
     }
   }
   const region = location ? locationRegion(location) : null
@@ -2055,7 +2043,11 @@ export function CompactAssistantDemo() {
         if (landingAsk) {
           setActiveMapStateId(stateId)
           setLandingAskShrunk(false)
-          setLandingAskMap({ open: true, snapshot: { ...snapshot, camera: mapCaptures[stateId]?.camera }, capture: null })
+          setLandingAskMap({
+            open: true,
+            snapshot: { ...snapshot, camera: mapCaptures[stateId]?.camera },
+            capture: mapCaptures[stateId] ? null : { stateId, delay: ANNOTATION_CAPTURE_DELAY_MS },
+          })
           return
         }
         const storyId = activeStoryId ?? storyAi.storyId

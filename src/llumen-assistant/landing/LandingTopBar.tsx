@@ -99,6 +99,8 @@ export type LandingTopBarProps = {
   /** Selected toggle option. Omit to keep the selection inside the studio bar. */
   view?: TopBarView
   onViewChange?: (view: TopBarView) => void
+  /** Studio bar with workspaceInLogo: a client's logo after the Llumen mark, past a thin rule. */
+  partnerLogo?: { src: string; alt: string }
 }
 
 export function LandingTopBar({
@@ -113,6 +115,7 @@ export function LandingTopBar({
   myAssetsTab = false,
   view,
   onViewChange,
+  partnerLogo,
 }: LandingTopBarProps) {
   if (variant === 'studio') {
     return (
@@ -127,6 +130,7 @@ export function LandingTopBar({
         myAssetsTab={myAssetsTab}
         view={view}
         onViewChange={onViewChange}
+        partnerLogo={partnerLogo}
       />
     )
   }
@@ -246,6 +250,7 @@ function StudioBar({
   myAssetsTab,
   view,
   onViewChange,
+  partnerLogo,
 }: {
   workspace?: string
   workspaces?: readonly WorkspaceOption[]
@@ -257,6 +262,7 @@ function StudioBar({
   myAssetsTab: boolean
   view?: TopBarView
   onViewChange?: (view: TopBarView) => void
+  partnerLogo?: { src: string; alt: string }
 }) {
   const workspaceOptions = workspaces ?? STUDIO_WORKSPACES
   const categoryOptions = categories ?? STUDIO_CATEGORIES
@@ -405,6 +411,12 @@ function StudioBar({
           <a className={styles.logo} href="#top" aria-label="Llumen home">
             <img className={home.logoMark} src={a.logoMark} alt="" />
           </a>
+          {partnerLogo ? (
+            <>
+              <span className={styles.logoRule} aria-hidden />
+              <img className={styles.partnerLogo} src={partnerLogo.src} alt={partnerLogo.alt} />
+            </>
+          ) : null}
           {showWorkspace ? workspaceSelector : null}
         </div>
       ) : (

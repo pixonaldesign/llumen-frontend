@@ -18,7 +18,9 @@ import {
   estateTipHtml,
   forgetTowers,
   mountEstateLayers,
+  overlayTipAt,
   resolveTowers,
+  sceneLabels,
   towerAt,
   type EstateMapScene,
 } from './estateMapLayers'
@@ -137,7 +139,7 @@ export function EstateMap({
     const drawn = drawnRef.current
     const { hidden: off, focus: focused } = latestRef.current
     drawEstateScene(map, PREFIX, drawn.scene, drawn.grow, off)
-    labelsRef.current?.sync(drawn.scene.towers, drawn.grow, off, focused?.id ?? null)
+    labelsRef.current?.sync(sceneLabels(drawn.scene), drawn.grow, off, focused?.id ?? null)
   }
 
   const growIn = (map: mapboxgl.Map) => {
@@ -209,15 +211,17 @@ export function EstateMap({
       drawnRef.current.grow < 0.5 ? [] : drawnRef.current.scene.towers.filter((tower) => !latestRef.current.hidden.has(tower.group))
     const onMove = (event: mapboxgl.MapMouseEvent) => {
       const tower = towerAt(map, event.point, shownTowers(), PREFIX)
-      if (!tower) return hideTip()
-      if (tower.id !== tipKey) {
-        tip.innerHTML = estateTipHtml(tower.tip)
-        tipKey = tower.id
+      const overlay = tower || drawnRef.current.grow < 0.5 ? null : overlayTipAt(map, event.point, PREFIX)
+      const hit = tower ? { key: tower.id, tip: tower.tip } : overlay
+      if (!hit) return hideTip()
+      if (hit.key !== tipKey) {
+        tip.innerHTML = estateTipHtml(hit.tip)
+        tipKey = hit.key
       }
       tip.hidden = false
       tip.style.left = `${event.point.x}px`
       tip.style.top = `${event.point.y}px`
-      map.getCanvas().style.cursor = onClickRef.current ? 'pointer' : 'default'
+      map.getCanvas().style.cursor = tower && onClickRef.current ? 'pointer' : 'default'
     }
     const onClick = (event: mapboxgl.MapMouseEvent) => {
       const tower = towerAt(map, event.point, shownTowers(), PREFIX)

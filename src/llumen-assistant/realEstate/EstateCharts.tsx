@@ -8,6 +8,7 @@ import styles from '../story/StoryView.module.css'
 import { formatCount } from '../story/StoryCharts'
 import { StorySummaryText } from '../story/StorySummaryText'
 import { SUMMARY_REGENERATE_MS } from '../story/storySummary'
+import { HORIZON_COLOR, HORIZON_LABEL } from '../municipality/dmShared'
 import { STATUS, TONE_ACCENT, category, type EstateCard, type Status, type Tone } from './estateTypes'
 import css from './EstateCards.module.css'
 
@@ -400,11 +401,62 @@ function Table({ card }: { card: CardOf<'table'> }) {
   )
 }
 
+function Intervention({ card, onImpact }: { card: CardOf<'intervention'>; onImpact?: (impact: CardOf<'intervention'>['impact']) => void }) {
+  const color = HORIZON_COLOR[card.horizon]
+  return (
+    <div className={css.intervention} style={{ '--horizon': color } as CSSProperties}>
+      <p className={css.interventionHead}>
+        <span className={css.interventionCode}>{card.code}</span>
+        {HORIZON_LABEL[card.horizon]}
+      </p>
+      <p className={css.interventionTitle}>{card.title}</p>
+      <dl className={css.interventionFacts}>
+        <div>
+          <dt>Asset</dt>
+          <dd>{card.asset}</dd>
+        </div>
+        <div>
+          <dt>Benefit</dt>
+          <dd>{card.benefit}</dd>
+        </div>
+      </dl>
+      <button type="button" className={css.interventionButton} onClick={() => onImpact?.(card.impact)}>
+        View Impact
+      </button>
+    </div>
+  )
+}
+
+function Scenario({ card, selected, onSelect }: { card: CardOf<'scenario'>; selected?: string; onSelect?: (id: string) => void }) {
+  const current = selected ?? card.options[0]?.id
+  return (
+    <div className={css.scenarios} role="radiogroup" aria-label={card.title}>
+      {card.options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          role="radio"
+          aria-checked={option.id === current}
+          className={css.scenario}
+          data-selected={option.id === current || undefined}
+          onClick={() => onSelect?.(option.id)}
+        >
+          <span className={css.scenarioLabel}>{option.label}</span>
+          <span className={css.scenarioDetail}>{option.detail}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function EstateCardBody({
   card,
   summaryStatus,
   summaryTyping = false,
   flat = false,
+  scenario,
+  onScenario,
+  onImpact,
 }: {
   card: EstateCard
   /** The summary's "Last updated" chip. */
@@ -412,8 +464,15 @@ export function EstateCardBody({
   summaryTyping?: boolean
   /** Area charts fill with one flat tint instead of a gradient. */
   flat?: boolean
+  /** The page's selected what-if, and how a scenario card picks another. */
+  scenario?: string
+  onScenario?: (id: string) => void
+  /** An intervention's View Impact. */
+  onImpact?: (impact: CardOf<'intervention'>['impact']) => void
 }) {
   switch (card.kind) {
+    case 'intervention':
+      return <Intervention card={card} onImpact={onImpact} />
     case 'summary':
       return (
         <>
@@ -444,7 +503,8 @@ export function EstateCardBody({
     case 'section':
       return <h3 className={css.sectionTitle}>{card.title}</h3>
   }
-  const body: Record<Exclude<EstateCard['kind'], 'summary' | 'cell' | 'section'>, () => ReactNode> = {
+  const body: Record<Exclude<EstateCard['kind'], 'summary' | 'cell' | 'section' | 'intervention'>, () => ReactNode> = {
+    scenario: () => <Scenario card={card as CardOf<'scenario'>} selected={scenario} onSelect={onScenario} />,
     note: () => <p className={css.note}>{(card as CardOf<'note'>).text}</p>,
     specs: () => (
       <dl className={css.specs}>

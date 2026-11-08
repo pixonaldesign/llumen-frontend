@@ -48,7 +48,10 @@ export const category = (index: number, tone: Tone = 'blue') =>
 
 export type EstateCamera = { center: LngLat; zoom: number; pitch: number; bearing: number }
 
-export type LegendMark = 'tower' | 'heat'
+export type LegendMark = 'tower' | 'heat' | 'area' | 'line' | 'point'
+
+/** The three impact horizons an intervention is weighed on. */
+export type Horizon = 'immediate' | 'intermediate' | 'long'
 
 /** A Map Data layer, listed the way the story's Map Data lists its attributes. */
 export type MapDataLayer = {
@@ -118,7 +121,22 @@ export type EstateCard = CardBase &
     | { kind: 'note'; text: string }
     /** Label and value pairs in two columns. */
     | { kind: 'specs'; items: [string, string][] }
+    /** One selectable decision: the action (the title), the asset it acts on, and what it should buy. */
+    | {
+        kind: 'intervention'
+        code: string
+        horizon: Horizon
+        asset: string
+        benefit: string
+        /** The page its View Impact opens, and the scenario that page should show. */
+        impact: { page: string; scenario?: string }
+      }
+    /** The page's what-if controls: one option per scenario, the selected one shown on the cards and map. */
+    | { kind: 'scenario'; options: { id: string; label: string; detail: string }[] }
   )
+
+/** A what-if state of a page: its own map and cards (which repeat the page's scenario control). */
+export type EstateScenario = { id: string; scene: EstateMapScene; cards: EstateCard[]; layers?: MapDataLayer[] }
 
 export type EstatePage = {
   id: string
@@ -130,9 +148,19 @@ export type EstatePage = {
   filters: string[]
   cards: EstateCard[]
   layers: MapDataLayer[]
+  /** Sidebar columns the page opens with; 2 when unset. */
+  columns?: 2 | 3 | 4
+  /** A Policy Lab page: the first scenario shows until another is picked. */
+  scenarios?: EstateScenario[]
 }
 
-export type EstatePlaceId = 'downtown'
+export type EstatePlaceId = 'barsha' | 'dubai'
+
+/** A Briefing place: where its finding's map opens, and what the map shows there. */
+export type EstatePlace = { id: EstatePlaceId; camera: EstateCamera; scene: EstateMapScene }
+
+/** What Tell Me More opens on the map: its camera, the scene, and the Map Data that reads it. */
+export type EstateAskView = { camera: EstateCamera; scene: EstateMapScene; layers: MapDataLayer[] }
 
 export type EstateStory = {
   id: string

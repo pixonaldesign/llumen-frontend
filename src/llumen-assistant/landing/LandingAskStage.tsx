@@ -28,6 +28,7 @@ import mapStyles from '../story/StoryMap.module.css'
 import styles from './LandingAskStage.module.css'
 import { findingStage, isFindingPlace, type FindingStageId } from './landingFindingExperiences'
 import { EstateMap, type EstateMapHandle } from '../realEstate/EstateMap'
+import { EstateLegendGlyph } from '../realEstate/EstateLegendGlyph'
 import estateStyles from '../realEstate/EstateStory.module.css'
 import type { EstateTower } from '../realEstate/estateMapLayers'
 import type { MapDataLayer } from '../realEstate/estateTypes'
@@ -314,9 +315,9 @@ const steppedRamp = (ramp: readonly string[]) =>
     .map((color, index) => `${color} ${(index / ramp.length) * 100}% ${((index + 1) / ramp.length) * 100}%`)
     .join(', ')})`
 
-/** The story's Map Data card, read-only: each layer's colour scale, and the labelled towers it ranks. */
+/** The story's Map Data card, read-only: each layer's colours, and the labelled towers a ramp ranks. */
 function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: EstateTower[] }) {
-  const labelled = towers.filter((tower) => tower.label !== false)
+  const labelled = towers.filter((tower) => tower.label !== false && !tower.footprint)
   return (
     <div className={`${storyStyles.mapData} ${styles.mapData}`}>
       <div className={storyStyles.mapDataHeader}>
@@ -342,7 +343,20 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: Es
                     <span>{layer.color.high ?? 'High'}</span>
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <div className={storyStyles.mapLayerAttr}>
+                  <p className={storyStyles.mapLayerAttrLabel}>Color</p>
+                  {layer.color.items.map((item) => (
+                    <div key={item.label} className={storyStyles.legendRow}>
+                      <span className={`${storyStyles.legendMark} ${estateStyles.legendLabel}`}>{item.label}</span>
+                      <span className={storyStyles.legendMark}>
+                        {item.count ? <span className={storyStyles.legendCount}>{item.count}</span> : null}
+                        <EstateLegendGlyph mark={layer.mark} color={item.color} />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {labelled.length ? (
                 <div className={storyStyles.mapLayerAttr}>
                   <p className={storyStyles.mapLayerAttrLabel}>Top towers</p>

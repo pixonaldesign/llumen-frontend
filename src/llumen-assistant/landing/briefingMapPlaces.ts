@@ -1,6 +1,6 @@
-/** The Briefing map's places: one per real-estate finding, each with its own camera and map scene. */
-import { ESTATE_PLACES, type EstatePlace } from '../realEstate/estateScenario'
-import type { EstatePlaceId } from '../realEstate/estateTypes'
+/** The Briefing map's places: one per finding, each with its own camera and map scene. */
+import { ESTATE_PLACES } from '../realEstate/estateScenario'
+import type { EstatePlace, EstatePlaceId } from '../realEstate/estateTypes'
 
 export type BriefingPlaceId = EstatePlaceId
 

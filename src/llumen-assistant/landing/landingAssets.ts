@@ -3,6 +3,8 @@ const b = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/landing`
 
 export const landingAssets = {
   logoMark: `${b}/llumen-logo.png`,
+  /** Dubai Municipality's logo, in white, for the top bar beside the Llumen mark. */
+  dmLogo: `${b}/dm-logo.png`,
   wordmark: `${b}/llumen-wordmark.svg`,
   userBtn: `${b}/user-btn.png`,
   slideMap: `${b}/slide-map.png`,

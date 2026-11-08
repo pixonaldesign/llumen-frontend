@@ -1,3 +1,4 @@
+import { CRM_BY_WEEK, MENTIONS_BY_WEEK } from '../municipality/odorScenario'
 import type { BriefingPlaceId } from './briefingMapPlaces'
 
 type ChartSeries = { name: string; value: string; pct: number; color: string }
@@ -38,47 +39,40 @@ export type FeedStop = {
   tellMore?: false
 }
 
-/** Dubai residential sales by year, in thousands of transactions, 2016–2025. */
-const TRANSACTIONS: FeedChart = {
+/** Negative odor posts and CRM odor complaints near Al Barsha's parks, a week, over 12 weeks. */
+const ODOR_SIGNALS: FeedChart = {
   kind: 'line',
-  label: 'Dubai residential transactions',
-  total: 169000,
-  delta: 'Off-plan 61% of 2025',
-  axis: ['2016', '2019', '2022', '2025'],
+  label: 'Odor reports near Al Barsha’s parks',
+  total: 412,
+  delta: '+64% in 30 days',
+  axis: ['Aug', 'Sep', 'Oct', 'Nov'],
   lines: [
-    {
-      name: 'Off-plan',
-      color: '#9673e8',
-      points: [12, 13, 14, 13, 12, 22, 38, 52, 68, 103],
-    },
-    {
-      name: 'Ready',
-      color: '#45cdb9',
-      points: [33, 34, 32, 28, 23, 62, 60, 64, 72, 66],
-    },
+    { name: 'Social mentions', color: '#9673e8', points: MENTIONS_BY_WEEK },
+    { name: 'CRM complaints', color: '#45cdb9', points: CRM_BY_WEEK },
   ],
 }
 
-/** The Briefing findings: Downtown's two towers on the night map, then the city's sales mix over the blurred map. */
+/** The Briefing findings: the Al Barsha odor on its parks, then Dubai's growth pressure across the city. */
 export const FEED_STOPS: FeedStop[] = [
   {
-    id: 'downtown-towers',
-    place: 'downtown',
-    domain: 'Real Estate',
-    title: 'Downtown off-plan sales concentrate in two towers',
-    before: 'Two Downtown towers took ',
-    highlight: 'AED 6.1bn',
-    after: ' of off-plan sales this quarter, 38% of the district’s AED 16.0bn.',
-    storyId: 're-downtown',
+    id: 'odor',
+    place: 'barsha',
+    domain: 'Public Health',
+    title: 'Odor complaints rising around Al Barsha’s parks',
+    before: 'Negative posts about unpleasant odors near three Al Barsha parks are up ',
+    highlight: '64% in 30 days',
+    after: ', backed by 118 CRM complaints. Evening winds carry it to about 1,850 residents.',
+    storyId: 'dm-odor',
+    chart: ODOR_SIGNALS,
   },
   {
-    id: 'transactions',
-    domain: 'Real Estate',
-    title: 'Off-plan overtakes ready homes',
-    before: 'Dubai closed 169,000 residential sales in 2025, and off-plan homes are now ',
-    highlight: '61% of the market',
-    after: ', up from a third in 2020.',
-    chart: TRANSACTIONS,
-    tellMore: false,
+    id: 'urban-growth',
+    place: 'dubai',
+    domain: 'Urban Planning',
+    title: 'Growth is outpacing capacity in five communities',
+    before: 'JVC, Business Bay, Arjan, Motor City and Al Quoz are ',
+    highlight: 'priority planning areas',
+    after: ': fast growth, land-use drift and strained infrastructure and services overlap there.',
+    storyId: 'dm-urban',
   },
 ]

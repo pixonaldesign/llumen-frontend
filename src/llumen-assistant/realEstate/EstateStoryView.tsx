@@ -71,10 +71,12 @@ import gradientStyles from '../story/storyGradientBorder.module.css'
 import styles from '../story/StoryView.module.css'
 import { EstateBuildingPanel } from './EstateBuildingPanel'
 import { EstateCardBody } from './EstateCharts'
+import { EstateLegendGlyph } from './EstateLegendGlyph'
 import { EstateMap, type EstateMapFocus, type EstateMapHandle } from './EstateMap'
 import { cardClass, cardFootprint } from './estateCardLayout'
 import { ESTATE_MAP_STYLE } from './estateMapLayers'
-import { ESTATE_BUILDINGS, ESTATE_STORIES, isBuildingId } from './estateScenario'
+import { ESTATE_BUILDINGS, isBuildingId } from './estateBuildings'
+import { ESTATE_STORIES } from './estateScenario'
 import type { BuildingId, EstateCard, EstatePage, MapDataLayer } from './estateTypes'
 import cardCss from './EstateCards.module.css'
 import css from './EstateStory.module.css'
@@ -115,6 +117,8 @@ const CHART_CATEGORY: Record<EstateCard['kind'], string> = {
   split: 'Distribution',
   donut: 'Distribution',
   table: 'Distribution',
+  intervention: 'Comparison',
+  scenario: 'Comparison',
 }
 const CHAPTER = 'estate'
 const FILTER_IDS = ['loc', 'year', 'domain']
@@ -258,12 +262,6 @@ function ColumnsControl<T extends number>({
   )
 }
 
-/** The mark a legend row ends with: a lit tower, or the heat swatch. */
-function LegendGlyph({ layer, color }: { layer: MapDataLayer; color: string }) {
-  if (layer.mark === 'tower') return <i className={css.towerGlyph} style={{ background: color }} aria-hidden />
-  return <i className={css.heatGlyph} style={{ background: `${color}66` }} aria-hidden />
-}
-
 type MenuAt = { top: number; left: number }
 
 /** Below the button, or above it when the menu would run off the bottom. */
@@ -346,6 +344,8 @@ export function EstateStoryView({
   const [shareOpen, setShareOpen] = useState(false)
   const [pageRename, setPageRename] = useState<{ slideId: string; title: string } | null>(null)
   const [columnsBySlide, setColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
+  /** The what-if each Policy Lab slide shows. */
+  const [scenarioBySlide, setScenarioBySlide] = useState<Record<string, string>>({})
   const [removedCards, setRemovedCards] = useState<Record<string, string[]>>({})
   const [addedCards, setAddedCards] = useState<Record<string, EstateCard[]>>({})
   const [layerOrder, setLayerOrder] = useState<Record<string, string[]>>({})
@@ -381,11 +381,15 @@ export function EstateStoryView({
   const slide = slides[activeSlideIndex]
   const page = pageOf[slide.id]
   const filters = filtersBySlide[slide.id] ?? []
-  const columns = columnsBySlide[slide.id] ?? 2
+  const columns = columnsBySlide[slide.id] ?? page.columns ?? 2
   const editing = storyMode === 'edit'
   const removed = removedCards[slide.id]
   const added = addedCards[slide.id]
-  const pageCards = page.cards
+  const scenario = page.scenarios?.find((item) => item.id === scenarioBySlide[slide.id]) ?? page.scenarios?.[0]
+  const pageCards = scenario?.cards ?? page.cards
+  const pageScene = scenario?.scene ?? page.scene
+  const pageLayers = scenario?.layers ?? page.layers
+  const hasBuildings = pageScene.towers.some((tower) => isBuildingId(tower.id))
   const cards = useMemo(
     () => [...pageCards, ...(added ?? [])].filter((card) => !removed?.includes(card.id)),
     [added, pageCards, removed],
@@ -410,20 +414,20 @@ export function EstateStoryView({
     )
     const pickedIds = new Set(picked.map((card) => card.id))
     setRemovedCards((current) => ({ ...current, [slide.id]: (current[slide.id] ?? []).filter((id) => !pickedIds.has(id)) }))
-    const present = new Set([...page.cards, ...(added ?? [])].map((card) => card.id))
+    const present = new Set([...pageCards, ...(added ?? [])].map((card) => card.id))
     const fresh = picked.filter((card, index) => !present.has(card.id) && picked.findIndex((item) => item.id === card.id) === index)
     if (fresh.length) setAddedCards((current) => ({ ...current, [slide.id]: [...(current[slide.id] ?? []), ...fresh] }))
   }
   const layers = useMemo(() => {
     const order = layerOrder[slide.id]
-    if (!order) return page.layers
-    return order.flatMap((group) => page.layers.filter((layer) => layer.group === group))
-  }, [layerOrder, page, slide.id])
+    if (!order) return pageLayers
+    return order.flatMap((group) => pageLayers.filter((layer) => layer.group === group))
+  }, [layerOrder, pageLayers, slide.id])
   /** Layers deleted from Map Data leave the map too. */
   const mapHiddenGroups = useMemo(() => {
-    const gone = page.layers.filter((layer) => !layers.includes(layer)).map((layer) => layer.group)
+    const gone = pageLayers.filter((layer) => !layers.includes(layer)).map((layer) => layer.group)
     return gone.length ? new Set([...hidden, ...gone]) : hidden
-  }, [hidden, layers, page.layers])
+  }, [hidden, layers, pageLayers])
   const summaryConfig = summaryConfigs[slide.id] ?? defaultSummaryConfig(slide.id)
   const summaryRegenerating = regeneratingSlideId === slide.id
   const canAddToChat = Boolean(onAddToChat)
@@ -496,6 +500,14 @@ export function EstateStoryView({
   const goTo = (index: number) => {
     setSlideIndex(index)
     setInfo(null)
+  }
+
+  /** An intervention's View Impact: the page that tests it, on the what-if it names. */
+  const openImpact = ({ page: pageId, scenario: scenarioId }: { page: string; scenario?: string }) => {
+    const index = slides.findIndex((item) => pageOf[item.id]?.id === pageId)
+    if (index === -1) return
+    if (scenarioId) setScenarioBySlide((current) => ({ ...current, [slides[index].id]: scenarioId }))
+    goTo(index)
   }
 
   const toggleInfo = (kind: 'story' | 'slide', button: HTMLElement) => {
@@ -644,6 +656,9 @@ export function EstateStoryView({
           card={card}
           summaryStatus={summary ? summaryUpdated : undefined}
           summaryTyping={summary && summaryRegenerating}
+          scenario={scenario?.id}
+          onScenario={(id) => setScenarioBySlide((current) => ({ ...current, [slide.id]: id }))}
+          onImpact={openImpact}
         />
         {summary && editing ? (
           <button
@@ -867,7 +882,7 @@ export function EstateStoryView({
               )}
               <span className={styles.legendMark}>
                 {item.count ? <span className={styles.legendCount}>{item.count}</span> : null}
-                <LegendGlyph layer={layer} color={item.color} />
+                <EstateLegendGlyph mark={layer.mark} color={item.color} />
               </span>
             </div>
           ))
@@ -1117,15 +1132,19 @@ export function EstateStoryView({
       <div className={styles.mapPane}>
         <EstateMap
           camera={page.camera}
-          scene={page.scene}
+          scene={pageScene}
           hidden={mapHiddenGroups}
           padding={STORY_CAMERA_PADDING}
           flat={flat}
           styleUrl={mapStyle.url}
           focus={focus}
-          onTowerClick={(id) => {
-            if (isBuildingId(id)) openBuilding(id)
-          }}
+          onTowerClick={
+            hasBuildings
+              ? (id) => {
+                  if (isBuildingId(id)) openBuilding(id)
+                }
+              : undefined
+          }
           onReady={onMapReady}
           handleRef={mapRef}
         />
@@ -1319,7 +1338,7 @@ export function EstateStoryView({
             }}
             charts={pickerCharts}
             onAddCharts={addCharts}
-            onAddMapLayer={() => setLayerGroups(page.layers.map((layer) => layer.group))}
+            onAddMapLayer={() => setLayerGroups(pageLayers.map((layer) => layer.group))}
           />
         ) : null}
 

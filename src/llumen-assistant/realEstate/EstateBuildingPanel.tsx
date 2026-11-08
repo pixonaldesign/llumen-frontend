@@ -21,7 +21,7 @@ import {
 import panelStyles from '../story/StoryEditPanel.module.css'
 import cardStyles from '../story/StoryView.module.css'
 import { EstateCardBody, Sparkline } from './EstateCharts'
-import { ESTATE_BUILDINGS } from './estateScenario'
+import { ESTATE_BUILDINGS } from './estateBuildings'
 import { PALETTE, type BuildingId, type BuildingTabId, type CountRow } from './estateTypes'
 import css from './EstateBuildingPanel.module.css'
 

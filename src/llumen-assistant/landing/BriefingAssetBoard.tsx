@@ -45,21 +45,21 @@ type BoardItem =
 
 /** Preferred width in cells, how narrow and wide each card still reads well, and its height. */
 const ASSET_FITS: Record<string, Fit> = {
-  're-price-sqft': { cols: 2, min: 2, max: 3, rows: 1 },
-  're-sales-mix': { cols: 2, min: 2, max: 3, rows: 1 },
-  're-buyers': { cols: 2, min: 2, max: 3, rows: 1 },
-  're-construction': { cols: 1, min: 1, max: 2, rows: 1 },
-  're-sales-today': { cols: 4, min: 3, max: 5, rows: 2 },
-  're-top-areas': { cols: 2, min: 2, max: 3, rows: 2 },
-  're-weekly-sales': { cols: 2, min: 2, max: 4, rows: 2 },
-  're-rents': { cols: 2, min: 2, max: 4, rows: 2 },
-  're-sell-through': { cols: 4, min: 3, max: 4, rows: 2 },
+  'dm-odor-complaints': { cols: 2, min: 2, max: 3, rows: 1 },
+  'dm-plan-alignment': { cols: 2, min: 2, max: 3, rows: 1 },
+  'dm-complaint-types': { cols: 2, min: 2, max: 3, rows: 1 },
+  'dm-jvc-sewer': { cols: 1, min: 1, max: 2, rows: 1 },
+  'dm-reports-today': { cols: 4, min: 3, max: 5, rows: 2 },
+  'dm-growth-pressure': { cols: 2, min: 2, max: 3, rows: 2 },
+  'dm-odor-week': { cols: 2, min: 2, max: 4, rows: 2 },
+  'dm-h2s': { cols: 2, min: 2, max: 4, rows: 2 },
+  'dm-utilisation': { cols: 4, min: 3, max: 4, rows: 2 },
 }
 
 /**
  * A roomy board's cell is wide enough for the small charts, so they pair up a cell each (the donut and
- * pie without their legends, the week's sales beside the rents). Apps take a square cell each too,
- * thumbnail on top, except Dubai Marina's, thumbnail-left across the row. The rest
+ * pie without their legends, the week's complaints beside the H₂S line). Apps take a square cell each too,
+ * thumbnail on top, except JVC's, thumbnail-left across the row. The rest
  * run the board's width one row tall, so three cards down the first column still fit the edge peek above
  * the composer.
  */
@@ -67,21 +67,21 @@ const ROOMY_SMALL: Fit = { cols: 1, min: 1, max: 2, rows: 1 }
 const ROOMY_APP: Fit = { cols: 1, min: 1, max: 1, rows: 1 }
 const ROOMY_WIDE: Fit = { cols: 2, min: 2, max: 2, rows: 1 }
 const ROOMY_FITS: Record<string, Fit> = {
-  're-price-sqft': ROOMY_SMALL,
-  're-construction': ROOMY_SMALL,
-  're-sales-mix': ROOMY_SMALL,
-  're-buyers': ROOMY_SMALL,
-  're-weekly-sales': ROOMY_SMALL,
-  're-rents': ROOMY_SMALL,
-  're-sell-through': { cols: 2, min: 2, max: 2, rows: 2 },
-  're-marina-app': ROOMY_WIDE,
+  'dm-odor-complaints': ROOMY_SMALL,
+  'dm-jvc-sewer': ROOMY_SMALL,
+  'dm-plan-alignment': ROOMY_SMALL,
+  'dm-complaint-types': ROOMY_SMALL,
+  'dm-odor-week': ROOMY_SMALL,
+  'dm-h2s': ROOMY_SMALL,
+  'dm-utilisation': { cols: 2, min: 2, max: 2, rows: 2 },
+  'dm-jvc-app': ROOMY_WIDE,
 }
 
 const APP_LAYOUTS: Record<string, AppLayout> = {
-  're-downtown-app': 'tall',
-  're-creek-app': 'wide',
-  're-marina-app': 'tall',
-  're-business-bay-app': 'wide',
+  'dm-odor-app': 'tall',
+  'dm-creek-app': 'wide',
+  'dm-jvc-app': 'tall',
+  'dm-quoz-app': 'wide',
 }
 
 const APP_FITS: Record<AppLayout, Fit> = {

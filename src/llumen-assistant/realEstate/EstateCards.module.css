@@ -455,6 +455,7 @@ aside.grid > .section {
 }
 
 .specs dd {
+  display: -webkit-box;
   margin: 2px 0 0;
   overflow: hidden;
   color: #fff;
@@ -462,6 +463,159 @@ aside.grid > .section {
   font-size: 13px;
   font-weight: 500;
   line-height: 18px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* One of the nine decisions: its code and horizon, the action, what it acts on, and View Impact. */
+.intervention {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.interventionHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--horizon);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.interventionCode {
+  padding: 0 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--horizon) 22%, transparent);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+.interventionTitle {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.interventionFacts {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.interventionFacts div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.interventionFacts dt {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 13px;
+}
+
+.interventionFacts dd {
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  line-height: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.interventionButton {
+  align-self: stretch;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--horizon) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--horizon) 14%, transparent);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.interventionButton:hover {
+  border-color: var(--horizon);
+  background: color-mix(in srgb, var(--horizon) 28%, transparent);
+}
+
+.interventionButton:focus-visible {
+  outline: 2px solid var(--horizon);
+  outline-offset: 2px;
+}
+
+/* The page's what-ifs side by side; the picked one is lit. */
+.scenarios {
+  display: grid;
+  flex: 1;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+  align-content: center;
+}
+
+.scenario {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.scenario:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.scenario[data-selected] {
+  border-color: #45cdb9;
+  background: rgba(69, 205, 185, 0.14);
+}
+
+.scenarioLabel {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.scenarioDetail {
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 11px;
+  line-height: 14px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
