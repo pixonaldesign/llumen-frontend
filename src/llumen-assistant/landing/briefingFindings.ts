@@ -72,19 +72,19 @@ const EVENING_BASKET: FeedChart = {
 }
 
 /**
- * The Briefing findings: the island's candidate sites and the evening corridor on the night map, each
+ * The Briefing findings: the evening corridor and the island's candidate sites on the night map, each
  * with its story, alternating with the network's own figures over the blurred map.
  */
 export const FEED_STOPS: FeedStop[] = [
   {
-    id: 'shortlist',
-    place: 'zahiyah',
-    domain: 'Site Selection',
-    title: 'Al Zahiyah tops 12 candidate sites',
-    before: 'Of 12 candidate sites on Abu Dhabi Island, Al Zahiyah on Sheikh Zayed Bin Sultan St scores ',
-    highlight: '87 of 100',
-    after: ' and would sell 58% more fuel than your average station.',
-    storyId: 'tt-shortlist',
+    id: 'evening-corridor',
+    place: 'corridor',
+    domain: 'Demand Patterns',
+    title: 'Evenings reshape the shortlist',
+    before: 'Between 5 and 9pm, ',
+    highlight: '38% of the day’s traffic',
+    after: ' on Sheikh Rashid Bin Saeed St passes Al Markaziyah, lifting it from fourth to third.',
+    storyId: 'tt-evening',
   },
   {
     id: 'network-volume',
@@ -97,14 +97,14 @@ export const FEED_STOPS: FeedStop[] = [
     tellMore: false,
   },
   {
-    id: 'evening-corridor',
-    place: 'corridor',
-    domain: 'Demand Patterns',
-    title: 'Evenings reshape the shortlist',
-    before: 'Between 5 and 9pm, ',
-    highlight: '38% of the day’s traffic',
-    after: ' on Sheikh Rashid Bin Saeed St passes Al Markaziyah, lifting it from fourth to third.',
-    storyId: 'tt-evening',
+    id: 'shortlist',
+    place: 'zahiyah',
+    domain: 'Site Selection',
+    title: 'Al Zahiyah tops 12 candidate sites',
+    before: 'Of 12 candidate sites on Abu Dhabi Island, Al Zahiyah on Sheikh Zayed Bin Sultan St scores ',
+    highlight: '87 of 100',
+    after: ' and would sell 58% more fuel than your average station.',
+    storyId: 'tt-shortlist',
   },
   {
     id: 'evening-basket',
