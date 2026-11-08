@@ -10,8 +10,6 @@ export function TomtomLegendGlyph({ layer, color }: { layer: MapDataLayer; color
       return <i className={css.towerGlyph} style={{ background: color }} aria-hidden />
     case 'pin':
       return <i className={css.pinGlyph} style={style} aria-hidden />
-    case 'dot':
-      return <i className={css.dotGlyph} style={style} aria-hidden />
     case 'fence':
       return <i className={css.fenceGlyph} style={style} aria-hidden />
     case 'disk':

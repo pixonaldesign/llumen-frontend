@@ -88,7 +88,7 @@
 /* A tower's details, beside the pointer. */
 .tomtom-tip {
   position: absolute;
-  z-index: 4;
+  z-index: 90;
   width: 232px;
   padding: 10px 12px;
   pointer-events: none;
@@ -130,14 +130,15 @@
 }
 
 /*
- * A pin stands on its ground point (the element is translated there): candidate sites and stations as
- * map pins in their colour, rivals as glowing dots. `--pop` scales them in as the scene grows.
+ * A pin stands on its ground point (the element is translated there) as a tooltip above it, outlined in
+ * its colour, with a stem down to the spot. `--pop` scales it in as the scene grows; `--z` keeps the best
+ * sites on top.
  */
 .tomtom-pin {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 2;
+  z-index: var(--z, 2);
   width: 0;
   height: 0;
   margin: 0;
@@ -149,105 +150,58 @@
   will-change: transform;
 }
 
-.tomtom-pin[data-static='true'] .tomtom-pin-card {
+.tomtom-pin:hover,
+.tomtom-pin[data-active='true'] {
+  z-index: 80;
+}
+
+.tomtom-pin[data-passive='true'] .tomtom-pin-card {
   pointer-events: none;
 }
 
-button.tomtom-pin {
-  cursor: pointer;
+.tomtom-pin::after {
+  content: '';
+  position: absolute;
+  top: -2.5px;
+  left: -2.5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--pin);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pin) 24%, transparent);
+  transform: scale(var(--pop, 1));
 }
 
-.tomtom-pin-head {
+.tomtom-pin-card {
   position: absolute;
-  bottom: 0;
+  bottom: 12px;
   left: 0;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border: 1.5px solid rgba(255, 255, 255, 0.85);
-  border-radius: 50% 50% 50% 0;
-  background: var(--pin);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 6px;
+  border: 1.5px solid var(--pin);
+  background: color-mix(in srgb, var(--pin) 12%, rgba(20, 22, 28, 0.62));
   box-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.45),
-    0 0 0 4px color-mix(in srgb, var(--pin) 22%, transparent);
-  transform: translate(0, -2px) scale(var(--pop, 1)) rotate(-45deg);
-  transform-origin: 0 100%;
+    0 0 0 3px color-mix(in srgb, var(--pin) 18%, transparent),
+    0 0 18px color-mix(in srgb, var(--pin) 28%, transparent),
+    0 10px 24px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+  text-align: left;
+  transform: translateX(-50%) scale(var(--pop, 1));
+  transform-origin: 50% 100%;
   transition:
     transform 0.2s ease,
+    background 0.16s ease,
     box-shadow 0.2s ease;
 }
 
-.tomtom-pin-head > span {
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  transform: rotate(45deg);
+.tomtom-pin[data-kind='station'] .tomtom-pin-card {
+  padding-left: 10px;
 }
 
-.tomtom-pin[data-kind='station'] .tomtom-pin-head {
-  width: 22px;
-  height: 22px;
-}
-
-/* A current station: a white fuel-nozzle dot in its pin. */
-.tomtom-pin[data-kind='station'] .tomtom-pin-head > span {
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  background: #fff;
-}
-
-.tomtom-pin[data-kind='site'] .tomtom-pin-head > span:empty {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-}
-
-button.tomtom-pin:hover .tomtom-pin-head,
-.tomtom-pin[data-active='true'] .tomtom-pin-head {
-  transform: translate(0, -2px) scale(calc(var(--pop, 1) * 1.14)) rotate(-45deg);
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.5),
-    0 0 0 6px color-mix(in srgb, var(--pin) 32%, transparent);
-}
-
-button.tomtom-pin:focus-visible {
-  outline: none;
-}
-
-button.tomtom-pin:focus-visible .tomtom-pin-head {
-  outline: 2px solid #70aeff;
-  outline-offset: 2px;
-}
-
-.tomtom-pin-dot {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 10px;
-  height: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 999px;
-  background: var(--pin);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pin) 26%, transparent), 0 0 12px var(--pin);
-  transform: translate(-50%, -50%) scale(var(--pop, 1));
-}
-
-/* A labelled pin's name card, above its head. */
-.tomtom-pin-card {
-  position: absolute;
-  bottom: 44px;
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 10px;
-  white-space: nowrap;
-  text-align: left;
-  transform: translateX(-50%);
+button.tomtom-pin .tomtom-pin-card {
+  cursor: pointer;
 }
 
 .tomtom-pin-card::after {
@@ -255,9 +209,31 @@ button.tomtom-pin:focus-visible .tomtom-pin-head {
   position: absolute;
   top: 100%;
   left: 50%;
-  width: 1px;
-  height: 10px;
-  background: linear-gradient(var(--pin), transparent);
+  width: 1.5px;
+  height: 12px;
+  margin-left: -0.75px;
+  background: linear-gradient(var(--pin), color-mix(in srgb, var(--pin) 30%, transparent));
+}
+
+.tomtom-pin-rank {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--pin);
+  color: #0b1414;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tomtom-pin-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .tomtom-pin-card b {
@@ -267,9 +243,45 @@ button.tomtom-pin:focus-visible .tomtom-pin-head {
   line-height: 18px;
 }
 
+.tomtom-pin[data-label='false'] .tomtom-pin-card {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.tomtom-pin[data-label='false'] .tomtom-pin-card b {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.tomtom-pin[data-label='false'] .tomtom-pin-rank {
+  min-width: 18px;
+  height: 18px;
+  font-size: 10px;
+}
+
+button.tomtom-pin:hover .tomtom-pin-card,
+.tomtom-pin[data-active='true'] .tomtom-pin-card {
+  background: color-mix(in srgb, var(--pin) 20%, rgba(30, 32, 38, 0.72));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--pin) 28%, transparent),
+    0 0 24px color-mix(in srgb, var(--pin) 36%, transparent),
+    0 12px 28px rgba(0, 0, 0, 0.5);
+  transform: translateX(-50%) scale(calc(var(--pop, 1) * 1.04));
+}
+
+button.tomtom-pin:focus-visible {
+  outline: none;
+}
+
+button.tomtom-pin:focus-visible .tomtom-pin-card {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tomtom-pin,
-  .tomtom-pin-head {
+  .tomtom-pin-card {
     transition: none;
   }
 }

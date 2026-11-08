@@ -51,26 +51,15 @@
   border-radius: 999px;
 }
 
-/* The map's own marks in miniature: a pin, a rival's dot, a fence's wall and a volume disk. */
+/* The map's own marks in miniature: a pin's outlined tooltip, a fence's wall and a volume disk. */
 .pinGlyph {
   display: block;
-  width: 11px;
+  width: 16px;
   height: 11px;
-  margin: 0 2px 3px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 50% 50% 50% 0;
-  background: var(--glyph);
-  transform: rotate(-45deg);
-}
-
-.dotGlyph {
-  display: block;
-  width: 8px;
-  height: 8px;
-  margin: 4px;
-  border-radius: 999px;
-  background: var(--glyph);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--glyph) 30%, transparent);
+  margin: 0 0 2px;
+  border: 1.5px solid var(--glyph);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--glyph) 18%, rgba(26, 26, 26, 0.5));
 }
 
 .fenceGlyph {

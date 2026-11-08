@@ -78,7 +78,7 @@ const EVENING_BASKET: FeedChart = {
 export const FEED_STOPS: FeedStop[] = [
   {
     id: 'shortlist',
-    place: 'island',
+    place: 'zahiyah',
     domain: 'Site Selection',
     title: 'Al Zahiyah tops 12 candidate sites',
     before: 'Of 12 candidate sites on Abu Dhabi Island, Al Zahiyah on Sheikh Zayed Bin Sultan St scores ',

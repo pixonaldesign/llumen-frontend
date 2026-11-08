@@ -63,14 +63,14 @@ export type TomtomFence = {
 export type TomtomDisk = { id: string; at: LngLat; radiusM: number; color: string; group: string }
 
 /**
- * A place on the map: a candidate `site` pin (numbered by `rank`), a current `station` pin, or a `rival`
- * dot. `label` adds its name card above it.
+ * A place on the map, drawn as a tooltip outlined in its colour: a candidate `site` (numbered by `rank`)
+ * or a current `station`. `label` adds its figures (`text`) under its name.
  */
 export type TomtomPin = {
   id: string
   at: LngLat
   color: string
-  kind: 'site' | 'station' | 'rival'
+  kind: 'site' | 'station'
   rank?: number
   label?: boolean
   title: string
@@ -553,9 +553,9 @@ type PinEntry = { el: HTMLElement; pin: TomtomPin; anchor: [number, number, numb
 export type PinHover = (pin: TomtomPin | null, point?: { x: number; y: number }) => void
 
 /**
- * The scene's pins: candidate sites as numbered map pins, current stations as pins with a fuel mark, and
- * rivals as glowing dots, each popping in one after another as the scene grows. Sites with a details
- * panel open it on click; every pin names itself through `onHover`.
+ * The scene's pins, as tooltips standing on their places: candidate sites outlined in teal and numbered
+ * by rank, current stations in blue, each popping in one after another as the scene grows. Sites with a
+ * details panel open it on click; every pin names itself through `onHover`.
  */
 export class TomtomPins {
   private map: mapboxgl.Map
@@ -594,6 +594,7 @@ export class TomtomPins {
     el.className = 'tomtom-pin'
     el.dataset.kind = pin.kind
     el.style.setProperty('--pin', pin.color)
+    el.style.setProperty('--z', String(10 + Math.round((1 - order) * 40)))
     if (pick) {
       el.setAttribute('aria-label', `${pin.title}: open details`)
       el.addEventListener('click', () => this.onPick?.(pin.id))
@@ -601,22 +602,19 @@ export class TomtomPins {
       el.dataset.static = 'true'
       el.setAttribute('aria-hidden', 'true')
     }
-    const mark =
-      pin.kind === 'rival'
-        ? '<i class="tomtom-pin-dot" aria-hidden="true"></i>'
-        : `<span class="tomtom-pin-head" aria-hidden="true"><span>${pin.rank ?? ''}</span></span>`
-    const card = pin.label
-      ? `<span class="tomtom-pin-card"><b>${escapeHtml(pin.title)}</b><span>${escapeHtml(pin.text)}</span></span>`
-      : ''
-    el.innerHTML = mark + card
+    if (!pick && !this.onHover) el.dataset.passive = 'true'
+    el.dataset.label = pin.label ? 'true' : 'false'
+    const rank = pin.kind === 'site' && pin.rank ? `<span class="tomtom-pin-rank" aria-hidden="true">${pin.rank}</span>` : ''
+    const text = pin.label ? `<span>${escapeHtml(pin.text)}</span>` : ''
+    el.innerHTML = `<span class="tomtom-pin-card">${rank}<span class="tomtom-pin-copy"><b>${escapeHtml(pin.title)}</b>${text}</span></span>`
     if (this.onHover) {
-      el.addEventListener('mouseenter', () => {
-        const rect = el.getBoundingClientRect()
+      const card = el.firstElementChild as HTMLElement
+      card.addEventListener('mouseenter', () => {
+        const rect = card.getBoundingClientRect()
         const box = this.map.getContainer().getBoundingClientRect()
-        const head = el.querySelector('.tomtom-pin-head, .tomtom-pin-dot')?.getBoundingClientRect() ?? rect
-        this.onHover?.(pin, { x: head.left + head.width / 2 - box.left, y: head.top - box.top })
+        this.onHover?.(pin, { x: rect.left + rect.width / 2 - box.left, y: rect.top - box.top })
       })
-      el.addEventListener('mouseleave', () => this.onHover?.(null))
+      card.addEventListener('mouseleave', () => this.onHover?.(null))
     }
     this.map.getContainer().appendChild(el)
     const { x, y, z } = mapboxgl.MercatorCoordinate.fromLngLat(pin.at, 0)
@@ -627,8 +625,8 @@ export class TomtomPins {
     if (pins !== this.pins) {
       this.clear()
       this.pins = pins
-      /** Sites first, best first, then stations, then rivals. */
-      const rank = (pin: TomtomPin) => (pin.kind === 'site' ? (pin.rank ?? 50) : pin.kind === 'station' ? 100 : 200)
+      /** Sites first, best first, then stations. */
+      const rank = (pin: TomtomPin) => (pin.kind === 'site' ? (pin.rank ?? 50) : 100)
       const ordered = [...pins].sort((a, b) => rank(a) - rank(b))
       this.entries = ordered.map((pin, index) => this.build(pin, index / Math.max(1, ordered.length - 1)))
     }

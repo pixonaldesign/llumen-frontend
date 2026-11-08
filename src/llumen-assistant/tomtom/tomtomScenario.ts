@@ -216,7 +216,6 @@ export const EVENING_RANKING = byEvening.map((site) => SITE_RANKING.find((entry)
 
 const SITES_GROUP = 'sites'
 const STATIONS_GROUP = 'stations'
-const RIVALS_GROUP = 'rivals'
 const TRAFFIC_GROUP = 'traffic'
 const VOLUME_GROUP = 'volume'
 const DEMAND_GROUP = 'demand'
@@ -267,28 +266,6 @@ function stationPin(station: (typeof STATIONS)[number], labelled = false): Tomto
       ],
     },
     group: STATIONS_GROUP,
-  }
-}
-
-function rivalPin(rival: (typeof RIVALS)[number], labelled = false, from?: (typeof SITES)[number]): TomtomPin {
-  const site = from ?? byScore.reduce((best, item) => (distanceKm(item.at, rival.at) < distanceKm(best.at, rival.at) ? item : best))
-  return {
-    id: rival.id,
-    at: rival.at,
-    color: RIVAL_COLOR,
-    kind: 'rival',
-    label: labelled,
-    title: 'Rival station',
-    text: `${km(distanceKm(site.at, rival.at))} from ${site.area}`,
-    tip: {
-      title: 'Rival station',
-      rows: [
-        [from ? 'Candidate' : 'Nearest candidate', site.area],
-        ['Distance', km(distanceKm(site.at, rival.at))],
-        ['Open', hash(Number(rival.id.slice(6)), 3) > 0.4 ? '24 hours' : '6am – midnight'],
-      ],
-    },
-    group: RIVALS_GROUP,
   }
 }
 
@@ -362,12 +339,11 @@ const scene = (parts: Partial<TomtomMapScene>): TomtomMapScene => ({
   ...parts,
 })
 
-/** The whole island: every candidate, the network and its rivals, and the day's traffic on the arterials. */
+/** The whole island: every candidate, the network's stations and the day's traffic on the arterials. */
 const ISLAND_SCENE = scene({
   pins: [
     ...byScore.map((site, index) => sitePin(site, index + 1, index < 3)),
     ...STATIONS.map((station) => stationPin(station)),
-    ...RIVALS.map((rival) => rivalPin(rival)),
   ],
   fences: roadFences(ALL_DAY_LOAD, 5, 320),
   disks: SITES.map((site) => volumeDisk(site)),
@@ -381,12 +357,11 @@ const closest = <T extends { at: LngLat }>(at: LngLat, points: T[], count: numbe
 
 const SZBS_RIVALS = closest(SZBS.at, RIVALS, 4)
 
-/** Site 1 close up: the traffic past it and the rivals nearest it. */
+/** Site 1 close up: the traffic past it, its neighbouring candidates and your nearest stations. */
 const SZBS_SCENE = scene({
   pins: [
     sitePin(SZBS, 1, true),
     ...closest(SZBS.at, SITES.filter((site) => site !== SZBS), 2).map((site) => sitePin(site, rankOf(site), false)),
-    ...SZBS_RIVALS.map((rival, index) => rivalPin(rival, index === 0, SZBS)),
     ...closest(SZBS.at, STATIONS, 2).map((station) => stationPin(station, true)),
   ],
   fences: roadFences(ALL_DAY_LOAD, 5, 130, false, ['szbs', 'muroor', 'hazza', 'falah', 'rashid']),
@@ -398,7 +373,6 @@ const EVENING_SCENE = scene({
   pins: [
     ...byEvening.map((site, index) => sitePin(site, index + 1, index < 3, true)),
     ...STATIONS.map((station) => stationPin(station)),
-    ...RIVALS.map((rival) => rivalPin(rival)),
   ],
   fences: roadFences(EVENING_LOAD, 13, 320, true),
   disks: SITES.map((site) => ({ ...volumeDisk(site), radiusM: 60 + site.volume * site.eveningShare * 0.7 })),
@@ -414,7 +388,6 @@ const CORRIDOR_SCENE = scene({
   pins: [
     ...closest(RASHID.at, SITES, 3).map((site) => sitePin(site, eveningRankOf(site), site === RASHID, true)),
     ...closest(RASHID.at, STATIONS, 2).map((station) => stationPin(station)),
-    ...CORRIDOR_RIVALS.map((rival) => rivalPin(rival)),
   ],
   fences: roadFences(EVENING_LOAD, 13, 120, true, CORRIDOR_STREETS),
   disks: [volumeDisk(RASHID, 1.2)],
@@ -426,7 +399,6 @@ const CORRIDOR_SCENE = scene({
 const TRADE_SCENE = scene({
   pins: [
     sitePin(RASHID, eveningRankOf(RASHID), true, true),
-    ...CORRIDOR_RIVALS.map((rival, index) => rivalPin(rival, index < 2, RASHID)),
     ...closest(RASHID.at, STATIONS, 2).map((station) => stationPin(station)),
   ],
   fences: roadFences(EVENING_LOAD, 13, 160, true, CORRIDOR_STREETS),
@@ -462,12 +434,6 @@ const STATIONS_LAYER: MapDataLayer = {
   mark: 'pin',
   color: { items: [{ label: 'Your stations', color: STATION_COLOR, count: String(STATIONS.length) }] },
 }
-const RIVALS_LAYER = (count: number): MapDataLayer => ({
-  group: RIVALS_GROUP,
-  title: 'Rival stations',
-  mark: 'dot',
-  color: { items: [{ label: 'Rival stations', color: RIVAL_COLOR, count: String(count) }] },
-})
 const TRAFFIC_LAYER = (evening = false): MapDataLayer => ({
   group: TRAFFIC_GROUP,
   title: evening ? 'Traffic density, 5–9pm' : 'Traffic density',
@@ -714,8 +680,8 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
     id: 'tt-shortlist',
     title: 'Next Site Shortlist',
     description:
-      'Twelve candidate sites on Abu Dhabi Island, scored on passing traffic, catchment, competition and access against your eight stations. Click a shortlisted pin for its details.',
-    place: 'island',
+      'Twelve candidate sites on Abu Dhabi Island, scored on passing traffic, catchment, competition and access against your eight stations. Click a shortlisted site for its details.',
+    place: 'zahiyah',
     pages: [
       {
         id: 'tt-shortlist-island',
@@ -724,7 +690,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
         camera: ISLAND_CAMERA,
         scene: ISLAND_SCENE,
         filters: ['Abu Dhabi Island', 'Last 90 days', 'Fuel retail'],
-        layers: [SITES_LAYER(top), STATIONS_LAYER, RIVALS_LAYER(RIVALS.length), TRAFFIC_LAYER(), VOLUME_LAYER],
+        layers: [SITES_LAYER(top), STATIONS_LAYER, TRAFFIC_LAYER(), VOLUME_LAYER],
         cards: toned([
           {
             id: 'summary',
@@ -820,7 +786,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
         camera: SZBS_CAMERA,
         scene: SZBS_SCENE,
         filters: [S1, 'Last 90 days', 'Fuel retail'],
-        layers: [SITES_LAYER([SZBS]), RIVALS_LAYER(SZBS_RIVALS.length), STATIONS_LAYER, TRAFFIC_LAYER(), VOLUME_LAYER],
+        layers: [SITES_LAYER([SZBS]), STATIONS_LAYER, TRAFFIC_LAYER(), VOLUME_LAYER],
         cards: toned([
           {
             id: 'summary',
@@ -912,7 +878,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
     id: 'tt-evening',
     title: 'Evening Demand, 5–9pm',
     description:
-      'The candidates re-scored on evening traffic alone, along Sheikh Rashid Bin Saeed St and the rivals around it. Click a shortlisted pin for its details.',
+      'The candidates re-scored on evening traffic alone, along Sheikh Rashid Bin Saeed St and the rivals around it. Click a shortlisted site for its details.',
     place: 'corridor',
     pages: [
       {
@@ -922,7 +888,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
         camera: CORRIDOR_CAMERA,
         scene: CORRIDOR_SCENE,
         filters: [STREET_NAMES.rashid, '5pm – 9pm', 'Fuel retail'],
-        layers: [SITES_LAYER([RASHID], true), RIVALS_LAYER(CORRIDOR_RIVALS.length), STATIONS_LAYER, TRAFFIC_LAYER(true), DEMAND_LAYER],
+        layers: [SITES_LAYER([RASHID], true), STATIONS_LAYER, TRAFFIC_LAYER(true), DEMAND_LAYER],
         cards: toned([
           {
             id: 'summary',
@@ -990,7 +956,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
         camera: TRADE_CAMERA,
         scene: TRADE_SCENE,
         filters: [STREET_NAMES.rashid, '5pm – 9pm', 'Fuel retail'],
-        layers: [SITES_LAYER([RASHID], true), RIVALS_LAYER(CORRIDOR_RIVALS.length), TRADE_LAYER, STATIONS_LAYER, TRAFFIC_LAYER(true)],
+        layers: [SITES_LAYER([RASHID], true), TRADE_LAYER, STATIONS_LAYER, TRAFFIC_LAYER(true)],
         cards: toned([
           {
             id: 'summary',
@@ -1070,7 +1036,8 @@ export function isTomtomStory(id: string | null | undefined): id is string {
 export type TomtomPlace = { id: TomtomPlaceId; camera: TomtomCamera; scene: TomtomMapScene }
 
 export const TOMTOM_PLACES: Record<TomtomPlaceId, TomtomPlace> = {
-  island: { id: 'island', camera: { center: [54.373, 24.47], zoom: 13.55, pitch: 56, bearing: -22 }, scene: ISLAND_SCENE },
+  /** Al Zahiyah close up, looking north-east across the channel to Al Reem Island's towers. */
+  zahiyah: { id: 'zahiyah', camera: { center: SZBS.at, zoom: 15.55, pitch: 70, bearing: 52 }, scene: SZBS_SCENE },
   corridor: { id: 'corridor', camera: CORRIDOR_CAMERA, scene: CORRIDOR_SCENE },
 }
 
@@ -1085,12 +1052,12 @@ export const TOMTOM_ASK_VIEWS: Record<TomtomAskStageId, TomtomAskView> = {
   'tt-ask': {
     camera: { center: [54.374, 24.47], zoom: 13.4, pitch: 52, bearing: -22 },
     scene: ISLAND_SCENE,
-    layers: [SITES_LAYER(top), STATIONS_LAYER, RIVALS_LAYER(RIVALS.length), TRAFFIC_LAYER()],
+    layers: [SITES_LAYER(top), STATIONS_LAYER, TRAFFIC_LAYER()],
   },
   'tt-dive': {
     camera: SZBS_CAMERA,
     scene: SZBS_SCENE,
-    layers: [SITES_LAYER([SZBS]), RIVALS_LAYER(SZBS_RIVALS.length), TRAFFIC_LAYER()],
+    layers: [SITES_LAYER([SZBS]), TRAFFIC_LAYER()],
   },
   'tt-evening': {
     camera: { center: [54.372, 24.468], zoom: 13.45, pitch: 54, bearing: -6 },

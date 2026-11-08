@@ -199,7 +199,7 @@ const ttAsk = () =>
     sections: [
       {
         heading: 'On the map',
-        text: 'Teal pins are the candidates, numbered by rank; blue pins are your stations and orange dots are rivals. The fences on the roads are traffic density: the taller and redder a stretch, the heavier its traffic, from green through yellow to dark red. Hover any pin or fence for its figures.',
+        text: 'The teal labels are the candidates, numbered by rank, and the blue ones your stations. The fences on the roads are traffic density: the taller and redder a stretch, the heavier its traffic, from green through yellow to dark red. Hover any label or fence for its figures.',
       },
       {
         heading: 'Top sites',
@@ -258,7 +258,7 @@ const ttDive = () => {
     sections: [
       {
         heading: 'On the map',
-        text: 'The fences are traffic in both directions, tallest and reddest where it is densest, which on Sheikh Zayed Bin Sultan St is right outside the site. The orange dots are the nearest rivals and the blue pins your two closest stations. Click the site’s pin for its full details.',
+        text: 'The fences are traffic in both directions, tallest and reddest where it is densest, which on Sheikh Zayed Bin Sultan St is right outside the site. The blue labels are your two closest stations. Click the site’s label for its full details.',
       },
       {
         heading: 'Traffic by hour',
@@ -314,14 +314,14 @@ const ttEvening = () =>
     id: TT_EVENING_ID,
     read: 'Filtering TomTom traffic to 5pm – 9pm on weekdays…',
     search: 'Re-scoring each site on evening traffic, catchment and rival opening hours…',
-    reason: 'Re-ranking the pins and adding evening fuel demand to the map…',
+    reason: 'Re-ranking the sites and adding evening fuel demand to the map…',
     headline: `Counting only 5 to 9pm, ${climbers.map((site) => `${site.name} climbs to ${ordinal(EVENING_RANKING.indexOf(site))}`).join(' and ')}; ${EVENING_RANKING[0].name} stays first at ${EVENING_RANKING[0].evening}.`,
-    headlineDetail: 'Re-ranked the pins on evening traffic, raised the traffic fences to 5 to 9pm and added evening fuel demand as a heatmap.',
+    headlineDetail: 'Re-ranked the sites on evening traffic, raised the traffic fences to 5 to 9pm and added evening fuel demand as a heatmap.',
     intro: `Evening traffic heads home off the island’s inner arterials, and the sites on them gain. ${climbers.map((site) => site.name).join(' and ')} move up; ${SECOND.name}, on the Corniche, drops because its beachfront traffic is a daytime trade.`,
     sections: [
       {
         heading: 'On the map',
-        text: 'The pins are renumbered by evening rank. The purple glow is fuel demand from 5 to 9pm, heaviest along Sheikh Rashid Bin Saeed St and Al Khaleej Al Arabi St. The fences now show evening traffic, densest on Sheikh Zayed Bin Sultan St and those same two streets.',
+        text: 'The sites are renumbered by evening rank. The purple glow is fuel demand from 5 to 9pm, heaviest along Sheikh Rashid Bin Saeed St and Al Khaleej Al Arabi St. The fences now show evening traffic, densest on Sheikh Zayed Bin Sultan St and those same two streets.',
       },
       {
         heading: 'Evening ranking',
@@ -370,7 +370,7 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
   shortlist: () => ({
     ...ttAsk(),
     prompt: 'Which candidate site should we open first?',
-    map: { place: 'island', title: 'Next Site Shortlist · on the map', tag: 'Abu Dhabi Island', meta: '12 sites · 8 stations' },
+    map: { place: 'zahiyah', title: 'Next Site Shortlist · on the map', tag: 'Abu Dhabi Island', meta: '12 sites · 8 stations' },
   }),
   'evening-corridor': () => ({
     ...ttEvening(),

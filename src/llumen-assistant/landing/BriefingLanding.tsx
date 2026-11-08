@@ -135,7 +135,7 @@ const storyEnters = new Map<string, BriefingMapEnter>()
 function storyEnter(storyId: string): BriefingMapEnter {
   let enter = storyEnters.get(storyId)
   if (!enter) {
-    const camera = TOMTOM_STORIES[storyId]?.pages[0].camera ?? BRIEFING_PLACES.island.camera
+    const camera = TOMTOM_STORIES[storyId]?.pages[0].camera ?? BRIEFING_PLACES.zahiyah.camera
     enter = { camera, padding: STORY_CAMERA_PADDING }
     storyEnters.set(storyId, enter)
   }
@@ -144,7 +144,7 @@ function storyEnter(storyId: string): BriefingMapEnter {
 
 function storyPlace(storyId: string | null) {
   const story = storyId ? TOMTOM_STORIES[storyId] : undefined
-  return BRIEFING_PLACES[story?.place ?? 'island']
+  return BRIEFING_PLACES[story?.place ?? 'zahiyah']
 }
 const TOMTOM_LOGO = { src: landingAssets.tomtomLogo, alt: 'TomTom' }
 
@@ -375,7 +375,7 @@ export function BriefingLanding({
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
-    return BRIEFING_PLACES.island
+    return BRIEFING_PLACES.zahiyah
   }, [active, opening, returnHeld, storyFlight, lastStory])
 
   const enterStory = useCallback(
