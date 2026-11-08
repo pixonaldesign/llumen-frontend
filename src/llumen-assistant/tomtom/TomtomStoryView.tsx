@@ -141,7 +141,7 @@ function panelInset() {
   return Math.min(1200, Math.max(720, window.innerWidth - 640)) + 48
 }
 
-/** Dive: the site close up in the room the cards leave, low enough that its catchment rises behind it. */
+/** Dive: the site close up in the room the cards leave, low enough that the traffic fences rise behind it. */
 function diveFocus(id: SiteId): TomtomMapFocus {
   return {
     id,

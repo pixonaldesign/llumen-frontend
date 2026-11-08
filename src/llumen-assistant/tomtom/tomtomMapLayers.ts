@@ -1,7 +1,7 @@
 /**
  * The TomTom demo's map layers, shared by the Briefing backdrop, the story and the ask stage: the night
- * Abu Dhabi basemap with 3D fences around drive-time catchments, traffic flowing along the arterials,
- * disks under each site's trade area, and pins for candidate sites, current stations and rivals. Towers
+ * Abu Dhabi basemap with 3D fences standing on the arterials, as tall and as red as their traffic is
+ * dense, disks under each site's trade area, and pins for candidate sites, current stations and rivals. Towers
  * and heat from the Standard style's buildings stay available. Every element belongs to a `group`, which
  * the Map Data panel can hide.
  */
@@ -40,11 +40,24 @@ export type TomtomTower = {
   group: string
 }
 
-/** A translucent wall standing on `ring`, a drive-time catchment's edge. */
-export type TomtomFence = { id: string; ring: LngLat[]; color: string; heightM: number; group: string }
-
-/** Traffic along a street, running from the first point to the last; `weight` (0–1) widens and brightens it. */
-export type TomtomFlow = { id: string; path: LngLat[]; color: string; weight: number; group: string }
+/**
+ * A fence standing on a street's centreline, its height and colour following the traffic: `load` (0–1)
+ * is the density at each point of `path`, `heightM` the fence's height at full load, and `ramp` runs
+ * from light to heavy traffic. `vph` is the vehicles an hour at no load and at full load, which the
+ * tooltip reads.
+ */
+export type TomtomFence = {
+  id: string
+  path: LngLat[]
+  load: number[]
+  heightM: number
+  ramp: string[]
+  vph: [number, number]
+  /** What the tooltip counts, e.g. "vehicles an hour". */
+  unit: string
+  title: string
+  group: string
+}
 
 /** A disk on the ground: a site's trade area. */
 export type TomtomDisk = { id: string; at: LngLat; radiusM: number; color: string; group: string }
@@ -79,7 +92,6 @@ export type TomtomMapScene = {
   /** Low to high density. */
   heatRamp: string[]
   fences?: TomtomFence[]
-  flows?: TomtomFlow[]
   disks?: TomtomDisk[]
   pins?: TomtomPin[]
 }
@@ -99,8 +111,6 @@ function metersToPixels(meters: mapboxgl.ExpressionSpecification | number): mapb
 const heatId = (prefix: string) => `${prefix}-heat`
 const paintId = (prefix: string) => `${prefix}-paint`
 const fenceId = (prefix: string) => `${prefix}-fence`
-const floorId = (prefix: string) => `${prefix}-fence-floor`
-const flowId = (prefix: string) => `${prefix}-flow`
 const diskId = (prefix: string) => `${prefix}-disk`
 
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
@@ -113,35 +123,14 @@ function heatColor(ramp: string[]): mapboxgl.ExpressionSpecification {
   return ['interpolate', ['linear'], ['heatmap-density'], ...stops] as mapboxgl.ExpressionSpecification
 }
 
-function addSource(map: mapboxgl.Map, id: string, lineMetrics = false) {
-  if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: EMPTY, lineMetrics })
+function addSource(map: mapboxgl.Map, id: string) {
+  if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: EMPTY })
 }
 
-/** The site layers under the towers: catchment floors and disks, then traffic, then the fences standing over them. */
+/** The site layers under the towers: the disks on the ground, then the traffic fences standing over them. */
 function mountSiteLayers(map: mapboxgl.Map, prefix: string) {
-  const floor = floorId(prefix)
-  if (map.getLayer(floor)) return
-  addSource(map, floor)
-  map.addLayer({
-    id: floor,
-    type: 'fill',
-    source: floor,
-    slot: 'middle',
-    paint: { 'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'opacity'], 'fill-emissive-strength': 1 },
-  })
-  map.addLayer({
-    id: `${floor}-edge`,
-    type: 'line',
-    source: floor,
-    slot: 'middle',
-    paint: {
-      'line-color': ['get', 'color'],
-      'line-width': 1.6,
-      'line-opacity': ['*', ['get', 'opacity'], 5],
-      'line-emissive-strength': 1,
-    },
-  })
   const disk = diskId(prefix)
+  if (map.getLayer(disk)) return
   addSource(map, disk)
   map.addLayer({
     id: `${disk}-halo`,
@@ -175,50 +164,6 @@ function mountSiteLayers(map: mapboxgl.Map, prefix: string) {
       'circle-emissive-strength': 1,
     },
   })
-  const flow = flowId(prefix)
-  addSource(map, flow, true)
-  map.addLayer({
-    id: `${flow}-glow`,
-    type: 'line',
-    source: flow,
-    slot: 'middle',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: {
-      'line-color': ['get', 'color'],
-      'line-width': ['interpolate', ['linear'], ['zoom'], 12, ['*', ['get', 'width'], 2.2], 16, ['*', ['get', 'width'], 5]],
-      'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 3, 16, 9],
-      'line-opacity': 0.42,
-      'line-emissive-strength': 1,
-      'line-trim-offset': [0, 1],
-    },
-  })
-  map.addLayer({
-    id: `${flow}-base`,
-    type: 'line',
-    source: flow,
-    slot: 'middle',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: {
-      'line-color': ['get', 'color'],
-      'line-width': ['interpolate', ['linear'], ['zoom'], 12, ['get', 'width'], 16, ['*', ['get', 'width'], 2.4]],
-      'line-opacity': 0.9,
-      'line-emissive-strength': 1,
-      'line-trim-offset': [0, 1],
-    },
-  })
-  map.addLayer({
-    id: flow,
-    type: 'line',
-    source: flow,
-    slot: 'middle',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: {
-      'line-width': ['interpolate', ['linear'], ['zoom'], 12, ['*', ['get', 'width'], 0.9], 16, ['*', ['get', 'width'], 2]],
-      'line-gradient': cometGradient(0),
-      'line-emissive-strength': 1,
-      'line-trim-offset': [0, 1],
-    },
-  })
   const fence = fenceId(prefix)
   addSource(map, fence)
   map.addLayer({
@@ -230,7 +175,7 @@ function mountSiteLayers(map: mapboxgl.Map, prefix: string) {
       'fill-extrusion-color': ['get', 'color'],
       'fill-extrusion-height': ['get', 'height'],
       'fill-extrusion-base': 0,
-      'fill-extrusion-opacity': 0.5,
+      'fill-extrusion-opacity': 0.92,
       'fill-extrusion-emissive-strength': 1,
       'fill-extrusion-vertical-gradient': true,
     },
@@ -244,7 +189,6 @@ export function mountTomtomLayers(map: mapboxgl.Map, prefix: string, towers: Tom
     map.setConfigProperty(BASEMAP, tower.state === 'select' ? 'colorBuildingSelect' : 'colorBuildingHighlight', tower.color)
   }
   mountSiteLayers(map, prefix)
-  startFlows(map, prefix)
   const paint = paintId(prefix)
   if (!map.getSource(paint)) {
     map.addSource(paint, { type: 'geojson', data: EMPTY })
@@ -279,71 +223,6 @@ export function mountTomtomLayers(map: mapboxgl.Map, prefix: string, towers: Tom
       'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 1, '#fff'],
     },
   })
-}
-
-/* —— Traffic: pulses of light running along each street —— */
-
-const FLOW_PERIOD_MS = 2600
-const FLOW_PULSES = 5
-/** A pulse's tail, as a share of the gap between pulses. */
-const FLOW_TAIL = 0.55
-const FLOW_FRAME_MS = 33
-const PULSE_RGB = '255, 240, 228'
-
-/** Light pulses along a line (by `line-progress`), shifted on by `t` (0–1) of the gap between them. */
-function cometGradient(t: number): mapboxgl.ExpressionSpecification {
-  const heads = Array.from({ length: FLOW_PULSES + 2 }, (_, k) => (k - 1 + t) / FLOW_PULSES)
-  const alpha = (p: number) =>
-    heads.reduce((best, head) => {
-      const start = head - FLOW_TAIL / FLOW_PULSES
-      return p >= start && p <= head ? Math.max(best, ((p - start) / (head - start)) ** 1.6) : best
-    }, 0)
-  const marks = heads
-    .flatMap((head) => [head - FLOW_TAIL / FLOW_PULSES, head, head + 0.006])
-    .filter((p) => p > 0.0005 && p < 0.9995)
-    .sort((a, b) => a - b)
-  const stops: number[] = [0]
-  for (const p of marks) if (p - stops[stops.length - 1] > 0.0004) stops.push(p)
-  stops.push(1)
-  const color = (p: number) => `rgba(${PULSE_RGB}, ${Math.min(1, alpha(p) * 0.95).toFixed(3)})`
-  return ['interpolate', ['linear'], ['line-progress'], ...stops.flatMap((p) => [p, color(p)])] as mapboxgl.ExpressionSpecification
-}
-
-const flowLoops = new WeakMap<mapboxgl.Map, Set<string>>()
-
-/** Keeps the pulses moving for as long as the map lives; frozen under reduced motion. */
-function startFlows(map: mapboxgl.Map, prefix: string) {
-  let prefixes = flowLoops.get(map)
-  if (!prefixes) {
-    prefixes = new Set()
-    flowLoops.set(map, prefixes)
-  }
-  if (prefixes.has(prefix)) return
-  prefixes.add(prefix)
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-  let frame = 0
-  let last = 0
-  // Each tick restyles the map, and a map that is restyled every frame never fires `load`; so hold
-  // still until it has loaded (or gone idle, after a later style switch).
-  let live = false
-  const go = () => {
-    live = true
-    map.off('load', go)
-    map.off('idle', go)
-  }
-  map.on('load', go)
-  map.on('idle', go)
-  const id = flowId(prefix)
-  const tick = (now: number) => {
-    frame = window.requestAnimationFrame(tick)
-    if (!live || now - last < FLOW_FRAME_MS || document.hidden) return
-    last = now
-    const source = map.getSource(id) as mapboxgl.GeoJSONSource | undefined
-    if (!map.getLayer(id) || !source) return
-    map.setPaintProperty(id, 'line-gradient', cometGradient((now % FLOW_PERIOD_MS) / FLOW_PERIOD_MS))
-  }
-  frame = window.requestAnimationFrame(tick)
-  map.once('remove', () => window.cancelAnimationFrame(frame))
 }
 
 /* —— Towers —— */
@@ -429,14 +308,14 @@ export function towerAt(
 
 /* —— Drawing —— */
 
-/** Thin quads along `ring`, each `widthM` thick: the fence's wall, extruded upward. */
-function wallSegments(ring: LngLat[], widthM: number): LngLat[][] {
+/** Thin quads along `path`, one per stretch between its points, each `widthM` thick: a fence, extruded upward. */
+function wallSegments(path: LngLat[], widthM: number): LngLat[][] {
   const quads: LngLat[][] = []
   const kLng = 111320 * Math.cos((24.47 * Math.PI) / 180)
   const kLat = 110800
-  for (let index = 1; index < ring.length; index += 1) {
-    const [x1, y1] = ring[index - 1]
-    const [x2, y2] = ring[index]
+  for (let index = 1; index < path.length; index += 1) {
+    const [x1, y1] = path[index - 1]
+    const [x2, y2] = path[index]
     const east = (x2 - x1) * kLng
     const north = (y2 - y1) * kLat
     const norm = Math.hypot(east, north) || 1
@@ -453,20 +332,47 @@ function wallSegments(ring: LngLat[], widthM: number): LngLat[][] {
   return quads
 }
 
-const wallCache = new WeakMap<TomtomFence, LngLat[][]>()
+const FENCE_WIDTH_M = 7
 
-function fenceWalls(fence: TomtomFence) {
-  let walls = wallCache.get(fence)
-  if (!walls) {
-    walls = wallSegments(fence.ring, 2.4)
-    wallCache.set(fence, walls)
+/** `ramp`'s colour at `t` (0–1), blended between its stops. */
+function rampColor(ramp: string[], t: number) {
+  const x = Math.max(0, Math.min(1, t)) * (ramp.length - 1)
+  const index = Math.min(ramp.length - 2, Math.floor(x))
+  const f = x - index
+  const a = parseInt(ramp[index].slice(1), 16)
+  const b = parseInt(ramp[index + 1].slice(1), 16)
+  const channel = (bits: number) => Math.round(((a >> bits) & 255) * (1 - f) + ((b >> bits) & 255) * f)
+  return `rgb(${channel(16)}, ${channel(8)}, ${channel(0)})`
+}
+
+/** A fence's stretch: its quad, where it sits along the street (0–1), its load and the colour for it. */
+type FenceSegment = { quad: LngLat[]; t: number; load: number; color: string }
+
+const segmentCache = new WeakMap<TomtomFence, FenceSegment[]>()
+
+function fenceSegments(fence: TomtomFence) {
+  let segments = segmentCache.get(fence)
+  if (!segments) {
+    const quads = wallSegments(fence.path, FENCE_WIDTH_M)
+    segments = quads.map((quad, index) => {
+      const load = (fence.load[index] + fence.load[index + 1]) / 2
+      return { quad, t: index / Math.max(1, quads.length - 1), load, color: rampColor(fence.ramp, load) }
+    })
+    segmentCache.set(fence, segments)
   }
-  return walls
+  return segments
+}
+
+/** The traffic fence under `point`: which one, and the load of the stretch there. */
+export function fenceAt(map: mapboxgl.Map, point: mapboxgl.PointLike, prefix: string) {
+  if (!map.getLayer(fenceId(prefix))) return null
+  const hit = map.queryRenderedFeatures(point, { layers: [fenceId(prefix)] })[0]?.properties
+  return hit ? { id: String(hit.fence), load: Number(hit.load) } : null
 }
 
 /**
- * Draws `scene` at `grow` (0 hidden, 1 full): the towers light up, the heat fades in, the fences rise,
- * the disks open and the traffic runs out along its streets. Hidden groups are left out.
+ * Draws `scene` at `grow` (0 hidden, 1 full): the towers light up, the heat fades in, the disks open
+ * and the traffic fences rise, running out along their streets. Hidden groups are left out.
  */
 export function drawTomtomScene(
   map: mapboxgl.Map,
@@ -512,26 +418,22 @@ export function drawTomtomScene(
 function drawSites(map: mapboxgl.Map, prefix: string, scene: TomtomMapScene, grow: number, hidden: ReadonlySet<string>) {
   const visible = <T extends { group: string }>(items: T[] | undefined) =>
     grow <= 0 ? [] : (items ?? []).filter((item) => !hidden.has(item.group))
-  /** The fences rise a beat after the floors and disks open. */
-  const rise = Math.max(0, Math.min(1, (grow - 0.2) / 0.8))
-  const fences = visible(scene.fences)
+  /** Each stretch rises a beat after the one before it, so the fences run out along their streets. */
+  const rise = (t: number) => Math.max(0, Math.min(1, (grow - 0.15 - 0.3 * t) / 0.55))
   ;(map.getSource(fenceId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
     type: 'FeatureCollection',
-    features: fences.flatMap((fence) =>
-      fenceWalls(fence).map((quad) => ({
+    features: visible(scene.fences).flatMap((fence) =>
+      fenceSegments(fence).map((segment) => ({
         type: 'Feature' as const,
-        properties: { color: fence.color, height: fence.heightM * rise },
-        geometry: { type: 'Polygon' as const, coordinates: [quad] },
+        properties: {
+          fence: fence.id,
+          load: segment.load,
+          color: segment.color,
+          height: fence.heightM * (0.14 + 0.86 * segment.load) * rise(segment.t) ** 0.7,
+        },
+        geometry: { type: 'Polygon' as const, coordinates: [segment.quad] },
       })),
     ),
-  })
-  ;(map.getSource(floorId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
-    type: 'FeatureCollection',
-    features: fences.map((fence) => ({
-      type: 'Feature',
-      properties: { color: fence.color, opacity: 0.14 * grow },
-      geometry: { type: 'Polygon', coordinates: [fence.ring] },
-    })),
   })
   ;(map.getSource(diskId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
     type: 'FeatureCollection',
@@ -541,19 +443,6 @@ function drawSites(map: mapboxgl.Map, prefix: string, scene: TomtomMapScene, gro
       geometry: { type: 'Point', coordinates: disk.at },
     })),
   })
-  const flows = visible(scene.flows)
-  ;(map.getSource(flowId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
-    type: 'FeatureCollection',
-    features: flows.map((flow) => ({
-      type: 'Feature',
-      properties: { color: flow.color, width: 1.6 + 2.6 * flow.weight },
-      geometry: { type: 'LineString', coordinates: flow.path },
-    })),
-  })
-  if (map.getLayer(flowId(prefix))) {
-    const trim: [number, number] = [Math.min(1, grow), 1]
-    for (const id of [`${flowId(prefix)}-glow`, `${flowId(prefix)}-base`, flowId(prefix)]) map.setPaintProperty(id, 'line-trim-offset', trim)
-  }
 }
 
 function escapeHtml(text: string) {

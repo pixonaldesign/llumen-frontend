@@ -1,5 +1,5 @@
 /**
- * Briefing backdrop: each finding's night Abu Dhabi scene (its catchment fences, street traffic and site
+ * Briefing backdrop: each finding's night Abu Dhabi scene (its traffic fences on the streets and site
  * pins), slowly orbiting and flying to each map stop's place. Dragging, rotating or pinching pauses the orbit.
  */
 import { useEffect, useRef } from 'react'

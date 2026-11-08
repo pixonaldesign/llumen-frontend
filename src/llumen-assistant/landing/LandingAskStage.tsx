@@ -360,7 +360,7 @@ function FindingMapData({ layers }: { layers: MapDataLayer[] }) {
   )
 }
 
-/** An answer's view of Abu Dhabi Island: its sites, traffic and catchments, and the Map Data that reads them. */
+/** An answer's view of Abu Dhabi Island: its sites and traffic, and the Map Data that reads them. */
 function FindingPlaceMap({
   place,
   capture,

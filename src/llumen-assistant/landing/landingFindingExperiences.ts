@@ -190,16 +190,16 @@ const ttAsk = () =>
   experience({
     id: TT_ASK_ID,
     read: 'Reading your 12 candidate sites and 8 stations on Abu Dhabi Island…',
-    search: 'Pulling TomTom traffic flows, drive-time catchments and rival forecourts for each site…',
+    search: 'Pulling TomTom traffic density, drive-time catchments and rival forecourts for each site…',
     reason: 'Scoring each site and drawing it on the map against your network…',
     headline: `${ABOVE_70.length} of the 12 sites score above 70; ${FIRST.name} on ${FIRST.street} leads at ${FIRST.score}.`,
     headlineDetail:
-      'Pinned all 12 by rank, with traffic running along the streets, 5-minute catchment fences round the top three and your stations, and a disk under each site sized by its projected volume.',
+      'Pinned all 12 by rank, stood a fence on each arterial as tall as its traffic is dense, and put a disk under each site sized by its projected volume.',
     intro: `I scored the 12 candidates out of 100 on passing traffic, drive-time catchment, competition and access, from TomTom traffic and map data for the last 90 days. ${ABOVE_70.length} score above 70, and all of them would sell more fuel than your average station's ${NETWORK_AVERAGE.toFixed(1)}M litres a year.`,
     sections: [
       {
         heading: 'On the map',
-        text: 'Teal pins are the candidates, numbered by rank; blue pins are your stations and orange dots are rivals. The moving lines are traffic, brighter where it is heavier. The tall fences are the top three sites’ 5-minute catchments and the low blue ones are your stations’. Hover any pin for its figures.',
+        text: 'Teal pins are the candidates, numbered by rank; blue pins are your stations and orange dots are rivals. The fences on the roads are traffic density: the taller and redder a stretch, the heavier its traffic, from green through yellow to dark red. Hover any pin or fence for its figures.',
       },
       {
         heading: 'Top sites',
@@ -251,14 +251,14 @@ const ttDive = () => {
     id: TT_DIVE_ID,
     read: `Reading ${SITE_ONE.name}’s plot, frontage and turn-ins on ${SITE_ONE.street}…`,
     search: 'Pulling hourly TomTom traffic in both directions and the rivals within 3 km…',
-    reason: 'Zooming in and outlining the site’s 5-minute catchment…',
+    reason: 'Zooming in on the site and the traffic past it…',
     headline: `${SITE_ONE.name} ranks first on traffic and access: ${SITE_ONE.traffic.toFixed(1)}k vehicles a day from both directions, and the nearest rival is ${km(SITE_ONE.rivalKm)} away.`,
-    headlineDetail: 'Zoomed into the site with its 5-minute catchment fence, the traffic past it in both directions and its four nearest rivals.',
+    headlineDetail: 'Zoomed into the site with the traffic density on the streets around it and its four nearest rivals.',
     intro: `${SITE_ONE.name} sits on ${SITE_ONE.street}, one of the island’s two busiest arterials, with entries from both carriageways. ${SITE_ONE.rivalsWithin3} rivals trade within 3 km, but the nearest is ${km(SITE_ONE.rivalKm)} away and your own nearest station ${km(SITE_ONE.stationKm)}.`,
     sections: [
       {
         heading: 'On the map',
-        text: 'The fence is the area within a 5-minute drive. Traffic runs both ways past the site; the orange dots are the nearest rivals and the blue pins your two closest stations. Click the site’s pin for its full details.',
+        text: 'The fences are traffic in both directions, tallest and reddest where it is densest, which on Sheikh Zayed Bin Sultan St is right outside the site. The orange dots are the nearest rivals and the blue pins your two closest stations. Click the site’s pin for its full details.',
       },
       {
         heading: 'Traffic by hour',
@@ -304,7 +304,7 @@ const ttDive = () => {
         text: `Book the site visit for ${SITE_ONE.name} and check the southbound turn-in: it carries 31% of arrivals. Plan for the evening peak with at least 12 pumps.`,
       },
     ],
-    map: { place: 'tt-dive', title: `${SITE_ONE.name} site · on the map`, tag: SITE_ONE.street, meta: '1 site · 4 rivals · 5-min catchment' },
+    map: { place: 'tt-dive', title: `${SITE_ONE.name} site · on the map`, tag: SITE_ONE.street, meta: '1 site · 4 rivals · 5 streets' },
   })
 }
 
@@ -316,12 +316,12 @@ const ttEvening = () =>
     search: 'Re-scoring each site on evening traffic, catchment and rival opening hours…',
     reason: 'Re-ranking the pins and adding evening fuel demand to the map…',
     headline: `Counting only 5 to 9pm, ${climbers.map((site) => `${site.name} climbs to ${ordinal(EVENING_RANKING.indexOf(site))}`).join(' and ')}; ${EVENING_RANKING[0].name} stays first at ${EVENING_RANKING[0].evening}.`,
-    headlineDetail: 'Re-ranked the pins on evening traffic, redrew the flows for 5 to 9pm and added evening fuel demand as a heatmap.',
+    headlineDetail: 'Re-ranked the pins on evening traffic, raised the traffic fences to 5 to 9pm and added evening fuel demand as a heatmap.',
     intro: `Evening traffic heads home off the island’s inner arterials, and the sites on them gain. ${climbers.map((site) => site.name).join(' and ')} move up; ${SECOND.name}, on the Corniche, drops because its beachfront traffic is a daytime trade.`,
     sections: [
       {
         heading: 'On the map',
-        text: 'The pins are renumbered by evening rank. The purple glow is fuel demand from 5 to 9pm, heaviest along Sheikh Rashid Bin Saeed St and Al Khaleej Al Arabi St, and the fences now ring the evening top three.',
+        text: 'The pins are renumbered by evening rank. The purple glow is fuel demand from 5 to 9pm, heaviest along Sheikh Rashid Bin Saeed St and Al Khaleej Al Arabi St. The fences now show evening traffic, densest on Sheikh Zayed Bin Sultan St and those same two streets.',
       },
       {
         heading: 'Evening ranking',

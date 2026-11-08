@@ -1,11 +1,11 @@
 /**
  * The TomTom demo: where to open the next fuel station on Abu Dhabi Island. Twelve candidate sites
  * along the island's arterials, scored on passing traffic, catchment, competition and access, against
- * the network's eight stations and the rivals around them. Sites are pinned on the map; the shortlisted
- * ones open a details panel when clicked.
+ * the network's eight stations and the rivals around them. Fences on the arterials rise and redden with
+ * their traffic. Sites are pinned on the map; the shortlisted ones open a details panel when clicked.
  */
-import { along, catchment, distanceKm, hash, shift, slice, type LngLat } from './tomtomGeo'
-import type { TomtomDisk, TomtomFence, TomtomFlow, TomtomHeatPoint, TomtomMapScene, TomtomPin } from './tomtomMapLayers'
+import { along, distanceKm, hash, resample, type LngLat } from './tomtomGeo'
+import type { TomtomDisk, TomtomFence, TomtomHeatPoint, TomtomMapScene, TomtomPin } from './tomtomMapLayers'
 import {
   PALETTE,
   type CountRow,
@@ -82,24 +82,15 @@ export const STREET_NAMES: Record<StreetId, string> = {
   szbs: 'Sheikh Zayed Bin Sultan St',
 }
 
-/** The street's heading at `t`, in degrees clockwise from north. */
-function headingAt(path: LngLat[], t: number) {
-  const a = along(path, Math.max(0, t - 0.02))
-  const b = along(path, Math.min(1, t + 0.02))
-  return (Math.atan2((b[0] - a[0]) * Math.cos((a[1] * Math.PI) / 180), b[1] - a[1]) * 180) / Math.PI
-}
-
 /* —— Colours —— */
 
 export const SITE_COLOR = PALETTE.teal[2]
 export const STATION_COLOR = PALETTE.blue[3]
 export const RIVAL_COLOR = PALETTE.categorical[5]
-/** Traffic on a street, lighter to heavier. */
-export const FLOW_RAMP = [PALETTE.blue[1], PALETTE.blue[3], PALETTE.purple[3], PALETTE.purple[5]]
+/** Traffic density on a street, lighter to heavier: green, the warning yellow, red, dark red. */
+const TRAFFIC_RAMP = [PALETTE.categorical[3], '#fbc155', PALETTE.diverging[1], PALETTE.diverging[0]]
 /** Fuel demand between 5 and 9pm, low to high. */
 const DEMAND_RAMP = [PALETTE.purple[0], PALETTE.purple[2], PALETTE.purple[4], PALETTE.purple[6]]
-
-const flowColor = (weight: number) => FLOW_RAMP[Math.min(FLOW_RAMP.length - 1, Math.floor(weight * FLOW_RAMP.length))]
 
 /* —— Candidate sites —— */
 
@@ -227,7 +218,6 @@ const SITES_GROUP = 'sites'
 const STATIONS_GROUP = 'stations'
 const RIVALS_GROUP = 'rivals'
 const TRAFFIC_GROUP = 'traffic'
-const CATCHMENT_GROUP = 'catchments'
 const VOLUME_GROUP = 'volume'
 const DEMAND_GROUP = 'demand'
 const TRADE_GROUP = 'trade'
@@ -302,29 +292,46 @@ function rivalPin(rival: (typeof RIVALS)[number], labelled = false, from?: (type
   }
 }
 
-/** Traffic as two lanes a street, three stretches each, so the load varies along it. */
-function streetFlows(load: Record<StreetId, number>, seed: number, streets: StreetId[] = STREET_IDS): TomtomFlow[] {
-  return streets.flatMap((street, s) =>
-    [0, 1, 2].flatMap((part) => {
-      const weight = Math.max(0.05, Math.min(0.98, load[street] + (hash(part + s * 3, seed) - 0.5) * 0.18))
-      const stretch = slice(STREETS[street], part / 3, (part + 1) / 3)
-      const lane = (path: LngLat[], id: string): TomtomFlow => ({ id, path, color: flowColor(weight), weight, group: TRAFFIC_GROUP })
-      return [lane(shift(stretch, 0.012), `${street}-${part}-a`), lane(shift([...stretch].reverse(), 0.012), `${street}-${part}-b`)]
-    }),
-  )
-}
-
 const ALL_DAY_LOAD: Record<StreetId, number> = { szbs: 0.9, corniche: 0.86, muroor: 0.78, khaleej: 0.72, rashid: 0.68, hazza: 0.58, mbk: 0.52, falah: 0.48 }
 const EVENING_LOAD: Record<StreetId, number> = { szbs: 0.94, khaleej: 0.9, rashid: 0.88, muroor: 0.74, falah: 0.62, corniche: 0.56, hazza: 0.54, mbk: 0.42 }
 
-function siteFence(site: Site, radiusKm: number, heightM: number, group = CATCHMENT_GROUP): TomtomFence {
-  const ring = catchment(site.at, radiusKm, site.score, headingAt(STREETS[site.street], site.t))
-  return { id: `${site.id}-catchment`, ring, color: SITE_COLOR, heightM, group }
+/** Each street's centreline every 25 m, so a fence's top runs smooth. */
+const STREET_POINTS = Object.fromEntries(STREET_IDS.map((street) => [street, resample(STREETS[street], 0.025)])) as Record<
+  StreetId,
+  LngLat[]
+>
+
+/**
+ * Traffic at each of `street`'s points (0–1): its `base` load, swelling at a few busy junctions and past
+ * the sites on it, and easing off towards its ends.
+ */
+function streetLoad(street: StreetId, base: number, seed: number) {
+  const points = STREET_POINTS[street]
+  const swells = [
+    ...[0, 1, 2].map((k) => ({ at: 0.1 + 0.8 * hash(k, seed), width: 0.05 + 0.08 * hash(k, seed + 1), lift: 0.1 + 0.3 * hash(k, seed + 2) })),
+    ...SITES.filter((site) => site.street === street).map((site) => ({ at: site.t, width: 0.06, lift: site.traffic / 90 })),
+  ]
+  return points.map((_, index) => {
+    const t = index / (points.length - 1)
+    const swell = swells.reduce((sum, { at, width, lift }) => sum + lift * Math.exp(-(((t - at) / width) ** 2)), 0)
+    const ends = Math.min(1, t / 0.08, (1 - t) / 0.08)
+    return Math.max(0.04, Math.min(1, base ** 2 * (0.3 + swell) * (0.45 + 0.55 * ends)))
+  })
 }
 
-function stationFence(station: (typeof STATIONS)[number], heightM: number): TomtomFence {
-  const ring = catchment(station.at, 0.85, station.volume * 10, headingAt(STREETS[station.street], station.t))
-  return { id: `${station.id}-catchment`, ring, color: STATION_COLOR, heightM, group: CATCHMENT_GROUP }
+/** A fence on each of `streets`, as tall as `heightM` where the traffic is heaviest. */
+function roadFences(load: Record<StreetId, number>, seed: number, heightM: number, evening = false, streets: StreetId[] = STREET_IDS): TomtomFence[] {
+  return streets.map((street) => ({
+    id: `${street}-traffic`,
+    path: STREET_POINTS[street],
+    load: streetLoad(street, load[street], seed + STREET_IDS.indexOf(street) * 7),
+    heightM,
+    ramp: TRAFFIC_RAMP,
+    vph: evening ? [900, 4200] : [700, 2800],
+    unit: evening ? 'vehicles an hour, 5–9pm' : 'vehicles an hour',
+    title: STREET_NAMES[street],
+    group: TRAFFIC_GROUP,
+  }))
 }
 
 const volumeDisk = (site: Site, scale = 1): TomtomDisk => ({
@@ -355,15 +362,14 @@ const scene = (parts: Partial<TomtomMapScene>): TomtomMapScene => ({
   ...parts,
 })
 
-/** The whole island: every candidate, the network and its rivals, the day's traffic and the shortlist's catchments. */
+/** The whole island: every candidate, the network and its rivals, and the day's traffic on the arterials. */
 const ISLAND_SCENE = scene({
   pins: [
     ...byScore.map((site, index) => sitePin(site, index + 1, index < 3)),
     ...STATIONS.map((station) => stationPin(station)),
     ...RIVALS.map((rival) => rivalPin(rival)),
   ],
-  flows: streetFlows(ALL_DAY_LOAD, 5),
-  fences: [...byScore.slice(0, 3).map((site) => siteFence(site, 0.95, 160)), ...STATIONS.map((station) => stationFence(station, 70))],
+  fences: roadFences(ALL_DAY_LOAD, 5, 320),
   disks: SITES.map((site) => volumeDisk(site)),
 })
 
@@ -375,7 +381,7 @@ const closest = <T extends { at: LngLat }>(at: LngLat, points: T[], count: numbe
 
 const SZBS_RIVALS = closest(SZBS.at, RIVALS, 4)
 
-/** Site 1 close up: its catchment, both carriageways past it and the rivals nearest it. */
+/** Site 1 close up: the traffic past it and the rivals nearest it. */
 const SZBS_SCENE = scene({
   pins: [
     sitePin(SZBS, 1, true),
@@ -383,8 +389,7 @@ const SZBS_SCENE = scene({
     ...SZBS_RIVALS.map((rival, index) => rivalPin(rival, index === 0, SZBS)),
     ...closest(SZBS.at, STATIONS, 2).map((station) => stationPin(station, true)),
   ],
-  flows: streetFlows(ALL_DAY_LOAD, 9, ['szbs', 'muroor', 'hazza', 'falah', 'rashid']),
-  fences: [siteFence(SZBS, 0.9, 150)],
+  fences: roadFences(ALL_DAY_LOAD, 5, 130, false, ['szbs', 'muroor', 'hazza', 'falah', 'rashid']),
   disks: [volumeDisk(SZBS, 1.4)],
 })
 
@@ -395,8 +400,7 @@ const EVENING_SCENE = scene({
     ...STATIONS.map((station) => stationPin(station)),
     ...RIVALS.map((rival) => rivalPin(rival)),
   ],
-  flows: streetFlows(EVENING_LOAD, 13),
-  fences: byEvening.slice(0, 3).map((site) => siteFence(site, 0.95, 160)),
+  fences: roadFences(EVENING_LOAD, 13, 320, true),
   disks: SITES.map((site) => ({ ...volumeDisk(site), radiusM: 60 + site.volume * site.eveningShare * 0.7 })),
   heat: EVENING_DEMAND,
   heatRadiusM: 260,
@@ -412,8 +416,7 @@ const CORRIDOR_SCENE = scene({
     ...closest(RASHID.at, STATIONS, 2).map((station) => stationPin(station)),
     ...CORRIDOR_RIVALS.map((rival) => rivalPin(rival)),
   ],
-  flows: streetFlows(EVENING_LOAD, 17, CORRIDOR_STREETS),
-  fences: [siteFence(RASHID, 0.55, 90)],
+  fences: roadFences(EVENING_LOAD, 13, 120, true, CORRIDOR_STREETS),
   disks: [volumeDisk(RASHID, 1.2)],
   heat: EVENING_DEMAND,
   heatRadiusM: 110,
@@ -426,15 +429,11 @@ const TRADE_SCENE = scene({
     ...CORRIDOR_RIVALS.map((rival, index) => rivalPin(rival, index < 2, RASHID)),
     ...closest(RASHID.at, STATIONS, 2).map((station) => stationPin(station)),
   ],
-  flows: streetFlows(EVENING_LOAD, 19, CORRIDOR_STREETS),
-  fences: CORRIDOR_RIVALS.map((rival, index) => ({
-    id: `${rival.id}-trade`,
-    ring: catchment(rival.at, 0.5, index + 31, 40),
-    color: RIVAL_COLOR,
-    heightM: 70,
-    group: TRADE_GROUP,
-  })),
-  disks: [volumeDisk(RASHID, 1.2)],
+  fences: roadFences(EVENING_LOAD, 13, 160, true, CORRIDOR_STREETS),
+  disks: [
+    ...CORRIDOR_RIVALS.map((rival): TomtomDisk => ({ id: `${rival.id}-trade`, at: rival.at, radiusM: 480, color: RIVAL_COLOR, group: TRADE_GROUP })),
+    volumeDisk(RASHID, 1.2),
+  ],
 })
 
 /* —— Cameras —— */
@@ -471,20 +470,9 @@ const RIVALS_LAYER = (count: number): MapDataLayer => ({
 })
 const TRAFFIC_LAYER = (evening = false): MapDataLayer => ({
   group: TRAFFIC_GROUP,
-  title: evening ? 'Traffic, 5–9pm' : 'Traffic flow',
-  mark: 'flow',
-  color: { ramp: FLOW_RAMP, low: 'Lighter', high: 'Heavier' },
-})
-const CATCHMENT_LAYER = (withStations: boolean): MapDataLayer => ({
-  group: CATCHMENT_GROUP,
-  title: '5-minute catchments',
+  title: evening ? 'Traffic density, 5–9pm' : 'Traffic density',
   mark: 'fence',
-  color: {
-    items: [
-      { label: 'Shortlisted sites', color: SITE_COLOR },
-      ...(withStations ? [{ label: 'Your stations', color: STATION_COLOR }] : []),
-    ],
-  },
+  color: { ramp: TRAFFIC_RAMP, low: 'Lighter', high: 'Heavier' },
 })
 const VOLUME_LAYER: MapDataLayer = {
   group: VOLUME_GROUP,
@@ -501,7 +489,7 @@ const DEMAND_LAYER: MapDataLayer = {
 const TRADE_LAYER: MapDataLayer = {
   group: TRADE_GROUP,
   title: 'Rival trade areas',
-  mark: 'fence',
+  mark: 'disk',
   color: { items: [{ label: 'Within 3 minutes of a rival', color: RIVAL_COLOR }] },
 }
 
@@ -736,7 +724,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
         camera: ISLAND_CAMERA,
         scene: ISLAND_SCENE,
         filters: ['Abu Dhabi Island', 'Last 90 days', 'Fuel retail'],
-        layers: [SITES_LAYER(top), STATIONS_LAYER, RIVALS_LAYER(RIVALS.length), TRAFFIC_LAYER(), CATCHMENT_LAYER(true), VOLUME_LAYER],
+        layers: [SITES_LAYER(top), STATIONS_LAYER, RIVALS_LAYER(RIVALS.length), TRAFFIC_LAYER(), VOLUME_LAYER],
         cards: toned([
           {
             id: 'summary',
@@ -832,7 +820,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
         camera: SZBS_CAMERA,
         scene: SZBS_SCENE,
         filters: [S1, 'Last 90 days', 'Fuel retail'],
-        layers: [SITES_LAYER([SZBS]), RIVALS_LAYER(SZBS_RIVALS.length), STATIONS_LAYER, TRAFFIC_LAYER(), CATCHMENT_LAYER(false), VOLUME_LAYER],
+        layers: [SITES_LAYER([SZBS]), RIVALS_LAYER(SZBS_RIVALS.length), STATIONS_LAYER, TRAFFIC_LAYER(), VOLUME_LAYER],
         cards: toned([
           {
             id: 'summary',
@@ -934,7 +922,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
         camera: CORRIDOR_CAMERA,
         scene: CORRIDOR_SCENE,
         filters: [STREET_NAMES.rashid, '5pm – 9pm', 'Fuel retail'],
-        layers: [SITES_LAYER([RASHID], true), RIVALS_LAYER(CORRIDOR_RIVALS.length), STATIONS_LAYER, TRAFFIC_LAYER(true), DEMAND_LAYER, CATCHMENT_LAYER(false)],
+        layers: [SITES_LAYER([RASHID], true), RIVALS_LAYER(CORRIDOR_RIVALS.length), STATIONS_LAYER, TRAFFIC_LAYER(true), DEMAND_LAYER],
         cards: toned([
           {
             id: 'summary',
@@ -1097,17 +1085,17 @@ export const TOMTOM_ASK_VIEWS: Record<TomtomAskStageId, TomtomAskView> = {
   'tt-ask': {
     camera: { center: [54.374, 24.47], zoom: 13.4, pitch: 52, bearing: -22 },
     scene: ISLAND_SCENE,
-    layers: [SITES_LAYER(top), STATIONS_LAYER, RIVALS_LAYER(RIVALS.length), TRAFFIC_LAYER(), CATCHMENT_LAYER(true)],
+    layers: [SITES_LAYER(top), STATIONS_LAYER, RIVALS_LAYER(RIVALS.length), TRAFFIC_LAYER()],
   },
   'tt-dive': {
     camera: SZBS_CAMERA,
     scene: SZBS_SCENE,
-    layers: [SITES_LAYER([SZBS]), RIVALS_LAYER(SZBS_RIVALS.length), TRAFFIC_LAYER(), CATCHMENT_LAYER(false)],
+    layers: [SITES_LAYER([SZBS]), RIVALS_LAYER(SZBS_RIVALS.length), TRAFFIC_LAYER()],
   },
   'tt-evening': {
     camera: { center: [54.372, 24.468], zoom: 13.45, pitch: 54, bearing: -6 },
     scene: EVENING_SCENE,
-    layers: [SITES_LAYER(eveningTop, true), TRAFFIC_LAYER(true), DEMAND_LAYER, CATCHMENT_LAYER(false)],
+    layers: [SITES_LAYER(eveningTop, true), TRAFFIC_LAYER(true), DEMAND_LAYER],
   },
 }
 

@@ -1,4 +1,4 @@
-/** Small geometry helpers for the TomTom demo maps: deterministic scatter, points along streets, catchment outlines. */
+/** Small geometry helpers for the TomTom demo maps: deterministic scatter and points along streets. */
 export type LngLat = [number, number]
 
 const KM_PER_DEG_LAT = 110.8
@@ -58,44 +58,9 @@ export function along(path: LngLat[], t: number, sideKm = 0): LngLat {
   return offsetKm(point, (north / norm) * sideKm, (-east / norm) * sideKm)
 }
 
-/** The stretch of `path` between `from` and `to` (0–1 by length); reversed when `from` is past `to`. */
-export function slice(path: LngLat[], from: number, to: number): LngLat[] {
-  if (from > to) return slice(path, to, from).reverse()
+/** `path` resampled every `stepKm` or so by length, ends included. */
+export function resample(path: LngLat[], stepKm: number): LngLat[] {
   const lengths = cumulative(path)
-  const total = lengths[lengths.length - 1]
-  const inner = path.filter((_, index) => lengths[index] > from * total && lengths[index] < to * total)
-  return [along(path, from), ...inner, along(path, to)]
-}
-
-/** `path` moved `sideKm` to its right, vertex by vertex: one carriageway of a two-way street. */
-export function shift(path: LngLat[], sideKm: number): LngLat[] {
-  return path.map((point, index) => {
-    const a = path[Math.max(0, index - 1)]
-    const b = path[Math.min(path.length - 1, index + 1)]
-    const east = (b[0] - a[0]) * kmPerDegLng(a[1])
-    const north = (b[1] - a[1]) * KM_PER_DEG_LAT
-    const norm = Math.hypot(east, north) || 1
-    return offsetKm(point, (north / norm) * sideKm, (-east / norm) * sideKm)
-  })
-}
-
-/**
- * A drive-time outline around `center`: a closed ring `radiusKm` out on average, reaching further along
- * `stretch` (degrees, the main road's heading) the way a catchment follows its arterials.
- */
-export function catchment(center: LngLat, radiusKm: number, seed: number, stretch = 0, points = 40): LngLat[] {
-  const heading = (stretch * Math.PI) / 180
-  const ring = Array.from({ length: points }, (_, index) => {
-    const angle = (index / points) * Math.PI * 2
-    const reach = 1 + 0.38 * Math.cos(2 * (angle - heading))
-    const wobble = 0.86 + 0.28 * hash(index, seed) * (0.6 + 0.4 * Math.sin(angle * 3 + seed))
-    const r = radiusKm * reach * wobble
-    return offsetKm(center, Math.sin(angle) * r, Math.cos(angle) * r)
-  })
-  const smooth = ring.map((point, index): LngLat => {
-    const prev = ring[(index + points - 1) % points]
-    const next = ring[(index + 1) % points]
-    return [(prev[0] + 2 * point[0] + next[0]) / 4, (prev[1] + 2 * point[1] + next[1]) / 4]
-  })
-  return [...smooth, smooth[0]]
+  const count = Math.max(1, Math.ceil(lengths[lengths.length - 1] / stepKm))
+  return Array.from({ length: count + 1 }, (_, index) => along(path, index / count))
 }

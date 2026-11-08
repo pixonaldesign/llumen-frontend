@@ -1,8 +1,8 @@
 /**
  * The TomTom story's map: flies to each page's camera, fades the last page's scene out and the next
- * one's in: fences rise round the catchments, traffic runs along the streets and the pins pop in. Pins
- * and towers name themselves in a tooltip on hover, and clicking a site with details opens them; the
- * camera then turns to frame it beside them. Used by the story and the ask stage.
+ * one's in: the traffic fences rise along the streets and the pins pop in. Pins, towers and fences
+ * name themselves in a tooltip on hover, and clicking a site with details opens them; the camera then
+ * turns to frame it beside them. Used by the story and the ask stage.
  */
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 import mapboxgl from 'mapbox-gl'
@@ -16,6 +16,7 @@ import {
   TomtomPins,
   TowerLabels,
   drawTomtomScene,
+  fenceAt,
   tomtomTipHtml,
   forgetTowers,
   mountTomtomLayers,
@@ -238,14 +239,33 @@ export function TomtomMap({
 
     const shownTowers = () =>
       drawnRef.current.grow < 0.5 ? [] : drawnRef.current.scene.towers.filter((tower) => !latestRef.current.hidden.has(tower.group))
+    const vph = ([light, heavy]: [number, number], load: number) =>
+      (Math.round((light + (heavy - light) * load) / 10) * 10).toLocaleString('en-US')
     const onMove = (event: mapboxgl.MapMouseEvent) => {
       const tower = towerAt(map, event.point, shownTowers(), PREFIX)
-      if (!tower) {
-        if (tipKey?.startsWith('tower:')) hideTip()
+      if (tower) {
+        showTip(`tower:${tower.id}`, tower.tip, event.point)
+        map.getCanvas().style.cursor = onClickRef.current ? 'pointer' : 'default'
         return
       }
-      showTip(`tower:${tower.id}`, tower.tip, event.point)
-      map.getCanvas().style.cursor = onClickRef.current ? 'pointer' : 'default'
+      const hit = drawnRef.current.grow < 0.5 ? null : fenceAt(map, event.point, PREFIX)
+      const fence = hit && drawnRef.current.scene.fences?.find((item) => item.id === hit.id)
+      if (hit && fence) {
+        showTip(
+          `fence:${fence.id}:${Math.round(hit.load * 100)}`,
+          {
+            title: fence.title,
+            rows: [
+              ['Here', `${vph(fence.vph, hit.load)} ${fence.unit}`],
+              ['Busiest stretch', `${vph(fence.vph, Math.max(...fence.load))} ${fence.unit}`],
+            ],
+          },
+          event.point,
+        )
+        map.getCanvas().style.cursor = 'default'
+        return
+      }
+      if (tipKey?.startsWith('tower:') || tipKey?.startsWith('fence:')) hideTip()
     }
     const onClick = (event: mapboxgl.MapMouseEvent) => {
       const tower = towerAt(map, event.point, shownTowers(), PREFIX)
