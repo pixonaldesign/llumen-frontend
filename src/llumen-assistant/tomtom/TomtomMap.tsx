@@ -17,6 +17,7 @@ import {
   TowerLabels,
   drawTomtomScene,
   fenceAt,
+  zoneAt,
   tomtomTipHtml,
   forgetTowers,
   mountTomtomLayers,
@@ -265,7 +266,14 @@ export function TomtomMap({
         map.getCanvas().style.cursor = 'default'
         return
       }
-      if (tipKey?.startsWith('tower:') || tipKey?.startsWith('fence:')) hideTip()
+      const zoneHit = drawnRef.current.grow < 0.5 ? null : zoneAt(map, event.point, PREFIX)
+      const zone = zoneHit && drawnRef.current.scene.zones?.find((item) => item.id === zoneHit)
+      if (zone) {
+        showTip(`zone:${zone.id}`, zone.tip, event.point)
+        map.getCanvas().style.cursor = 'default'
+        return
+      }
+      if (tipKey?.startsWith('tower:') || tipKey?.startsWith('fence:') || tipKey?.startsWith('zone:')) hideTip()
     }
     const onClick = (event: mapboxgl.MapMouseEvent) => {
       const tower = towerAt(map, event.point, shownTowers(), PREFIX)

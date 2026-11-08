@@ -5,7 +5,7 @@
  * their traffic. Sites are pinned on the map; the shortlisted ones open a details panel when clicked.
  */
 import { along, distanceKm, hash, resample, type LngLat } from './tomtomGeo'
-import type { TomtomDisk, TomtomFence, TomtomHeatPoint, TomtomMapScene, TomtomPin } from './tomtomMapLayers'
+import type { TomtomDisk, TomtomFence, TomtomHeatPoint, TomtomMapScene, TomtomPin, TomtomZone } from './tomtomMapLayers'
 import {
   PALETTE,
   type CountRow,
@@ -111,21 +111,25 @@ type SiteSpec = {
   eveningShare: number
   /** Projected fuel sold, million litres a year. */
   volume: number
+  /** Residents within a 5-minute drive. */
+  residents: number
+  /** Share of that catchment your stations already reach in 5 minutes, %. */
+  overlap: number
 }
 
 const SITE_SPECS: SiteSpec[] = [
-  { id: 'site-szbs', area: 'Al Zahiyah', street: 'szbs', t: 0.3, side: 0.05, score: 87, evening: 89, traffic: 48.2, eveningShare: 31, volume: 9.8 },
-  { id: 'site-corniche', area: 'Al Khalidiyah', street: 'corniche', t: 0.55, side: 0.06, score: 81, evening: 76, traffic: 52.6, eveningShare: 24, volume: 8.9 },
-  { id: 'site-khaleej', area: 'Al Bateen', street: 'khaleej', t: 0.3, side: 0.05, score: 78, evening: 84, traffic: 41.8, eveningShare: 36, volume: 8.1 },
-  { id: 'site-rashid', area: 'Al Markaziyah', street: 'rashid', t: 0.14, side: 0.04, score: 74, evening: 80, traffic: 39.5, eveningShare: 38, volume: 7.6 },
-  { id: 'site-hazza', area: 'Al Manhal', street: 'hazza', t: 0.4, side: 0.05, score: 71, evening: 70, traffic: 36.1, eveningShare: 29, volume: 7.0 },
-  { id: 'site-muroor', area: 'Al Nahyan', street: 'muroor', t: 0.45, side: 0.05, score: 66, evening: 68, traffic: 33.9, eveningShare: 32, volume: 6.5 },
-  { id: 'site-falah', area: 'Madinat Zayed', street: 'falah', t: 0.75, side: 0.05, score: 62, evening: 65, traffic: 30.2, eveningShare: 33, volume: 6.0 },
-  { id: 'site-mbk', area: 'Al Mushrif', street: 'mbk', t: 0.5, side: 0.05, score: 58, evening: 55, traffic: 28.4, eveningShare: 26, volume: 5.6 },
-  { id: 'site-corniche-w', area: 'Al Bateen Corniche', street: 'corniche', t: 0.2, side: 0.06, score: 54, evening: 50, traffic: 26.1, eveningShare: 22, volume: 5.2 },
-  { id: 'site-khaleej-e', area: 'Al Karamah', street: 'khaleej', t: 0.62, side: 0.05, score: 49, evening: 52, traffic: 24.8, eveningShare: 30, volume: 4.8 },
-  { id: 'site-rashid-s', area: 'Al Rowdah', street: 'rashid', t: 0.72, side: 0.05, score: 45, evening: 47, traffic: 22.3, eveningShare: 31, volume: 4.4 },
-  { id: 'site-hazza-s', area: 'Al Khubeirah', street: 'hazza', t: 0.12, side: 0.05, score: 41, evening: 38, traffic: 19.6, eveningShare: 23, volume: 3.9 },
+  { id: 'site-szbs', area: 'Al Zahiyah', street: 'szbs', t: 0.3, side: 0.05, score: 87, evening: 89, traffic: 48.2, eveningShare: 31, volume: 9.8, residents: 38400, overlap: 6 },
+  { id: 'site-corniche', area: 'Al Khalidiyah', street: 'corniche', t: 0.55, side: 0.06, score: 81, evening: 76, traffic: 52.6, eveningShare: 24, volume: 8.9, residents: 31200, overlap: 22 },
+  { id: 'site-khaleej', area: 'Al Bateen', street: 'khaleej', t: 0.3, side: 0.05, score: 78, evening: 84, traffic: 41.8, eveningShare: 36, volume: 8.1, residents: 42600, overlap: 9 },
+  { id: 'site-rashid', area: 'Al Markaziyah', street: 'rashid', t: 0.14, side: 0.04, score: 74, evening: 80, traffic: 39.5, eveningShare: 38, volume: 7.6, residents: 46900, overlap: 7 },
+  { id: 'site-hazza', area: 'Al Manhal', street: 'hazza', t: 0.4, side: 0.05, score: 71, evening: 70, traffic: 36.1, eveningShare: 29, volume: 7.0, residents: 36800, overlap: 8 },
+  { id: 'site-muroor', area: 'Al Nahyan', street: 'muroor', t: 0.45, side: 0.05, score: 66, evening: 68, traffic: 33.9, eveningShare: 32, volume: 6.5, residents: 33500, overlap: 5 },
+  { id: 'site-falah', area: 'Madinat Zayed', street: 'falah', t: 0.75, side: 0.05, score: 62, evening: 65, traffic: 30.2, eveningShare: 33, volume: 6.0, residents: 29800, overlap: 4 },
+  { id: 'site-mbk', area: 'Al Mushrif', street: 'mbk', t: 0.5, side: 0.05, score: 58, evening: 55, traffic: 28.4, eveningShare: 26, volume: 5.6, residents: 27100, overlap: 9 },
+  { id: 'site-corniche-w', area: 'Al Bateen Corniche', street: 'corniche', t: 0.2, side: 0.06, score: 54, evening: 50, traffic: 26.1, eveningShare: 22, volume: 5.2, residents: 24600, overlap: 8 },
+  { id: 'site-khaleej-e', area: 'Al Karamah', street: 'khaleej', t: 0.62, side: 0.05, score: 49, evening: 52, traffic: 24.8, eveningShare: 30, volume: 4.8, residents: 22900, overlap: 3 },
+  { id: 'site-rashid-s', area: 'Al Rowdah', street: 'rashid', t: 0.72, side: 0.05, score: 45, evening: 47, traffic: 22.3, eveningShare: 31, volume: 4.4, residents: 21400, overlap: 6 },
+  { id: 'site-hazza-s', area: 'Al Khubeirah', street: 'hazza', t: 0.12, side: 0.05, score: 41, evening: 38, traffic: 19.6, eveningShare: 23, volume: 3.9, residents: 18700, overlap: 2 },
 ]
 
 type Placed<T> = T & { at: LngLat }
@@ -205,6 +209,8 @@ export const SITE_RANKING = byScore.map((site) => ({
   traffic: site.traffic,
   eveningShare: site.eveningShare,
   volume: site.volume,
+  residents: site.residents,
+  overlap: site.overlap,
   rivalKm: site.rivalKm,
   stationKm: site.stationKm,
 }))
@@ -220,6 +226,10 @@ const TRAFFIC_GROUP = 'traffic'
 const VOLUME_GROUP = 'volume'
 const DEMAND_GROUP = 'demand'
 const TRADE_GROUP = 'trade'
+const CATCHMENT_GROUP = 'catchment'
+
+export const CATCHMENT_COLOR = PALETTE.teal[3]
+const thousands = (value: number) => `${(value / 1000).toFixed(1)}k`
 
 /** A candidate carries its name; its figures show on hover. */
 function sitePin(site: Site, rank: number, evening = false): TomtomPin {
@@ -239,6 +249,7 @@ function sitePin(site: Site, rank: number, evening = false): TomtomPin {
         evening
           ? ['Traffic, 5–9pm', `${Math.round(site.traffic * site.eveningShare * 10).toLocaleString('en-US')} vehicles`]
           : ['Passing traffic', `${site.traffic.toFixed(1)}k a day`],
+        ['Catchment, 5 min', `${thousands(site.residents)} residents`],
         ['Nearest rival', km(site.rivalKm)],
       ],
     },
@@ -315,6 +326,46 @@ const volumeDisk = (site: Site, scale = 1): TomtomDisk => ({
   color: SITE_COLOR,
   group: VOLUME_GROUP,
 })
+
+/**
+ * A site's 5-minute drive time: wider the more residents it reaches, stretched along the street that
+ * feeds it and pinched across it, with a few lobes where side streets run off.
+ */
+function catchmentZone(site: Site): TomtomZone {
+  const path = STREETS[site.street]
+  const [ax, ay] = along(path, site.t - 0.02)
+  const [bx, by] = along(path, site.t + 0.02)
+  const kLng = 111320 * Math.cos((site.at[1] * Math.PI) / 180)
+  const kLat = 110800
+  const heading = Math.atan2((by - ay) * kLat, (bx - ax) * kLng)
+  const radiusM = 300 + site.residents * 0.0115
+  const seed = SITES.indexOf(site) * 3.7
+  const ring = Array.from({ length: 73 }, (_, index): LngLat => {
+    const angle = ((index % 72) / 72) * Math.PI * 2
+    const lobes = 1 + 0.07 * Math.sin(3 * angle + seed) + 0.05 * Math.sin(5 * angle + seed * 1.9)
+    const ahead = Math.cos(angle) * radiusM * 1.35 * lobes
+    const aside = Math.sin(angle) * radiusM * 0.78 * lobes
+    const east = ahead * Math.cos(heading) - aside * Math.sin(heading)
+    const north = ahead * Math.sin(heading) + aside * Math.cos(heading)
+    return [site.at[0] + east / kLng, site.at[1] + north / kLat]
+  })
+  return {
+    id: `${site.id}-catchment`,
+    at: site.at,
+    ring,
+    color: CATCHMENT_COLOR,
+    tip: {
+      title: `${site.area} catchment`,
+      rows: [
+        ['Drive time', 'Up to 5 minutes'],
+        ['Residents', site.residents.toLocaleString('en-US')],
+        ['Households', Math.round(site.residents / 3.6).toLocaleString('en-US')],
+        ['Shared with your stations', `${site.overlap}%`],
+      ],
+    },
+    group: CATCHMENT_GROUP,
+  }
+}
 
 /** Evening fuel demand along the streets, heaviest where the evening load is. */
 const EVENING_DEMAND: TomtomHeatPoint[] = STREET_IDS.flatMap((street, s) =>
@@ -455,6 +506,12 @@ const TRADE_LAYER: MapDataLayer = {
   mark: 'disk',
   color: { items: [{ label: 'Within 3 minutes of a rival', color: RIVAL_COLOR }] },
 }
+const CATCHMENT_LAYER = (sites: Site[]): MapDataLayer => ({
+  group: CATCHMENT_GROUP,
+  title: 'Drive-time catchment, 5 min',
+  mark: 'disk',
+  color: { items: sites.map((site) => ({ label: site.area, color: CATCHMENT_COLOR, count: thousands(site.residents) })) },
+})
 
 /* —— Story helpers —— */
 
@@ -625,7 +682,7 @@ function siteTabs(site: Site, seed: number, residents: number): Record<SiteTabId
   }
 }
 
-function siteDetails(id: SiteId, spec: { seed: number; residents: number; code: string; use: string }): TomtomSite {
+function siteDetails(id: SiteId, spec: { seed: number; code: string; use: string }): TomtomSite {
   const site = siteById(id)
   const rank = rankOf(site)
   const daily = Math.round(site.traffic * 1000)
@@ -656,15 +713,15 @@ function siteDetails(id: SiteId, spec: { seed: number; residents: number; code: 
       ring: { label: 'Site score', pct: site.score, caption: 'Score', note: `Rank ${rank} of ${SITES.length} candidates` },
       reports: { label: 'Site reports', items: ['Traffic study, Oct 2026', 'Catchment report, Q3 2026'] },
     },
-    tabs: siteTabs(site, spec.seed, spec.residents),
+    tabs: siteTabs(site, spec.seed, site.residents),
   }
 }
 
 export const TOMTOM_SITES: Record<SiteId, TomtomSite> = {
-  'site-szbs': siteDetails('site-szbs', { seed: 21, residents: 38400, code: 'Plot 4,200 m²', use: 'Fuel + convenience' }),
-  'site-corniche': siteDetails('site-corniche', { seed: 33, residents: 31200, code: 'Plot 3,100 m²', use: 'Fuel + café' }),
-  'site-khaleej': siteDetails('site-khaleej', { seed: 47, residents: 42600, code: 'Plot 3,800 m²', use: 'Fuel + convenience' }),
-  'site-rashid': siteDetails('site-rashid', { seed: 59, residents: 46900, code: 'Plot 2,600 m²', use: 'Express fuel' }),
+  'site-szbs': siteDetails('site-szbs', { seed: 21, code: 'Plot 4,200 m²', use: 'Fuel + convenience' }),
+  'site-corniche': siteDetails('site-corniche', { seed: 33, code: 'Plot 3,100 m²', use: 'Fuel + café' }),
+  'site-khaleej': siteDetails('site-khaleej', { seed: 47, code: 'Plot 3,800 m²', use: 'Fuel + convenience' }),
+  'site-rashid': siteDetails('site-rashid', { seed: 59, code: 'Plot 2,600 m²', use: 'Express fuel' }),
 }
 
 /* —— Stories —— */
@@ -1048,13 +1105,13 @@ export type TomtomAskView = { camera: TomtomCamera; scene: TomtomMapScene; layer
 export const TOMTOM_ASK_VIEWS: Record<TomtomAskStageId, TomtomAskView> = {
   'tt-ask': {
     camera: { center: [54.374, 24.47], zoom: 13.4, pitch: 52, bearing: -22 },
-    scene: ISLAND_SCENE,
-    layers: [SITES_LAYER(top), STATIONS_LAYER, TRAFFIC_LAYER()],
+    scene: { ...ISLAND_SCENE, zones: top.map(catchmentZone) },
+    layers: [SITES_LAYER(top), STATIONS_LAYER, CATCHMENT_LAYER(top), TRAFFIC_LAYER()],
   },
   'tt-dive': {
     camera: SZBS_CAMERA,
-    scene: SZBS_SCENE,
-    layers: [SITES_LAYER([SZBS]), TRAFFIC_LAYER()],
+    scene: { ...SZBS_SCENE, zones: [catchmentZone(SZBS)] },
+    layers: [SITES_LAYER([SZBS]), CATCHMENT_LAYER([SZBS]), TRAFFIC_LAYER()],
   },
   'tt-evening': {
     camera: { center: [54.372, 24.468], zoom: 13.45, pitch: 54, bearing: -6 },
@@ -1070,6 +1127,8 @@ export const SITE_ONE = {
   score: SZBS.score,
   traffic: SZBS.traffic,
   volume: SZBS.volume,
+  residents: SZBS.residents,
+  overlap: SZBS.overlap,
   uplift: uplift(SZBS),
   rivalKm: SZBS.rivalKm,
   stationKm: SZBS.stationKm,

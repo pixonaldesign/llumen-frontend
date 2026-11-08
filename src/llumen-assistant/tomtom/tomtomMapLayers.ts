@@ -1,7 +1,8 @@
 /**
  * The TomTom demo's map layers, shared by the Briefing backdrop, the story and the ask stage: the night
  * Abu Dhabi basemap with 3D fences standing on the arterials, as tall and as red as their traffic is
- * dense, disks under each site's trade area, and pins for candidate sites, current stations and rivals. Towers
+ * dense, disks under each site's trade area, drive-time zones round its catchment, and pins for candidate
+ * sites, current stations and rivals. Towers
  * and heat from the Standard style's buildings stay available. Every element belongs to a `group`, which
  * the Map Data panel can hide.
  */
@@ -62,6 +63,9 @@ export type TomtomFence = {
 /** A disk on the ground: a site's trade area. */
 export type TomtomDisk = { id: string; at: LngLat; radiusM: number; color: string; group: string }
 
+/** An area on the ground around `at`, e.g. a site's drive-time catchment; `ring` is its closed outline. */
+export type TomtomZone = { id: string; at: LngLat; ring: LngLat[]; color: string; tip: TomtomTip; group: string }
+
 /**
  * A place on the map, a dot in its colour: a candidate `site`, named in a pill outlined in that colour
  * and stacked by `rank`, or a current `station`, named only in its hover `tip`.
@@ -91,6 +95,7 @@ export type TomtomMapScene = {
   heatRamp: string[]
   fences?: TomtomFence[]
   disks?: TomtomDisk[]
+  zones?: TomtomZone[]
   pins?: TomtomPin[]
 }
 
@@ -110,6 +115,7 @@ const heatId = (prefix: string) => `${prefix}-heat`
 const paintId = (prefix: string) => `${prefix}-paint`
 const fenceId = (prefix: string) => `${prefix}-fence`
 const diskId = (prefix: string) => `${prefix}-disk`
+const zoneId = (prefix: string) => `${prefix}-zone`
 
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
@@ -125,10 +131,27 @@ function addSource(map: mapboxgl.Map, id: string) {
   if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: EMPTY })
 }
 
-/** The site layers under the towers: the disks on the ground, then the traffic fences standing over them. */
+/** The site layers under the towers: the zones and disks on the ground, then the traffic fences standing over them. */
 function mountSiteLayers(map: mapboxgl.Map, prefix: string) {
   const disk = diskId(prefix)
   if (map.getLayer(disk)) return
+  const zone = zoneId(prefix)
+  addSource(map, zone)
+  map.addLayer({
+    id: zone,
+    type: 'fill',
+    source: zone,
+    slot: 'middle',
+    paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.13, 'fill-emissive-strength': 1 },
+  })
+  map.addLayer({
+    id: `${zone}-line`,
+    type: 'line',
+    source: zone,
+    slot: 'middle',
+    layout: { 'line-join': 'round' },
+    paint: { 'line-color': ['get', 'color'], 'line-width': 1.2, 'line-opacity': 0.6, 'line-emissive-strength': 1 },
+  })
   addSource(map, disk)
   map.addLayer({
     id: `${disk}-halo`,
@@ -368,6 +391,13 @@ export function fenceAt(map: mapboxgl.Map, point: mapboxgl.PointLike, prefix: st
   return hit ? { id: String(hit.fence), load: Number(hit.load) } : null
 }
 
+/** The id of the zone under `point`. */
+export function zoneAt(map: mapboxgl.Map, point: mapboxgl.PointLike, prefix: string) {
+  if (!map.getLayer(zoneId(prefix))) return null
+  const hit = map.queryRenderedFeatures(point, { layers: [zoneId(prefix)] })[0]?.properties
+  return hit ? String(hit.zone) : null
+}
+
 /**
  * Draws `scene` at `grow` (0 hidden, 1 full): the towers light up, the heat fades in, the disks open
  * and the traffic fences rise, running out along their streets. Hidden groups are left out.
@@ -439,6 +469,24 @@ function drawSites(map: mapboxgl.Map, prefix: string, scene: TomtomMapScene, gro
       type: 'Feature',
       properties: { color: disk.color, radius: disk.radiusM * Math.min(1, grow * 1.25) },
       geometry: { type: 'Point', coordinates: disk.at },
+    })),
+  })
+  /** Zones spread out from their centre a little behind the disks. */
+  const spread = Math.max(0, Math.min(1, (grow - 0.1) * 1.3))
+  ;(map.getSource(zoneId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
+    type: 'FeatureCollection',
+    features: (spread <= 0 ? [] : visible(scene.zones)).map((zone) => ({
+      type: 'Feature',
+      properties: { zone: zone.id, color: zone.color },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          zone.ring.map(([lng, lat]): LngLat => [
+            zone.at[0] + (lng - zone.at[0]) * spread,
+            zone.at[1] + (lat - zone.at[1]) * spread,
+          ]),
+        ],
+      },
     })),
   })
 }
