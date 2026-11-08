@@ -221,8 +221,8 @@ const VOLUME_GROUP = 'volume'
 const DEMAND_GROUP = 'demand'
 const TRADE_GROUP = 'trade'
 
-/** Labelled pins carry a name card; the rest name themselves on hover. */
-function sitePin(site: Site, rank: number, labelled: boolean, evening = false): TomtomPin {
+/** A candidate carries its name; its figures show on hover. */
+function sitePin(site: Site, rank: number, evening = false): TomtomPin {
   const score = evening ? site.evening : site.score
   return {
     id: site.id,
@@ -230,9 +230,7 @@ function sitePin(site: Site, rank: number, labelled: boolean, evening = false): 
     color: SITE_COLOR,
     kind: 'site',
     rank,
-    label: labelled,
     title: site.area,
-    text: `${evening ? 'Evening score' : 'Score'} ${score} · ${site.traffic.toFixed(1)}k vehicles a day`,
     tip: {
       title: `${site.area} · Site ${rank}`,
       rows: [
@@ -248,15 +246,14 @@ function sitePin(site: Site, rank: number, labelled: boolean, evening = false): 
   }
 }
 
-function stationPin(station: (typeof STATIONS)[number], labelled = false): TomtomPin {
+/** A station is a dot; its name and figures show on hover. */
+function stationPin(station: (typeof STATIONS)[number]): TomtomPin {
   return {
     id: station.id,
     at: station.at,
     color: STATION_COLOR,
     kind: 'station',
-    label: labelled,
     title: `${station.area} station`,
-    text: `${station.volume.toFixed(1)}M litres a year`,
     tip: {
       title: `${station.area} station`,
       rows: [
@@ -342,7 +339,7 @@ const scene = (parts: Partial<TomtomMapScene>): TomtomMapScene => ({
 /** The whole island: every candidate, the network's stations and the day's traffic on the arterials. */
 const ISLAND_SCENE = scene({
   pins: [
-    ...byScore.map((site, index) => sitePin(site, index + 1, index < 3)),
+    ...byScore.map((site, index) => sitePin(site, index + 1)),
     ...STATIONS.map((station) => stationPin(station)),
   ],
   fences: roadFences(ALL_DAY_LOAD, 5, 320),
@@ -360,9 +357,9 @@ const SZBS_RIVALS = closest(SZBS.at, RIVALS, 4)
 /** Site 1 close up: the traffic past it, its neighbouring candidates and your nearest stations. */
 const SZBS_SCENE = scene({
   pins: [
-    sitePin(SZBS, 1, true),
-    ...closest(SZBS.at, SITES.filter((site) => site !== SZBS), 2).map((site) => sitePin(site, rankOf(site), false)),
-    ...closest(SZBS.at, STATIONS, 2).map((station) => stationPin(station, true)),
+    sitePin(SZBS, 1),
+    ...closest(SZBS.at, SITES.filter((site) => site !== SZBS), 2).map((site) => sitePin(site, rankOf(site))),
+    ...closest(SZBS.at, STATIONS, 2).map((station) => stationPin(station)),
   ],
   fences: roadFences(ALL_DAY_LOAD, 5, 130, false, ['szbs', 'muroor', 'hazza', 'falah', 'rashid']),
   disks: [volumeDisk(SZBS, 1.4)],
@@ -371,7 +368,7 @@ const SZBS_SCENE = scene({
 /** Evening: the island re-ranked on 5 to 9pm, the evening's traffic and demand. */
 const EVENING_SCENE = scene({
   pins: [
-    ...byEvening.map((site, index) => sitePin(site, index + 1, index < 3, true)),
+    ...byEvening.map((site, index) => sitePin(site, index + 1, true)),
     ...STATIONS.map((station) => stationPin(station)),
   ],
   fences: roadFences(EVENING_LOAD, 13, 320, true),
@@ -386,7 +383,7 @@ const CORRIDOR_RIVALS = closest(RASHID.at, RIVALS, 5)
 /** Sheikh Rashid Bin Saeed St between 5 and 9pm: the corridor's traffic and demand, and the site on it. */
 const CORRIDOR_SCENE = scene({
   pins: [
-    ...closest(RASHID.at, SITES, 3).map((site) => sitePin(site, eveningRankOf(site), site === RASHID, true)),
+    ...closest(RASHID.at, SITES, 3).map((site) => sitePin(site, eveningRankOf(site), true)),
     ...closest(RASHID.at, STATIONS, 2).map((station) => stationPin(station)),
   ],
   fences: roadFences(EVENING_LOAD, 13, 120, true, CORRIDOR_STREETS),
@@ -398,7 +395,7 @@ const CORRIDOR_SCENE = scene({
 /** The rivals' trade areas round the corridor, and the gap the site fills. */
 const TRADE_SCENE = scene({
   pins: [
-    sitePin(RASHID, eveningRankOf(RASHID), true, true),
+    sitePin(RASHID, eveningRankOf(RASHID), true),
     ...closest(RASHID.at, STATIONS, 2).map((station) => stationPin(station)),
   ],
   fences: roadFences(EVENING_LOAD, 13, 160, true, CORRIDOR_STREETS),

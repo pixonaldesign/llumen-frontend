@@ -89,7 +89,9 @@
 .tomtom-tip {
   position: absolute;
   z-index: 90;
-  width: 232px;
+  width: max-content;
+  min-width: 232px;
+  max-width: 340px;
   padding: 10px 12px;
   pointer-events: none;
   transform: translate(-50%, calc(-100% - 14px));
@@ -130,9 +132,9 @@
 }
 
 /*
- * A pin stands on its ground point (the element is translated there) as a tooltip above it, outlined in
- * its colour, with a stem down to the spot. `--pop` scales it in as the scene grows; `--z` keeps the best
- * sites on top.
+ * A pin stands on its ground point (the element is translated there): a dot in its colour ringed in
+ * white, and for a site a pill outlined in the same colour above it, joined by a stem. `--pop` scales it
+ * in as the scene grows; `--z` keeps the best sites on top.
  */
 .tomtom-pin {
   position: absolute;
@@ -155,52 +157,52 @@
   z-index: 80;
 }
 
-.tomtom-pin[data-passive='true'] .tomtom-pin-card {
+.tomtom-pin[data-passive='true'] > * {
   pointer-events: none;
 }
 
-.tomtom-pin::after {
-  content: '';
+.tomtom-pin-dot {
   position: absolute;
-  top: -2.5px;
-  left: -2.5px;
-  width: 5px;
-  height: 5px;
+  top: calc(var(--dot) / -2);
+  left: calc(var(--dot) / -2);
+  --dot: 14px;
+  box-sizing: border-box;
+  width: var(--dot);
+  height: var(--dot);
+  border: 2px solid #fff;
   border-radius: 999px;
   background: var(--pin);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pin) 24%, transparent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
   transform: scale(var(--pop, 1));
+  transition: transform 0.2s ease;
+}
+
+.tomtom-pin[data-kind='station'] .tomtom-pin-dot {
+  --dot: 16px;
 }
 
 .tomtom-pin-card {
   position: absolute;
-  bottom: 12px;
+  bottom: 19px;
   left: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 10px 5px 6px;
+  padding: 3px 10px;
   border: 1.5px solid var(--pin);
-  background: color-mix(in srgb, var(--pin) 12%, rgba(20, 22, 28, 0.62));
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--pin) 18%, transparent),
-    0 0 18px color-mix(in srgb, var(--pin) 28%, transparent),
-    0 10px 24px rgba(0, 0, 0, 0.4);
+  border-radius: 999px;
+  background: rgba(20, 22, 28, 0.72);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
   white-space: nowrap;
-  text-align: left;
   transform: translateX(-50%) scale(var(--pop, 1));
   transform-origin: 50% 100%;
   transition:
     transform 0.2s ease,
-    background 0.16s ease,
-    box-shadow 0.2s ease;
+    background 0.16s ease;
 }
 
-.tomtom-pin[data-kind='station'] .tomtom-pin-card {
-  padding-left: 10px;
-}
-
-button.tomtom-pin .tomtom-pin-card {
+button.tomtom-pin > * {
   cursor: pointer;
 }
 
@@ -212,75 +214,32 @@ button.tomtom-pin .tomtom-pin-card {
   width: 1.5px;
   height: 12px;
   margin-left: -0.75px;
-  background: linear-gradient(var(--pin), color-mix(in srgb, var(--pin) 30%, transparent));
-}
-
-.tomtom-pin-rank {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 4px;
-  border-radius: 6px;
   background: var(--pin);
-  color: #0b1414;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
 }
 
-.tomtom-pin-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.tomtom-pin-card b {
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 18px;
-}
-
-.tomtom-pin[data-label='false'] .tomtom-pin-card {
-  padding-top: 3px;
-  padding-bottom: 3px;
-}
-
-.tomtom-pin[data-label='false'] .tomtom-pin-card b {
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 16px;
-}
-
-.tomtom-pin[data-label='false'] .tomtom-pin-rank {
-  min-width: 18px;
-  height: 18px;
-  font-size: 10px;
-}
-
-button.tomtom-pin:hover .tomtom-pin-card,
+.tomtom-pin:hover .tomtom-pin-card,
 .tomtom-pin[data-active='true'] .tomtom-pin-card {
-  background: color-mix(in srgb, var(--pin) 20%, rgba(30, 32, 38, 0.72));
-  box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--pin) 28%, transparent),
-    0 0 24px color-mix(in srgb, var(--pin) 36%, transparent),
-    0 12px 28px rgba(0, 0, 0, 0.5);
+  background: rgba(34, 36, 42, 0.86);
   transform: translateX(-50%) scale(calc(var(--pop, 1) * 1.04));
+}
+
+.tomtom-pin:hover .tomtom-pin-dot,
+.tomtom-pin[data-active='true'] .tomtom-pin-dot {
+  transform: scale(calc(var(--pop, 1) * 1.2));
 }
 
 button.tomtom-pin:focus-visible {
   outline: none;
 }
 
-button.tomtom-pin:focus-visible .tomtom-pin-card {
+button.tomtom-pin:focus-visible > :last-child {
   outline: 2px solid #70aeff;
   outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tomtom-pin,
+  .tomtom-pin-dot,
   .tomtom-pin-card {
     transition: none;
   }

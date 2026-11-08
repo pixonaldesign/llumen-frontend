@@ -63,8 +63,8 @@ export type TomtomFence = {
 export type TomtomDisk = { id: string; at: LngLat; radiusM: number; color: string; group: string }
 
 /**
- * A place on the map, drawn as a tooltip outlined in its colour: a candidate `site` (numbered by `rank`)
- * or a current `station`. `label` adds its figures (`text`) under its name.
+ * A place on the map, a dot in its colour: a candidate `site`, named in a pill outlined in that colour
+ * and stacked by `rank`, or a current `station`, named only in its hover `tip`.
  */
 export type TomtomPin = {
   id: string
@@ -72,9 +72,7 @@ export type TomtomPin = {
   color: string
   kind: 'site' | 'station'
   rank?: number
-  label?: boolean
   title: string
-  text: string
   tip: TomtomTip
   group: string
 }
@@ -553,9 +551,9 @@ type PinEntry = { el: HTMLElement; pin: TomtomPin; anchor: [number, number, numb
 export type PinHover = (pin: TomtomPin | null, point?: { x: number; y: number }) => void
 
 /**
- * The scene's pins, as tooltips standing on their places: candidate sites outlined in teal and numbered
- * by rank, current stations in blue, each popping in one after another as the scene grows. Sites with a
- * details panel open it on click; every pin names itself through `onHover`.
+ * The scene's pins, as dots on their places: candidate sites in teal under a pill with their name,
+ * current stations in blue, each popping in one after another as the scene grows. Sites with a details
+ * panel open it on click; every pin names itself through `onHover`.
  */
 export class TomtomPins {
   private map: mapboxgl.Map
@@ -603,18 +601,18 @@ export class TomtomPins {
       el.setAttribute('aria-hidden', 'true')
     }
     if (!pick && !this.onHover) el.dataset.passive = 'true'
-    el.dataset.label = pin.label ? 'true' : 'false'
-    const rank = pin.kind === 'site' && pin.rank ? `<span class="tomtom-pin-rank" aria-hidden="true">${pin.rank}</span>` : ''
-    const text = pin.label ? `<span>${escapeHtml(pin.text)}</span>` : ''
-    el.innerHTML = `<span class="tomtom-pin-card">${rank}<span class="tomtom-pin-copy"><b>${escapeHtml(pin.title)}</b>${text}</span></span>`
+    const card = pin.kind === 'site' ? `<span class="tomtom-pin-card">${escapeHtml(pin.title)}</span>` : ''
+    el.innerHTML = `<span class="tomtom-pin-dot"></span>${card}`
     if (this.onHover) {
-      const card = el.firstElementChild as HTMLElement
-      card.addEventListener('mouseenter', () => {
-        const rect = card.getBoundingClientRect()
-        const box = this.map.getContainer().getBoundingClientRect()
-        this.onHover?.(pin, { x: rect.left + rect.width / 2 - box.left, y: rect.top - box.top })
-      })
-      card.addEventListener('mouseleave', () => this.onHover?.(null))
+      const top = el.lastElementChild as HTMLElement
+      for (const target of el.children) {
+        target.addEventListener('mouseenter', () => {
+          const rect = top.getBoundingClientRect()
+          const box = this.map.getContainer().getBoundingClientRect()
+          this.onHover?.(pin, { x: rect.left + rect.width / 2 - box.left, y: rect.top - box.top })
+        })
+        target.addEventListener('mouseleave', () => this.onHover?.(null))
+      }
     }
     this.map.getContainer().appendChild(el)
     const { x, y, z } = mapboxgl.MercatorCoordinate.fromLngLat(pin.at, 0)

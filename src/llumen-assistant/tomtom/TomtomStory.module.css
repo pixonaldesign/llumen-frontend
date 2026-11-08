@@ -51,15 +51,16 @@
   border-radius: 999px;
 }
 
-/* The map's own marks in miniature: a pin's outlined tooltip, a fence's wall and a volume disk. */
+/* The map's own marks in miniature: a pin's white-ringed dot, a fence's wall and a volume disk. */
 .pinGlyph {
   display: block;
-  width: 16px;
-  height: 11px;
-  margin: 0 0 2px;
-  border: 1.5px solid var(--glyph);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--glyph) 18%, rgba(26, 26, 26, 0.5));
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin: 0 0 1px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--glyph);
 }
 
 .fenceGlyph {

@@ -199,7 +199,7 @@ const ttAsk = () =>
     sections: [
       {
         heading: 'On the map',
-        text: 'The teal labels are the candidates, numbered by rank, and the blue ones your stations. The fences on the roads are traffic density: the taller and redder a stretch, the heavier its traffic, from green through yellow to dark red. Hover any label or fence for its figures.',
+        text: 'The teal pins are the candidates and the blue dots your stations. The fences on the roads are traffic density: the taller and redder a stretch, the heavier its traffic, from green through yellow to dark red. Hover any pin or fence for its figures.',
       },
       {
         heading: 'Top sites',
@@ -258,7 +258,7 @@ const ttDive = () => {
     sections: [
       {
         heading: 'On the map',
-        text: 'The fences are traffic in both directions, tallest and reddest where it is densest, which on Sheikh Zayed Bin Sultan St is right outside the site. The blue labels are your two closest stations. Click the site’s label for its full details.',
+        text: 'The fences are traffic in both directions, tallest and reddest where it is densest, which on Sheikh Zayed Bin Sultan St is right outside the site. The blue dots are your two closest stations. Click the site’s pin for its full details.',
       },
       {
         heading: 'Traffic by hour',
@@ -321,7 +321,7 @@ const ttEvening = () =>
     sections: [
       {
         heading: 'On the map',
-        text: 'The sites are renumbered by evening rank. The purple glow is fuel demand from 5 to 9pm, heaviest along Sheikh Rashid Bin Saeed St and Al Khaleej Al Arabi St. The fences now show evening traffic, densest on Sheikh Zayed Bin Sultan St and those same two streets.',
+        text: 'The sites are re-ranked by their evening score. The purple glow is fuel demand from 5 to 9pm, heaviest along Sheikh Rashid Bin Saeed St and Al Khaleej Al Arabi St. The fences now show evening traffic, densest on Sheikh Zayed Bin Sultan St and those same two streets.',
       },
       {
         heading: 'Evening ranking',
