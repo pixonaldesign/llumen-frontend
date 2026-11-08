@@ -18,6 +18,7 @@ import {
 import type { ConversationSource } from './conversationSources'
 import type { InlineContextItem } from './inlineContextData'
 import type { FindingToastItem } from './landing/findingDemoData'
+import { landingAssets } from './landing/landingAssets'
 import { SessionsPanel, type SessionSummary } from './SessionsPanel'
 import { SourcesPopup } from './SourcesPanel'
 import styles from './compact-assistant.module.css'
@@ -359,7 +360,9 @@ export function PanelHeader({
   return (
     <div className={styles.headerRow}>
       {logo ? (
-        <div className={styles.headerActions}>
+        <div className={`${styles.headerActions} ${styles.headerBrand}`}>
+          <img className={styles.headerBrandMark} src={landingAssets.logoMark} alt="Llumen" />
+          <span className={styles.headerBrandRule} aria-hidden />
           <img className={styles.headerLogo} src={logo.src} alt={logo.alt} />
         </div>
       ) : (

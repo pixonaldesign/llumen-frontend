@@ -127,8 +127,9 @@ type SiteSpec = {
 }
 
 const SITE_SPECS: SiteSpec[] = [
-  { id: 'site-szbs', area: 'Al Zahiyah', street: 'szbs', t: 0.3, side: 0.05, score: 87, evening: 89, traffic: 48.2, eveningShare: 31, volume: 9.8, residents: 38400, overlap: 6 },
-  { id: 'site-corniche', area: 'Al Khalidiyah', street: 'corniche', t: 0.55, side: 0.06, score: 81, evening: 76, traffic: 52.6, eveningShare: 24, volume: 8.9, residents: 31200, overlap: 22 },
+  /* At the foot of the World Trade Center tower, on its side of the street. */
+  { id: 'site-wtc', area: 'World Trade Center', street: 'rashid', t: 0.042, side: -0.09, score: 87, evening: 89, traffic: 48.2, eveningShare: 31, volume: 9.8, residents: 38400, overlap: 6 },
+  { id: 'site-corniche', area: 'Al Khalidiyah', street: 'corniche', t: 0.4, side: 0.06, score: 81, evening: 76, traffic: 52.6, eveningShare: 24, volume: 8.9, residents: 31200, overlap: 22 },
   { id: 'site-khaleej', area: 'Al Bateen', street: 'khaleej', t: 0.3, side: 0.05, score: 78, evening: 84, traffic: 41.8, eveningShare: 36, volume: 8.1, residents: 42600, overlap: 9 },
   { id: 'site-rashid', area: 'Al Markaziyah', street: 'rashid', t: 0.14, side: 0.04, score: 74, evening: 80, traffic: 39.5, eveningShare: 38, volume: 7.6, residents: 46900, overlap: 7 },
   { id: 'site-hazza', area: 'Al Manhal', street: 'hazza', t: 0.4, side: 0.05, score: 71, evening: 70, traffic: 36.1, eveningShare: 29, volume: 7.0, residents: 36800, overlap: 8 },
@@ -176,7 +177,7 @@ type Rival = { id: string; at: LngLat; street: StreetId }
 
 const RIVALS: Rival[] = (() => {
   const out: Rival[] = []
-  for (let index = 0; out.length < 24 && index < 400; index += 1) {
+  for (let index = 0; out.length < 16 && index < 400; index += 1) {
     const street = STREET_IDS[index % STREET_IDS.length]
     const t = 0.06 + 0.88 * hash(index, 41)
     /* The sea runs along the Corniche's left and Sheikh Zayed Bin Sultan St's left. */
@@ -249,7 +250,6 @@ export const GROUP_PART: Record<string, TomtomPart> = {
   [TRADE_GROUP]: 'rivals',
   [CATCHMENT_GROUP]: 'zones',
 }
-
 const thousands = (value: number) => `${(value / 1000).toFixed(1)}k`
 
 /** A candidate carries its name; its figures show on hover. */
@@ -401,24 +401,24 @@ const ISLAND_SCENE = scene({
   zones: SITES.map(catchmentDisk),
 })
 
-const SZBS = siteById('site-szbs')
+const WTC = siteById('site-wtc')
 const RASHID = siteById('site-rashid')
 
 const closest = <T extends { at: LngLat }>(at: LngLat, points: T[], count: number) =>
   [...points].sort((a, b) => distanceKm(a.at, at) - distanceKm(b.at, at)).slice(0, count)
 
-const SZBS_RIVALS = closest(SZBS.at, RIVALS, 4)
+const WTC_RIVALS = closest(WTC.at, RIVALS, 4)
 
 /** Site 1 close up: its catchment, the traffic past it, its neighbouring candidates, nearest rivals and your nearest stations. */
-const SZBS_SCENE = scene({
+const WTC_SCENE = scene({
   pins: [
-    sitePin(SZBS, 1),
-    ...closest(SZBS.at, SITES.filter((site) => site !== SZBS), 2).map((site) => sitePin(site, rankOf(site))),
-    ...closest(SZBS.at, STATIONS, 2).map((station) => stationPin(station)),
-    ...SZBS_RIVALS.map(rivalPin),
+    sitePin(WTC, 1),
+    ...closest(WTC.at, SITES.filter((site) => site !== WTC), 2).map((site) => sitePin(site, rankOf(site))),
+    ...closest(WTC.at, STATIONS, 2).map((station) => stationPin(station)),
+    ...WTC_RIVALS.map(rivalPin),
   ],
-  fences: roadFences(ALL_DAY_LOAD, 5, 130, false, ['szbs', 'muroor', 'hazza', 'falah', 'rashid']),
-  zones: [catchmentDisk(SZBS)],
+  fences: roadFences(ALL_DAY_LOAD, 5, 130, false, ['rashid', 'corniche', 'muroor', 'khaleej', 'falah']),
+  zones: [catchmentDisk(WTC)],
 })
 
 /** Evening: the island re-ranked on 5 to 9pm, and the evening's traffic. */
@@ -462,7 +462,8 @@ const TRADE_SCENE = scene({
 
 /** The island from the south-east, Corniche to Al Mushrif in frame. */
 const ISLAND_CAMERA: TomtomCamera = { center: [54.372, 24.468], zoom: 13.3, pitch: 50, bearing: -22 }
-const SZBS_CAMERA: TomtomCamera = { center: SZBS.at, zoom: 15.6, pitch: 62, bearing: -38 }
+/** Site 1 with the World Trade Center tower behind it, the Corniche and the sea beyond. */
+const WTC_CAMERA: TomtomCamera = { center: WTC.at, zoom: 15.7, pitch: 64, bearing: 30 }
 /** Sheikh Rashid Bin Saeed St at Al Markaziyah, looking up the corridor. */
 const CORRIDOR_CAMERA: TomtomCamera = { center: [54.362, 24.481], zoom: 15.49, pitch: 68, bearing: -16 }
 const TRADE_CAMERA: TomtomCamera = { center: [54.364, 24.479], zoom: 14.6, pitch: 58, bearing: -8 }
@@ -538,6 +539,18 @@ function toned(cards: TomtomCard[]): TomtomCard[] {
   let index = 0
   return cards.map((card) => (card.tone || card.kind === 'summary' ? card : { ...card, tone: order[index++ % order.length] }))
 }
+
+type KpiTile = { id: string; label: string; value: string; unit?: string; note?: string }
+
+/** Headline numbers as cards of their own, one sidebar cell each. */
+const kpiCells = (tiles: KpiTile[]): TomtomCard[] =>
+  tiles.map((tile) => ({
+    id: tile.id,
+    kind: 'cell',
+    title: tile.label,
+    value: tile.unit ? `${tile.value} ${tile.unit}` : tile.value,
+    note: tile.note ?? '',
+  }))
 
 const top = byScore.slice(0, 5)
 const eveningTop = byEvening.slice(0, 5)
@@ -714,7 +727,7 @@ function siteDetails(id: SiteId, spec: { seed: number; code: string; use: string
 }
 
 export const TOMTOM_SITES: Record<SiteId, TomtomSite> = {
-  'site-szbs': siteDetails('site-szbs', { seed: 21, code: 'Plot 4,200 m²', use: 'Fuel + convenience' }),
+  'site-wtc': siteDetails('site-wtc', { seed: 21, code: 'Plot 4,200 m²', use: 'Fuel + convenience' }),
   'site-corniche': siteDetails('site-corniche', { seed: 33, code: 'Plot 3,100 m²', use: 'Fuel + café' }),
   'site-khaleej': siteDetails('site-khaleej', { seed: 47, code: 'Plot 3,800 m²', use: 'Fuel + convenience' }),
   'site-rashid': siteDetails('site-rashid', { seed: 59, code: 'Plot 2,600 m²', use: 'Express fuel' }),
@@ -722,8 +735,8 @@ export const TOMTOM_SITES: Record<SiteId, TomtomSite> = {
 
 /* —— Stories —— */
 
-const S1 = SZBS.area
-const SZBS_RIVAL_KM = km(SZBS.rivalKm)
+const S1 = WTC.area
+const WTC_RIVAL_KM = km(WTC.rivalKm)
 
 export const TOMTOM_STORIES: Record<string, TomtomStory> = {
   'tt-shortlist': {
@@ -736,7 +749,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
       {
         id: 'tt-shortlist-island',
         title: 'Abu Dhabi Island',
-        finding: `Five of the 12 candidates score above 70. ${S1} on ${STREET_NAMES.szbs} leads at ${SZBS.score}, with ${SZBS.traffic.toFixed(1)}k vehicles a day passing it.`,
+        finding: `Five of the 12 candidates score above 70. ${S1} on ${STREET_NAMES[WTC.street]} leads at ${WTC.score}, with ${WTC.traffic.toFixed(1)}k vehicles a day passing it.`,
         camera: ISLAND_CAMERA,
         scene: ISLAND_SCENE,
         filters: ['Abu Dhabi Island', 'Last 90 days', 'Fuel retail'],
@@ -749,21 +762,16 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
             parts: [
               'Of 12 candidate sites, ',
               { em: ['5 score above 70'] },
-              `. ${S1} on ${STREET_NAMES.szbs} leads at ${SZBS.score}: `,
-              { em: [`${SZBS.traffic.toFixed(1)}k vehicles a day`] },
-              ` pass it, and it would sell ${uplift(SZBS)}% more fuel than your average station while its catchment barely overlaps theirs.`,
+              `. ${S1} on ${STREET_NAMES[WTC.street]} leads at ${WTC.score}: `,
+              { em: [`${WTC.traffic.toFixed(1)}k vehicles a day`] },
+              ` pass it, and it would sell ${uplift(WTC)}% more fuel than your average station while its catchment barely overlaps theirs.`,
             ],
           },
-          {
-            id: 'kpis',
-            kind: 'kpis',
-            title: 'The shortlist',
-            tiles: [
-              { label: 'Candidate sites', value: '12', note: '5 above 70' },
-              { label: 'Best score', value: String(SZBS.score), note: S1 },
-              { label: 'Your average station', value: NETWORK_AVERAGE.toFixed(1), unit: 'M L', note: 'a year' },
-            ],
-          },
+          ...kpiCells([
+            { id: 'candidates', label: 'Candidate sites', value: '12', note: '5 above 70' },
+            { id: 'best-score', label: 'Best score', value: String(WTC.score), note: S1 },
+            { id: 'network-average', label: 'Your average station', value: NETWORK_AVERAGE.toFixed(1), unit: 'M L', note: 'a year' },
+          ]),
           {
             id: 'ranking',
             kind: 'hbars',
@@ -804,12 +812,12 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
             })),
           },
           {
-            id: 'site-szbs-volume',
+            id: 'site-wtc-volume',
             kind: 'cell',
             title: 'Projected volume',
-            value: `${SZBS.volume.toFixed(1)}M`,
+            value: `${WTC.volume.toFixed(1)}M`,
             note: `litres a year · ${S1}`,
-            spark: series(10, SZBS.volume * 0.62, SZBS.volume, 4, 0.03),
+            spark: series(10, WTC.volume * 0.62, WTC.volume, 4, 0.03),
           },
           {
             id: 'overlap',
@@ -830,38 +838,33 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
         ]),
       },
       {
-        id: 'tt-shortlist-szbs',
+        id: 'tt-shortlist-wtc',
         title: S1,
-        finding: `${S1} sees ${SZBS.traffic.toFixed(1)}k vehicles a day from both directions, its nearest rival is ${SZBS_RIVAL_KM} away, and evening traffic peaks from 5 to 7pm.`,
-        camera: SZBS_CAMERA,
-        scene: SZBS_SCENE,
+        finding: `${S1} sees ${WTC.traffic.toFixed(1)}k vehicles a day from both directions, its nearest rival is ${WTC_RIVAL_KM} away, and evening traffic peaks from 5 to 7pm.`,
+        camera: WTC_CAMERA,
+        scene: WTC_SCENE,
         filters: [S1, 'Last 90 days', 'Fuel retail'],
-        layers: [SITES_LAYER([SZBS]), STATIONS_LAYER, RIVALS_LAYER(SZBS_RIVALS.length), CATCHMENT_LAYER([SZBS]), TRAFFIC_LAYER()],
+        layers: [SITES_LAYER([WTC]), STATIONS_LAYER, RIVALS_LAYER(WTC_RIVALS.length), CATCHMENT_LAYER([WTC]), TRAFFIC_LAYER()],
         cards: toned([
           {
             id: 'summary',
             kind: 'summary',
             title: 'Summary',
             parts: [
-              `${S1} sits on ${STREET_NAMES.szbs} with entries from `,
+              `${S1} sits on ${STREET_NAMES[WTC.street]} with entries from `,
               { em: ['both directions'] },
-              `. ${SZBS.traffic.toFixed(1)}k vehicles pass it a day, the nearest rival is `,
-              { em: [SZBS_RIVAL_KM] },
-              ` away and your nearest station ${km(SZBS.stationKm)}. Traffic peaks from 5 to 7pm.`,
+              `. ${WTC.traffic.toFixed(1)}k vehicles pass it a day, the nearest rival is `,
+              { em: [WTC_RIVAL_KM] },
+              ` away and your nearest station ${km(WTC.stationKm)}. Traffic peaks from 5 to 7pm.`,
             ],
           },
+          ...kpiCells([
+            { id: 'site-wtc-traffic', label: 'Passing vehicles', value: `${WTC.traffic.toFixed(1)}k`, note: 'a day' },
+            { id: 'site-wtc-rival', label: 'Nearest rival', value: WTC.rivalKm.toFixed(1), unit: 'km', note: 'the closest forecourt' },
+            { id: 'site-wtc-projected', label: 'Projected volume', value: WTC.volume.toFixed(1), unit: 'M L', note: `+${uplift(WTC)}% on average` },
+          ]),
           {
-            id: 'site-szbs-kpis',
-            kind: 'kpis',
-            title: S1,
-            tiles: [
-              { label: 'Passing vehicles', value: `${SZBS.traffic.toFixed(1)}k`, note: 'a day' },
-              { label: 'Nearest rival', value: SZBS.rivalKm.toFixed(1), unit: 'km' },
-              { label: 'Projected volume', value: SZBS.volume.toFixed(1), unit: 'M L', note: `+${uplift(SZBS)}% on average` },
-            ],
-          },
-          {
-            id: 'site-szbs-hours',
+            id: 'site-wtc-hours',
             kind: 'line',
             title: 'Vehicles by hour, both directions',
             kpi: { value: '3.7k', unit: 'vehicles at 6pm' },
@@ -874,7 +877,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
             ],
           },
           {
-            id: 'site-szbs-score',
+            id: 'site-wtc-score',
             kind: 'progress',
             title: 'Score breakdown',
             rows: [
@@ -885,18 +888,18 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
             ],
           },
           {
-            id: 'site-szbs-rivals',
+            id: 'site-wtc-rivals',
             kind: 'table',
             title: 'Nearest rivals',
             columns: ['Rival', 'Distance', 'Open'],
             dotColumn: 0,
-            rows: SZBS_RIVALS.map((rival, index) => ({
-              cells: [`Rival ${index + 1}`, km(distanceKm(rival.at, SZBS.at)), hash(Number(rival.id.slice(6)), 3) > 0.4 ? '24 hours' : '6am – midnight'],
+            rows: WTC_RIVALS.map((rival, index) => ({
+              cells: [`Rival ${index + 1}`, km(distanceKm(rival.at, WTC.at)), hash(Number(rival.id.slice(6)), 3) > 0.4 ? '24 hours' : '6am – midnight'],
               color: RIVAL_COLOR,
             })),
           },
           {
-            id: 'site-szbs-approach',
+            id: 'site-wtc-approach',
             kind: 'vbars',
             title: 'Arrivals by approach',
             kpi: { value: '73%', unit: 'from the main road' },
@@ -908,7 +911,7 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
             ],
           },
           {
-            id: 'site-szbs-facts',
+            id: 'site-wtc-facts',
             kind: 'specs',
             title: 'Site facts',
             items: [
@@ -954,20 +957,15 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
               'Count only 5 to 9pm and the order changes. ',
               { em: [`${RASHID.area} climbs to ${eveningRankOf(RASHID)}`] },
               ` as traffic heads home along ${STREET_NAMES.rashid}: ${RASHID.eveningShare}% of its day passes in those four hours. ${S1} stays first at `,
-              { em: [String(SZBS.evening)] },
+              { em: [String(WTC.evening)] },
               '.',
             ],
           },
-          {
-            id: 'site-rashid-kpis',
-            kind: 'kpis',
-            title: '5pm – 9pm',
-            tiles: [
-              { label: 'Evening share', value: `${RASHID.eveningShare}%`, note: 'of the day' },
-              { label: 'Peak hour', value: '6–7pm' },
-              { label: 'Evening score', value: String(RASHID.evening), note: `+${RASHID.evening - RASHID.score} on all day` },
-            ],
-          },
+          ...kpiCells([
+            { id: 'site-rashid-share', label: 'Evening share', value: `${RASHID.eveningShare}%`, note: 'of the day, 5–9pm' },
+            { id: 'site-rashid-peak', label: 'Peak hour', value: '6–7pm', note: 'the busiest evening hour' },
+            { id: 'site-rashid-evening', label: 'Evening score', value: String(RASHID.evening), note: `+${RASHID.evening - RASHID.score} on all day` },
+          ]),
           {
             id: 'rerank',
             kind: 'grouped',
@@ -1099,8 +1097,8 @@ export function isTomtomStory(id: string | null | undefined): id is string {
 export type TomtomPlace = { id: TomtomPlaceId; camera: TomtomCamera; scene: TomtomMapScene }
 
 export const TOMTOM_PLACES: Record<TomtomPlaceId, TomtomPlace> = {
-  /** Al Zahiyah close up, looking north-east across the channel to Al Reem Island's towers. */
-  zahiyah: { id: 'zahiyah', camera: { center: SZBS.at, zoom: 15.55, pitch: 70, bearing: 52 }, scene: SZBS_SCENE },
+  /** Site 1 close up, looking north-east up the World Trade Center tower to the Corniche. */
+  zahiyah: { id: 'zahiyah', camera: { center: WTC.at, zoom: 15.55, pitch: 70, bearing: 52 }, scene: WTC_SCENE },
   corridor: { id: 'corridor', camera: CORRIDOR_CAMERA, scene: CORRIDOR_SCENE },
 }
 
@@ -1118,9 +1116,9 @@ export const TOMTOM_ASK_VIEWS: Record<TomtomAskStageId, TomtomAskView> = {
     layers: [SITES_LAYER(top), STATIONS_LAYER, RIVALS_LAYER(RIVALS.length), CATCHMENT_LAYER(top), TRAFFIC_LAYER()],
   },
   'tt-dive': {
-    camera: SZBS_CAMERA,
-    scene: SZBS_SCENE,
-    layers: [SITES_LAYER([SZBS]), RIVALS_LAYER(SZBS_RIVALS.length), CATCHMENT_LAYER([SZBS]), TRAFFIC_LAYER()],
+    camera: WTC_CAMERA,
+    scene: WTC_SCENE,
+    layers: [SITES_LAYER([WTC]), RIVALS_LAYER(WTC_RIVALS.length), CATCHMENT_LAYER([WTC]), TRAFFIC_LAYER()],
   },
   'tt-evening': {
     camera: { center: [54.372, 24.468], zoom: 13.45, pitch: 54, bearing: -6 },
@@ -1132,15 +1130,15 @@ export const TOMTOM_ASK_VIEWS: Record<TomtomAskStageId, TomtomAskView> = {
 /** Site 1's figures, for the dive answer. */
 export const SITE_ONE = {
   name: S1,
-  street: STREET_NAMES.szbs,
-  score: SZBS.score,
-  traffic: SZBS.traffic,
-  volume: SZBS.volume,
-  residents: SZBS.residents,
-  overlap: SZBS.overlap,
-  uplift: uplift(SZBS),
-  rivalKm: SZBS.rivalKm,
-  stationKm: SZBS.stationKm,
-  rivalsWithin3: SZBS.rivalsWithin3,
+  street: STREET_NAMES[WTC.street],
+  score: WTC.score,
+  traffic: WTC.traffic,
+  volume: WTC.volume,
+  residents: WTC.residents,
+  overlap: WTC.overlap,
+  uplift: uplift(WTC),
+  rivalKm: WTC.rivalKm,
+  stationKm: WTC.stationKm,
+  rivalsWithin3: WTC.rivalsWithin3,
   hours: { x: HOURS_16, inbound: hourly(2.3, 0.82, 11), outbound: hourly(1.5, 1.24, 12) },
 }

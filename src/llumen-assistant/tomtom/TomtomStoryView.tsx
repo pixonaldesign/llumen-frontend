@@ -374,7 +374,7 @@ export function TomtomStoryView({
   const slide = slides[activeSlideIndex]
   const page = pageOf[slide.id]
   const filters = filtersBySlide[slide.id] ?? []
-  const columns = columnsBySlide[slide.id] ?? 2
+  const columns = columnsBySlide[slide.id] ?? 3
   const editing = storyMode === 'edit'
   const removed = removedCards[slide.id]
   const added = addedCards[slide.id]
@@ -832,7 +832,6 @@ export function TomtomStoryView({
   const layerAttrs = (layer: MapDataLayer) => (
     <div className={styles.mapLayerAttrs}>
       <div className={styles.mapLayerAttr}>
-        <p className={styles.mapLayerAttrLabel}>Color</p>
         {'ramp' in layer.color ? (
           <div className={styles.legendScale}>
             <span>{layer.color.low ?? 'Low'}</span>

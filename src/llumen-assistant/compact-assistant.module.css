@@ -1917,11 +1917,31 @@
   flex-shrink: 0;
 }
 
+.headerBrand {
+  gap: 12px;
+  margin-left: var(--space-sm);
+}
+
+.headerBrandMark {
+  display: block;
+  flex-shrink: 0;
+  width: 30px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.headerBrandRule {
+  flex-shrink: 0;
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
 .headerLogo {
   display: block;
+  flex-shrink: 0;
   width: auto;
   height: 20px;
-  margin-left: var(--space-sm);
 }
 
 .headerBtn {

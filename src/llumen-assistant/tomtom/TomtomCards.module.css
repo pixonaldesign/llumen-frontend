@@ -10,7 +10,7 @@
  */
 aside.grid {
   display: grid;
-  grid-template-columns: repeat(var(--sidebar-columns, 2), 184px);
+  grid-template-columns: repeat(var(--sidebar-columns, 3), 184px);
   grid-auto-rows: auto;
   grid-auto-flow: row dense;
   align-content: start;
@@ -76,6 +76,14 @@ aside.grid > .section {
 
 .cell {
   grid-column: span 1;
+}
+
+/* One-cell cards take the same surface as the cards around them. */
+.card.card.cell {
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
 }
 
 /* Two cells wide at any column count; with `.tall`, a 2×2 block. */

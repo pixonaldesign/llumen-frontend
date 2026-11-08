@@ -68,7 +68,7 @@ type SummaryPart = { text: string; highlight?: boolean }
 
 /** What is happening now, in two lines at most. */
 const ASSETS_STATEMENT: SummaryPart[] = [
-  { text: 'Al Zahiyah on Sheikh Zayed Bin Sultan St leads your 12 candidate sites at ' },
+  { text: 'World Trade Center on Sheikh Rashid Bin Saeed St leads your 12 candidate sites at ' },
   { text: '87 of 100', highlight: true },
   { text: '.' },
 ]
@@ -89,7 +89,7 @@ const ASSETS_DETAIL: SummaryPart[] = [
 /** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
 const ASSETS_INSIGHTS: SummaryPart[][] = [
   [
-    { text: 'Al Zahiyah sees ' },
+    { text: 'World Trade Center sees ' },
     { text: '48,200 vehicles a day', highlight: true },
     { text: ', the most of the five sites scoring above 70.' },
   ],
@@ -100,7 +100,7 @@ const ASSETS_INSIGHTS: SummaryPart[][] = [
   ],
   [
     {
-      text: 'Al Zahiyah’s due diligence is 62% done, ahead of its site visit on 18 November.',
+      text: 'World Trade Center’s due diligence is 62% done, ahead of its site visit on 18 November.',
     },
   ],
   [

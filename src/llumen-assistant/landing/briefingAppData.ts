@@ -20,7 +20,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     storyId: 'tt-shortlist',
     title: 'Next Site Shortlist — Abu Dhabi Island',
     description:
-      'Al Zahiyah leads 12 candidate sites at 87, with 48,200 vehicles a day and only 6% overlap with your stations.',
+      'World Trade Center leads 12 candidate sites at 87, with 48,200 vehicles a day and only 6% overlap with your stations.',
     image: `${APPS_BASE}/tt-shortlist.jpg`,
     focus: 'center',
   },

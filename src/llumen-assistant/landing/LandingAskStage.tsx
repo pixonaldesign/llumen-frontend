@@ -11,6 +11,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react'
+import { CaretDown } from '@phosphor-icons/react'
 import { MeshGradient } from '@paper-design/shaders-react'
 import gsap from 'gsap'
 import { MapBleedHeader, type DetailTab } from '../ComponentDetailPanel'
@@ -318,49 +319,60 @@ const steppedRamp = (ramp: readonly string[]) =>
     .map((color, index) => `${color} ${(index / ramp.length) * 100}% ${((index + 1) / ramp.length) * 100}%`)
     .join(', ')})`
 
-/** The story's Map Data card, read-only: each layer's colour scale, or its categories with their marks. */
+/**
+ * The story's Map Data card, read-only: each layer's colour scale, or its categories with their marks.
+ * Starts collapsed to its header; the caret opens it.
+ */
 function FindingMapData({ layers }: { layers: MapDataLayer[] }) {
+  const [open, setOpen] = useState(false)
   if (layers.length === 0) return null
   return (
     <div className={`${storyStyles.mapData} ${styles.mapData}`}>
-      <div className={storyStyles.mapDataHeader}>
+      <button
+        type="button"
+        className={`${storyStyles.mapDataHeader}${open ? '' : ` ${storyStyles.mapDataHeaderSolo}`}`}
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+      >
         <span>Map Data</span>
-      </div>
-      <div className={storyStyles.mapLayers}>
-        {layers.map((layer) => (
-          <section key={layer.group} className={storyStyles.mapLayer}>
-            <div className={storyStyles.mapLayerHead}>
-              <p className={storyStyles.mapLayerTitle}>{layer.title}</p>
-            </div>
-            <div className={storyStyles.mapLayerAttrs}>
-              <div className={storyStyles.mapLayerAttr}>
-                <p className={storyStyles.mapLayerAttrLabel}>Color</p>
-                {'ramp' in layer.color ? (
-                  <div className={storyStyles.legendScale}>
-                    <span>{layer.color.low ?? 'Low'}</span>
-                    <span
-                      className={storyStyles.colorRamp}
-                      style={{ backgroundImage: steppedRamp(layer.color.ramp) }}
-                      aria-hidden
-                    />
-                    <span>{layer.color.high ?? 'High'}</span>
-                  </div>
-                ) : (
-                  layer.color.items.map((item) => (
-                    <div key={item.label} className={storyStyles.legendRow}>
-                      <span className={`${storyStyles.legendMark} ${tomtomStyles.legendLabel}`}>{item.label}</span>
-                      <span className={storyStyles.legendMark}>
-                        {item.count ? <span className={storyStyles.legendCount}>{item.count}</span> : null}
-                        <TomtomLegendGlyph layer={layer} color={item.color} />
-                      </span>
-                    </div>
-                  ))
-                )}
+        <CaretDown size={18} weight="regular" className={open ? undefined : storyStyles.caretClosed} aria-hidden />
+      </button>
+      {open ? (
+        <div className={storyStyles.mapLayers}>
+          {layers.map((layer) => (
+            <section key={layer.group} className={storyStyles.mapLayer}>
+              <div className={storyStyles.mapLayerHead}>
+                <p className={storyStyles.mapLayerTitle}>{layer.title}</p>
               </div>
-            </div>
-          </section>
-        ))}
-      </div>
+              <div className={storyStyles.mapLayerAttrs}>
+                <div className={storyStyles.mapLayerAttr}>
+                  {'ramp' in layer.color ? (
+                    <div className={storyStyles.legendScale}>
+                      <span>{layer.color.low ?? 'Low'}</span>
+                      <span
+                        className={storyStyles.colorRamp}
+                        style={{ backgroundImage: steppedRamp(layer.color.ramp) }}
+                        aria-hidden
+                      />
+                      <span>{layer.color.high ?? 'High'}</span>
+                    </div>
+                  ) : (
+                    layer.color.items.map((item) => (
+                      <div key={item.label} className={storyStyles.legendRow}>
+                        <span className={`${storyStyles.legendMark} ${tomtomStyles.legendLabel}`}>{item.label}</span>
+                        <span className={storyStyles.legendMark}>
+                          {item.count ? <span className={storyStyles.legendCount}>{item.count}</span> : null}
+                          <TomtomLegendGlyph layer={layer} color={item.color} />
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

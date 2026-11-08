@@ -145,7 +145,7 @@ export type TomtomStory = {
 }
 
 /** The candidate sites with a details panel; each is also its pin's id. */
-export type SiteId = 'site-szbs' | 'site-corniche' | 'site-khaleej' | 'site-rashid'
+export type SiteId = 'site-wtc' | 'site-corniche' | 'site-khaleej' | 'site-rashid'
 
 /** A count by category: vehicle types, trip purposes, brands. */
 export type CountRow = { name: string; count: number }

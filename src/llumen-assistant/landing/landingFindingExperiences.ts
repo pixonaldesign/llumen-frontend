@@ -15,6 +15,7 @@ import type { ChatFile } from '../savedConversations'
 import {
   EVENING_RANKING,
   RIVAL_COLOR,
+  RIVAL_COUNT,
   SITE_ONE,
   SITE_RANKING,
   SITE_COLOR,
@@ -194,7 +195,7 @@ const ttAsk = () =>
         cue: 'ranks',
       },
     ],
-    map: { place: 'tt-ask', title: 'Candidate sites vs your stations', tag: 'Abu Dhabi Island', meta: '12 sites · 8 stations · 24 rivals' },
+    map: { place: 'tt-ask', title: 'Candidate sites vs your stations', tag: 'Abu Dhabi Island', meta: `12 sites · 8 stations · ${RIVAL_COUNT} rivals` },
   })
 
 /** Prompt 2: the top site close up, and the three things that put it first. */
