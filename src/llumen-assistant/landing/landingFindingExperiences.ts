@@ -340,14 +340,14 @@ const ttEvening = () =>
     id: TT_EVENING_ID,
     read: 'Filtering TomTom traffic to 5pm – 9pm on weekdays…',
     search: 'Re-scoring each site on evening traffic, catchment and rival opening hours…',
-    reason: 'Re-ranking the sites and adding evening fuel demand to the map…',
+    reason: 'Re-ranking the sites and redrawing the traffic fences for the evening…',
     headline: `Counting only 5 to 9pm, ${climbers.map((site) => `${site.name} climbs to ${ordinal(EVENING_RANKING.indexOf(site))}`).join(' and ')}; ${EVENING_RANKING[0].name} stays first at ${EVENING_RANKING[0].evening}.`,
-    headlineDetail: 'Re-ranked the sites on evening traffic, raised the traffic fences to 5 to 9pm and added evening fuel demand as a heatmap.',
+    headlineDetail: 'Re-ranked the sites on evening traffic and raised the traffic fences to 5 to 9pm.',
     intro: `Evening traffic heads home off the island’s inner arterials, and the sites on them gain. ${climbers.map((site) => site.name).join(' and ')} move up; ${SECOND.name}, on the Corniche, drops because its beachfront traffic is a daytime trade.`,
     sections: [
       {
         heading: 'On the map',
-        text: 'The sites are re-ranked by their evening score. The purple glow is fuel demand from 5 to 9pm, heaviest along Sheikh Rashid Bin Saeed St and Al Khaleej Al Arabi St. The fences now show evening traffic, densest on Sheikh Zayed Bin Sultan St and those same two streets.',
+        text: 'The sites are re-ranked by their evening score. The fences now show evening traffic from 5 to 9pm, densest on Sheikh Zayed Bin Sultan St, Sheikh Rashid Bin Saeed St and Al Khaleej Al Arabi St.',
       },
       {
         heading: 'Evening ranking',
