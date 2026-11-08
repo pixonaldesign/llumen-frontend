@@ -1,6 +1,8 @@
+/* Isolated so the pins' and tooltip's z-indexes stay under the panels laid over the map. */
 .mapFill {
   position: absolute;
   inset: 0;
+  isolation: isolate;
   width: 100%;
   height: 100%;
   background: #05070c;
