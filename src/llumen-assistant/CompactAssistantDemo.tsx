@@ -413,6 +413,8 @@ type PendingStoryApply = {
 const PERIOD_CAPTURE_DELAY_MS = 700
 const ANNOTATION_CAPTURE_DELAY_MS = 3400
 const REGION_ANNOTATION_CAPTURE_DELAY_MS = 4900
+/** After a finding's map has loaded and brought in its stations, fences, rivals and catchments in turn. */
+const FINDING_MAP_CAPTURE_DELAY_MS = 6400
 /** The landing map slides in first; its annotation lands once it has settled. */
 const LANDING_MAP_SETTLE_MS = 760
 
@@ -460,7 +462,7 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
         experience.map && snapshot
           ? withMapState(experience.reply, { stateId, snapshot, ...experience.map })
           : experience.reply,
-      map: snapshot ? { snapshot, captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS } : null,
+      map: snapshot ? { snapshot, captureDelay: FINDING_MAP_CAPTURE_DELAY_MS } : null,
     }
   }
   const region = location ? locationRegion(location) : null

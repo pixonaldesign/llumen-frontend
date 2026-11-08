@@ -393,6 +393,7 @@ function FindingPlaceMap({
         interactive={!preview}
         controlsClassName={styles.mapControls}
         handleRef={handleRef}
+        staged
       />
       {preview ? null : <FindingMapData layers={stage.layers} />}
     </>

@@ -22,7 +22,9 @@ import {
   forgetTowers,
   mountTomtomLayers,
   resolveTowers,
+  stagedReveal,
   towerAt,
+  wholeReveal,
   type TomtomMapScene,
   type TomtomPin,
   type TomtomTip,
@@ -35,6 +37,7 @@ const PREFIX = 'tomtom'
 const FLY_MS = 2600
 const SHRINK_MS = 500
 const GROW_MS = 1500
+const STAGED_MS = 4200
 const DIMENSION_MS = 700
 const FOCUS_MS = 1400
 const FOCUS_ZOOM = 16.4
@@ -78,6 +81,7 @@ export function TomtomMap({
   styleUrl = TOMTOM_MAP_STYLE,
   controlsClassName,
   focus = null,
+  staged = false,
   onPick,
   pickable,
   onReady,
@@ -96,6 +100,8 @@ export function TomtomMap({
   styleUrl?: string
   controlsClassName?: string
   focus?: TomtomMapFocus | null
+  /** Brings a scene in part by part, as an answer tells it, rather than all at once. Read when the map mounts. */
+  staged?: boolean
   /** Makes the towers, their labels and the `pickable` pins clickable. */
   onPick?: (id: string) => void
   /** Which pins open something when clicked; none when unset. */
@@ -112,6 +118,7 @@ export function TomtomMap({
   const latestRef = useRef({ camera, scene, hidden, padding, flat, focus })
   const tweenRef = useRef(0)
   const styleRef = useRef(styleUrl)
+  const stagedRef = useRef(staged)
   const onReadyRef = useRef(onReady)
   const onClickRef = useRef(onPick)
   const pickableRef = useRef(pickable)
@@ -146,12 +153,17 @@ export function TomtomMap({
       }),
   }))
 
+  /** A staged scene's `grow` runs linearly through its parts, which ease themselves; a whole one eases as one. */
+  const growMs = () => (stagedRef.current ? STAGED_MS : GROW_MS)
+  const growCurve = (t: number) => (stagedRef.current ? t : easeOut(t))
+
   const paint = (map: mapboxgl.Map) => {
     const drawn = drawnRef.current
     const { hidden: off, focus: focused } = latestRef.current
-    drawTomtomScene(map, PREFIX, drawn.scene, drawn.grow, off)
-    labelsRef.current?.sync(drawn.scene.towers, drawn.grow, off, focused?.id ?? null)
-    pinsRef.current?.sync(drawn.scene.pins ?? NO_PINS, drawn.grow, off, focused?.id ?? null)
+    const reveal = stagedRef.current ? stagedReveal(drawn.grow) : wholeReveal(drawn.grow)
+    drawTomtomScene(map, PREFIX, drawn.scene, reveal, off)
+    labelsRef.current?.sync(drawn.scene.towers, reveal.base, off, focused?.id ?? null)
+    pinsRef.current?.sync(drawn.scene.pins ?? NO_PINS, reveal, off, focused?.id ?? null)
   }
 
   const growIn = (map: mapboxgl.Map) => {
@@ -159,8 +171,8 @@ export function TomtomMap({
     window.cancelAnimationFrame(tweenRef.current)
     const begin = performance.now()
     const grow = (now: number) => {
-      const t = reduce ? 1 : Math.min(1, (now - begin) / GROW_MS)
-      drawnRef.current = { scene: latestRef.current.scene, grow: easeOut(t) }
+      const t = reduce ? 1 : Math.min(1, (now - begin) / growMs())
+      drawnRef.current = { scene: latestRef.current.scene, grow: growCurve(t) }
       paint(map)
       if (t < 1) tweenRef.current = window.requestAnimationFrame(grow)
     }
@@ -325,8 +337,8 @@ export function TomtomMap({
       if (elapsed < SHRINK_MS && from.grow > 0 && swapped) {
         drawnRef.current = { ...from, grow: from.grow * (1 - easeOut(elapsed / SHRINK_MS)) }
       } else {
-        const t = Math.max(0, Math.min(1, (elapsed - growAt) / GROW_MS))
-        drawnRef.current = { scene, grow: swapped ? easeOut(t) : Math.max(from.grow, easeOut(t)) }
+        const t = Math.max(0, Math.min(1, (elapsed - growAt) / growMs()))
+        drawnRef.current = { scene, grow: swapped ? growCurve(t) : Math.max(from.grow, growCurve(t)) }
       }
       paint(map)
       if (drawnRef.current.scene !== scene || drawnRef.current.grow < 1) tweenRef.current = window.requestAnimationFrame(tween)

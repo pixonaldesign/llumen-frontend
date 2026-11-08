@@ -101,6 +101,44 @@ export type TomtomMapScene = {
 
 export const EMPTY_SCENE: TomtomMapScene = { towers: [], heat: [], heatRadiusM: 220, heatRamp: ['#5a2fc7', '#f6f2ff'] }
 
+/**
+ * How far each part of a scene has come in, 0 to 1: `base` the towers, heat and trade disks, `pins` the
+ * sites and stations, then the traffic `fences`, the `rivals` and the catchment `zones`.
+ */
+export type TomtomReveal = { base: number; pins: number; fences: number; rivals: number; zones: number }
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
+const easeOutCubic = (t: number) => 1 - (1 - t) ** 3
+/** Overshoots a touch and settles, so a disk swells open rather than just stopping. */
+const easeOutBack = (t: number) => 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2
+
+/** The whole scene growing in as one at `grow`, its parts a little apart. */
+export function wholeReveal(grow: number): TomtomReveal {
+  return {
+    base: grow,
+    pins: clamp01((grow - 0.15) / 0.85),
+    fences: clamp01((grow - 0.15) / 0.85),
+    rivals: clamp01((grow - 0.4) / 0.6),
+    zones: clamp01((grow - 0.1) * 1.3),
+  }
+}
+
+/**
+ * The scene told in turn over `t` (0 to 1, linear in time): the sites and stations pop in, the fences draw
+ * out along their streets, the rivals appear, then the catchments swell open.
+ */
+export function stagedReveal(t: number): TomtomReveal {
+  return {
+    base: easeOutCubic(clamp01(t / 0.25)),
+    pins: clamp01(t / 0.22),
+    fences: clamp01((t - 0.2) / 0.36),
+    rivals: clamp01((t - 0.52) / 0.2),
+    zones: easeOutBack(clamp01((t - 0.7) / 0.3)),
+  }
+}
+
+const revealOf = (reveal: TomtomReveal | number) => (typeof reveal === 'number' ? wholeReveal(reveal) : reveal)
+
 const NO_GROUPS: ReadonlySet<string> = new Set()
 
 /** Web-mercator meters per pixel at zoom 0 for 512px tiles, at Abu Dhabi's latitude. */
@@ -405,16 +443,19 @@ export function zoneAt(map: mapboxgl.Map, point: mapboxgl.PointLike, prefix: str
 }
 
 /**
- * Draws `scene` at `grow` (0 hidden, 1 full): the towers light up, the heat fades in, the disks open
- * and the traffic fences rise, running out along their streets. Hidden groups are left out.
+ * Draws `scene` as far as `reveal` has come (a number grows it all at once, 0 hidden, 1 full): the towers
+ * light up, the heat fades in, the disks open and the traffic fences rise, running out along their
+ * streets. Hidden groups are left out.
  */
 export function drawTomtomScene(
   map: mapboxgl.Map,
   prefix: string,
   scene: TomtomMapScene,
-  grow: number,
+  reveal: TomtomReveal | number,
   hidden: ReadonlySet<string> = NO_GROUPS,
 ) {
+  const parts = revealOf(reveal)
+  const grow = parts.base
   const states = stateOf(map)
   for (const [id, state] of states) {
     if (state.lit && !scene.towers.some((tower) => tower.id === id)) {
@@ -435,7 +476,7 @@ export function drawTomtomScene(
       geometry: { type: 'Polygon', coordinates: [[...tower.footprint!, tower.footprint![0]]] },
     })),
   })
-  drawSites(map, prefix, scene, grow, hidden)
+  drawSites(map, prefix, scene, parts, hidden)
   const source = map.getSource(heatId(prefix)) as mapboxgl.GeoJSONSource | undefined
   if (!source) return
   source.setData({
@@ -449,14 +490,14 @@ export function drawTomtomScene(
   map.setPaintProperty(heatId(prefix), 'heatmap-color', heatColor(scene.heatRamp))
 }
 
-function drawSites(map: mapboxgl.Map, prefix: string, scene: TomtomMapScene, grow: number, hidden: ReadonlySet<string>) {
-  const visible = <T extends { group: string }>(items: T[] | undefined) =>
-    grow <= 0 ? [] : (items ?? []).filter((item) => !hidden.has(item.group))
+function drawSites(map: mapboxgl.Map, prefix: string, scene: TomtomMapScene, reveal: TomtomReveal, hidden: ReadonlySet<string>) {
+  const visible = <T extends { group: string }>(items: T[] | undefined, shown: number) =>
+    shown <= 0 ? [] : (items ?? []).filter((item) => !hidden.has(item.group))
   /** Each stretch rises a beat after the one before it, so the fences run out along their streets. */
-  const rise = (t: number) => Math.max(0, Math.min(1, (grow - 0.15 - 0.3 * t) / 0.55))
+  const rise = (t: number) => clamp01((reveal.fences - 0.5 * t) / 0.5)
   ;(map.getSource(fenceId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
     type: 'FeatureCollection',
-    features: visible(scene.fences).flatMap((fence) =>
+    features: visible(scene.fences, reveal.fences).flatMap((fence) =>
       fenceSegments(fence).map((segment) => ({
         type: 'Feature' as const,
         properties: {
@@ -471,17 +512,17 @@ function drawSites(map: mapboxgl.Map, prefix: string, scene: TomtomMapScene, gro
   })
   ;(map.getSource(diskId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
     type: 'FeatureCollection',
-    features: visible(scene.disks).map((disk) => ({
+    features: visible(scene.disks, reveal.base).map((disk) => ({
       type: 'Feature',
-      properties: { color: disk.color, radius: disk.radiusM * Math.min(1, grow * 1.25) },
+      properties: { color: disk.color, radius: disk.radiusM * Math.min(1, reveal.base * 1.25) },
       geometry: { type: 'Point', coordinates: disk.at },
     })),
   })
-  /** Zones spread out from their centre a little behind the disks. */
-  const spread = Math.max(0, Math.min(1, (grow - 0.1) * 1.3))
+  /** Zones spread out from their centre. */
+  const spread = reveal.zones
   ;(map.getSource(zoneId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
     type: 'FeatureCollection',
-    features: (spread <= 0 ? [] : visible(scene.zones)).map((zone) => ({
+    features: visible(scene.zones, spread).map((zone) => ({
       type: 'Feature',
       properties: { zone: zone.id, color: zone.color },
       geometry: {
@@ -606,7 +647,8 @@ export type PinHover = (pin: TomtomPin | null, point?: { x: number; y: number })
 
 /**
  * The scene's pins, as dots on their places: candidate sites in teal under a pill with their name,
- * current stations in blue and rivals in orange, each popping in one after another as the scene grows. Sites with a details
+ * current stations in blue and rivals in orange, each popping in one after another as the scene grows, the rivals after
+ * the rest. Sites with a details
  * panel open it on click; every pin names itself through `onHover`.
  */
 export class TomtomPins {
@@ -646,7 +688,7 @@ export class TomtomPins {
     el.className = 'tomtom-pin'
     el.dataset.kind = pin.kind
     el.style.setProperty('--pin', pin.color)
-    el.style.setProperty('--z', String(10 + Math.round((1 - order) * 40)))
+    el.style.setProperty('--z', String(pin.kind === 'rival' ? 5 : 10 + Math.round((1 - order) * 40)))
     if (pick) {
       el.setAttribute('aria-label', `${pin.title}: open details`)
       el.addEventListener('click', () => this.onPick?.(pin.id))
@@ -673,21 +715,25 @@ export class TomtomPins {
     return { el, pin, anchor: [x, y, z], order }
   }
 
-  sync(pins: TomtomPin[], grow: number, hidden: ReadonlySet<string> = NO_GROUPS, active: string | null = null) {
+  sync(pins: TomtomPin[], reveal: TomtomReveal | number, hidden: ReadonlySet<string> = NO_GROUPS, active: string | null = null) {
     if (pins !== this.pins) {
       this.clear()
       this.pins = pins
-      /** Sites first, best first, then stations, then rivals. */
-      const rank = (pin: TomtomPin) => (pin.kind === 'site' ? (pin.rank ?? 50) : pin.kind === 'station' ? 100 : 200)
-      const ordered = [...pins].sort((a, b) => rank(a) - rank(b))
-      this.entries = ordered.map((pin, index) => this.build(pin, index / Math.max(1, ordered.length - 1)))
+      /** Sites first, best first, then stations; the rivals come in after them, in their own turn. */
+      const rank = (pin: TomtomPin) => (pin.kind === 'site' ? (pin.rank ?? 50) : 100)
+      const ours = pins.filter((pin) => pin.kind !== 'rival').sort((a, b) => rank(a) - rank(b))
+      const rivals = pins.filter((pin) => pin.kind === 'rival')
+      const place = (group: TomtomPin[]) => group.map((pin, index) => this.build(pin, index / Math.max(1, group.length - 1)))
+      this.entries = [...place(ours), ...place(rivals)]
     }
+    const parts = revealOf(reveal)
     for (const entry of this.entries) {
       const off = hidden.has(entry.pin.group)
-      const t = Math.max(0, Math.min(1, (grow - 0.15 - entry.order * 0.45) / 0.4))
+      const shown = entry.pin.kind === 'rival' ? parts.rivals : parts.pins
+      const t = clamp01((shown - 0.53 * entry.order) / 0.47)
       entry.el.style.opacity = off ? '0' : String(t)
       entry.el.style.setProperty('--pop', String(off ? 0 : 0.6 + 0.4 * t))
-      entry.el.inert = off || grow < 0.5
+      entry.el.inert = off || shown < 0.5
       entry.el.dataset.active = entry.pin.id === active ? 'true' : 'false'
     }
     this.map.triggerRepaint()
