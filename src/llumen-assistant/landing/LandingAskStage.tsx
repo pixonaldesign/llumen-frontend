@@ -30,6 +30,8 @@ import { findingStage, isFindingPlace, type FindingStageId } from './landingFind
 import { TomtomMap, type TomtomMapHandle } from '../tomtom/TomtomMap'
 import tomtomStyles from '../tomtom/TomtomStory.module.css'
 import { TomtomLegendGlyph } from '../tomtom/TomtomLegendGlyph'
+import type { TomtomParts } from '../tomtom/tomtomMapLayers'
+import { GROUP_PART } from '../tomtom/tomtomScenario'
 import type { MapDataLayer } from '../tomtom/tomtomTypes'
 import storyStyles from '../story/StoryView.module.css'
 
@@ -299,6 +301,8 @@ export type LandingAskMapProps = {
   onCapture: (stateId: string, capture: StoryMapCapture) => void
   /** A small still-framed thumbnail of the same map, as in a first response container. */
   preview?: boolean
+  /** The parts of a TomTom answer's scene it has brought in so far; all of it when unset. */
+  parts?: TomtomParts
 }
 
 /** Top room for the annotated columns and their pins. */
@@ -316,6 +320,7 @@ const steppedRamp = (ramp: readonly string[]) =>
 
 /** The story's Map Data card, read-only: each layer's colour scale, or its categories with their marks. */
 function FindingMapData({ layers }: { layers: MapDataLayer[] }) {
+  if (layers.length === 0) return null
   return (
     <div className={`${storyStyles.mapData} ${styles.mapData}`}>
       <div className={storyStyles.mapDataHeader}>
@@ -366,12 +371,17 @@ function FindingPlaceMap({
   capture,
   onCapture,
   preview,
+  parts,
 }: Omit<LandingAskMapProps, 'snapshot'> & { place: FindingStageId }) {
   const handleRef = useRef<TomtomMapHandle>(null)
   const stage = findingStage(place)
   const camera = useMemo(
     () => (preview ? { ...stage.camera, zoom: stage.camera.zoom + PREVIEW_ZOOM_OFFSET } : stage.camera),
     [preview, stage],
+  )
+  const layers = useMemo(
+    () => (parts ? stage.layers.filter((layer) => parts[GROUP_PART[layer.group] ?? 'pins']) : stage.layers),
+    [parts, stage],
   )
   useEffect(() => {
     if (!capture) return
@@ -394,8 +404,9 @@ function FindingPlaceMap({
         controlsClassName={styles.mapControls}
         handleRef={handleRef}
         staged
+        parts={preview ? undefined : parts}
       />
-      {preview ? null : <FindingMapData layers={stage.layers} />}
+      {preview ? null : <FindingMapData layers={layers} />}
     </>
   )
 }

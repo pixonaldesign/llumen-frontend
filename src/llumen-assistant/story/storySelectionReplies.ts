@@ -62,10 +62,14 @@ function visual(component: CreatedComponent): AgentResponseBlock {
   }
 }
 
-/** Adds a map-state thumbnail right after the reply's opening paragraph; clicking it restores this view. */
+/**
+ * Adds a map-state thumbnail right after the reply's opening paragraph; clicking it restores this view.
+ * `inline: false` keeps the state for the map's asset without a thumbnail in the reply.
+ */
 export function withMapState(
   reply: AssistantReplyPayload,
   state: { stateId: string; snapshot: StoryAiSnapshot; title: string; tag: string; meta: string },
+  { inline = true }: { inline?: boolean } = {},
 ): AssistantReplyPayload {
   const component: CreatedComponent = {
     id: state.stateId,
@@ -90,7 +94,7 @@ export function withMapState(
   return {
     ...reply,
     createdComponents: [component, ...(reply.createdComponents ?? [])],
-    blocks: [...blocks.slice(0, at), block, ...blocks.slice(at)],
+    blocks: inline ? [...blocks.slice(0, at), block, ...blocks.slice(at)] : blocks,
   }
 }
 

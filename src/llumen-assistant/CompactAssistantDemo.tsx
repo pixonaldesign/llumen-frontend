@@ -84,6 +84,7 @@ import {
   TT_DIVE_PROMPT,
   TT_EVENING_ID,
   TT_EVENING_PROMPT,
+  TT_ASK_CONTINUE_TIMELINE,
   findingExperience,
 } from './landing/landingFindingExperiences'
 import { CommandPalette } from './CommandPalette'
@@ -116,6 +117,7 @@ import {
 import { StoryView } from './story/StoryView'
 import { TomtomStoryView, type TomtomAskContext } from './tomtom/TomtomStoryView'
 import { TOMTOM_STORIES, isTomtomStory } from './tomtom/tomtomScenario'
+import { ALL_PARTS, NO_PARTS, TOMTOM_PARTS, type TomtomPart, type TomtomParts } from './tomtom/tomtomMapLayers'
 import type { StoryMapView } from './story/StoryMap'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
 import { StoryMapStatesContext, type StoryMapStates } from './story/storyMapStates'
@@ -417,6 +419,8 @@ const REGION_ANNOTATION_CAPTURE_DELAY_MS = 4900
 const FINDING_MAP_CAPTURE_DELAY_MS = 12000
 /** The landing map slides in first; its annotation lands once it has settled. */
 const LANDING_MAP_SETTLE_MS = 760
+/** Once an answer told step by step has numbered its sites, they settle before the map state is captured. */
+const LANDING_PLAY_CAPTURE_MS = 1500
 
 type LandingAskMapState = {
   open: boolean
@@ -460,7 +464,11 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
       stateId,
       reply:
         experience.map && snapshot
-          ? withMapState(experience.reply, { stateId, snapshot, ...experience.map })
+          ? withMapState(
+              experience.reply,
+              { stateId, snapshot, ...experience.map },
+              { inline: experience.reply.pace !== 'presentation' },
+            )
           : experience.reply,
       map: snapshot ? { snapshot, captureDelay: FINDING_MAP_CAPTURE_DELAY_MS } : null,
     }
@@ -654,6 +662,10 @@ export function CompactAssistantDemo() {
     captureDelay: number
   } | null>(null)
   const landingAskMapTimer = useRef(0)
+  /** What of the stage map's scene the playing answer has brought in; all of it otherwise. */
+  const [landingAskParts, setLandingAskParts] = useState<TomtomParts>(ALL_PARTS)
+  /** The answer bringing the map in step by step, and the map state it captures once it's all in. */
+  const landingAskPlayRef = useRef<{ messageId: string; stateId: string } | null>(null)
   const landingAskStageRef = useRef<LandingAskStageHandle>(null)
   /** Story chart cards attached to the hub chatbox via "Add to chat". */
   const [storyChatComponents, setStoryChatComponents] = useState<ChatComponent[]>([])
@@ -2488,6 +2500,12 @@ export function CompactAssistantDemo() {
     startAssistantReply(reply)
   }, [clearStream, closeSubcontextImmediately, open, openLandingAsk, settleReplies, startAssistantReply, storyWorkflow])
 
+  /** No answer is bringing the stage map in step by step any more: all of its scene shows. */
+  const showAllLandingParts = useCallback(() => {
+    landingAskPlayRef.current = null
+    setLandingAskParts(ALL_PARTS)
+  }, [])
+
   /** Runs a landing ask: the reply streams in and the annotated map slides in alongside it. */
   const runLandingAsk = useCallback(
     (prompt: string, subject: LandingAskSubject, files?: ChatFile[]) => {
@@ -2495,6 +2513,7 @@ export function CompactAssistantDemo() {
       const plan = planLandingAsk(subject)
       const { reply, stateId, map } = plan
       resetConversation()
+      showAllLandingParts()
       openLandingAsk()
       setActiveConversationId(uid())
       setActiveMapStateId(map ? stateId : null)
@@ -2503,7 +2522,7 @@ export function CompactAssistantDemo() {
       const messageId = startAssistantReply(reply)
       if (map) landingAskPendingRef.current = { messageId, stateId, ...map }
     },
-    [openLandingAsk, resetConversation, startAssistantReply],
+    [openLandingAsk, resetConversation, showAllLandingParts, startAssistantReply],
   )
 
   /** The map slides in with the reply's map-state card (or at the end of the reply); the annotation follows. */
@@ -2525,6 +2544,24 @@ export function CompactAssistantDemo() {
     }, LANDING_MAP_SETTLE_MS)
   }, [])
 
+  /**
+   * A block of the reply cues the stage map as it appears: its first cue brings the map in if it isn't
+   * yet, and a part of the scene turns that part on; once the sites are ranked, the map state is captured.
+   */
+  const onLandingReplyCue = useCallback(
+    (messageId: string, cue: string) => {
+      revealLandingAskMap(messageId, null)
+      if (!TOMTOM_PARTS.includes(cue as TomtomPart)) return
+      const part = cue as TomtomPart
+      setLandingAskParts((current) => (current[part] ? current : { ...current, [part]: true }))
+      const play = landingAskPlayRef.current
+      if (part === 'ranks' && play?.messageId === messageId) {
+        setLandingAskMap((current) => ({ ...current, capture: { stateId: play.stateId, delay: LANDING_PLAY_CAPTURE_MS } }))
+      }
+    },
+    [revealLandingAskMap],
+  )
+
   /** Back to the landing; the conversation stays in past sessions. */
   /** A follow-up in the stage that moves its map: the reply joins the conversation and the map follows its card. */
   const continueLandingAsk = useCallback(
@@ -2532,12 +2569,13 @@ export function CompactAssistantDemo() {
       if (streaming) return
       const { reply, stateId, map } = planLandingAsk(subject)
       setDraft('')
+      showAllLandingParts()
       setActiveMapStateId(map ? stateId : null)
       setMessages((current) => [...current, { id: uid(), role: 'user', text: prompt }])
       const messageId = startAssistantReply(reply)
       if (map) landingAskPendingRef.current = { messageId, stateId, ...map }
     },
-    [startAssistantReply, streaming],
+    [showAllLandingParts, startAssistantReply, streaming],
   )
 
   /**
@@ -2559,19 +2597,21 @@ export function CompactAssistantDemo() {
   const closeLandingAsk = useCallback(() => {
     window.clearTimeout(landingAskMapTimer.current)
     landingAskPendingRef.current = null
+    showAllLandingParts()
     setLandingAsk(null)
     setLandingAskShrunk(false)
     setLandingAskLeaving(false)
     setLandingAskMap(LANDING_MAP_CLOSED)
     setSessionsOpen(false)
     resetConversation()
-  }, [resetConversation])
+  }, [resetConversation, showAllLandingParts])
 
   const clearLandingAskMap = useCallback(() => {
     window.clearTimeout(landingAskMapTimer.current)
     landingAskPendingRef.current = null
+    showAllLandingParts()
     setLandingAskMap(LANDING_MAP_CLOSED)
-  }, [])
+  }, [showAllLandingParts])
 
   /** The asset header's collapse: the map slides away and the chat takes the width; its map card brings it back. */
   const collapseLandingAskMap = useCallback(() => {
@@ -2627,13 +2667,15 @@ export function CompactAssistantDemo() {
 
   /**
    * The first response container opens full screen with its conversation already answered (no replay), and a
-   * map answer opens its annotated map beside the chat. A `followUp` sent from the AI bar is answered after it.
+   * map answer opens its annotated map beside the chat. An answer told step by step plays out instead, its map
+   * empty until the answer brings each part in. A `followUp` sent from the AI bar is answered after it.
    */
   const openFirstResponse = useCallback(
     (followUp?: string) => {
       if (!firstResponse) return
       const { response, landing, files } = firstResponse
       const reply = landing?.reply ?? response.reply
+      const play = !followUp && reply.pace === 'presentation'
       if (open) {
         settleReplies()
         setOpen(false)
@@ -2644,11 +2686,18 @@ export function CompactAssistantDemo() {
       setActiveConversationId(uid())
       setActiveMapStateId(landing?.map ? landing.stateId : null)
       setChatTitle(truncateTitle(landing && !files ? titleFromReply(reply) : response.chatTitle))
+      const prompt = { id: uid(), role: 'user' as const, text: landing?.prompt ?? response.prompt, files }
+      if (play) {
+        setMessages([prompt])
+        const messageId = startAssistantReply({ ...reply, timeline: TT_ASK_CONTINUE_TIMELINE })
+        landingAskPlayRef.current = landing ? { messageId, stateId: landing.stateId } : null
+        setLandingAskParts(NO_PARTS)
+        if (landing?.map) setLandingAskMap({ open: true, snapshot: landing.map.snapshot, capture: null })
+        return
+      }
+      showAllLandingParts()
       const replyId = uid()
-      setMessages([
-        { id: uid(), role: 'user', text: landing?.prompt ?? response.prompt, files },
-        { id: replyId, role: 'assistant', text: '', reply },
-      ])
+      setMessages([prompt, { id: replyId, role: 'assistant', text: '', reply }])
       setSettledReplyIds((current) => new Set([...current, replyId]))
       if (landing?.map) {
         setLandingAskMap({
@@ -2670,7 +2719,7 @@ export function CompactAssistantDemo() {
         }
       }
     },
-    [firstResponse, open, openLandingAsk, resetConversation, settleReplies, startAssistantReply],
+    [firstResponse, open, openLandingAsk, resetConversation, settleReplies, showAllLandingParts, startAssistantReply],
   )
 
   const submitLandingAsk = useCallback(
@@ -3038,11 +3087,13 @@ export function CompactAssistantDemo() {
                       onReplyComplete()
                       applyStoryStages(assistant.id, Number.POSITIVE_INFINITY)
                       revealLandingAskMap(assistant.id, null)
+                      if (landingAskPlayRef.current?.messageId === assistant.id) showAllLandingParts()
                     }}
                     onVisualReveal={(componentId) => {
                       onReplyVisual(assistant.id, componentId)
                       revealLandingAskMap(assistant.id, componentId)
                     }}
+                    onCue={(cue) => onLandingReplyCue(assistant.id, cue)}
                     onWorkflowRunFailed={reportWorkflowRunFailed}
                     onOpenWorkflow={(proposal) => setSubcontext({ view: 'workflow', proposal })}
                     activeWorkflowId={subcontext.view === 'workflow' ? subcontext.proposal.id : null}
@@ -3094,7 +3145,9 @@ export function CompactAssistantDemo() {
             />
           ) : null
         }
-        suggestedPrompt={streaming ? undefined : (railComponentPrompt ?? storyAnnotationPrompt ?? ttFollowUp?.prompt)}
+        suggestedPrompt={
+          streaming ? undefined : (railComponentPrompt ?? storyAnnotationPrompt ?? (replyRendering ? undefined : ttFollowUp?.prompt))
+        }
         onSendSuggested={!railComponentPrompt && !storyAnnotationPrompt && ttFollowUp ? sendTtFollowUp : sendRailSuggested}
         onPickLocation={storyPrompts ? openLocationPicker : undefined}
       />
@@ -3506,6 +3559,7 @@ export function CompactAssistantDemo() {
                   snapshot={landingAskMap.snapshot}
                   capture={landingAskMap.capture}
                   onCapture={storeMapCapture}
+                  parts={landingAskParts}
                 />
               </LandingAskAsset>
             }

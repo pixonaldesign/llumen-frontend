@@ -164,15 +164,49 @@ export type ThinkingStep = {
 
 export type VisualType = 'map' | 'chart' | 'kpi'
 
+/**
+ * Lets a block drive what's beside the reply: `cue` is announced as the block appears (e.g. a map
+ * layer to bring in), and `holdMs` keeps the next block back while that plays out.
+ */
+type BlockCue = { cue?: string; holdMs?: number }
+
+export type RankingRow = { rank: number; name: string; detail?: string; score: number; change?: number }
+
+/** A small picture under a highlight: hourly bars with the peak lit, a site's distance to its rival, or its turn-ins. */
+export type HighlightVisual =
+  | { kind: 'hours'; values: number[]; peak: number[]; color: string; peakColor: string; labels: [string, string] }
+  | { kind: 'distance'; color: string; rivalColor: string; label: string }
+  | { kind: 'turn-in'; color: string }
+
+export type Highlight = { title: string; detail: string; visual: HighlightVisual }
+
 export type AgentResponseBlock =
   | {
       type: 'heading'
       content: string
     }
-  | {
+  | ({
       type: 'text'
       content: string
-    }
+    } & BlockCue)
+  | ({
+      /** One step of an answer told in turn: a bold line typed out, and a quieter one under it. */
+      type: 'step'
+      title: string
+      detail?: string
+    } & BlockCue)
+  | ({
+      /** A ranked list, best first: the first `visible` rows, the rest behind View all. */
+      type: 'ranking'
+      title: string
+      rows: RankingRow[]
+      visible: number
+      color: string
+    } & BlockCue)
+  | ({
+      type: 'highlights'
+      items: Highlight[]
+    } & BlockCue)
   | {
       type: 'visual'
       componentId: string
@@ -278,6 +312,8 @@ export type AssistantReplyPayload = {
   createdComponents?: CreatedComponent[]
   /** Report payloads referenced by report blocks. */
   reports?: ReportPayload[]
+  /** `presentation` plays the reply slowly, for presenting it live. */
+  pace?: 'presentation'
 }
 
 /** Back-compat with older demo/API payloads */

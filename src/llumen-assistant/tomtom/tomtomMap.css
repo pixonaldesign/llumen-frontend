@@ -187,25 +187,30 @@
   border: 1.5px solid rgba(14, 16, 22, 0.85);
 }
 
+/* A site's name in a dark label, held up on a thin grey stem from its dot; numbered once the sites are ranked. */
 .tomtom-pin-card {
   position: absolute;
-  bottom: 19px;
+  bottom: 33px;
   left: 0;
-  padding: 3px 10px;
-  border: 1.5px solid var(--pin);
-  border-radius: 999px;
-  background: rgba(20, 22, 28, 0.72);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(28, 30, 36, 0.92);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   color: #fff;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  line-height: 16px;
+  line-height: 18px;
   white-space: nowrap;
   transform: translateX(-50%) scale(var(--pop, 1));
   transform-origin: 50% 100%;
   transition:
     transform 0.2s ease,
-    background 0.16s ease;
+    background 0.16s ease,
+    opacity 0.4s ease;
 }
 
 button.tomtom-pin > * {
@@ -217,16 +222,50 @@ button.tomtom-pin > * {
   position: absolute;
   top: 100%;
   left: 50%;
-  width: 1.5px;
-  height: 12px;
-  margin-left: -0.75px;
-  background: var(--pin);
+  width: 1px;
+  height: 27px;
+  margin-left: -0.5px;
+  background: rgba(214, 218, 226, 0.55);
 }
 
 .tomtom-pin:hover .tomtom-pin-card,
 .tomtom-pin[data-active='true'] .tomtom-pin-card {
-  background: rgba(34, 36, 42, 0.86);
+  background: rgba(40, 42, 50, 0.96);
   transform: translateX(-50%) scale(calc(var(--pop, 1) * 1.04));
+}
+
+.tomtom-pin-rank {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: -4px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 5px;
+  background: var(--pin);
+  color: #0c1a17;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tomtom-pin[data-ranked='top'] .tomtom-pin-rank {
+  display: inline-flex;
+  animation: tomtomRankIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Once ranked, the sites outside the top few step back. */
+.tomtom-pin[data-ranked='rest'] .tomtom-pin-card {
+  opacity: 0.45;
+}
+
+@keyframes tomtomRankIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
 }
 
 .tomtom-pin:hover .tomtom-pin-dot,
@@ -248,5 +287,9 @@ button.tomtom-pin:focus-visible > :last-child {
   .tomtom-pin-dot,
   .tomtom-pin-card {
     transition: none;
+  }
+
+  .tomtom-pin-rank {
+    animation: none;
   }
 }

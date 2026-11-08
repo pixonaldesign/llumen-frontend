@@ -5,7 +5,15 @@
  * their traffic. Sites are pinned on the map; the shortlisted ones open a details panel when clicked.
  */
 import { along, distanceKm, hash, resample, type LngLat } from './tomtomGeo'
-import { EMPTY_SCENE, type TomtomDisk, type TomtomFence, type TomtomMapScene, type TomtomPin, type TomtomZone } from './tomtomMapLayers'
+import {
+  EMPTY_SCENE,
+  type TomtomDisk,
+  type TomtomFence,
+  type TomtomMapScene,
+  type TomtomPart,
+  type TomtomPin,
+  type TomtomZone,
+} from './tomtomMapLayers'
 import {
   PALETTE,
   type CountRow,
@@ -231,6 +239,16 @@ const RIVALS_GROUP = 'rivals'
 const TRAFFIC_GROUP = 'traffic'
 const TRADE_GROUP = 'trade'
 const CATCHMENT_GROUP = 'catchment'
+
+/** The part of a scene each group comes in with, when an answer brings the scene in part by part. */
+export const GROUP_PART: Record<string, TomtomPart> = {
+  [SITES_GROUP]: 'pins',
+  [STATIONS_GROUP]: 'pins',
+  [TRAFFIC_GROUP]: 'fences',
+  [RIVALS_GROUP]: 'rivals',
+  [TRADE_GROUP]: 'rivals',
+  [CATCHMENT_GROUP]: 'zones',
+}
 
 const thousands = (value: number) => `${(value / 1000).toFixed(1)}k`
 

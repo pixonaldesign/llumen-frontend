@@ -21,12 +21,19 @@ import {
   tomtomTipHtml,
   forgetTowers,
   mountTomtomLayers,
+  ALL_PARTS,
   resolveTowers,
+  PART_IN_MS,
+  PART_OUT_MS,
+  partsReveal,
   STAGED_MS,
   stagedReveal,
+  TOMTOM_PARTS,
   towerAt,
   wholeReveal,
   type TomtomMapScene,
+  type TomtomPart,
+  type TomtomParts,
   type TomtomPin,
   type TomtomTip,
 } from './tomtomMapLayers'
@@ -67,6 +74,9 @@ function cameraOptions(camera: TomtomCamera, flat = false) {
 
 const NO_PINS: TomtomPin[] = []
 
+const progressOf = (parts: TomtomParts) =>
+  Object.fromEntries(TOMTOM_PARTS.map((part) => [part, parts[part] ? 1 : 0])) as Record<TomtomPart, number>
+
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export function TomtomMap({
@@ -82,6 +92,7 @@ export function TomtomMap({
   controlsClassName,
   focus = null,
   staged = false,
+  parts,
   onPick,
   pickable,
   onReady,
@@ -100,8 +111,13 @@ export function TomtomMap({
   styleUrl?: string
   controlsClassName?: string
   focus?: TomtomMapFocus | null
-  /** Brings a scene in part by part, as an answer tells it, rather than all at once. Read when the map mounts. */
+  /** Brings a scene in part by part on a fixed timeline, rather than all at once. Read when the map mounts. */
   staged?: boolean
+  /**
+   * Which parts of the scene are in, for an answer that brings them in as it goes; each part eases in or
+   * out as it turns on or off, held back by the scene's own grow. Every part but the rank numbers when unset.
+   */
+  parts?: TomtomParts
   /** Makes the towers, their labels and the `pickable` pins clickable. */
   onPick?: (id: string) => void
   /** Which pins open something when clicked; none when unset. */
@@ -119,6 +135,9 @@ export function TomtomMap({
   const tweenRef = useRef(0)
   const styleRef = useRef(styleUrl)
   const stagedRef = useRef(staged)
+  const partsRef = useRef(parts)
+  const progressRef = useRef(progressOf(parts ?? ALL_PARTS))
+  const partsTweenRef = useRef(0)
   const onReadyRef = useRef(onReady)
   const onClickRef = useRef(onPick)
   const pickableRef = useRef(pickable)
@@ -160,7 +179,8 @@ export function TomtomMap({
   const paint = (map: mapboxgl.Map) => {
     const drawn = drawnRef.current
     const { hidden: off, focus: focused } = latestRef.current
-    const reveal = stagedRef.current ? stagedReveal(drawn.grow) : wholeReveal(drawn.grow)
+    const grown = stagedRef.current ? stagedReveal(drawn.grow) : wholeReveal(drawn.grow)
+    const reveal = partsRef.current ? partsReveal(progressRef.current, grown) : grown
     drawTomtomScene(map, PREFIX, drawn.scene, reveal, off)
     labelsRef.current?.sync(drawn.scene.towers, reveal.base, off, focused?.id ?? null)
     pinsRef.current?.sync(drawn.scene.pins ?? NO_PINS, reveal, off, focused?.id ?? null)
@@ -177,6 +197,30 @@ export function TomtomMap({
       if (t < 1) tweenRef.current = window.requestAnimationFrame(grow)
     }
     tweenRef.current = window.requestAnimationFrame(grow)
+  }
+
+  /** Eases each part toward `partsRef`: in over its own time, out quicker. */
+  const tweenParts = (map: mapboxgl.Map) => {
+    const target = partsRef.current
+    window.cancelAnimationFrame(partsTweenRef.current)
+    if (!target) return
+    let last = performance.now()
+    const step = (now: number) => {
+      const elapsed = reducedMotion() ? Number.POSITIVE_INFINITY : now - last
+      last = now
+      const progress = { ...progressRef.current }
+      let moving = false
+      for (const part of TOMTOM_PARTS) {
+        const goal = target[part] ? 1 : 0
+        const by = elapsed / (goal ? PART_IN_MS[part] : PART_OUT_MS)
+        progress[part] = goal ? Math.min(1, progress[part] + by) : Math.max(0, progress[part] - by)
+        if (progress[part] !== goal) moving = true
+      }
+      progressRef.current = progress
+      paint(map)
+      if (moving) partsTweenRef.current = window.requestAnimationFrame(step)
+    }
+    partsTweenRef.current = window.requestAnimationFrame(step)
   }
 
   useEffect(() => {
@@ -247,6 +291,7 @@ export function TomtomMap({
       }
       map.on('render', announce)
       growIn(map)
+      tweenParts(map)
     })
     map.on('idle', () => resolveTowers(map, drawnRef.current.scene.towers))
 
@@ -298,6 +343,7 @@ export function TomtomMap({
 
     return () => {
       window.cancelAnimationFrame(tweenRef.current)
+      window.cancelAnimationFrame(partsTweenRef.current)
       observer.disconnect()
       tip.remove()
       labels.clear()
@@ -345,6 +391,16 @@ export function TomtomMap({
     }
     tweenRef.current = window.requestAnimationFrame(tween)
   }, [camera, scene, hidden, padding])
+
+  /* The answer has brought a part in, or taken one out. */
+  useEffect(() => {
+    partsRef.current = parts
+    if (!parts) return
+    const map = mapRef.current
+    if (map && readyRef.current) tweenParts(map)
+    // tweenParts reads everything else from refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parts])
 
   /* Frame the open tower beside its panel, or go back to the page's camera when it closes. */
   useEffect(() => {

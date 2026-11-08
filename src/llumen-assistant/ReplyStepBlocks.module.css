@@ -1,0 +1,361 @@
+/* Answer blocks told in turn. Motion runs only under [data-play]; settled blocks render as they end up. */
+
+.step {
+  margin: 0 0 22px;
+}
+
+.stepTitle {
+  margin: 0;
+  color: rgba(241, 245, 249, 0.98);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: -0.01em;
+}
+
+.stepDetail {
+  margin: 4px 0 0;
+  color: rgba(203, 213, 225, 0.68);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+[data-play] .char {
+  opacity: 0;
+  animation: charIn 1ms linear var(--d) forwards;
+}
+
+@keyframes charIn {
+  to {
+    opacity: 1;
+  }
+}
+
+[data-play] .stepDetail,
+[data-play] .rankingTitle,
+[data-play] .rankingRow,
+[data-play] .rankingAll {
+  animation: riseIn 0.5s var(--lc-ease, ease-out) var(--d, 0ms) both;
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* —— Ranking —— */
+
+.ranking {
+  margin: 0 0 24px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.rankingTitle {
+  margin: 0 0 14px;
+  color: rgba(241, 245, 249, 0.95);
+  font-size: 15px;
+  line-height: 21px;
+}
+
+.rankingList {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rankingRow {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  grid-template-areas:
+    'badge name score'
+    '. bar bar';
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 7px;
+}
+
+.rankingBadge {
+  grid-area: badge;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(241, 245, 249, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rankingName {
+  grid-area: name;
+  min-width: 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.rankingDetail {
+  display: block;
+  overflow: hidden;
+  color: rgba(203, 213, 225, 0.6);
+  font-size: 12px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rankingScore {
+  grid-area: score;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #fff;
+}
+
+.rankingScore b {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.rankingScoreLabel {
+  color: rgba(203, 213, 225, 0.55);
+  font-size: 11px;
+}
+
+.rankingChange {
+  color: rgba(248, 113, 113, 0.9);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.rankingChange[data-up] {
+  color: var(--rank);
+}
+
+.rankingBar {
+  grid-area: bar;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.rankingBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--rank);
+  transform-origin: left;
+}
+
+[data-play] .rankingBar span {
+  animation: barGrow 0.9s var(--lc-ease, ease-out) calc(var(--d) + 150ms) both;
+}
+
+@keyframes barGrow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.rankingAll {
+  display: block;
+  margin: 18px auto 0;
+  padding: 6px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.rankingAll:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* —— Highlights —— */
+
+.highlights {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.highlight {
+  padding: 14px 16px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+[data-play] .highlight {
+  animation: riseIn 0.6s var(--lc-ease, ease-out) var(--item) both;
+}
+
+.highlightTitle {
+  margin: 0;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.highlightDetail {
+  margin: 3px 0 14px;
+  color: rgba(203, 213, 225, 0.68);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.hoursBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 48px;
+}
+
+.hoursBars span {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  transform-origin: bottom;
+}
+
+[data-play] .hoursBars span {
+  animation: barRise 0.5s var(--lc-ease, ease-out) calc(var(--item) + 300ms + var(--d)) both;
+}
+
+@keyframes barRise {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.hoursLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: rgba(203, 213, 225, 0.5);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+}
+
+.distance,
+.turnIn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 40px;
+}
+
+.pin {
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+.distanceLine {
+  position: relative;
+  width: 120px;
+  border-top: 2px dashed rgba(255, 255, 255, 0.45);
+  transform-origin: left;
+}
+
+.distanceLine span {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  color: rgba(241, 245, 249, 0.85);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.rivalDot {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(14, 16, 22, 0.85);
+  border-radius: 999px;
+}
+
+[data-play] .distanceLine {
+  animation: lineDraw 0.9s var(--lc-ease, ease-out) calc(var(--item) + 400ms) both;
+}
+
+[data-play] .rivalDot {
+  animation: dotPop 0.4s var(--lc-ease, ease-out) calc(var(--item) + 1200ms) both;
+}
+
+@keyframes lineDraw {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes dotPop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+.chevrons {
+  color: rgba(241, 245, 249, 0.75);
+  font-size: 20px;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+[data-play] .chevrons[data-side='left'] {
+  animation: fromLeft 0.8s var(--lc-ease, ease-out) calc(var(--item) + 400ms) both;
+}
+
+[data-play] .chevrons[data-side='right'] {
+  animation: fromRight 0.8s var(--lc-ease, ease-out) calc(var(--item) + 400ms) both;
+}
+
+@keyframes fromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+
+@keyframes fromRight {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-play] * {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}

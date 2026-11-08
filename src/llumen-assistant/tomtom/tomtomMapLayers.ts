@@ -67,8 +67,8 @@ export type TomtomDisk = { id: string; at: LngLat; radiusM: number; color: strin
 export type TomtomZone = { id: string; at: LngLat; ring: LngLat[]; color: string; tip: TomtomTip; group: string }
 
 /**
- * A place on the map, a dot in its colour: a candidate `site`, named in a pill outlined in that colour
- * and stacked by `rank`, or a current `station` or a `rival`, named only in its hover `tip`.
+ * A place on the map, a dot in its colour: a candidate `site`, named in a label on a stem above it,
+ * stacked by `rank` and numbered once ranked, or a current `station` or a `rival`, named only in its hover `tip`.
  */
 export type TomtomPin = {
   id: string
@@ -103,9 +103,25 @@ export const EMPTY_SCENE: TomtomMapScene = { towers: [], heat: [], heatRadiusM: 
 
 /**
  * How far each part of a scene has come in, 0 to 1: `base` the towers, heat and trade disks, `pins` the
- * sites and stations, then the traffic `fences`, the `rivals` and the catchment `zones`.
+ * sites and stations, then the traffic `fences`, the `rivals`, the catchment `zones`, and the top sites'
+ * rank numbers, `ranks`.
  */
-export type TomtomReveal = { base: number; pins: number; fences: number; rivals: number; zones: number }
+export type TomtomReveal = { base: number; pins: number; fences: number; rivals: number; zones: number; ranks: number }
+
+/** The parts of a scene an answer has brought in so far, when it tells the scene part by part. */
+export type TomtomParts = Record<Exclude<keyof TomtomReveal, 'base'>, boolean>
+export type TomtomPart = keyof TomtomParts
+
+export const ALL_PARTS: TomtomParts = { pins: true, fences: true, rivals: true, zones: true, ranks: true }
+export const NO_PARTS: TomtomParts = { pins: false, fences: false, rivals: false, zones: false, ranks: false }
+export const TOMTOM_PARTS = Object.keys(ALL_PARTS) as TomtomPart[]
+
+/** How long each part takes to come in, and any part to go, in ms. */
+export const PART_IN_MS: Record<TomtomPart, number> = { pins: 1600, fences: 2800, rivals: 1600, zones: 2200, ranks: 600 }
+export const PART_OUT_MS = 400
+
+/** Sites ranked this high carry their rank on the map once `ranks` is in. */
+const RANKED = 5
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value))
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3
@@ -120,6 +136,19 @@ export function wholeReveal(grow: number): TomtomReveal {
     fences: clamp01((grow - 0.15) / 0.85),
     rivals: clamp01((grow - 0.4) / 0.6),
     zones: clamp01((grow - 0.1) * 1.3),
+    ranks: 0,
+  }
+}
+
+/** `grown` holding back each part to how far an answer has brought it in (`progress`, 0 to 1). */
+export function partsReveal(progress: Record<TomtomPart, number>, grown: TomtomReveal): TomtomReveal {
+  return {
+    base: grown.base,
+    pins: grown.pins * progress.pins,
+    fences: grown.fences * progress.fences,
+    rivals: grown.rivals * progress.rivals,
+    zones: grown.zones * easeOutBack(progress.zones),
+    ranks: grown.pins * progress.ranks,
   }
 }
 
@@ -142,6 +171,7 @@ export function stagedReveal(t: number): TomtomReveal {
     fences: at('fences'),
     rivals: at('rivals'),
     zones: easeOutBack(at('zones')),
+    ranks: 0,
   }
 }
 
@@ -654,7 +684,7 @@ type PinEntry = { el: HTMLElement; pin: TomtomPin; anchor: [number, number, numb
 export type PinHover = (pin: TomtomPin | null, point?: { x: number; y: number }) => void
 
 /**
- * The scene's pins, as dots on their places: candidate sites in teal under a pill with their name,
+ * The scene's pins, as dots on their places: candidate sites in teal under a label with their name,
  * current stations in blue and rivals in orange, each popping in one after another as the scene grows, the rivals after
  * the rest. Sites with a details
  * panel open it on click; every pin names itself through `onHover`.
@@ -705,7 +735,8 @@ export class TomtomPins {
       el.setAttribute('aria-hidden', 'true')
     }
     if (!pick && !this.onHover) el.dataset.passive = 'true'
-    const card = pin.kind === 'site' ? `<span class="tomtom-pin-card">${escapeHtml(pin.title)}</span>` : ''
+    const rank = pin.rank !== undefined && pin.rank <= RANKED ? `<b class="tomtom-pin-rank">${pin.rank}</b>` : ''
+    const card = pin.kind === 'site' ? `<span class="tomtom-pin-card">${rank}<span>${escapeHtml(pin.title)}</span></span>` : ''
     el.innerHTML = `<span class="tomtom-pin-dot"></span>${card}`
     if (this.onHover) {
       const top = el.lastElementChild as HTMLElement
@@ -743,6 +774,10 @@ export class TomtomPins {
       entry.el.style.setProperty('--pop', String(off ? 0 : 0.6 + 0.4 * t))
       entry.el.inert = off || shown < 0.5
       entry.el.dataset.active = entry.pin.id === active ? 'true' : 'false'
+      if (entry.pin.kind === 'site') {
+        const top = (entry.pin.rank ?? Infinity) <= RANKED
+        entry.el.dataset.ranked = parts.ranks < 0.5 ? 'off' : top ? 'top' : 'rest'
+      }
     }
     this.map.triggerRepaint()
   }

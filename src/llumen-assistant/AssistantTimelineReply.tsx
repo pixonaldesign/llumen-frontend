@@ -27,6 +27,7 @@ import type {
 } from './assistantReplyTypes'
 import { thinkingStepsFromTimeline } from './thinkingSteps'
 import { InlineVisualCard } from './InlineVisualCard'
+import { ReplyHighlights, ReplyRanking, ReplyStep } from './ReplyStepBlocks'
 import { ReportThumbnail } from './ReportThumbnail'
 import { WorkflowProposalCard } from './WorkflowProposalCard'
 import { useRevealScrollbarOnScroll } from './useRevealScrollbarOnScroll'
@@ -54,6 +55,8 @@ export type AssistantTimelineReplyProps = {
   activeWorkflowId?: string | null
   /** Fired once per visual block as it appears while the reply animates (not for instant replies). */
   onVisualReveal?: (componentId: string) => void
+  /** Fired with a block's `cue` as the block appears while the reply animates (not for instant replies). */
+  onCue?: (cue: string) => void
   /** Highlights the chip for the component currently open in the detail panel. */
   selectedComponentId?: string | null
   /** When true, skip step animation (used for older turns in the transcript). */
@@ -64,9 +67,13 @@ export type AssistantTimelineReplyProps = {
 }
 
 const HEADLINE_LEAD_MS = 100
-const STEP_PROGRESS_MS = 460
-const STEP_GAP_MS = 80
 const THINKING_STEP_REVEAL_MS = 190
+
+/** How fast a reply plays: its thinking steps, its words, and the pause between blocks. */
+const PACES = {
+  normal: { stepMs: 460, stepGapMs: 80, wordStaggerMs: 16, wordMs: 300, blockGapMs: 100 },
+  presentation: { stepMs: 1300, stepGapMs: 240, wordStaggerMs: 55, wordMs: 450, blockGapMs: 600 },
+}
 
 function subscribeReducedMotion(callback: () => void) {
   const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -93,9 +100,6 @@ function splitWordSpaceSegments(text: string): { text: string; isWord: boolean }
   return segments
 }
 
-const WORD_REVEAL_STAGGER_MS = 16
-const WORD_REVEAL_DURATION_MS = 300
-const BLOCK_GAP_MS = 100
 const VISUAL_BLOCK_ENTER_MS = 360
 
 function countWords(text: string) {
@@ -108,6 +112,8 @@ function AnimatedWordsParagraph({
   reduceMotion,
   isStreamingTail = false,
   instant = false,
+  staggerMs = PACES.normal.wordStaggerMs,
+  durationMs = PACES.normal.wordMs,
   onComplete,
 }: {
   text: string
@@ -116,6 +122,8 @@ function AnimatedWordsParagraph({
   isStreamingTail?: boolean
   /** Skip word animation and show the full paragraph immediately. */
   instant?: boolean
+  staggerMs?: number
+  durationMs?: number
   onComplete?: () => void
 }) {
   const doneRef = useRef(false)
@@ -134,15 +142,14 @@ function AnimatedWordsParagraph({
     }
 
     const words = countWords(text)
-    const duration =
-      words <= 0 ? WORD_REVEAL_DURATION_MS : (words - 1) * WORD_REVEAL_STAGGER_MS + WORD_REVEAL_DURATION_MS
+    const duration = words <= 0 ? durationMs : (words - 1) * staggerMs + durationMs
     const timer = window.setTimeout(() => {
       doneRef.current = true
       onComplete()
     }, duration)
 
     return () => clearTimeout(timer)
-  }, [text, reduceMotion, instant, onComplete])
+  }, [text, reduceMotion, instant, staggerMs, durationMs, onComplete])
 
   if (!text) return null
 
@@ -175,13 +182,13 @@ function AnimatedWordsParagraph({
           )
         }
 
-        const delay = wordIndex * WORD_REVEAL_STAGGER_MS
+        const delay = wordIndex * staggerMs
         wordIndex += 1
         return (
           <span
             key={`w-${idx}-${seg.text.slice(0, 24)}`}
             className={styles.wordReveal}
-            style={{ animationDelay: `${delay}ms` }}
+            style={{ animationDelay: `${delay}ms`, animationDuration: `${durationMs}ms` }}
           >
             {seg.text}
           </span>
@@ -439,12 +446,14 @@ export function AssistantTimelineReply({
   onOpenWorkflow,
   activeWorkflowId = null,
   onVisualReveal,
+  onCue,
   selectedComponentId = null,
   instantTimeline = false,
   conversationPanelRef,
   className,
 }: AssistantTimelineReplyProps) {
   const { confirmation, timeline, createdComponents = [], blocks: replyBlocks = [], reports = [] } = reply
+  const pace = PACES[reply.pace ?? 'normal']
   const blocks = useMemo(
     () => replyBlocks.filter((block) => block.type !== 'question'),
     [replyBlocks],
@@ -559,11 +568,11 @@ export function AssistantTimelineReply({
         schedule(() => {
           setRunningIndex(null)
           if (i < timeline.length - 1) {
-            schedule(() => runStep(i + 1), STEP_GAP_MS)
+            schedule(() => runStep(i + 1), pace.stepGapMs)
           } else {
             setSequenceComplete(true)
           }
-        }, STEP_PROGRESS_MS)
+        }, pace.stepMs)
       }
 
       schedule(() => runStep(0), HEADLINE_LEAD_MS)
@@ -577,7 +586,7 @@ export function AssistantTimelineReply({
       }
       clearT()
     }
-  }, [timeline, reduceMotion, instantTimeline])
+  }, [timeline, reduceMotion, instantTimeline, pace])
 
   const useBlocks = blocks.length > 0
 
@@ -603,14 +612,22 @@ export function AssistantTimelineReply({
     setRevealedBlockCount(1)
   }, [sequenceComplete, useBlocks, blocks.length, instantTimeline, reduceMotion])
 
+  const revealedBlockCountRef = useRef(revealedBlockCount)
+  useEffect(() => {
+    revealedBlockCountRef.current = revealedBlockCount
+  }, [revealedBlockCount])
+
+  /** The next block follows the gap, and whatever the finished block asked to hold for. */
   const onActiveBlockComplete = useCallback(() => {
     if (instantTimeline || reduceMotion) return
     if (blockGapTimerRef.current != null) clearTimeout(blockGapTimerRef.current)
+    const done = blocks[revealedBlockCountRef.current - 1]
+    const hold = done && 'holdMs' in done ? (done.holdMs ?? 0) : 0
     blockGapTimerRef.current = window.setTimeout(() => {
       blockGapTimerRef.current = null
       setRevealedBlockCount((count) => Math.min(count + 1, blocks.length + 1))
-    }, BLOCK_GAP_MS)
-  }, [blocks.length, instantTimeline, reduceMotion])
+    }, pace.blockGapMs + hold)
+  }, [blocks, instantTimeline, reduceMotion, pace])
 
   useEffect(() => {
     if (instantTimeline || replyCompleteNotifiedRef.current || !sequenceComplete) return
@@ -663,6 +680,16 @@ export function AssistantTimelineReply({
       onVisualReveal(block.componentId)
     }
   }, [useBlocks, blocks, revealedBlockCount, onVisualReveal, instantTimeline])
+
+  const cuedBlocks = useRef(new Set<number>())
+  useEffect(() => {
+    if (!useBlocks || !onCue || instantTimeline) return
+    blocks.slice(0, revealedBlockCount).forEach((block, index) => {
+      if (!('cue' in block) || !block.cue || cuedBlocks.current.has(index)) return
+      cuedBlocks.current.add(index)
+      onCue(block.cue)
+    })
+  }, [useBlocks, blocks, revealedBlockCount, onCue, instantTimeline])
 
   const openingLine =
     confirmation && confirmation.trim().length > 0
@@ -778,10 +805,36 @@ export function AssistantTimelineReply({
                     className={styles.finalReplyText}
                     reduceMotion={reduceMotion}
                     instant={isSettled}
+                    staggerMs={pace.wordStaggerMs}
+                    durationMs={pace.wordMs}
                     onComplete={isAnimating ? onActiveBlockComplete : undefined}
                   />
                 </div>
               )
+            }
+
+            const play = {
+              animating: isAnimating,
+              reduceMotion,
+              onComplete: isAnimating ? onActiveBlockComplete : undefined,
+            }
+            if (block.type === 'step') {
+              return <ReplyStep key={`step-${index}`} title={block.title} detail={block.detail} {...play} />
+            }
+            if (block.type === 'ranking') {
+              return (
+                <ReplyRanking
+                  key={`ranking-${index}`}
+                  title={block.title}
+                  rows={block.rows}
+                  visible={block.visible}
+                  color={block.color}
+                  {...play}
+                />
+              )
+            }
+            if (block.type === 'highlights') {
+              return <ReplyHighlights key={`highlights-${index}`} items={block.items} {...play} />
             }
 
             if (block.type === 'visual') {
