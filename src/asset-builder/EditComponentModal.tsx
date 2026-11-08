@@ -58,11 +58,13 @@ import {
 import ChartPreview from "./ChartPreview";
 import DataSourceQueryPreview from "./DataSourceQueryPreview";
 import DataSourceDataProfile from "./DataSourceDataProfile";
+import HighlightedSourceSql from "./HighlightedSourceSql";
 import ColorPalette, {
   CategoryColorMap,
   ColorPaletteProvider,
   PaletteSelector,
   type PaletteCardinalityEdgeCase,
+  type PaletteTypeSet,
 } from "./ColorPalette";
 import ZoomScalingControl from "./ZoomScalingControl";
 import { getSettingsTabIcon } from "./visualIcons";
@@ -112,35 +114,6 @@ type PreviewSize = "small" | "medium" | "large";
 
 type PreviewMode = "asset" | "data" | "source";
 type DataPreviewMode = "results" | "profile";
-
-const SOURCE_SQL_TOKEN_PATTERN =
-  /(\$[A-Za-z_][A-Za-z0-9_]*|'(?:''|[^'])*'|\b(?:SELECT|FROM|JOIN|LEFT|RIGHT|INNER|OUTER|ON|WHERE|AND|OR|BETWEEN|ORDER|BY|AS|LIMIT|GROUP|HAVING|DESC|ASC)\b|\b\d+(?:\.\d+)?\b)/gi;
-
-const SOURCE_SQL_KEYWORD_PATTERN =
-  /^(?:SELECT|FROM|JOIN|LEFT|RIGHT|INNER|OUTER|ON|WHERE|AND|OR|BETWEEN|ORDER|BY|AS|LIMIT|GROUP|HAVING|DESC|ASC)$/i;
-
-function HighlightedSourceSql({ value }: { value: string }) {
-  return (
-    <>
-      {(value || " ").split(SOURCE_SQL_TOKEN_PATTERN).map((token, index) => {
-        const className = token.startsWith("$")
-          ? "is-variable"
-          : token.startsWith("'")
-            ? "is-string"
-            : SOURCE_SQL_KEYWORD_PATTERN.test(token)
-              ? "is-keyword"
-              : /^\d/.test(token)
-                ? "is-number"
-                : undefined;
-        return (
-          <span className={className} key={`${index}-${token}`}>
-            {token}
-          </span>
-        );
-      })}
-    </>
-  );
-}
 
 function PreviewModeToggle({
   value,
@@ -3280,6 +3253,7 @@ export default function EditComponentModal({
   const [devMenuOpen, setDevMenuOpen] = useState(false);
   const [paletteEdgeCase, setPaletteEdgeCase] =
     useState<PaletteCardinalityEdgeCase>(null);
+  const [paletteTypeSet, setPaletteTypeSet] = useState<PaletteTypeSet>("all");
   const devMenuRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<PreviewSize>("medium");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("asset");
@@ -3736,6 +3710,7 @@ export default function EditComponentModal({
         dataRange={colorDataRange}
         categoryLabels={paletteCategoryLabels}
         edgeCase={paletteEdgeCase}
+        typeSet={paletteTypeSet}
         valueOpacity={valueOpacity}
       >
       <div className="modal">
@@ -3818,6 +3793,52 @@ export default function EditComponentModal({
                               current === option.id ? null : option.id,
                             )
                           }
+                        >
+                          <span className="modal__dev-menu-copy">
+                            <strong>{option.title}</strong>
+                            <small>{option.description}</small>
+                          </span>
+                          <span
+                            className={
+                              "modal__dev-menu-radio" +
+                              (active ? " is-on" : "")
+                            }
+                            aria-hidden="true"
+                          />
+                        </button>
+                      );
+                    })}
+                    <span className="modal__dev-menu-separator" />
+                    <span className="modal__dev-menu-label">Palette types</span>
+                    {[
+                      {
+                        id: "all" as const,
+                        title: "All four types",
+                        description: "Single · Per Category · Gradient · Steps",
+                      },
+                      {
+                        id: "no-category" as const,
+                        title: "Without Per Category",
+                        description: "Single · Gradient · Steps in one row",
+                      },
+                      {
+                        id: "category-steps" as const,
+                        title: "Per Category and Steps",
+                        description: "Both types in one row",
+                      },
+                    ].map((option) => {
+                      const active = paletteTypeSet === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={
+                            "modal__dev-menu-option" +
+                            (active ? " is-active" : "")
+                          }
+                          role="menuitemradio"
+                          aria-checked={active}
+                          onClick={() => setPaletteTypeSet(option.id)}
                         >
                           <span className="modal__dev-menu-copy">
                             <strong>{option.title}</strong>

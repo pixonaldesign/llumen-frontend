@@ -9,6 +9,158 @@
   container-type: size;
 }
 
+/*
+ * Arriving from the Briefing map (StoryView `entrance`): the chrome waits off the bare map, then the
+ * header drops in, the insight cards slide in from the left one after another, and the map data and
+ * navigation follow. Animating `translate` leaves the cards' own transforms alone.
+ */
+.root[data-entrance='wait'] .header,
+.root[data-entrance='wait'] .insight > *,
+.root[data-entrance='wait'] .mapStack,
+.root[data-entrance='wait'] .lowerNav {
+  opacity: 0;
+}
+
+/* Slow enough to watch each piece land on the map: about 1.9s from the header to the navigation. */
+.root[data-entrance='play'] .header {
+  animation: entranceDown 720ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.root[data-entrance='play'] .insight > * {
+  --enter-d: 160ms;
+  animation: entranceLeft 960ms cubic-bezier(0.16, 1, 0.3, 1) var(--enter-d) backwards;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(2) {
+  --enter-d: 300ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(3) {
+  --enter-d: 440ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(4) {
+  --enter-d: 580ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(5) {
+  --enter-d: 720ms;
+}
+
+.root[data-entrance='play'] .insight > :nth-child(n + 6) {
+  --enter-d: 860ms;
+}
+
+.root[data-entrance='play'] .mapStack {
+  animation: entranceRight 960ms cubic-bezier(0.16, 1, 0.3, 1) 520ms backwards;
+}
+
+.root[data-entrance='play'] .lowerNav {
+  animation: entranceUp 720ms cubic-bezier(0.16, 1, 0.3, 1) 1180ms backwards;
+}
+
+/* The way out sends the chrome back off the map while the Briefing map underneath flies home. */
+.root[data-entrance='leave'] .header,
+.root[data-entrance='gone'] .header {
+  animation: exitUp 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.root[data-entrance='leave'] .insight > *,
+.root[data-entrance='gone'] .insight > * {
+  animation: exitLeft 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.root[data-entrance='leave'] .mapStack,
+.root[data-entrance='gone'] .mapStack {
+  animation: exitRight 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.root[data-entrance='leave'] .lowerNav,
+.root[data-entrance='gone'] .lowerNav {
+  animation: exitDown 420ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.root[data-entrance='gone'] {
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+
+/* The Briefing map underneath holds the same view until this map has loaded. Leaving hides it at once. */
+.root[data-entrance='wait'] .mapPane,
+.root[data-entrance='play'] .mapPane {
+  transition: opacity 320ms ease;
+}
+
+.root[data-map-hidden] .mapPane {
+  opacity: 0;
+}
+
+@keyframes entranceDown {
+  from {
+    opacity: 0;
+    translate: 0 -16px;
+  }
+}
+
+@keyframes entranceLeft {
+  from {
+    opacity: 0;
+    translate: -72px 0;
+  }
+}
+
+@keyframes entranceRight {
+  from {
+    opacity: 0;
+    translate: 72px 0;
+  }
+}
+
+@keyframes entranceUp {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+}
+
+@keyframes exitUp {
+  to {
+    opacity: 0;
+    translate: 0 -24px;
+  }
+}
+
+@keyframes exitLeft {
+  to {
+    opacity: 0;
+    translate: -72px 0;
+  }
+}
+
+@keyframes exitRight {
+  to {
+    opacity: 0;
+    translate: 72px 0;
+  }
+}
+
+@keyframes exitDown {
+  to {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-entrance='play'] .header,
+  .root[data-entrance='play'] .insight > *,
+  .root[data-entrance='play'] .mapStack,
+  .root[data-entrance='play'] .lowerNav {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}
+
 .map {
   z-index: 0;
 }
@@ -55,8 +207,9 @@
   pointer-events: none;
 }
 
+/* 5px under each map's header rule, as the story map's controls sit outside comparison. */
 .mapPaneLower .comparisonControls {
-  top: 20px;
+  top: calc(var(--comparison-title-end, 129px) + 5px);
 }
 
 .rootSplitDragging {
@@ -78,24 +231,24 @@
   pointer-events: none;
 }
 
-/* Comparison layout: insights stay hidden behind a toggle so both maps read full width. */
 .comparisonFilters {
   margin-top: 14px;
 }
 
-.filterAddBtn.insightToggle {
-  flex-shrink: 0;
-  margin-top: 20px;
+/* Runs past the room kept for the map controls, to the same 20px inset as the upper map's rule. */
+.headerRule.comparisonRule {
+  width: calc(100% + 68px);
+  margin-top: 14px;
 }
 
-.insight.insightBelowToggle {
-  padding-top: 12px;
-}
-
-/* Above the lower map title (3), below the split handle (8). */
+/*
+ * Above the lower map title (3), below the split handle (8). Ends at the split, so the insight cards
+ * scroll within the upper map and never run over the lower one.
+ */
 .bodyComparison {
   position: relative;
   z-index: 4;
+  margin-bottom: calc((1 - var(--comparison-split)) * 100cqh);
 }
 
 .splitHandle {
@@ -161,6 +314,253 @@
   outline-offset: 2px;
 }
 
+/*
+ * Vertical comparison: the story's map on the left, the compared one on the right. Each map is as wide as
+ * its pane (it resizes with the split) and the story's header, cards and controls keep to the left pane.
+ */
+.root[data-comparison='vertical'] .mapPaneUpper {
+  right: calc((1 - var(--comparison-split)) * 100%);
+  bottom: 0;
+}
+
+.root[data-comparison='vertical'] .mapPaneLower {
+  top: 0;
+  left: calc(var(--comparison-split) * 100%);
+}
+
+.root[data-comparison='vertical'] .mapPaneLower::after {
+  right: auto;
+  bottom: 0;
+  width: 1px;
+  height: auto;
+}
+
+.root[data-comparison='vertical'] .header,
+.root[data-comparison='vertical'] .body {
+  padding-right: calc((1 - var(--comparison-split)) * 100% + 20px);
+}
+
+/* A half-width map has no room beside its toolbar, so the cards end 12px above it (the cards pad 20px). */
+.root[data-comparison='vertical'] .bodyComparison {
+  margin-bottom: 0;
+  padding-bottom: 54px;
+}
+
+.root[data-comparison='vertical'] .comparisonTitle {
+  top: 0;
+  left: calc(var(--comparison-split) * 100% + 20px);
+}
+
+.root[data-comparison='vertical'] .splitHandle {
+  top: 0;
+  right: auto;
+  bottom: 0;
+  left: calc(var(--comparison-split) * 100%);
+  width: 16px;
+  height: auto;
+  transform: translateX(-50%);
+  cursor: col-resize;
+}
+
+.root[data-comparison='vertical'] .splitHandle::before {
+  top: 0;
+  right: auto;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  height: auto;
+}
+
+.root[data-comparison='vertical'] .splitHandleGrip {
+  width: 20px;
+  height: 48px;
+}
+
+.root[data-comparison='vertical'].rootSplitDragging {
+  cursor: col-resize;
+}
+
+/* The upper map's filters and, in block comparison, its Assets and Tools. */
+.paneBar {
+  display: contents;
+}
+
+/*
+ * Block comparison: the maps one above the other, framed by solid blocks for the story header, each map's
+ * filters bar and each map's assets column. The column is as wide as the sidebar's cards plus its inset.
+ */
+.root[data-comparison='blocks'] {
+  --blocks-column: calc(var(--sidebar-columns, 2) * 184px + (var(--sidebar-columns, 2) - 1) * 12px + 32px);
+  --blocks-surface: #0a1320;
+  --blocks-line: rgba(255, 255, 255, 0.1);
+  --blocks-inset: 16px;
+  background: #060c16;
+}
+
+.root[data-comparison='blocks'] .header {
+  gap: 0;
+  padding: 0;
+  background: var(--blocks-surface);
+}
+
+.root[data-comparison='blocks'] .titleRow {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--blocks-line);
+}
+
+.root[data-comparison='blocks'] .paneBar,
+.root[data-comparison='blocks'] .comparisonFilters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.root[data-comparison='blocks'] .paneBar {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--blocks-line);
+}
+
+.root[data-comparison='blocks'] .headerRule,
+.root[data-comparison='blocks'] .comparisonTitle > :not(.comparisonFilters) {
+  display: none;
+}
+
+/* Floats at the bottom of each assets column; the column keeps room for it under its last card. */
+.paneTools {
+  position: absolute;
+  bottom: var(--blocks-inset);
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.paneTools > .filterAddBtn {
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+}
+
+.root[data-comparison='blocks'] .mapPaneUpper {
+  top: var(--story-header-end, 155px);
+  left: var(--blocks-column);
+}
+
+.root[data-comparison='blocks'] .mapPaneLower {
+  top: calc(var(--comparison-split) * 100% + var(--comparison-title-end, 129px));
+  left: var(--blocks-column);
+}
+
+.root[data-comparison='blocks'] .mapPaneLower::after {
+  display: none;
+}
+
+.root[data-comparison='blocks'] .comparisonControls {
+  top: var(--blocks-inset);
+  right: var(--blocks-inset);
+}
+
+/* Left of the upper map's controls (104 × 36px), centred on them. */
+.paneLinkMaps {
+  position: absolute;
+  top: calc(var(--story-header-end, 155px) + var(--blocks-inset) - 4px);
+  right: calc(var(--blocks-inset) + 104px + 8px);
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.root[data-comparison='blocks'] .bodyComparison {
+  box-sizing: border-box;
+  width: var(--blocks-column);
+  padding: 0 var(--blocks-inset);
+  border-right: 1px solid var(--blocks-line);
+  background: var(--blocks-surface);
+}
+
+.root[data-comparison='blocks'] .bodyComparison > .insight {
+  flex: 1 1 auto;
+  padding-block: var(--blocks-inset);
+}
+
+.root[data-comparison='blocks'] .bodyComparison:has(> .paneTools) > .insight {
+  padding-bottom: calc(var(--blocks-inset) + 34px + 12px);
+}
+
+.root[data-comparison='blocks'] .comparisonTitle {
+  right: 0;
+  left: 0;
+  padding: 16px 20px;
+  border-top: 1px solid var(--blocks-line);
+  border-bottom: 1px solid var(--blocks-line);
+  background: var(--blocks-surface);
+}
+
+.root[data-comparison='blocks'] .comparisonFilters {
+  margin-top: 0;
+}
+
+.paneAssets {
+  position: absolute;
+  top: calc(var(--comparison-split) * 100% + var(--comparison-title-end, 129px));
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  box-sizing: border-box;
+  width: var(--blocks-column);
+  padding: var(--blocks-inset);
+  border-right: 1px solid var(--blocks-line);
+  background: var(--blocks-surface);
+}
+
+.paneAssetsEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* One toolbar, centred along the bottom of the view; Assets and Tools float over each assets column. */
+.root[data-comparison='blocks'] .lowerNavUpper {
+  bottom: var(--blocks-inset);
+  left: 50%;
+}
+
+.root[data-comparison='blocks'] .lowerNavCompared,
+.root[data-comparison='blocks'] .modeActions {
+  display: none;
+}
+
+.root[data-comparison='blocks'] .mapStack {
+  right: var(--blocks-inset);
+  --map-controls-room: calc(var(--blocks-inset) + 44px + 12px - 4px);
+}
+
+.root[data-comparison='blocks'] .mapStack.mapStackComparisonUpper {
+  bottom: calc((1 - var(--comparison-split)) * 100% + var(--blocks-inset));
+  max-height: calc(
+    var(--comparison-split) * 100cqh - var(--blocks-inset) - var(--story-header-end, 155px) -
+      var(--map-controls-room)
+  );
+}
+
+.root[data-comparison='blocks'] .mapStack.mapStackCompared {
+  bottom: var(--blocks-inset);
+  max-height: calc(
+    (1 - var(--comparison-split)) * 100cqh - var(--blocks-inset) - var(--comparison-title-end, 129px) -
+      var(--map-controls-room)
+  );
+}
+
 .overlay {
   position: absolute;
   inset: 0;
@@ -184,10 +584,6 @@
   gap: 16px;
 }
 
-.titleRowPages {
-  align-items: flex-end;
-}
-
 .backBtn {
   display: inline-flex;
   align-items: center;
@@ -208,6 +604,84 @@
 
 .backBtn:hover {
   background: rgba(34, 42, 42, 0.72);
+}
+
+/*
+ * Edit mode: one control above the insight cards, the slide's Layout menu and, for the sidebar and grid
+ * layouts, their width in columns.
+ */
+/* Same pill as the bottom toolbar (`.modeSwitch`). */
+.layoutBar {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  margin: 16px 0 0;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  pointer-events: auto;
+}
+
+/* 16px from the header and from the first card; the grid layout's body already insets its top. */
+.bodyGrid > .layoutBar {
+  align-self: flex-start;
+  margin: calc(16px - var(--grid-inset-top, 0px)) 0 16px;
+}
+
+.layoutBar + .insight,
+.layoutRow + .insight {
+  padding-top: 16px;
+}
+
+.layoutBar + .insightLayoutGrid {
+  flex: 1 1 0;
+  height: auto;
+  padding-top: 0;
+}
+
+.layoutBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.layoutBtn:hover,
+.layoutBtnOpen {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.layoutBtnCaret {
+  margin-inline-start: -2px;
+  opacity: 0.7;
+  transition: transform 200ms ease;
+}
+
+.layoutBtnOpen .layoutBtnCaret {
+  transform: rotate(180deg);
+}
+
+.layoutBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
 }
 
 .headerEnd {
@@ -323,9 +797,9 @@
   max-width: 100%;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 14px;
+  line-height: 18px;
   letter-spacing: 0.08em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -357,9 +831,10 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  margin: 0;
+  width: 32px;
+  height: 32px;
+  /* Bigger than the title rows' line boxes; the negative margin keeps the rows' height. */
+  margin: -2px 0;
   padding: 0;
   border: none;
   border-radius: 999px;
@@ -367,6 +842,11 @@
   color: rgba(255, 255, 255, 0.78);
   cursor: pointer;
   pointer-events: auto;
+}
+
+.infoBtnSmall {
+  margin: -5px 0;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .infoBtn:hover,
@@ -404,10 +884,9 @@
   cursor: default;
 }
 
+/* Placed under its info icon from StoryView (`INFO_POPOVER_W` matches the width). */
 .infoPopover {
   position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
   z-index: 20;
   width: min(340px, calc(100vw - 40px));
   padding: 12px 14px;
@@ -466,23 +945,42 @@
   }
 }
 
+/* Edit mode: a caret after the value, then the filter's options (Configure, Remove) behind its dots. */
 .filterPillEditing {
+  gap: 6px;
+  padding-inline-end: 6px;
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.filterRemove {
+.filterCaret {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.filterMenuBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  margin: 0 0 0 2px;
+  width: 24px;
+  height: 24px;
+  margin: -4px 0;
   padding: 0;
   border: none;
+  border-radius: 50%;
   background: transparent;
   color: #fff;
   cursor: pointer;
   pointer-events: auto;
+}
+
+.filterMenuBtn:hover,
+.filterMenuBtnOpen {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.filterMenuBtn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 1px;
 }
 
 .filterAddBtn {
@@ -617,13 +1115,16 @@
   padding: 0 16px 0 14px;
   border: 1px dashed rgba(255, 255, 255, 0.3);
   border-radius: 40px;
-  background: transparent;
+  background: rgba(34, 42, 42, 0.5);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
   color: #fff;
   font: inherit;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
 }
 
 .pageAddBtn:hover {
@@ -655,9 +1156,10 @@
   -webkit-backdrop-filter: blur(4px);
 }
 
+/* Sidebar width follows its column count: 184px cells with 12px gaps (2 columns = 380px). */
 .insight {
   box-sizing: border-box;
-  width: min(100%, 380px);
+  width: min(100%, calc(var(--sidebar-columns, 2) * 184px + (var(--sidebar-columns, 2) - 1) * 12px));
   flex: 0 1 auto;
   min-height: 0;
   max-height: 100%;
@@ -683,15 +1185,20 @@
   width: min(100%, 270px);
 }
 
-/* Edit mode: 2-column cell grid; each visual card spans both cells of a row. */
+/* Edit mode: 2–4 column cell grid; full-width cards span every cell of their row. */
 .insightGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--sidebar-columns, 2), minmax(0, 1fr));
   grid-auto-rows: 184px;
 }
 
 .insightGrid > section {
   grid-column: 1 / -1;
+}
+
+.insightGrid > .kpiCellCard {
+  grid-column: span 1;
+  width: auto;
 }
 
 .gridCell {
@@ -797,45 +1304,42 @@
   pointer-events: auto;
 }
 
-/* Floats over the grid, centered 12px above the bottom toolbar (18px offset + 44px tall). */
+.insightLayoutGrid > .kpiCellCard {
+  grid-column: span 1;
+  width: auto;
+}
+
+/* The layout bar's columns, after a divider from its Layout button. */
 .gridColumnsControl {
-  position: absolute;
-  left: 50%;
-  bottom: 74px;
-  z-index: 7;
-  transform: translateX(-50%);
-  box-shadow:
-    0 12px 16px -4px rgba(10, 13, 18, 0.24),
-    0 4px 6px -2px rgba(10, 13, 18, 0.16);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background: rgba(26, 26, 26, 0.5);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  pointer-events: auto;
+  gap: 2px;
+}
+
+/* The toolbar's `.modeDivider`. */
+.gridColumnsControl::before {
+  content: '';
+  flex-shrink: 0;
+  width: 1px;
+  height: 22px;
+  margin: 0 4px 0 6px;
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .gridColumnsIcon {
-  box-sizing: content-box;
-  margin: 0 4px 0 8px;
-  padding-right: 12px;
-  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  margin: 0 6px;
   color: rgba(255, 255, 255, 0.56);
 }
 
 .gridColumnsOption {
-  min-width: 40px;
-  height: 32px;
+  min-width: 36px;
+  height: 36px;
   margin: 0;
   padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.88);
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
@@ -843,18 +1347,17 @@
 }
 
 .gridColumnsOption:hover {
-  background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
 .gridColumnsOptionActive,
 .gridColumnsOptionActive:hover {
-  background: #70aeff;
-  color: #0c0e10;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .gridColumnsOption:focus-visible {
-  outline: 2px solid #70aeff;
+  outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 1px;
 }
 
@@ -872,6 +1375,51 @@
   background: rgba(26, 26, 26, 0.5);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
+}
+
+/* One 184px cell at every column count; it never stretches with the sidebar. */
+.kpiCellCard {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-self: flex-start;
+  gap: 8px;
+  width: 184px;
+  height: 184px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(34, 42, 42, 0.5);
+  backdrop-filter: blur(46px);
+  -webkit-backdrop-filter: blur(46px);
+  color: #fff;
+  overflow-wrap: break-word;
+}
+
+.kpiCellLabel,
+.kpiCellValue,
+.kpiCellNote {
+  margin: 0;
+  line-height: 1.3;
+}
+
+.kpiCellLabel {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.kpiCellValue {
+  font-family: var(--lc-font-mono);
+  font-size: 32px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.kpiCellNote {
+  font-size: 12px;
+  opacity: 0.7;
 }
 
 .insightCard {
@@ -939,9 +1487,9 @@
   padding: 2px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 40px;
-  background: rgba(14, 18, 26, 0.82);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
   opacity: 0;
   pointer-events: none;
@@ -951,7 +1499,6 @@
     transform 160ms ease-out;
 }
 
-/* Edit mode keeps the card's ⋮ menu in the corner, so the toolbar sits beside it. */
 .insightCard:hover > .cardActions,
 .cardActions.cardActionsOpen,
 .cardActions:focus-within {
@@ -993,22 +1540,6 @@
   width: 26px;
   padding: 0;
   justify-content: center;
-}
-
-.insightCardMenuBtn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-}
-
-.insightCardMenuBtn:hover,
-.insightCardMenuBtn.storyMenuBtnOpen {
-  border-color: transparent;
-  background: transparent;
 }
 
 .insightCardHidden {
@@ -1054,24 +1585,135 @@
   transition: color 300ms ease;
 }
 
-.summaryRegenerating .summaryBody {
-  animation: summaryRegenerate 1.4s ease both;
+.summaryStatus {
+  --status-shift: calc(-1 * var(--actions-w, 0px) - 4px);
+
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  height: 32px;
+  margin: 0;
+  padding: 0 10px 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(var(--status-shift), -4px);
+  transition:
+    opacity 160ms ease-out,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 140ms ease,
+    color 140ms ease;
 }
 
-@keyframes summaryRegenerate {
-  0% {
-    opacity: 1;
-    filter: blur(0);
+button.summaryStatus {
+  cursor: pointer;
+}
+
+button.summaryStatus:hover:not(:disabled) {
+  background: rgba(56, 56, 56, 0.72);
+}
+
+button.summaryStatus:disabled {
+  cursor: progress;
+}
+
+.summaryStatus:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+.insightCard:hover > .summaryStatus,
+.insightCard:has(> .cardActions:is(.cardActionsOpen, :focus-within)) > .summaryStatus,
+.summaryStatus:focus-visible,
+.summaryStatus[data-busy] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(var(--status-shift));
+}
+
+.summaryUpdated {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: flex-start;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 20px;
+  margin-top: -2px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 40px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.summaryStatusIcon {
+  flex-shrink: 0;
+}
+
+.summaryStatus[data-busy] .summaryStatusIcon,
+.summaryUpdated[data-busy] .summaryStatusIcon {
+  animation: summaryStatusSpin 0.9s linear infinite;
+}
+
+@keyframes summaryStatusSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* While regenerating, the summary types itself out in the AI thinking gradient: white with a cyan sweep. */
+.summaryTyping {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.7) 0%,
+    #fff 30%,
+    #8be6f7 44%,
+    #70e5ff 50%,
+    #8be6f7 56%,
+    #fff 70%,
+    rgba(255, 255, 255, 0.7) 100%
+  );
+  background-size: 240% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: summaryTypingShimmer 1.2s linear infinite;
+}
+
+@keyframes summaryTypingShimmer {
+  from {
+    background-position: 110% 0;
   }
 
-  35% {
-    opacity: 0.2;
-    filter: blur(3px);
+  to {
+    background-position: -10% 0;
   }
+}
 
-  100% {
-    opacity: 1;
-    filter: blur(0);
+@media (prefers-reduced-motion: reduce) {
+  .summaryStatus[data-busy] .summaryStatusIcon,
+  .summaryUpdated[data-busy] .summaryStatusIcon,
+  .summaryTyping {
+    animation: none;
   }
 }
 
@@ -1156,13 +1798,26 @@
 .chartMain {
   display: grid;
   flex: 1;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 4px 8px;
   min-height: 0;
 }
 
 .yAxis {
   position: relative;
+  min-width: 28px;
+}
+
+/* Invisible copies of the labels give the axis the width of the widest one. */
+.yAxisSizer {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  font-size: 10px;
+  font-style: normal;
+  white-space: nowrap;
+  visibility: hidden;
 }
 
 .yAxis span {
@@ -1188,8 +1843,8 @@
 
 .chartX {
   display: flex;
+  grid-column: 2;
   justify-content: space-between;
-  padding-left: 36px;
   color: rgba(255, 255, 255, 0.48);
   font-size: 10px;
   line-height: 14px;
@@ -1457,42 +2112,134 @@
   bottom: calc((1 - var(--comparison-split)) * 100% + 18px);
 }
 
-.linkMaps {
+/*
+ * Each comparison map's data scrolls rather than run up over that map's controls: it stops 12px under
+ * them (the controls sit 5px under the header rule and are 104px tall).
+ */
+.mapStackComparisonUpper,
+.mapStackCompared {
+  --map-controls-room: 121px;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+}
+
+/*
+ * Chromium treats overlay as auto, so the thumb takes width. The scroller runs one thumb past the panels'
+ * edge, and the thumb takes that strip instead of narrowing the panels.
+ */
+.mapStack.mapStackComparisonUpper,
+.mapStack.mapStackCompared {
+  width: calc(300px + var(--lc-scrollbar-size));
+  margin-right: calc(-1 * var(--lc-scrollbar-size));
+}
+
+.mapStackComparisonUpper > *,
+.mapStackCompared > * {
+  flex-shrink: 0;
+  width: 300px;
+}
+
+/* The landing layer's inherited scrollbar-color makes Chromium drop ::-webkit-scrollbar sizing, bringing back the thick system bar. */
+@supports selector(::-webkit-scrollbar) {
+  .mapStackComparisonUpper,
+  .mapStackCompared {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.mapStackComparisonUpper::-webkit-scrollbar,
+.mapStackCompared::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.mapStackComparisonUpper::-webkit-scrollbar-track,
+.mapStackCompared::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mapStackComparisonUpper::-webkit-scrollbar-thumb,
+.mapStackCompared::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--lc-scrollbar-thumb);
+}
+
+.mapStack.mapStackComparisonUpper {
+  max-height: calc(
+    var(--comparison-split) * 100cqh - 18px - var(--story-header-end, 155px) - var(--map-controls-room)
+  );
+}
+
+.mapStack.mapStackCompared {
+  max-height: calc(
+    (1 - var(--comparison-split)) * 100cqh - 18px - var(--comparison-title-end, 129px) - var(--map-controls-room)
+  );
+}
+
+.root[data-comparison='vertical'] .mapStack.mapStackComparisonUpper {
+  max-height: calc(100cqh - 74px - var(--story-header-end, 155px) - var(--map-controls-room));
+}
+
+.root[data-comparison='vertical'] .mapStack.mapStackCompared {
+  max-height: calc(100cqh - 74px - var(--comparison-title-end, 129px) - var(--map-controls-room));
+}
+
+/* Side by side, each map's data sits 12px above its toolbar (18px from the bottom, 44px tall). */
+.root[data-comparison='vertical'] .mapStack {
+  bottom: 74px;
+}
+
+.root[data-comparison='vertical'] .mapStack.mapStackComparisonUpper {
+  right: calc((1 - var(--comparison-split)) * 100% + 20px);
+  bottom: 74px;
+}
+
+/* Comparison's Layout and Link maps pills, side by side where the Layout pill sits alone. */
+.layoutRow {
   display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.layoutRow > .layoutBar {
+  margin: 0;
+}
+
+/* The Layout pill's frame (`.layoutBar`) around a label and its switch. */
+.linkMaps {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 10px;
-  width: 100%;
+  height: 44px;
   margin: 0;
-  padding: 12px 16px;
+  padding: 0 14px 0 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
+  border-radius: 999px;
   background: rgba(26, 26, 26, 0.5);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   color: #fff;
   font: inherit;
-  text-align: start;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.linkMapsText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.linkMapsLabel {
   font-size: 14px;
   font-weight: 500;
-  line-height: 20px;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 160ms ease;
 }
 
-.linkMapsHint {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  line-height: 16px;
+.linkMaps:hover {
+  background: rgba(46, 46, 46, 0.6);
+}
+
+.linkMaps:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
 }
 
 .linkMapsSwitch {
@@ -1562,6 +2309,53 @@
   border-bottom: none;
 }
 
+.mapDataProjection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.mapDataProjectionControl {
+  display: grid;
+  grid-auto-columns: minmax(36px, 1fr);
+  grid-auto-flow: column;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(34, 42, 42, 0.5);
+}
+
+.mapDataProjectionBtn {
+  height: 26px;
+  margin: 0;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mapDataProjectionBtn:hover {
+  color: #fff;
+}
+
+.mapDataProjectionBtnActive {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: default;
+}
+
 .mapDataBackgroundBtn {
   display: inline-flex;
   align-items: center;
@@ -1589,11 +2383,124 @@
   transform: rotate(180deg);
 }
 
-.mapDataBody {
+.mapLayers {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 14px 16px 16px;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.mapLayer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 160ms ease;
+}
+
+.mapLayer:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.mapLayerHead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.mapLayerDragging {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mapLayerGrip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.48);
+  cursor: grab;
+  touch-action: none;
+}
+
+.mapLayerGrip:hover {
+  color: #fff;
+}
+
+.mapLayerDragging .mapLayerGrip {
+  color: #fff;
+  cursor: grabbing;
+}
+
+.mapLayersEmpty {
+  margin: 0;
+  padding: 4px 16px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.mapLayerTitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapLayerAttrs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.mapLayerAttr {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mapLayerAttr:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.mapLayerAttrLabel {
+  margin: 0;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.colorRamp {
+  flex: 1;
+  height: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 24px;
+  background-origin: border-box;
+}
+
+.mapDataFooter {
+  padding: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .addMapLayerBtn {
@@ -1618,51 +2525,34 @@
   background: rgba(132, 220, 255, 0.16);
 }
 
-.legendGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.legendHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.legendSection {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 12px;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .legendActions {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
-  gap: 8px;
 }
 
 .legendIconBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
   margin: 0;
   padding: 0;
   border: none;
+  border-radius: 999px;
   background: transparent;
   color: rgba(255, 255, 255, 0.72);
   cursor: pointer;
 }
 
-.legendIconBtn:hover {
+.legendIconBtn:hover,
+.legendIconBtnOpen {
   color: #fff;
+}
+
+.legendIconBtnOpen {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .legendIconOff {
@@ -1674,6 +2564,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding-right: 6px;
   color: #fff;
   font-size: 12px;
   line-height: 16px;
@@ -1705,7 +2596,8 @@
 .legendScale {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  padding-right: 6px;
   color: #fff;
   font-size: 12px;
   line-height: 16px;
@@ -1763,6 +2655,21 @@
   justify-content: center;
   gap: 8px;
   transform: translateX(-50%);
+}
+
+/* Comparison: the story's toolbar belongs to the upper map, just above the split; the lower map has its own. */
+.lowerNavUpper {
+  bottom: calc((1 - var(--comparison-split)) * 100% + 18px);
+}
+
+/* Side by side, each toolbar is centred along the bottom of its own map. */
+.root[data-comparison='vertical'] .lowerNavUpper {
+  bottom: 18px;
+  left: calc(var(--comparison-split) * 50%);
+}
+
+.root[data-comparison='vertical'] .lowerNavCompared {
+  left: calc((1 + var(--comparison-split)) * 50%);
 }
 
 .askBtn {

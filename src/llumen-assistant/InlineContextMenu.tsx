@@ -40,6 +40,8 @@ export type InlineContextMenuProps = {
   onBack: () => void
   /** When set, shows a search field at the top of the menu (e.g. Sources panel +). */
   search?: InlineContextMenuSearch
+  /** Extra class on the menu, e.g. to match the surface of the composer that opened it. */
+  className?: string
 }
 
 export function InlineContextMenu({
@@ -56,6 +58,7 @@ export function InlineContextMenu({
   onSelectItem,
   onBack,
   search,
+  className,
 }: InlineContextMenuProps) {
   const category = categoryId ? getCategory(categoryId) : null
   const empty = stage === 'categories' ? categories.length === 0 : items.length === 0
@@ -74,7 +77,7 @@ export function InlineContextMenu({
   return (
     <div
       ref={menuRef}
-      className={styles.inlineContextMenu}
+      className={className ? `${styles.inlineContextMenu} ${className}` : styles.inlineContextMenu}
       style={{
         left: position.left,
         ...(position.top != null ? { top: position.top, bottom: 'auto' } : null),

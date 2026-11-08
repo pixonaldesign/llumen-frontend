@@ -1,7 +1,7 @@
 /**
  * Approach 3: one scenario per map annotation type, offered from the rail composer's
  * annotation menu after the first prompt. Each scenario's prompt is typed into the composer
- * when the user clicks it, like Approach 2's suggested prompts.
+ * when the user clicks it, like the story's suggested prompts.
  */
 
 export type MapAnnotationType = 'marker' | 'text' | 'line' | 'arrow' | 'polygon' | 'rectangle' | 'circle'

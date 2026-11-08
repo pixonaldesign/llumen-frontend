@@ -1,0 +1,290 @@
+/* Global: the labels and tooltip live in the Mapbox container, outside the CSS-module tree. Matches the story map's `.annotationTip`. */
+.tomtom-label,
+.tomtom-tip,
+.tomtom-pin-card {
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+}
+
+/* A tower's name on its roof, pinned by a stem in the tower's colour. */
+.tomtom-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 10px 6px 8px;
+  font-family: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    opacity 0.3s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+  will-change: transform;
+}
+
+.tomtom-label[data-static='true'] {
+  pointer-events: none;
+}
+
+.tomtom-label:hover,
+.tomtom-label[data-active='true'] {
+  border-color: color-mix(in srgb, var(--tower) 60%, transparent);
+  background: rgba(40, 40, 40, 0.64);
+}
+
+.tomtom-label:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+.tomtom-label::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 12px;
+  background: linear-gradient(var(--tower), transparent);
+  pointer-events: none;
+}
+
+.tomtom-label > i {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: var(--tower);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tower) 24%, transparent);
+}
+
+.tomtom-label > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tomtom-label b {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+/* A tower's details, beside the pointer. */
+.tomtom-tip {
+  position: absolute;
+  z-index: 90;
+  width: max-content;
+  min-width: 232px;
+  max-width: 340px;
+  padding: 10px 12px;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 14px));
+}
+
+.tomtom-tip-title {
+  margin: 0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.tomtom-tip-rows {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tomtom-tip-rows div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tomtom-tip-rows dt {
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.tomtom-tip-rows dd {
+  margin: 0;
+  color: #fff;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/*
+ * A pin stands on its ground point (the element is translated there): a dot in its colour ringed in
+ * white, and for a site a pill outlined in the same colour above it, joined by a stem. `--pop` scales it
+ * in as the scene grows; `--z` keeps the best sites on top.
+ */
+.tomtom-pin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--z, 2);
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  transition: opacity 0.3s ease;
+  will-change: transform;
+}
+
+.tomtom-pin:hover,
+.tomtom-pin[data-active='true'] {
+  z-index: 80;
+}
+
+.tomtom-pin[data-passive='true'] > * {
+  pointer-events: none;
+}
+
+.tomtom-pin-dot {
+  position: absolute;
+  top: calc(var(--dot) / -2);
+  left: calc(var(--dot) / -2);
+  --dot: 14px;
+  box-sizing: border-box;
+  width: var(--dot);
+  height: var(--dot);
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--pin);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  transform: scale(var(--pop, 1));
+  transition: transform 0.2s ease;
+}
+
+.tomtom-pin[data-kind='station'] .tomtom-pin-dot,
+.tomtom-pin[data-kind='rival'] .tomtom-pin-dot {
+  --dot: 16px;
+}
+
+/* A site's name in a dark label, held up on a thin grey stem from its dot; numbered once the sites are ranked. */
+.tomtom-pin-card {
+  position: absolute;
+  bottom: 33px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(28, 30, 36, 0.92);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  transform: translateX(-50%) scale(var(--pop, 1));
+  transform-origin: 50% 100%;
+  transition:
+    transform 0.2s ease,
+    background 0.16s ease,
+    opacity 0.4s ease;
+}
+
+button.tomtom-pin > * {
+  cursor: pointer;
+}
+
+.tomtom-pin-card::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 27px;
+  margin-left: -0.5px;
+  background: rgba(214, 218, 226, 0.55);
+}
+
+.tomtom-pin:hover .tomtom-pin-card,
+.tomtom-pin[data-active='true'] .tomtom-pin-card {
+  background: rgba(40, 42, 50, 0.96);
+  transform: translateX(-50%) scale(calc(var(--pop, 1) * 1.04));
+}
+
+.tomtom-pin-rank {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: -4px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 5px;
+  background: var(--pin);
+  color: #0c1a17;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tomtom-pin[data-ranked='top'] .tomtom-pin-rank {
+  display: inline-flex;
+  animation: tomtomRankIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Once ranked, the sites outside the top few step back. */
+.tomtom-pin[data-ranked='rest'] .tomtom-pin-card {
+  opacity: 0.45;
+}
+
+@keyframes tomtomRankIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+.tomtom-pin:hover .tomtom-pin-dot,
+.tomtom-pin[data-active='true'] .tomtom-pin-dot {
+  transform: scale(calc(var(--pop, 1) * 1.2));
+}
+
+button.tomtom-pin:focus-visible {
+  outline: none;
+}
+
+button.tomtom-pin:focus-visible > :last-child {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tomtom-pin,
+  .tomtom-pin-dot,
+  .tomtom-pin-card {
+    transition: none;
+  }
+
+  .tomtom-pin-rank {
+    animation: none;
+  }
+}
