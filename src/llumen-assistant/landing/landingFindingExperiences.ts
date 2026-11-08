@@ -241,7 +241,7 @@ const ttAsk = () =>
         text: `Take ${FIRST.name}, ${SECOND.name} and ${THIRD.name} to site visits, ${FIRST.name} first. ${SECOND.name}’s overlap with Khalidiyah Park would take about a fifth of its volume from your own station.`,
       },
     ],
-    map: { place: 'tt-ask', title: 'Candidate sites vs your stations · on the map', tag: 'Abu Dhabi Island', meta: '12 sites · 8 stations · 24 rivals' },
+    map: { place: 'tt-ask', title: 'Candidate sites vs your stations', tag: 'Abu Dhabi Island', meta: '12 sites · 8 stations · 24 rivals' },
   })
 
 /** Prompt 2: the top site close up. */
@@ -304,7 +304,7 @@ const ttDive = () => {
         text: `Book the site visit for ${SITE_ONE.name} and check the southbound turn-in: it carries 31% of arrivals. Plan for the evening peak with at least 12 pumps.`,
       },
     ],
-    map: { place: 'tt-dive', title: `${SITE_ONE.name} site · on the map`, tag: SITE_ONE.street, meta: '1 site · 4 rivals · 5 streets' },
+    map: { place: 'tt-dive', title: `${SITE_ONE.name} site`, tag: SITE_ONE.street, meta: '1 site · 4 rivals · 5 streets' },
   })
 }
 
@@ -360,7 +360,7 @@ const ttEvening = () =>
         text: `If evening trade matters most, as shop and café sales peak then, visit ${EVENING_RANKING[1].name} ahead of ${SECOND.name}. ${EVENING_RANKING[0].name} stays the first choice either way.`,
       },
     ],
-    map: { place: 'tt-evening', title: 'Candidate sites, 5–9pm · on the map', tag: 'Abu Dhabi Island', meta: '12 sites re-ranked' },
+    map: { place: 'tt-evening', title: 'Candidate sites, 5–9pm', tag: 'Abu Dhabi Island', meta: '12 sites re-ranked' },
   })
 
 const EXPERIENCES: Record<string, () => FindingExperience> = {
@@ -370,12 +370,12 @@ const EXPERIENCES: Record<string, () => FindingExperience> = {
   shortlist: () => ({
     ...ttAsk(),
     prompt: 'Which candidate site should we open first?',
-    map: { place: 'zahiyah', title: 'Next Site Shortlist · on the map', tag: 'Abu Dhabi Island', meta: '12 sites · 8 stations' },
+    map: { place: 'zahiyah', title: 'Next Site Shortlist', tag: 'Abu Dhabi Island', meta: '12 sites · 8 stations' },
   }),
   'evening-corridor': () => ({
     ...ttEvening(),
     prompt: 'Why does Sheikh Rashid Bin Saeed St matter in the evening?',
-    map: { place: 'corridor', title: 'Evening Demand, 5–9pm · on the map', tag: 'Sheikh Rashid Bin Saeed St', meta: '3 sites · 5 rivals' },
+    map: { place: 'corridor', title: 'Evening Demand, 5–9pm', tag: 'Sheikh Rashid Bin Saeed St', meta: '3 sites · 5 rivals' },
   }),
 }
 

@@ -466,7 +466,7 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
       stateId,
       snapshot,
       title: finding
-        ? `${finding.title} · on the map`
+        ? finding.title
         : location
           ? `Schools exposed to factory emissions · ${place}`
           : `Top ${annotation.schools.length} schools by traffic · ${place}`,
