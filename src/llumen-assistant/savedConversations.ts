@@ -2,8 +2,11 @@ import type { AssistantReplyPayload } from './assistantReplyTypes'
 import type { SessionSummary } from './SessionsPanel'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
 
+/** A file sent along with a question. */
+export type ChatFile = { name: string; typeBadge: string }
+
 export type SavedChatMessage =
-  | { id: string; role: 'user'; text: string }
+  | { id: string; role: 'user'; text: string; files?: ChatFile[] }
   | { id: string; role: 'assistant'; text: string; reply?: AssistantReplyPayload }
 
 export type SavedConversation = {

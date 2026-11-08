@@ -11,6 +11,7 @@ import type {
   ThinkingStep,
   TimelineStep,
 } from '../assistantReplyTypes'
+import type { ChatFile } from '../savedConversations'
 import {
   EVENING_RANKING,
   NETWORK_AVERAGE,
@@ -31,6 +32,8 @@ export type FindingStageId = BriefingPlaceId | TomtomAskStageId
 
 /** Typed into the Briefing's AI bar on the first keystroke: opens the stage on every candidate site. */
 export const TT_ASK_PROMPT = 'I have 12 candidate sites. How do they compare to my current stations?'
+/** The list of those 12 sites, attached as the prompt types in. */
+export const TT_ASK_FILES: ChatFile[] = [{ name: 'candidate-sites-abu-dhabi.xlsx', typeBadge: 'XLSX' }]
 /** Offered once the sites are on the map: zooms into the top site. */
 export const TT_DIVE_PROMPT = `Zoom into ${SITE_ONE.name} on ${SITE_ONE.street}. Why does it rank first?`
 /** Offered once the top site is on the map: re-ranks the sites on evening traffic. */

@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { CaretDown } from '@phosphor-icons/react'
+import { CaretDown, File } from '@phosphor-icons/react'
 import { MeshGradient } from '@paper-design/shaders-react'
 import gsap from 'gsap'
 import styles from './compact-assistant.module.css'
@@ -76,6 +76,7 @@ import { DUMPING_ALERT_BRIEFING, DUMPING_BRIEFING_SOURCES } from './landing/dump
 import { LandingAskAsset, LandingAskMap, LandingAskStage, type LandingAskStageHandle } from './landing/LandingAskStage'
 import { findingReply, tellMeMorePrompt } from './landing/landingAskReplies'
 import {
+  TT_ASK_FILES,
   TT_ASK_ID,
   TT_ASK_PROMPT,
   TT_DIVE_ID,
@@ -163,6 +164,7 @@ import {
   sameStorySnapshot,
   storeConversations,
   storeStoryVersions,
+  type ChatFile,
   type SavedChatMessage,
   type SavedConversation,
 } from './savedConversations'
@@ -292,11 +294,13 @@ function titleFromReply(reply: AssistantReplyPayload) {
 function UserMessageBubble({
   messageId,
   text,
+  files,
   questions,
   onJumpToQuestion,
 }: {
   messageId: string
   text: string
+  files?: ChatFile[]
   questions: ChatQuestionIndexItem[]
   onJumpToQuestion: (questionId: string) => void
 }) {
@@ -322,7 +326,20 @@ function UserMessageBubble({
   }, [menuOpen])
 
   return (
-    <div data-message-id={messageId} className={styles.msgUserRow}>
+    <div data-message-id={messageId} className={`${styles.msgUserRow}${files?.length ? ` ${styles.msgUserRowFiles}` : ''}`}>
+      {files?.length ? (
+        <div className={styles.msgUserFiles} aria-label="Attached files">
+          {files.map((file) => (
+            <div key={file.name} className={styles.contextChip} title={file.name}>
+              <p className={styles.contextChipName}>{file.name}</p>
+              <div className={styles.contextChipFooter}>
+                <File className={styles.contextChipKindIcon} size={14} weight="regular" aria-hidden />
+                <span className={styles.contextChipBadge}>{file.typeBadge}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className={styles.msgUser}>
         <span className={styles.msgUserText}>
           {splitTextWithInlineMentions(text).map((segment, index) => {
@@ -2467,7 +2484,7 @@ export function CompactAssistantDemo() {
 
   /** Runs a landing ask: the reply streams in and the annotated map slides in alongside it. */
   const runLandingAsk = useCallback(
-    (prompt: string, subject: LandingAskSubject) => {
+    (prompt: string, subject: LandingAskSubject, files?: ChatFile[]) => {
       const finding = subject && 'finding' in subject ? subject.finding : null
       const plan = planLandingAsk(subject)
       const { reply, stateId, map } = plan
@@ -2476,7 +2493,7 @@ export function CompactAssistantDemo() {
       setActiveConversationId(uid())
       setActiveMapStateId(map ? stateId : null)
       setChatTitle(plan.prompt ? truncateTitle(plan.prompt) : finding ? truncateTitle(finding.title) : titleFromReply(reply))
-      setMessages([{ id: uid(), role: 'user', text: plan.prompt ?? prompt }])
+      setMessages([{ id: uid(), role: 'user', text: plan.prompt ?? prompt, files }])
       const messageId = startAssistantReply(reply)
       if (map) landingAskPendingRef.current = { messageId, stateId, ...map }
     },
@@ -2650,15 +2667,18 @@ export function CompactAssistantDemo() {
         return
       }
       const slash = parseSlashCommand(text)
+      const files = TT_ASK_FILES.filter((file) => chips.some((chip) => chip.label === file.name))
+      if (landingTakeover && text.trim() === TT_ASK_PROMPT && files.length === chips.length) {
+        setFirstResponse(null)
+        runLandingAsk(
+          TT_ASK_PROMPT,
+          { finding: { id: TT_ASK_ID, title: 'Candidate sites', domain: 'Site Selection', finding: TT_ASK_PROMPT } },
+          files.length > 0 ? files : undefined,
+        )
+        return
+      }
       if (landingTakeover && chips.length === 0) {
         const prompt = text.trim()
-        if (prompt === TT_ASK_PROMPT) {
-          setFirstResponse(null)
-          runLandingAsk(prompt, {
-            finding: { id: TT_ASK_ID, title: 'Candidate sites', domain: 'Site Selection', finding: prompt },
-          })
-          return
-        }
         const demo = parseFirstResponseCommand(prompt)
         // A second prompt while the first answer is up (or still loading) continues full screen.
         if (firstResponse && prompt && !slash && !demo) {
@@ -2978,6 +2998,7 @@ export function CompactAssistantDemo() {
                 <UserMessageBubble
                   messageId={user.id}
                   text={user.text}
+                  files={user.role === 'user' ? user.files : undefined}
                   questions={questionIndex}
                   onJumpToQuestion={jumpToQuestion}
                 />
@@ -3399,6 +3420,7 @@ export function CompactAssistantDemo() {
                       ? FOLLOW_UP_PROMPTS[firstResponse.response.kind]
                       : TT_ASK_PROMPT
                 }
+                demoFiles={landingTakeover && !firstResponse ? TT_ASK_FILES : undefined}
               />
           </div>
         ) : null}

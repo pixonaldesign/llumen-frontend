@@ -16,6 +16,7 @@ import { BorderBeam } from 'border-beam'
 import gsap from 'gsap'
 import { llumenAssets } from '../assets'
 import { InlineContextMenu } from '../InlineContextMenu'
+import type { ChatFile } from '../savedConversations'
 import {
   filterCategories,
   filterItems,
@@ -241,6 +242,8 @@ export type HubChatboxProps = {
   onSubmitLocation?: (location: StoryLocation) => void
   /** Typed into the empty editor on the first keystroke when nothing else is attached. */
   demoPrompt?: string
+  /** Attached as `demoPrompt` types in. */
+  demoFiles?: ChatFile[]
   /** A new token types `text` into the bar, then sends it. */
   typeRequest?: { token: number; text: string } | null
 }
@@ -292,6 +295,7 @@ export function HubChatbox({
   onSubmitComponents,
   onSubmitLocation,
   demoPrompt,
+  demoFiles,
   typeRequest = null,
 }: HubChatboxProps) {
   const [focused, setFocused] = useState(false)
@@ -401,6 +405,11 @@ export function HubChatbox({
       freeText === '' || typingRef.current !== null || (ownNode !== null && freeText === autoTextRef.current)
     if (!untouched) return false
     typedKeyRef.current = auto.key
+    if (demoFiles?.length && auto.key === `demo:${demoPrompt}`) {
+      setFiles((prev) =>
+        prev.length > 0 ? prev : demoFiles.map((file, index) => ({ ...file, id: `${uid}-demo-${index}` })),
+      )
+    }
     stopTyping()
     const full = auto.text
     autoTextRef.current = full
