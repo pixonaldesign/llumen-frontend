@@ -663,6 +663,8 @@ export function CompactAssistantDemo() {
   const [firstResponse, setFirstResponse] = useState<{
     response: FirstResponse
     landing?: LandingAskPlan
+    /** The files sent with the prompt; the full conversation opens with them on the question. */
+    files?: ChatFile[]
     loading: boolean
   } | null>(null)
   const firstResponseLoaded = useCallback(
@@ -2625,7 +2627,7 @@ export function CompactAssistantDemo() {
   const openFirstResponse = useCallback(
     (followUp?: string) => {
       if (!firstResponse) return
-      const { response, landing } = firstResponse
+      const { response, landing, files } = firstResponse
       const reply = landing?.reply ?? response.reply
       if (open) {
         settleReplies()
@@ -2636,10 +2638,10 @@ export function CompactAssistantDemo() {
       openLandingAsk()
       setActiveConversationId(uid())
       setActiveMapStateId(landing?.map ? landing.stateId : null)
-      setChatTitle(truncateTitle(landing ? titleFromReply(reply) : response.chatTitle))
+      setChatTitle(truncateTitle(landing && !files ? titleFromReply(reply) : response.chatTitle))
       const replyId = uid()
       setMessages([
-        { id: uid(), role: 'user', text: response.prompt },
+        { id: uid(), role: 'user', text: landing?.prompt ?? response.prompt, files },
         { id: replyId, role: 'assistant', text: '', reply },
       ])
       setSettledReplyIds((current) => new Set([...current, replyId]))
@@ -2652,7 +2654,15 @@ export function CompactAssistantDemo() {
       }
       if (followUp) {
         setMessages((current) => [...current, { id: uid(), role: 'user', text: followUp }])
-        startAssistantReply(followUpReply(response, followUp))
+        const next = Object.values(TT_FOLLOW_UPS).find((item) => item.prompt === followUp)
+        if (next) {
+          const plan = planLandingAsk({ finding: next.finding })
+          setActiveMapStateId(plan.map ? plan.stateId : null)
+          const messageId = startAssistantReply(plan.reply)
+          if (plan.map) landingAskPendingRef.current = { messageId, stateId: plan.stateId, ...plan.map }
+        } else {
+          startAssistantReply(followUpReply(response, followUp))
+        }
       }
     },
     [firstResponse, open, openLandingAsk, resetConversation, settleReplies, startAssistantReply],
@@ -2668,12 +2678,20 @@ export function CompactAssistantDemo() {
       const slash = parseSlashCommand(text)
       const files = TT_ASK_FILES.filter((file) => chips.some((chip) => chip.label === file.name))
       if (landingTakeover && text.trim() === TT_ASK_PROMPT && files.length === chips.length) {
-        setFirstResponse(null)
-        runLandingAsk(
-          TT_ASK_PROMPT,
-          { finding: { id: TT_ASK_ID, title: 'Candidate sites', domain: 'Site Selection', finding: TT_ASK_PROMPT } },
-          files.length > 0 ? files : undefined,
-        )
+        const landing = planLandingAsk({
+          finding: { id: TT_ASK_ID, title: 'Candidate sites', domain: 'Site Selection', finding: TT_ASK_PROMPT },
+        })
+        setFirstResponse({
+          response: {
+            ...firstResponseFor('map', TT_ASK_PROMPT),
+            headline: 'Your 12 candidate sites against your stations',
+            text: landing.reply.headline ?? '',
+            chatTitle: 'Candidate sites',
+          },
+          landing,
+          files: files.length > 0 ? files : undefined,
+          loading: true,
+        })
         return
       }
       if (landingTakeover && chips.length === 0) {
@@ -2766,7 +2784,6 @@ export function CompactAssistantDemo() {
       openLandingAsk,
       firstResponse,
       openFirstResponse,
-      runLandingAsk,
     ],
   )
 
@@ -3416,7 +3433,9 @@ export function CompactAssistantDemo() {
                   !landingTakeover
                     ? undefined
                     : firstResponse
-                      ? FOLLOW_UP_PROMPTS[firstResponse.response.kind]
+                      ? firstResponse.response.prompt === TT_ASK_PROMPT
+                        ? TT_DIVE_PROMPT
+                        : FOLLOW_UP_PROMPTS[firstResponse.response.kind]
                       : TT_ASK_PROMPT
                 }
                 demoFiles={landingTakeover && !firstResponse ? TT_ASK_FILES : undefined}
