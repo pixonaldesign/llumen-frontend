@@ -30,6 +30,11 @@
   inset: 0;
 }
 
+/* The thumbnail is too small for the sites' name pills; the dots and disks carry it. */
+.map :global(.tomtom-pin-card) {
+  display: none;
+}
+
 .wrap .continue {
   border-color: rgba(255, 255, 255, 0.85);
   background: transparent;
