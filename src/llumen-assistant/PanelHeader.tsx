@@ -71,6 +71,10 @@ export type PanelHeaderProps = {
   /** Shows a shrink / expand toggle beside Close; `shrunk` picks which one. */
   onToggleShrunk?: () => void
   shrunk?: boolean
+  /** A partner's logo in place of the conversations and new-chat buttons. */
+  logo?: { src: string; alt: string }
+  /** Leaves the title on its own, without the options and sources buttons beside it. */
+  hideTitleActions?: boolean
 }
 
 const CONVERSATION_MENU_ITEMS = [
@@ -109,6 +113,8 @@ export function PanelHeader({
   subcontextOpen = false,
   onToggleShrunk,
   shrunk = false,
+  logo,
+  hideTitleActions = false,
 }: PanelHeaderProps) {
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(chatTitle)
@@ -124,7 +130,7 @@ export function PanelHeader({
   const sourcesWrapRef = useRef<HTMLDivElement>(null)
   const onChatSearchChangeRef = useRef(onChatSearchChange)
   onChatSearchChangeRef.current = onChatSearchChange
-  const showSources = sources.length > 0 && Boolean(onRemoveSource)
+  const showSources = sources.length > 0 && Boolean(onRemoveSource) && !hideTitleActions
   /** Windowed always; fullscreen only while subcontext owns the right rail. */
   const sourcesAsPopup = !expanded || subcontextOpen
   const sourcesControlActive = sourcesAsPopup ? sourcesOpen : sourcesPanelOpen
@@ -352,62 +358,68 @@ export function PanelHeader({
 
   return (
     <div className={styles.headerRow}>
-      <div className={styles.headerActions}>
-        <div className={styles.headerSessionsWrap} ref={sessionsWrapRef}>
-          <button
-            type="button"
-            className={`${styles.headerBtn}${sessionsOpen ? ` ${styles.headerBtnActive}` : ''}`}
-            onClick={() => onSessionsOpenChange?.(!sessionsOpen)}
-            aria-label="Conversations"
-            aria-expanded={sessionsOpen}
-            aria-haspopup={sessionsFullscreen ? undefined : 'menu'}
-          >
-            {sessionsFullscreen ? (
-              <SidebarSimple className={styles.headerPhosphor} size={20} weight="regular" aria-hidden />
-            ) : (
-              <List className={styles.headerPhosphor} size={20} weight="regular" aria-hidden />
-            )}
-          </button>
-          {sessionsOpen && !sessionsFullscreen ? (
-            <div
-              className={styles.headerSessionsMenu}
-              role="menu"
+      {logo ? (
+        <div className={styles.headerActions}>
+          <img className={styles.headerLogo} src={logo.src} alt={logo.alt} />
+        </div>
+      ) : (
+        <div className={styles.headerActions}>
+          <div className={styles.headerSessionsWrap} ref={sessionsWrapRef}>
+            <button
+              type="button"
+              className={`${styles.headerBtn}${sessionsOpen ? ` ${styles.headerBtnActive}` : ''}`}
+              onClick={() => onSessionsOpenChange?.(!sessionsOpen)}
               aria-label="Conversations"
-              data-lc-sessions-menu
+              aria-expanded={sessionsOpen}
+              aria-haspopup={sessionsFullscreen ? undefined : 'menu'}
             >
-              <SessionsPanel
-                variant="dropdown"
-                sessions={sessions}
-                activeSessionId={activeSessionId}
-                onDeleteSession={onDeleteSession}
-                onOpenFinding={(finding) => {
-                  onOpenFinding?.(finding)
-                  onSessionsOpenChange?.(false)
-                }}
-                onOpenSession={(id) => {
-                  onOpenSession?.(id)
-                  onSessionsOpenChange?.(false)
-                }}
-                onShareSession={() => {
-                  onSessionsOpenChange?.(false)
-                  onShareConversation?.()
-                }}
-              />
-            </div>
+              {sessionsFullscreen ? (
+                <SidebarSimple className={styles.headerPhosphor} size={20} weight="regular" aria-hidden />
+              ) : (
+                <List className={styles.headerPhosphor} size={20} weight="regular" aria-hidden />
+              )}
+            </button>
+            {sessionsOpen && !sessionsFullscreen ? (
+              <div
+                className={styles.headerSessionsMenu}
+                role="menu"
+                aria-label="Conversations"
+                data-lc-sessions-menu
+              >
+                <SessionsPanel
+                  variant="dropdown"
+                  sessions={sessions}
+                  activeSessionId={activeSessionId}
+                  onDeleteSession={onDeleteSession}
+                  onOpenFinding={(finding) => {
+                    onOpenFinding?.(finding)
+                    onSessionsOpenChange?.(false)
+                  }}
+                  onOpenSession={(id) => {
+                    onOpenSession?.(id)
+                    onSessionsOpenChange?.(false)
+                  }}
+                  onShareSession={() => {
+                    onSessionsOpenChange?.(false)
+                    onShareConversation?.()
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+          {onNewSession ? (
+            <button
+              type="button"
+              className={styles.headerBtn}
+              onClick={onNewSession}
+              aria-label="New conversation"
+              title="New conversation"
+            >
+              <Plus className={styles.headerPhosphor} size={20} weight="regular" aria-hidden />
+            </button>
           ) : null}
         </div>
-        {onNewSession ? (
-          <button
-            type="button"
-            className={styles.headerBtn}
-            onClick={onNewSession}
-            aria-label="New conversation"
-            title="New conversation"
-          >
-            <Plus className={styles.headerPhosphor} size={20} weight="regular" aria-hidden />
-          </button>
-        ) : null}
-      </div>
+      )}
 
       <div
         className={styles.headerTitleCluster}
@@ -456,7 +468,7 @@ export function PanelHeader({
           </span>
         )}
 
-        {hasAssistantReply ? (
+        {hasAssistantReply && !hideTitleActions ? (
           <div className={styles.headerOverflowWrap} ref={overflowWrapRef}>
             <button
               type="button"

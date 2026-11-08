@@ -17,6 +17,7 @@ import styles from './compact-assistant.module.css'
 import { llumenAssets } from './assets'
 import LandingHomeDefault from './landing/LandingHomeDefault'
 import { BriefingLanding } from './landing/BriefingLanding'
+import { landingAssets } from './landing/landingAssets'
 import type { TopBarView } from './landing/LandingTopBar'
 import { Briefing2Landing } from './landing/Briefing2Landing'
 import { FeedLanding } from './landing/FeedLanding'
@@ -499,6 +500,8 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
 const LANDING_DEMO_PROMPT = locationPrompt(MUSSAFAH_LOCATION)
 
 /** The TomTom demo's follow-ups in the stage, as findings so each answer brings its own map. */
+const TOMTOM_LOGO = { src: landingAssets.tomtomLogo, alt: 'TomTom' }
+
 const TT_FOLLOW_UPS = {
   dive: {
     prompt: TT_DIVE_PROMPT,
@@ -3476,6 +3479,8 @@ export function CompactAssistantDemo() {
                   onAddSource={addSource}
                   shrunk={landingAskShrunk}
                   onToggleShrunk={() => setLandingAskShrunk((current) => !current)}
+                  logo={TOMTOM_LOGO}
+                  hideTitleActions
                 />
               </div>
             }

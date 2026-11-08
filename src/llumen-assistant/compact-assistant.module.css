@@ -1917,6 +1917,13 @@
   flex-shrink: 0;
 }
 
+.headerLogo {
+  display: block;
+  width: auto;
+  height: 20px;
+  margin-left: var(--space-sm);
+}
+
 .headerBtn {
   display: flex;
   align-items: center;
