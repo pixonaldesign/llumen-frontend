@@ -72,8 +72,8 @@ const EVENING_BASKET: FeedChart = {
 }
 
 /**
- * The Briefing findings: the evening corridor and the island's candidate sites on the night map, each
- * with its story, alternating with the network's own figures over the blurred map.
+ * The Briefing findings: the evening corridor on the night map, with its story, then the network's own
+ * figures over the blurred map.
  */
 export const FEED_STOPS: FeedStop[] = [
   {
@@ -95,16 +95,6 @@ export const FEED_STOPS: FeedStop[] = [
     after: ' this year, each facing a rival that opened within 1 km of it.',
     chart: NETWORK_VOLUME,
     tellMore: false,
-  },
-  {
-    id: 'shortlist',
-    place: 'zahiyah',
-    domain: 'Site Selection',
-    title: 'World Trade Center tops 12 candidate sites',
-    before: 'Of 12 candidate sites on Abu Dhabi Island, World Trade Center on Sheikh Rashid Bin Saeed St scores ',
-    highlight: '87 of 100',
-    after: ' and would sell 58% more fuel than your average station.',
-    storyId: 'tt-shortlist',
   },
   {
     id: 'evening-basket',

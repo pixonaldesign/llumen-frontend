@@ -116,7 +116,7 @@ import {
 } from './interactionModel'
 import { StoryView } from './story/StoryView'
 import { TomtomStoryView, type TomtomAskContext } from './tomtom/TomtomStoryView'
-import { TOMTOM_STORIES, isTomtomStory } from './tomtom/tomtomScenario'
+import { isTomtomStory } from './tomtom/tomtomScenario'
 import { ALL_PARTS, NO_PARTS, TOMTOM_PARTS, type TomtomPart, type TomtomParts } from './tomtom/tomtomMapLayers'
 import type { StoryMapView } from './story/StoryMap'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
@@ -682,6 +682,8 @@ export function CompactAssistantDemo() {
     landing?: LandingAskPlan
     /** The files sent with the prompt; the full conversation opens with them on the question. */
     files?: ChatFile[]
+    /** The story whose chatbox asked it; it answers there, and on the landing when unset. */
+    storyId?: string
     loading: boolean
   } | null>(null)
   const firstResponseLoaded = useCallback(
@@ -1557,10 +1559,8 @@ export function CompactAssistantDemo() {
         setHubRailMode('thread')
       }
       setStoryChatComponents((prev) => (prev.some((item) => item.id === component.id) ? prev : [...prev, component]))
-      if (isHub && activeStoryId != null) {
-        const chip: LandingContextChip = isTomtomStory(activeStoryId)
-          ? { id: `story-${activeStoryId}`, label: TOMTOM_STORIES[activeStoryId].title, categoryId: 'slides' }
-          : storyContextChip(getLandingStory(activeStoryId))
+      if (isHub && activeStoryId != null && !isTomtomStory(activeStoryId)) {
+        const chip = storyContextChip(getLandingStory(activeStoryId))
         setLandingChips((prev) => (prev.some((item) => item.id === chip.id) ? prev : [...prev, chip]))
       }
       if (open || !hubStoryOpen) setHubMorphFrom(sourceRect)
@@ -1647,7 +1647,8 @@ export function CompactAssistantDemo() {
   const ownsStoryAi = storyAi.storyId === null || storyAi.storyId === activeStoryId
   const [storyLocation, setStoryLocation] = useState<StoryLocation | null>(null)
   const [locationPickerOpen, setLocationPickerOpen] = useState(false)
-  const storyPrompts = activeStoryId != null
+  /** The schools stories' prompts; TomTom stories offer the candidate sites demo's instead. */
+  const storyPrompts = activeStoryId != null && !isTomtomStory(activeStoryId)
   /** The picked location's pill is still in the rail composer. */
   const locationInDraft = storyLocation !== null && draft.includes(`@${storyLocation.name}`)
   /** Story prompts, offered in the rail composer: per location, or city-wide until the map is annotated. */
@@ -2457,8 +2458,11 @@ export function CompactAssistantDemo() {
   )
 
   /** Briefing landings send AI bar prompts to the full-screen stage instead of the rail. */
-  const landingTakeover =
-    isHub && activeStoryId == null && (landingVariant === 'briefing' || landingVariant === 'briefing-2')
+  /** The candidate sites demo runs from the landing bar and from a story's chatbox alike. */
+  const briefingHub = isHub && (landingVariant === 'briefing' || landingVariant === 'briefing-2')
+  const landingTakeover = briefingHub && activeStoryId == null
+  /** The first response asked from where the chatbox is now: the landing, or this story. */
+  const shownFirstResponse = firstResponse && (firstResponse.storyId ?? null) === activeStoryId ? firstResponse : null
 
   const landingBarRect = useCallback(
     () => composerDockRef.current?.querySelector('form')?.getBoundingClientRect() ?? null,
@@ -2731,7 +2735,8 @@ export function CompactAssistantDemo() {
       }
       const slash = parseSlashCommand(text)
       const files = TT_ASK_FILES.filter((file) => chips.some((chip) => chip.label === file.name))
-      if (landingTakeover && text.trim() === TT_ASK_PROMPT && files.length === chips.length) {
+      // A story's chatbox keeps the story's pill ahead of the prompt.
+      if (briefingHub && text.trim().endsWith(TT_ASK_PROMPT) && files.length === chips.length) {
         const landing = planLandingAsk({
           finding: { id: TT_ASK_ID, title: 'Candidate sites', domain: 'Site Selection', finding: TT_ASK_PROMPT },
         })
@@ -2744,15 +2749,20 @@ export function CompactAssistantDemo() {
           },
           landing,
           files: files.length > 0 ? files : undefined,
+          storyId: activeStoryId ?? undefined,
           loading: true,
         })
+        return
+      }
+      if (shownFirstResponse?.storyId && !slash && chips.length === 0 && text.trim()) {
+        openFirstResponse(text.trim())
         return
       }
       if (landingTakeover && chips.length === 0) {
         const prompt = text.trim()
         const demo = parseFirstResponseCommand(prompt)
         // A second prompt while the first answer is up (or still loading) continues full screen.
-        if (firstResponse && prompt && !slash && !demo) {
+        if (shownFirstResponse && prompt && !slash && !demo) {
           openFirstResponse(prompt)
           return
         }
@@ -2834,9 +2844,11 @@ export function CompactAssistantDemo() {
       cueThenShowFindings,
       isHub,
       landingVariant,
+      briefingHub,
       landingTakeover,
       openLandingAsk,
-      firstResponse,
+      shownFirstResponse,
+      activeStoryId,
       openFirstResponse,
     ],
   )
@@ -2975,9 +2987,9 @@ export function CompactAssistantDemo() {
   }, [messages])
 
   const openTomtomAsk = useCallback(
-    ({ storyId, title, pageTitle, sourceRect }: TomtomAskContext) => {
+    ({ pageTitle, sourceRect }: TomtomAskContext) => {
       if (isHub) {
-        setLandingChips([{ id: `story-${storyId}`, label: title, categoryId: 'slides' }])
+        setLandingChips([])
         setHubMorphFrom(sourceRect)
         setHubStoryOpen(true)
         setLandingFocusToken((n) => n + 1)
@@ -3393,9 +3405,9 @@ export function CompactAssistantDemo() {
                 />
               </div>
             ) : null}
-            {!storyActive && !landingAsk && firstResponse ? (
+            {!landingAsk && shownFirstResponse ? (
               <div
-                key={firstResponse.response.id}
+                key={shownFirstResponse.response.id}
                 className={`${styles.composerWorkflow} ${styles.composerAnswer}`}
               >
                 <div className={styles.answerBackdrop} aria-hidden>
@@ -3404,21 +3416,21 @@ export function CompactAssistantDemo() {
                   <span />
                   <span />
                 </div>
-                {firstResponse.loading ? (
+                {shownFirstResponse.loading ? (
                   <FirstResponseLoader
-                    steps={(firstResponse.landing?.reply ?? firstResponse.response.reply).timeline.map(
+                    steps={(shownFirstResponse.landing?.reply ?? shownFirstResponse.response.reply).timeline.map(
                       (step) => step.titleInProgress ?? step.title,
                     )}
                     onDone={firstResponseLoaded}
                   />
                 ) : (
                   <FirstResponseCard
-                    response={firstResponse.response}
+                    response={shownFirstResponse.response}
                     map={
-                      firstResponse.landing?.map ? (
+                      shownFirstResponse.landing?.map ? (
                         <LandingAskMap
                           preview
-                          snapshot={firstResponse.landing.map.snapshot}
+                          snapshot={shownFirstResponse.landing.map.snapshot}
                           capture={null}
                           onCapture={storeMapCapture}
                         />
@@ -3488,15 +3500,15 @@ export function CompactAssistantDemo() {
                 onSubmitComponents={submitStoryComponents}
                 onSubmitLocation={storyActive && !streaming ? submitHubLocation : undefined}
                 demoPrompt={
-                  !landingTakeover
+                  !briefingHub
                     ? undefined
-                    : firstResponse
-                      ? firstResponse.response.prompt === TT_ASK_PROMPT
+                    : shownFirstResponse
+                      ? shownFirstResponse.response.prompt === TT_ASK_PROMPT
                         ? TT_DIVE_PROMPT
-                        : FOLLOW_UP_PROMPTS[firstResponse.response.kind]
+                        : FOLLOW_UP_PROMPTS[shownFirstResponse.response.kind]
                       : TT_ASK_PROMPT
                 }
-                demoFiles={landingTakeover && !firstResponse ? TT_ASK_FILES : undefined}
+                demoFiles={briefingHub && !shownFirstResponse ? TT_ASK_FILES : undefined}
               />
           </div>
         ) : null}

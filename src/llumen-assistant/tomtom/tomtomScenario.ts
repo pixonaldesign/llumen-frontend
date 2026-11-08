@@ -993,14 +993,6 @@ export const TOMTOM_STORIES: Record<string, TomtomStory> = {
             title: 'Evening ranking, of 100',
             bars: eveningTop.map((site) => ({ label: site.area, value: site.evening, display: String(site.evening), color: SITE_COLOR })),
           },
-          {
-            id: 'site-rashid-volume',
-            kind: 'cell',
-            title: 'Evening fuel volume',
-            value: `${((RASHID.volume * RASHID.eveningShare) / 100).toFixed(1)}M`,
-            note: `litres a year · ${RASHID.area}`,
-            spark: series(10, 1.9, (RASHID.volume * RASHID.eveningShare) / 100, 6, 0.04),
-          },
         ]),
       },
       {
