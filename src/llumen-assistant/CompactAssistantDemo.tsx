@@ -334,7 +334,6 @@ function UserMessageBubble({
               <p className={styles.contextChipName}>{file.name}</p>
               <div className={styles.contextChipFooter}>
                 <File className={styles.contextChipKindIcon} size={14} weight="regular" aria-hidden />
-                <span className={styles.contextChipBadge}>{file.typeBadge}</span>
               </div>
             </div>
           ))}

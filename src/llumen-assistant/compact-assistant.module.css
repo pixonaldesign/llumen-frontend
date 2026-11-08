@@ -3151,17 +3151,14 @@
   flex-shrink: 0;
 }
 
-/* A file: its icon in a tile, then its name over its type, on a frosted rounded rectangle. */
+/* A file: its icon in a tile, then its name, on a frosted rounded rectangle. */
 .contextChip {
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas:
-    'icon name'
-    'icon badge';
+  grid-template-areas: 'icon name';
   align-items: center;
   column-gap: 10px;
-  row-gap: 1px;
   max-width: 280px;
   height: 48px;
   padding: 7px 14px 7px 7px;
@@ -3205,7 +3202,6 @@
   position: relative;
   z-index: 1;
   grid-area: name;
-  align-self: end;
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -3217,7 +3213,7 @@
   white-space: nowrap;
 }
 
-/* Its icon and type sit in the chip's grid, not in a row of their own. */
+/* Its icon sits in the chip's grid, not in a row of its own. */
 .contextChipFooter {
   display: contents;
 }
@@ -3232,26 +3228,6 @@
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--lc-text-primary);
-}
-
-.contextChipBadge {
-  position: relative;
-  z-index: 1;
-  grid-area: badge;
-  align-self: start;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--lc-text-primary);
-  font-family: var(--lc-font-mono);
-  font-size: 9px;
-  font-weight: var(--lc-weight-medium);
-  line-height: 1.2;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  opacity: 0.6;
 }
 
 .contextChipRemove {

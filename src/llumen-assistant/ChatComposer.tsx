@@ -366,7 +366,6 @@ function ContextChip({
           <p className={styles.contextChipName}>{item.name}</p>
           <div className={styles.contextChipFooter}>
             <File className={styles.contextChipKindIcon} size={14} weight="regular" aria-hidden />
-            <span className={styles.contextChipBadge}>{item.typeBadge}</span>
           </div>
         </>
       ) : null}

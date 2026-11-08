@@ -861,7 +861,6 @@ export function HubChatbox({
                           weight="regular"
                           aria-hidden
                         />
-                        <span className={panelStyles.contextChipBadge}>{file.typeBadge}</span>
                       </div>
                     </>
                   ) : null}
