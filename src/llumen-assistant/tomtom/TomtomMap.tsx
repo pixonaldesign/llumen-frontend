@@ -22,6 +22,7 @@ import {
   forgetTowers,
   mountTomtomLayers,
   resolveTowers,
+  STAGED_MS,
   stagedReveal,
   towerAt,
   wholeReveal,
@@ -37,7 +38,6 @@ const PREFIX = 'tomtom'
 const FLY_MS = 2600
 const SHRINK_MS = 500
 const GROW_MS = 1500
-const STAGED_MS = 4200
 const DIMENSION_MS = 700
 const FOCUS_MS = 1400
 const FOCUS_ZOOM = 16.4

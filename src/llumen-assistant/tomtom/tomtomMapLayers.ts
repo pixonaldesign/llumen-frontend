@@ -123,17 +123,25 @@ export function wholeReveal(grow: number): TomtomReveal {
   }
 }
 
+/** How long a staged scene takes to come in, and when each of its parts starts and ends, in ms. */
+export const STAGED_MS = 10000
+const STAGES = { pins: [0, 1600], fences: [2200, 5000], rivals: [5600, 7200], zones: [7800, 10000] } as const
+
 /**
- * The scene told in turn over `t` (0 to 1, linear in time): the sites and stations pop in, the fences draw
- * out along their streets, the rivals appear, then the catchments swell open.
+ * The scene told in turn over `t` (0 to 1, linear in time), a pause between each part: the sites and
+ * stations pop in, the fences draw out along their streets, the rivals appear, then the catchments swell open.
  */
 export function stagedReveal(t: number): TomtomReveal {
+  const at = (stage: keyof typeof STAGES) => {
+    const [start, end] = STAGES[stage]
+    return clamp01((t * STAGED_MS - start) / (end - start))
+  }
   return {
-    base: easeOutCubic(clamp01(t / 0.25)),
-    pins: clamp01(t / 0.22),
-    fences: clamp01((t - 0.2) / 0.36),
-    rivals: clamp01((t - 0.52) / 0.2),
-    zones: easeOutBack(clamp01((t - 0.7) / 0.3)),
+    base: easeOutCubic(at('pins')),
+    pins: at('pins'),
+    fences: at('fences'),
+    rivals: at('rivals'),
+    zones: easeOutBack(at('zones')),
   }
 }
 
