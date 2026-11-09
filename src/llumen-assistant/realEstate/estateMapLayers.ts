@@ -7,7 +7,10 @@
  */
 import mapboxgl from 'mapbox-gl'
 import type { LngLat } from './estateGeo'
+import { WindField, type EstateWind } from './windField'
 import './estateMap.css'
+
+export type { EstateWind }
 
 export const ESTATE_MAP_STYLE = 'mapbox://styles/pixonal/cmu15yibh003r01r16sdc7t05'
 
@@ -61,23 +64,6 @@ export type EstateArea = {
 /** A route along the ground: a pipe, a feeder main, a wind path. */
 export type EstateLine = { id: string; path: LngLat[]; color: string; width?: number; dashed?: boolean; group: string; tip?: EstateTip }
 
-/**
- * An arrow that keeps travelling `from` → `to`, fading in as it sets off and out as it arrives: the
- * wind, a current. `phase` (0–1) staggers arrows that share a period.
- */
-export type EstateFlow = {
-  id: string
-  from: LngLat
-  to: LngLat
-  lengthKm: number
-  periodMs: number
-  phase: number
-  color: string
-  width?: number
-  group: string
-  tip?: EstateTip
-}
-
 /** A site: a complaint, a sampling point, a sensor. */
 export type EstatePoint = { id: string; at: LngLat; color: string; radius?: number; group: string; tip?: EstateTip }
 
@@ -104,7 +90,7 @@ export type EstateMapScene = {
   heatRamp: string[]
   areas?: EstateArea[]
   lines?: EstateLine[]
-  flows?: EstateFlow[]
+  wind?: EstateWind
   points?: EstatePoint[]
   labels?: EstateLabel[]
 }
@@ -126,11 +112,10 @@ const paintId = (prefix: string) => `${prefix}-paint`
 const areaId = (prefix: string) => `${prefix}-area`
 const lineId = (prefix: string) => `${prefix}-line`
 const pointId = (prefix: string) => `${prefix}-point`
-const flowId = (prefix: string) => `${prefix}-flow`
+const windId = (prefix: string) => `${prefix}-wind`
 /** The overlay layers a hover can name, top first. */
 const tipLayers = (prefix: string) => [
   pointId(prefix),
-  flowId(prefix),
   lineId(prefix),
   `${lineId(prefix)}-dashed`,
   `${areaId(prefix)}-fill`,
@@ -255,23 +240,8 @@ function mountOverlays(map: mapboxgl.Map, prefix: string) {
       paint: { ...paint, 'line-dasharray': [1.6, 1.4] },
     })
   }
-  const flow = flowId(prefix)
-  if (!map.getSource(flow)) {
-    map.addSource(flow, { type: 'geojson', data: EMPTY })
-    map.addLayer({
-      id: flow,
-      type: 'line',
-      source: flow,
-      slot: 'middle',
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: {
-        'line-color': ['get', 'color'],
-        'line-opacity': ['get', 'o'],
-        'line-width': ['get', 'width'],
-        'line-emissive-strength': 1,
-      },
-    })
-  }
+  const wind = windOf(map, prefix)
+  if (!map.getLayer(wind.id)) map.addLayer(wind)
   const point = pointId(prefix)
   if (!map.getSource(point)) {
     map.addSource(point, { type: 'geojson', data: EMPTY })
@@ -291,6 +261,18 @@ function mountOverlays(map: mapboxgl.Map, prefix: string) {
       },
     })
   }
+}
+
+/** Per map: its wind field layer, kept so a style change can add the same one back. */
+const windFields = new WeakMap<mapboxgl.Map, WindField>()
+
+function windOf(map: mapboxgl.Map, prefix: string) {
+  let field = windFields.get(map)
+  if (!field) {
+    field = new WindField(windId(prefix))
+    windFields.set(map, field)
+  }
+  return field
 }
 
 function setOverlays(map: mapboxgl.Map, prefix: string, scene: EstateMapScene, grow: number, hidden: ReadonlySet<string>) {
@@ -328,89 +310,7 @@ function setOverlays(map: mapboxgl.Map, prefix: string, scene: EstateMapScene, g
       geometry: { type: 'Point', coordinates: point.at },
     })),
   })
-  setFlows(map, prefix, shown(scene.flows), grow)
-}
-
-const KM_PER_DEG_LAT = 110.8
-const kmPerDegLng = (lat: number) => 111.32 * Math.cos((lat * Math.PI) / 180)
-/** The arrowhead's wings, swept back from the tip by this much, and their length against the arrow's. */
-const FLOW_HEAD = { angle: (28 * Math.PI) / 180, share: 0.3 }
-
-type Flowing = { prefix: string; flows: EstateFlow[]; grow: number; frame: number }
-
-/** Per map: the flows it is animating, redrawn every frame while there are any. */
-const flowing = new WeakMap<mapboxgl.Map, Flowing>()
-
-/**
- * Each flow's arrow at `now`: its shaft and head as one path, its opacity easing in and out of each
- * run. Without `now` the arrows hold still, spread along their routes by phase.
- */
-function flowFeatures(flows: EstateFlow[], grow: number, now: number | null): GeoJSON.Feature[] {
-  return flows.map((flow) => {
-    const [lng, lat] = flow.from
-    const east = (flow.to[0] - lng) * kmPerDegLng(lat)
-    const north = (flow.to[1] - lat) * KM_PER_DEG_LAT
-    const span = Math.hypot(east, north) || 1
-    const ux = east / span
-    const uy = north / span
-    const t = now === null ? 0.25 + 0.5 * flow.phase : (((now / flow.periodMs + flow.phase) % 1) + 1) % 1
-    const tipKm = t * (span + flow.lengthKm)
-    const tailKm = Math.max(0, tipKm - flow.lengthKm)
-    const headKm = Math.min(span, tipKm)
-    const at = (km: number): LngLat => [lng + (ux * km) / kmPerDegLng(lat), lat + (uy * km) / KM_PER_DEG_LAT]
-    const tip = at(headKm)
-    const wing = (side: 1 | -1): LngLat => {
-      const angle = Math.PI + side * FLOW_HEAD.angle
-      const back = flow.lengthKm * FLOW_HEAD.share
-      const wx = (ux * Math.cos(angle) - uy * Math.sin(angle)) * back
-      const wy = (ux * Math.sin(angle) + uy * Math.cos(angle)) * back
-      return [tip[0] + wx / kmPerDegLng(lat), tip[1] + wy / KM_PER_DEG_LAT]
-    }
-    return {
-      type: 'Feature',
-      properties: {
-        id: flow.id,
-        color: flow.color,
-        o: grow * Math.sin(Math.PI * t) ** 0.6,
-        width: flow.width ?? 2,
-        tip: flow.tip ? JSON.stringify(flow.tip) : undefined,
-      },
-      geometry: { type: 'MultiLineString', coordinates: [[at(tailKm), tip], [wing(1), tip, wing(-1)]] },
-    }
-  })
-}
-
-function drawFlows(map: mapboxgl.Map, state: Flowing, now: number | null) {
-  ;(map.getSource(flowId(state.prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
-    type: 'FeatureCollection',
-    features: flowFeatures(state.flows, state.grow, now),
-  })
-}
-
-/** Starts the arrows moving, or stops them once none are shown; with reduced motion they hold still. */
-function setFlows(map: mapboxgl.Map, prefix: string, flows: EstateFlow[], grow: number) {
-  let state = flowing.get(map)
-  if (!state) {
-    const created: Flowing = { prefix, flows: [], grow: 0, frame: 0 }
-    map.once('remove', () => window.cancelAnimationFrame(created.frame))
-    flowing.set(map, created)
-    state = created
-  }
-  Object.assign(state, { prefix, flows, grow })
-  const still = !flows.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  drawFlows(map, state, still ? null : performance.now())
-  if (still) {
-    window.cancelAnimationFrame(state.frame)
-    state.frame = 0
-    return
-  }
-  if (state.frame) return
-  const run = state
-  const tick = (now: number) => {
-    drawFlows(map, run, now)
-    run.frame = window.requestAnimationFrame(tick)
-  }
-  run.frame = window.requestAnimationFrame(tick)
+  windOf(map, prefix).set(scene.wind && grow > 0 && !hidden.has(scene.wind.group) ? scene.wind : null, grow)
 }
 
 /** The overlay under `point` that names itself on hover, with a key that changes when another does. */
