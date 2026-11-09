@@ -6,6 +6,7 @@
 import { hash, offsetKm, scatter, type LngLat } from '../realEstate/estateGeo'
 import type {
   EstateArea,
+  EstateFlow,
   EstateHeatPoint,
   EstateLabel,
   EstateLine,
@@ -26,7 +27,7 @@ import {
   type MapDataLayer,
 } from '../realEstate/estateTypes'
 import { BARSHA_HOMES } from './barshaHomes'
-import { arrow, box, centroid, circle, insidePlume, plumeRing, shiftPlume, toward, type Plume } from './dmGeo'
+import { box, centroid, circle, insidePlume, plumeRing, shiftPlume, toward, type Plume } from './dmGeo'
 import { HORIZON_COLOR, HORIZON_LABEL, LEVEL, toned } from './dmShared'
 
 /* —— Al Barsha: parks, the irrigation network and the pump house —— */
@@ -263,16 +264,32 @@ const BASELINE_OUTLINE: EstateArea = {
   tip: { title: 'Baseline odor plume', rows: [['Residents inside', '1,850']] },
 }
 
-function windLines(bearing = WIND_TOWARD): EstateLine[] {
-  const upwind = toward(PUMP_HOUSE, bearing + 180, 0.62)
-  return [-0.28, 0, 0.28].flatMap((offset, index) => {
-    const from = toward(upwind, bearing + 90, offset)
-    const { shaft, head } = arrow(from, bearing, 0.36)
-    return [
-      { id: `wind-${index}`, path: shaft, color: WIND_WHITE, width: 2, group: 'wind', tip: { title: 'Evening wind', rows: [['From', 'West-north-west'], ['Speed', '3.4 m/s']] } },
-      { id: `wind-head-${index}`, path: head, color: WIND_WHITE, width: 2, group: 'wind' },
-    ]
-  })
+/** The wind field: lanes across the wind, each carrying two arrows from upwind of the source past it. */
+const WIND_FIELD = { lanes: 9, spreadKm: 0.72, upwindKm: 0.85, downwindKm: 0.75, arrowKm: 0.2, periodMs: 5600 }
+
+function windFlows(bearing = WIND_TOWARD): EstateFlow[] {
+  const { lanes, spreadKm, upwindKm, downwindKm, arrowKm, periodMs } = WIND_FIELD
+  return Array.from({ length: lanes }, (_, lane) => {
+    const across = -spreadKm + (2 * spreadKm * lane) / (lanes - 1)
+    const stagger = (hash(lane, 7) - 0.5) * 0.3
+    const from = toward(toward(PUMP_HOUSE, bearing + 90, across), bearing + 180, upwindKm + stagger)
+    const to = toward(from, bearing, upwindKm + downwindKm)
+    const period = periodMs * (0.9 + 0.2 * hash(lane, 13))
+    return [0, 0.5].map(
+      (offset, index): EstateFlow => ({
+        id: `wind-${lane}-${index}`,
+        from,
+        to,
+        lengthKm: arrowKm,
+        periodMs: period,
+        phase: (hash(lane, 3) + offset) % 1,
+        color: WIND_WHITE,
+        width: 1.8,
+        group: 'wind',
+        tip: { title: 'Evening wind', rows: [['From', 'West-north-west'], ['Speed', '3.4 m/s']] },
+      }),
+    )
+  }).flat()
 }
 
 const HOMES = BARSHA_HOMES.map((ring, index) => ({ index, ring, at: centroid(ring) }))
@@ -685,7 +702,7 @@ const CAUSE_SCENE = scene({
 const EXPOSURE_SCENE = scene({
   towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
   areas: plumeAreas(BASELINE),
-  lines: windLines(),
+  flows: windFlows(),
   points: facilityPoints(),
 })
 
@@ -830,7 +847,7 @@ function labScenario(schedule: Schedule): EstateScenario {
         ...plumeAreas(plume),
         ...(simulated ? [BASELINE_OUTLINE] : []),
       ],
-      lines: windLines(WIND_TOWARD + schedule.turn),
+      flows: windFlows(WIND_TOWARD + schedule.turn),
     }),
   }
 }
@@ -1241,7 +1258,7 @@ const OVERVIEW: EstateAskView = {
     towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
     heat: SOCIAL_HEAT,
     areas: [...plumeAreas(BASELINE), parkAreas()[0]],
-    lines: windLines(),
+    flows: windFlows(),
     points: CRM_POINTS.slice(0, 30),
     labels: [parkLabels()[0]],
   }),

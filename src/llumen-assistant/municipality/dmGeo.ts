@@ -1,4 +1,4 @@
-/** Shapes for the Dubai Municipality maps: odor plumes, hexagonal community cells, wind arrows, tanks. */
+/** Shapes for the Dubai Municipality maps: odor plumes, hexagonal community cells, tanks. */
 import { offsetKm, type LngLat } from '../realEstate/estateGeo'
 
 const KM_PER_DEG_LAT = 110.8
@@ -65,19 +65,6 @@ export function circle(center: LngLat, radiusM: number, steps = 16): LngLat[] {
     const angle = (2 * Math.PI * index) / steps
     return offsetKm(center, (Math.cos(angle) * radiusM) / 1000, (Math.sin(angle) * radiusM) / 1000)
   })
-}
-
-/** An arrow `lengthKm` long from `from`, pointing along `bearing`: its shaft and its open head. */
-export function arrow(from: LngLat, bearing: number, lengthKm: number): { shaft: LngLat[]; head: LngLat[] } {
-  const ux = Math.sin(rad(bearing))
-  const uy = Math.cos(rad(bearing))
-  const tip = offsetKm(from, ux * lengthKm, uy * lengthKm)
-  const back = lengthKm * 0.22
-  const wing = (side: 1 | -1) => {
-    const angle = rad(bearing + 180 + side * 28)
-    return offsetKm(tip, Math.sin(angle) * back, Math.cos(angle) * back)
-  }
-  return { shaft: [from, tip], head: [wing(1), tip, wing(-1)] }
 }
 
 /** The centre of a footprint's corners. */
