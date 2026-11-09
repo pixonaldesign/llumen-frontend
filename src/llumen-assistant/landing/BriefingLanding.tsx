@@ -23,7 +23,6 @@ import {
   CaretDown,
   Check,
   MapPin,
-  PlayCircle,
   Plus,
   ThumbsDown,
   ThumbsUp,
@@ -1701,7 +1700,6 @@ function FindingBody({
           }}
         >
           <span className={home.actionInner}>
-            <PlayCircle size={20} weight="regular" aria-hidden />
             <span>Simulate recommended actions</span>
           </span>
         </button>
