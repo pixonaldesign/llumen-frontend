@@ -73,7 +73,13 @@ import {
 import type { HubChatComponent, HubWorkToast } from './landing/HubChatbox'
 import type { LandingTellMeMorePayload } from './landing/LandingHomeDefault'
 import { DUMPING_ALERT_BRIEFING, DUMPING_BRIEFING_SOURCES } from './landing/dumpingBriefing'
-import { LandingAskAsset, LandingAskMap, LandingAskStage, type LandingAskStageHandle } from './landing/LandingAskStage'
+import {
+  FindingCaptureQueue,
+  LandingAskAsset,
+  LandingAskMap,
+  LandingAskStage,
+  type LandingAskStageHandle,
+} from './landing/LandingAskStage'
 import { findingReply, tellMeMorePrompt } from './landing/landingAskReplies'
 import { findingExperience } from './landing/landingFindingExperiences'
 import { CommandPalette } from './CommandPalette'
@@ -2499,6 +2505,21 @@ export function CompactAssistantDemo() {
 
   const landingAskAsset = useMemo(() => mapStateAsset(messages, activeMapStateId), [messages, activeMapStateId])
 
+  /** Map cards in the reply without a thumbnail yet, other than the one the open map is capturing. */
+  const pendingMapCaptures = useMemo(() => {
+    if (!landingAsk || streaming || replyRendering) return []
+    const capturing = landingAskMap.capture?.stateId
+    return messages
+      .flatMap((message) => (message.role === 'assistant' ? (message.reply?.createdComponents ?? []) : []))
+      .flatMap((component) =>
+        component.preview?.kind === 'story-map-state' &&
+        !mapCaptures[component.preview.stateId] &&
+        component.preview.stateId !== capturing
+          ? [{ stateId: component.preview.stateId, snapshot: component.preview.snapshot }]
+          : [],
+      )
+  }, [landingAsk, streaming, replyRendering, landingAskMap.capture, messages, mapCaptures])
+
   /** New chat inside the stage: the chat empties and the map slides away; the stage stays up. */
   const newLandingAsk = useCallback(() => {
     clearLandingAskMap()
@@ -3394,6 +3415,7 @@ export function CompactAssistantDemo() {
                   capture={landingAskMap.capture}
                   onCapture={storeMapCapture}
                 />
+                <FindingCaptureQueue pending={pendingMapCaptures} onCapture={storeMapCapture} />
               </LandingAskAsset>
             }
             onClosing={() => setLandingAskLeaving(true)}

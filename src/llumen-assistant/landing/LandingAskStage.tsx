@@ -427,6 +427,68 @@ export function LandingAskMap({ snapshot, ...rest }: LandingAskMapProps) {
   return <ReplyMap snapshot={snapshot} {...rest} />
 }
 
+/** After the tiles paint: long enough for the scene to finish growing in. */
+const BACKGROUND_CAPTURE_SETTLE_MS = 1700
+
+/**
+ * Renders a reply's not-yet-opened finding views off screen, one at a time, so every map card has its
+ * thumbnail before the user clicks it.
+ */
+export function FindingCaptureQueue({
+  pending,
+  onCapture,
+}: {
+  pending: { stateId: string; snapshot: StoryAiSnapshot }[]
+  onCapture: (stateId: string, capture: StoryMapCapture) => void
+}) {
+  const next = pending.find((item) => isFindingPlace(item.snapshot.findingPlace))
+  const place = next?.snapshot.findingPlace
+  if (!next || !isFindingPlace(place)) return null
+  return (
+    <div className={styles.captureStage} aria-hidden>
+      <QueuedCapture key={next.stateId} stateId={next.stateId} place={place} onCapture={onCapture} />
+    </div>
+  )
+}
+
+function QueuedCapture({
+  stateId,
+  place,
+  onCapture,
+}: {
+  stateId: string
+  place: FindingStageId
+  onCapture: (stateId: string, capture: StoryMapCapture) => void
+}) {
+  const handleRef = useRef<EstateMapHandle>(null)
+  const timerRef = useRef(0)
+  const stage = findingStage(place)
+  useEffect(() => () => window.clearTimeout(timerRef.current), [])
+  const onReady = useCallback(
+    (ready: 'loaded' | 'painted') => {
+      if (ready !== 'painted') return
+      timerRef.current = window.setTimeout(() => {
+        void handleRef.current?.capture().then((shot) => {
+          if (shot) onCapture(stateId, shot)
+        })
+      }, BACKGROUND_CAPTURE_SETTLE_MS)
+    },
+    [stateId, onCapture],
+  )
+  return (
+    <EstateMap
+      camera={stage.camera}
+      scene={stage.scene}
+      hidden={NO_HIDDEN}
+      padding={MAP_PADDING}
+      controls={false}
+      interactive={false}
+      handleRef={handleRef}
+      onReady={onReady}
+    />
+  )
+}
+
 function ReplyMap({ snapshot, capture, onCapture, preview = false }: LandingAskMapProps) {
   const handleRef = useRef<StoryMapHandle | null>(null)
   const onHandle = useCallback((handle: StoryMapHandle | null) => {

@@ -175,6 +175,21 @@
   width: 300px;
 }
 
+/*
+ * At the open map's size, so background thumbnails frame the same view. Transparent rather than off
+ * screen: Mapbox stops rendering a map outside the viewport.
+ */
+.captureStage {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: -1;
+  width: calc(100vw - var(--lc-rail-width));
+  height: 100vh;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Below the asset header's tabs (--asset-header-h is measured to their bottom edge). */
 .mapPane .mapControls {
   top: calc(var(--asset-header-h, 0px) + 16px);
