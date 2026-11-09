@@ -24,6 +24,7 @@ import {
   Check,
   MapPin,
   Plus,
+  Sparkle,
   ThumbsDown,
   ThumbsUp,
   X,
@@ -1700,6 +1701,7 @@ function FindingBody({
           }}
         >
           <span className={home.actionInner}>
+            <Sparkle size={20} weight="regular" aria-hidden />
             <span>Simulate recommended actions</span>
           </span>
         </button>
