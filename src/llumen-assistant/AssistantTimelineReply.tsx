@@ -751,11 +751,17 @@ export function AssistantTimelineReply({
             const prev = index > 0 ? visibleBlocks[index - 1] : null
             const isMedia = block.type === 'visual' || block.type === 'report'
             const prevIsCopy = prev?.type === 'text'
-            // Top separator when a visual/report follows body text (no separator after component)
-            const needsTopSeparator = isMedia && prevIsCopy
+            const isMapState =
+              block.type === 'visual' &&
+              componentById.get(block.componentId)?.preview?.kind === 'story-map-state'
+            // Top separator when a visual/report follows body text; map views close their section instead
+            const needsTopSeparator = isMedia && prevIsCopy && !isMapState
+            const needsBottomSeparator = isMapState && index < blocks.length - 1
             const separatorClass = needsTopSeparator
               ? `${styles.answerBlockSeparator} ${styles.answerBlockSeparatorTop}`
-              : undefined
+              : needsBottomSeparator
+                ? `${styles.answerBlockSeparator} ${styles.answerBlockSeparatorBottom}`
+                : undefined
 
             if (block.type === 'heading') {
               return (
