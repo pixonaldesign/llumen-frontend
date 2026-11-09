@@ -1224,7 +1224,7 @@ export const ODOR_STORY: EstateStory = {
 
 export const ODOR_PLACE: EstatePlace = {
   id: 'barsha',
-  camera: { center: [55.2083, 25.0965], zoom: 14.7, pitch: 60, bearing: -30 },
+  camera: { center: [55.21084, 25.10088], zoom: 14.2, pitch: 60, bearing: -30 },
   scene: scene({
     towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
     heat: SOCIAL_HEAT,

@@ -355,6 +355,29 @@ export function BriefingLanding({
 
   const stop = FEED_STOPS[active]
 
+  /** Style 8 with a chart on top: where the chart starts, so the map turns its scene above it. */
+  const charted = floating && Boolean(stop.chart)
+  const [measuredChartTop, setMeasuredChartTop] = useState<number | null>(null)
+  const chartTop = charted ? measuredChartTop : null
+  useEffect(() => {
+    const mapEl = mapRef.current
+    const stage = mapEl?.parentElement
+    if (!charted || !mapEl || !stage) return
+    const measure = () => {
+      const chart = stage.querySelector<HTMLElement>('[data-chart="true"] > :first-child')
+      if (!chart) return
+      setMeasuredChartTop(Math.round(chart.getBoundingClientRect().top - mapEl.getBoundingClientRect().top))
+    }
+    /* Again while the finding slides in and settles. */
+    const settle = [300, 700, 1500].map((delay) => window.setTimeout(measure, delay))
+    const observer = new ResizeObserver(measure)
+    observer.observe(stage)
+    return () => {
+      settle.forEach((timer) => window.clearTimeout(timer))
+      observer.disconnect()
+    }
+  }, [charted, stop.id])
+
   const returnHeld = storyReturn?.phase === 'hold'
   /** The map is flying into the story, or holding that view underneath it. */
   const opening = storyFlight !== null && !storyRelease && !returnHeld
@@ -843,6 +866,7 @@ export function BriefingLanding({
               blank={mapBlurred}
               focusRight={findingsStyle === 2 || findingsStyle === 5}
               focusLow={findingsStyle === 8}
+              chartTop={chartTop}
               enter={opening ? storyOpening.enter : null}
               onArrive={arriveAtStory}
               align={storyRelease && storyRelease !== 'home' ? storyRelease : null}
