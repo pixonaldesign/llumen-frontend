@@ -364,12 +364,22 @@ export function BriefingLanding({
 
   /** Style 8 with a chart on top: where the chart starts, so the map turns its scene above it. */
   const charted = floating && Boolean(stop.chart)
+  /**
+   * Each finding's last chart top, for while the previous finding is still on screen: the map flies as
+   * soon as the finding changes, so it frames clear of a chart that hasn't been laid out yet.
+   */
+  const chartTopsRef = useRef(new Map<string, number>())
   const readChartTop = useCallback(() => {
     const mapEl = mapRef.current
-    const chart = mapEl?.parentElement?.querySelector<HTMLElement>('[data-chart="true"] > :first-child')
-    if (!mapEl || !chart) return null
-    return Math.round(layoutTop(chart) - layoutTop(mapEl))
-  }, [])
+    const chart = mapEl?.parentElement?.querySelector<HTMLElement>(
+      `[data-chart="true"][data-stop="${stop.id}"] > :first-child`,
+    )
+    const tops = chartTopsRef.current
+    if (!mapEl || !chart) return tops.get(stop.id) ?? [...tops.values()].at(-1) ?? null
+    const top = Math.round(layoutTop(chart) - layoutTop(mapEl))
+    tops.set(stop.id, top)
+    return top
+  }, [stop.id])
   const [chartCheck, setChartCheck] = useState(0)
   useEffect(() => {
     const stage = mapRef.current?.parentElement
@@ -1663,7 +1673,7 @@ function FindingBody({
   const revealScrollbar = useRevealScrollbarOnScroll()
   return (
     <>
-      <div ref={revealScrollbar} className={styles.findingMain} data-chart={Boolean(stop.chart)}>
+      <div ref={revealScrollbar} className={styles.findingMain} data-chart={Boolean(stop.chart)} data-stop={stop.id}>
         {stop.chart ? <FeedChartCard key={stop.id} chart={stop.chart} /> : null}
         <div className={styles.findingCopy}>
           <p className={styles.bubbleMeta}>{stop.domain}</p>
