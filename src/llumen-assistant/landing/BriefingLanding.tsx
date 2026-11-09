@@ -21,9 +21,9 @@ import {
   ArrowsOutSimple,
   CalendarBlank,
   CaretDown,
-  ChatText,
   Check,
   MapPin,
+  PlayCircle,
   Plus,
   ThumbsDown,
   ThumbsUp,
@@ -1688,7 +1688,7 @@ function FindingBody({
         <button
           type="button"
           className={`${home.actionBtn} ${styles.tellMoreBtn}`}
-          aria-label="Tell me more"
+          aria-label="Simulate recommended actions"
           aria-disabled={stop.tellMore === false || undefined}
           onClick={() => {
             if (stop.tellMore === false) return
@@ -1701,8 +1701,8 @@ function FindingBody({
           }}
         >
           <span className={home.actionInner}>
-            <ChatText size={20} weight="regular" aria-hidden />
-            <span>Tell Me More</span>
+            <PlayCircle size={20} weight="regular" aria-hidden />
+            <span>Simulate recommended actions</span>
           </span>
         </button>
         {stop.storyId ? (
