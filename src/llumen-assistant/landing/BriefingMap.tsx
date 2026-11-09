@@ -218,7 +218,11 @@ export function BriefingMap({
     map.on('load', () => {
       const current = placeRef.current
       const held = heldRef.current
-      map.jumpTo(held ? { ...held.camera, padding: held.padding } : current.camera)
+      map.jumpTo(
+        held
+          ? { ...held.camera, padding: held.padding }
+          : { ...current.camera, padding: cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current) },
+      )
       mountLayers(map, current)
       readyRef.current = true
       if (pendingReleaseRef.current) {

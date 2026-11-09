@@ -368,8 +368,8 @@ export function BriefingLanding({
       if (!chart) return
       setMeasuredChartTop(Math.round(chart.getBoundingClientRect().top - mapEl.getBoundingClientRect().top))
     }
-    /* Again while the finding slides in and settles. */
-    const settle = [300, 700, 1500].map((delay) => window.setTimeout(measure, delay))
+    /* Again while the finding slides in and settles; on a fresh load it arrives after the page's intro. */
+    const settle = [300, 800, 1600, 3000, 5000].map((delay) => window.setTimeout(measure, delay))
     const observer = new ResizeObserver(measure)
     observer.observe(stage)
     return () => {
