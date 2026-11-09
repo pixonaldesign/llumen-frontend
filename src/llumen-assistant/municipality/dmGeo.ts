@@ -1,4 +1,4 @@
-/** Shapes for the Dubai Municipality maps: odor plumes, hexagonal community cells, tanks. */
+/** Shapes for the Dubai Municipality maps: odor plumes, tanks, boxes. */
 import { offsetKm, type LngLat } from '../realEstate/estateGeo'
 
 const KM_PER_DEG_LAT = 110.8
@@ -49,14 +49,6 @@ export function plumeRing(plume: Plume, steps = 36): LngLat[] {
 /** The same plume, shortened and turned: how a what-if changes its reach and direction. */
 export function shiftPlume(plume: Plume, scale: number, turn = 0): Plume {
   return { ...plume, bearing: plume.bearing + turn, lengthKm: plume.lengthKm * scale, widthKm: plume.widthKm * Math.sqrt(scale) }
-}
-
-/** A flat-topped hexagon `radiusKm` across from its centre to each corner. */
-export function hexagon(center: LngLat, radiusKm: number): LngLat[] {
-  return Array.from({ length: 6 }, (_, index) => {
-    const angle = rad(60 * index)
-    return offsetKm(center, Math.cos(angle) * radiusKm, Math.sin(angle) * radiusKm)
-  })
 }
 
 /** A round footprint, as a polygon: a tank, a treatment unit. */

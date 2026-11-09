@@ -1,11 +1,11 @@
 /**
  * The Urban Planning story: where Dubai is growing, whether that growth fits the plan, whether
  * infrastructure, housing and services can absorb it, where planning pressure converges, and whether
- * Dubai Municipality should direct, phase or replan. Each community is a hexagonal column whose height
- * and colour read the page's measure. Every value is an illustrative example.
+ * Dubai Municipality should direct, phase or replan. Each community is drawn as its own outline, tinted
+ * in the page's colour and filled more strongly the higher its measure. Every value is an illustrative example.
  */
 import { hash, scatter, type LngLat } from '../realEstate/estateGeo'
-import type { EstateHeatPoint, EstateLine, EstateMapScene, EstateTower } from '../realEstate/estateMapLayers'
+import type { EstateHeatPoint, EstateLine, EstateMapScene } from '../realEstate/estateMapLayers'
 import {
   PALETTE,
   STATUS,
@@ -17,8 +17,8 @@ import {
   type Horizon,
   type MapDataLayer,
 } from '../realEstate/estateTypes'
-import { hexagon } from './dmGeo'
 import { HORIZON_COLOR, LEVEL, toned } from './dmShared'
+import { COMMUNITY_BOUNDS } from './dubaiCommunities'
 
 type Alignment = 'aligned' | 'diverging' | 'misaligned'
 type Priority = 'monitor' | 'manage' | 'priority'
@@ -58,7 +58,6 @@ type Community = {
 const C = (
   id: string,
   name: string,
-  at: LngLat,
   [growth, density, builtUp, pipeline, pressure]: number[],
   [alignment, changes, vacant]: [Alignment, number, number],
   [sewer, drainage, utilities, transport]: number[],
@@ -68,7 +67,7 @@ const C = (
 ): Community => ({
   id,
   name,
-  at,
+  at: COMMUNITY_BOUNDS[id].label,
   growth,
   density,
   builtUp,
@@ -90,26 +89,26 @@ const C = (
 })
 
 const COMMUNITIES: Community[] = [
-  C('jvc', 'Jumeirah Village Circle', [55.209, 25.06], [9.8, 21, 14, 18400, 92], ['misaligned', 46, 38], [94, 88, 81, 42], [96, 0.6, 48], 'priority', 'replan'),
-  C('business-bay', 'Business Bay', [55.265, 25.1855], [7.4, 28, 8, 14900, 88], ['diverging', 22, 9], [92, 86, 84, 71], [95, 0.4, 31], 'priority', 'phase'),
-  C('arjan', 'Arjan', [55.242, 25.068], [8.9, 17, 12, 11200, 84], ['misaligned', 31, 22], [91, 84, 78, 38], [94, 0.7, 41], 'priority', 'replan'),
-  C('dubai-south', 'Dubai South', [55.162, 24.89], [11.6, 3, 19, 26000, 79], ['aligned', 6, 410], [74, 69, 66, 29], [78, 0.8, 62, 97], 'manage', 'phase'),
-  C('creek-harbour', 'Dubai Creek Harbour', [55.345, 25.2], [7.9, 11, 16, 15300, 74], ['aligned', 5, 58], [61, 58, 63, 64], [82, 1.3, 71], 'manage', 'direct'),
-  C('motor-city', 'Motor City', [55.235, 25.045], [6.1, 12, 9, 7800, 71], ['diverging', 19, 30], [86, 90, 72, 35], [92, 0.9, 55], 'priority', 'replan'),
-  C('al-furjan', 'Al Furjan', [55.145, 25.03], [6.8, 14, 11, 8900, 68], ['diverging', 14, 41], [83, 79, 70, 52], [90, 1.0, 58], 'manage', 'phase'),
-  C('town-square', 'Town Square', [55.295, 25.003], [8.2, 9, 15, 9600, 66], ['aligned', 7, 64], [81, 76, 72, 31], [89, 0.9, 66], 'manage', 'phase'),
-  C('al-quoz', 'Al Quoz', [55.23, 25.14], [4.2, 8, 7, 5600, 64], ['misaligned', 38, 12], [88, 93, 75, 58], [91, 0.5, 22, 108], 'priority', 'replan'),
-  C('mbr-city', 'MBR City', [55.3, 25.16], [6.4, 10, 12, 12100, 62], ['aligned', 4, 92], [58, 55, 60, 61], [84, 1.4, 74], 'monitor', 'direct'),
-  C('expo-city', 'Expo City', [55.15, 24.965], [9.2, 2, 21, 13800, 60], ['aligned', 2, 280], [42, 40, 48, 46], [70, 1.1, 70], 'monitor', 'direct'),
-  C('jlt-marina', 'JLT and Dubai Marina', [55.142, 25.075], [3.5, 34, 4, 4200, 58], ['diverging', 12, 6], [90, 85, 80, 76], [95, 0.7, 34], 'manage', 'phase'),
-  C('dubai-hills', 'Dubai Hills', [55.25, 25.105], [5.6, 13, 9, 6700, 55], ['aligned', 3, 48], [55, 52, 58, 68], [88, 1.8, 86], 'monitor', 'direct'),
-  C('damac-hills', 'DAMAC Hills', [55.25, 25.025], [5.1, 7, 10, 5900, 52], ['aligned', 5, 76], [63, 60, 62, 40], [85, 1.2, 79], 'monitor', 'direct'),
-  C('intl-city', 'International City', [55.41, 25.165], [1.9, 24, 2, 1800, 41], ['diverging', 9, 18], [89, 91, 77, 44], [97, 0.5, 28, 103], 'manage', 'phase'),
-  C('al-barsha', 'Al Barsha', [55.2, 25.105], [2.1, 15, 3, 1400, 38], ['aligned', 6, 7], [84, 80, 74, 72], [93, 1.5, 57], 'monitor'),
-  C('deira', 'Deira', [55.32, 25.265], [0.8, 32, 1, 900, 36], ['aligned', 8, 4], [93, 95, 82, 78], [96, 0.9, 19, 101], 'monitor'),
-  C('dso', 'Dubai Silicon Oasis', [55.38, 25.12], [2.8, 9, 4, 3100, 34], ['aligned', 4, 55], [49, 46, 52, 57], [80, 1.6, 68], 'monitor', 'direct'),
-  C('al-qusais', 'Al Qusais', [55.38, 25.28], [1.5, 18, 2, 1100, 33], ['aligned', 5, 11], [87, 83, 76, 69], [94, 0.8, 26, 106], 'monitor'),
-  C('mirdif', 'Mirdif', [55.42, 25.22], [1.2, 6, 2, 700, 24], ['aligned', 2, 15], [52, 49, 55, 48], [86, 1.7, 72], 'monitor'),
+  C('jvc', 'Jumeirah Village Circle', [9.8, 21, 14, 18400, 92], ['misaligned', 46, 38], [94, 88, 81, 42], [96, 0.6, 48], 'priority', 'replan'),
+  C('business-bay', 'Business Bay', [7.4, 28, 8, 14900, 88], ['diverging', 22, 9], [92, 86, 84, 71], [95, 0.4, 31], 'priority', 'phase'),
+  C('arjan', 'Arjan', [8.9, 17, 12, 11200, 84], ['misaligned', 31, 22], [91, 84, 78, 38], [94, 0.7, 41], 'priority', 'replan'),
+  C('dubai-south', 'Dubai South', [11.6, 3, 19, 26000, 79], ['aligned', 6, 410], [74, 69, 66, 29], [78, 0.8, 62, 97], 'manage', 'phase'),
+  C('creek-harbour', 'Dubai Creek Harbour', [7.9, 11, 16, 15300, 74], ['aligned', 5, 58], [61, 58, 63, 64], [82, 1.3, 71], 'manage', 'direct'),
+  C('motor-city', 'Motor City', [6.1, 12, 9, 7800, 71], ['diverging', 19, 30], [86, 90, 72, 35], [92, 0.9, 55], 'priority', 'replan'),
+  C('al-furjan', 'Al Furjan', [6.8, 14, 11, 8900, 68], ['diverging', 14, 41], [83, 79, 70, 52], [90, 1.0, 58], 'manage', 'phase'),
+  C('town-square', 'Town Square', [8.2, 9, 15, 9600, 66], ['aligned', 7, 64], [81, 76, 72, 31], [89, 0.9, 66], 'manage', 'phase'),
+  C('al-quoz', 'Al Quoz', [4.2, 8, 7, 5600, 64], ['misaligned', 38, 12], [88, 93, 75, 58], [91, 0.5, 22, 108], 'priority', 'replan'),
+  C('mbr-city', 'MBR City', [6.4, 10, 12, 12100, 62], ['aligned', 4, 92], [58, 55, 60, 61], [84, 1.4, 74], 'monitor', 'direct'),
+  C('expo-city', 'Expo City', [9.2, 2, 21, 13800, 60], ['aligned', 2, 280], [42, 40, 48, 46], [70, 1.1, 70], 'monitor', 'direct'),
+  C('jlt-marina', 'JLT and Dubai Marina', [3.5, 34, 4, 4200, 58], ['diverging', 12, 6], [90, 85, 80, 76], [95, 0.7, 34], 'manage', 'phase'),
+  C('dubai-hills', 'Dubai Hills', [5.6, 13, 9, 6700, 55], ['aligned', 3, 48], [55, 52, 58, 68], [88, 1.8, 86], 'monitor', 'direct'),
+  C('damac-hills', 'DAMAC Hills', [5.1, 7, 10, 5900, 52], ['aligned', 5, 76], [63, 60, 62, 40], [85, 1.2, 79], 'monitor', 'direct'),
+  C('intl-city', 'International City', [1.9, 24, 2, 1800, 41], ['diverging', 9, 18], [89, 91, 77, 44], [97, 0.5, 28, 103], 'manage', 'phase'),
+  C('al-barsha', 'Al Barsha', [2.1, 15, 3, 1400, 38], ['aligned', 6, 7], [84, 80, 74, 72], [93, 1.5, 57], 'monitor'),
+  C('deira', 'Deira', [0.8, 32, 1, 900, 36], ['aligned', 8, 4], [93, 95, 82, 78], [96, 0.9, 19, 101], 'monitor'),
+  C('dso', 'Dubai Silicon Oasis', [2.8, 9, 4, 3100, 34], ['aligned', 4, 55], [49, 46, 52, 57], [80, 1.6, 68], 'monitor', 'direct'),
+  C('al-qusais', 'Al Qusais', [1.5, 18, 2, 1100, 33], ['aligned', 5, 11], [87, 83, 76, 69], [94, 0.8, 26, 106], 'monitor'),
+  C('mirdif', 'Mirdif', [1.2, 6, 2, 700, 24], ['aligned', 2, 15], [52, 49, 55, 48], [86, 1.7, 72], 'monitor'),
 ]
 
 const BY_ID = Object.fromEntries(COMMUNITIES.map((community) => [community.id, community])) as Record<string, Community>
@@ -168,38 +167,38 @@ const ACTION = {
 const fmt = (value: number) => value.toLocaleString('en-US')
 const count = <T,>(of: (c: Community) => T, value: T) => COMMUNITIES.filter((c) => of(c) === value).length
 
-/* —— Columns —— */
+/* —— Community outlines —— */
 
-/** The closest pair, Arjan and Motor City, stand 2.65 km apart. */
-const HEX_KM = 1.2
+/** How a page reads a community: its colour, how strongly it fills (0–1), its headline and tooltip rows. */
+type Shade = { color: string; level: number; text: string; label?: boolean; rows?: [string, string][] }
 
-type Column = { color: string; heightM: number; text: string; label?: boolean; rows?: [string, string][] }
+type Outlines = Pick<EstateMapScene, 'areas' | 'labels'>
 
-function columns(read: (c: Community) => Column, group = 'communities'): EstateTower[] {
-  return COMMUNITIES.map((c) => {
-    const column = read(c)
-    return {
-      id: `hex-${c.id}`,
-      featureId: 0,
-      at: c.at,
-      heightM: column.heightM,
-      color: column.color,
-      state: 'select',
-      footprint: hexagon(c.at, HEX_KM),
-      label: column.label ?? false,
-      title: c.name,
-      text: column.text,
-      tip: { title: c.name, rows: column.rows ?? [['', column.text]] },
-      group,
-    }
-  })
+/** Each community's outline in the page's colour; a labelled one carries its name and headline. */
+function outlines(read: (c: Community) => Shade, group = 'communities'): Outlines {
+  const shaded = COMMUNITIES.map((c) => ({ c, shade: read(c) }))
+  return {
+    areas: shaded.flatMap(({ c, shade }) =>
+      COMMUNITY_BOUNDS[c.id].rings.map((ring, index) => ({
+        id: `community-${c.id}-${index}`,
+        ring,
+        color: shade.color,
+        opacity: 0.12 + 0.34 * Math.min(1, Math.max(0, shade.level)),
+        group,
+        tip: { title: c.name, rows: shade.rows ?? [['', shade.text]] },
+      })),
+    ),
+    labels: shaded
+      .filter(({ shade }) => shade.label)
+      .map(({ c, shade }) => ({ id: `community-${c.id}`, at: c.at, heightM: 0, color: shade.color, title: c.name, text: shade.text, group })),
+  }
 }
 
-const pressureHeight = (c: Community) => 150 + c.pressure * 14
+const pressureLevel = (c: Community) => c.pressure / 100
 
-const PRESSURE_COLUMNS = columns((c) => ({
+const PRESSURE_OUTLINES = outlines((c) => ({
   color: pressureColor(c.pressure),
-  heightM: pressureHeight(c),
+  level: pressureLevel(c),
   text: `Growth pressure ${c.pressure}`,
   label: c.pressure >= 74,
   rows: [
@@ -211,9 +210,9 @@ const PRESSURE_COLUMNS = columns((c) => ({
   ],
 }))
 
-const ALIGNMENT_COLUMNS = columns((c) => ({
+const ALIGNMENT_OUTLINES = outlines((c) => ({
   color: ALIGNMENT[c.alignment].color,
-  heightM: 150 + c.changes * 30,
+  level: c.changes / 46,
   text: `${c.changes} land-use change applications`,
   label: c.changes >= 22,
   rows: [
@@ -224,9 +223,9 @@ const ALIGNMENT_COLUMNS = columns((c) => ({
   ],
 }))
 
-const CAPACITY_COLUMNS = columns((c) => ({
+const CAPACITY_OUTLINES = outlines((c) => ({
   color: CAPACITY[capacityOf(c)].color,
-  heightM: pressureHeight(c),
+  level: pressureLevel(c),
   text: CAPACITY[capacityOf(c)].short,
   label: capacityOf(c) === 'intervene' && c.pressure >= 70,
   rows: [
@@ -238,9 +237,9 @@ const CAPACITY_COLUMNS = columns((c) => ({
   ],
 }))
 
-const LIVEABILITY_COLUMNS = columns((c) => ({
+const LIVEABILITY_OUTLINES = outlines((c) => ({
   color: LIVEABILITY[liveabilityOf(c)].color,
-  heightM: 150 + Math.max(0, c.occupancy - 65) * 45,
+  level: (c.occupancy - 65) / 32,
   text: `${c.occupancy}% occupied · ${c.schools} school seats per 1,000`,
   label: liveabilityOf(c) === 'gap' && c.pressure >= 60,
   rows: [
@@ -260,9 +259,9 @@ const composite = (c: Community) =>
       0.2 * { pace: 25, strained: 60, gap: 95 }[liveabilityOf(c)],
   )
 
-const PRIORITY_COLUMNS = columns((c) => ({
+const PRIORITY_OUTLINES = outlines((c) => ({
   color: PRIORITY[c.priority].color,
-  heightM: 150 + Math.max(0, composite(c) - 30) * 26,
+  level: (composite(c) - 30) / 60,
   text: PRIORITY[c.priority].label,
   label: c.priority === 'priority',
   rows: [
@@ -275,9 +274,9 @@ const PRIORITY_COLUMNS = columns((c) => ({
   ],
 }))
 
-const ACTION_COLUMNS = columns((c) => ({
+const ACTION_OUTLINES = outlines((c) => ({
   color: c.action ? ACTION[c.action].color : LEVEL.muted,
-  heightM: c.action ? pressureHeight(c) : 120,
+  level: c.action ? pressureLevel(c) : 0,
   text: c.action ? ACTION[c.action].label : 'No action needed',
   label: c.action !== undefined && (c.priority !== 'monitor' || c.action === 'direct') && c.pressure >= 60,
   rows: [
@@ -287,7 +286,7 @@ const ACTION_COLUMNS = columns((c) => ({
   ],
 }))
 
-/** Population growth as a heat layer under the columns. */
+/** Population growth as a heat layer under the outlines. */
 const POPULATION_HEAT: EstateHeatPoint[] = COMMUNITIES.flatMap((c, index) =>
   scatter(c.at, 10, 1.6, index * 7 + 3).map((at, point) => ({
     at,
@@ -298,11 +297,13 @@ const POPULATION_HEAT: EstateHeatPoint[] = COMMUNITIES.flatMap((c, index) =>
 
 const HEAT_RAMP = [PALETTE.purple[0], PALETTE.purple[2], PALETTE.purple[4], PALETTE.purple[6]]
 
-const scene = (towers: EstateTower[], parts: Partial<EstateMapScene> = {}): EstateMapScene => ({
-  towers,
+const scene = (communities: Outlines, parts: Partial<EstateMapScene> = {}): EstateMapScene => ({
+  towers: [],
   heat: [],
   heatRadiusM: 1600,
   heatRamp: HEAT_RAMP,
+  heatUnder: true,
+  ...communities,
   ...parts,
 })
 
@@ -312,38 +313,38 @@ const LAYER = {
   pressure: {
     group: 'communities',
     title: 'Urban growth pressure',
-    mark: 'tower',
+    mark: 'area',
     color: { ramp: PRESSURE_RAMP, low: 'Low', high: 'High' },
   },
   population: { group: 'population', title: 'Population growth', mark: 'heat', color: { ramp: HEAT_RAMP, low: 'Slower', high: 'Faster' } },
   alignment: {
     group: 'communities',
     title: 'Planned vs actual land use',
-    mark: 'tower',
+    mark: 'area',
     color: { items: (['aligned', 'diverging', 'misaligned'] as const).map((key) => ({ ...ALIGNMENT[key], count: `${count((c) => c.alignment, key)}` })) },
   },
   capacity: {
     group: 'communities',
     title: 'Growth pressure vs infrastructure capacity',
-    mark: 'tower',
+    mark: 'area',
     color: { items: (['support', 'intervene', 'existing', 'spare'] as const).map((key) => ({ label: CAPACITY[key].label, color: CAPACITY[key].color, count: `${count(capacityOf, key)}` })) },
   },
   liveability: {
     group: 'communities',
     title: 'Growth areas vs liveability capacity',
-    mark: 'tower',
+    mark: 'area',
     color: { items: (['gap', 'strained', 'pace'] as const).map((key) => ({ ...LIVEABILITY[key], count: `${count(liveabilityOf, key)}` })) },
   },
   priority: {
     group: 'communities',
     title: 'Integrated planning priority',
-    mark: 'tower',
+    mark: 'area',
     color: { items: (['priority', 'manage', 'monitor'] as const).map((key) => ({ label: PRIORITY[key].label, color: PRIORITY[key].color, count: `${count((c) => c.priority, key)}` })) },
   },
   action: {
     group: 'communities',
     title: 'DM planning action',
-    mark: 'tower',
+    mark: 'area',
     color: {
       items: [
         ...(['direct', 'phase', 'replan'] as const).map((key) => ({ ...ACTION[key], count: `${count((c) => c.action, key)}` })),
@@ -398,7 +399,7 @@ export const URBAN_STORY: EstateStory = {
       finding:
         'Population growth and the development pipeline are concentrating future urban pressure in specific areas. Areas where population growth and committed development overlap are likely to face the earliest planning pressure.',
       camera: CAMERA.city,
-      scene: scene(PRESSURE_COLUMNS, { heat: POPULATION_HEAT }),
+      scene: scene(PRESSURE_OUTLINES, { heat: POPULATION_HEAT }),
       filters: FILTERS,
       layers: [LAYER.pressure, LAYER.population],
       cards: toned([
@@ -458,7 +459,7 @@ export const URBAN_STORY: EstateStory = {
       finding:
         'Repeated land-use changes and development activity highlight areas where the existing plan may need review. Repeated changes in the same area may indicate a structural planning issue rather than isolated requests.',
       camera: CAMERA.west,
-      scene: scene(ALIGNMENT_COLUMNS),
+      scene: scene(ALIGNMENT_OUTLINES),
       filters: FILTERS,
       layers: [LAYER.alignment],
       cards: toned([
@@ -514,7 +515,7 @@ export const URBAN_STORY: EstateStory = {
       finding:
         'Some growth areas may reach infrastructure constraints before planned development is fully delivered. Infrastructure planning should anticipate committed growth before capacity becomes a constraint.',
       camera: CAMERA.capacity,
-      scene: scene(CAPACITY_COLUMNS),
+      scene: scene(CAPACITY_OUTLINES),
       filters: FILTERS,
       layers: [LAYER.capacity],
       cards: toned([
@@ -569,7 +570,7 @@ export const URBAN_STORY: EstateStory = {
       finding:
         'Growth becomes more difficult to sustain where housing and community provision fall behind. An area may have capacity for additional buildings without having capacity for the people who will occupy them.',
       camera: CAMERA.liveability,
-      scene: scene(LIVEABILITY_COLUMNS),
+      scene: scene(LIVEABILITY_OUTLINES),
       filters: FILTERS,
       layers: [LAYER.liveability],
       cards: toned([
@@ -623,7 +624,7 @@ export const URBAN_STORY: EstateStory = {
       finding:
         'Combining growth, land-use and capacity signals reveals Dubai’s priority planning areas. The highest-priority areas are not necessarily those growing fastest, but those where growth and capacity pressures accumulate together.',
       camera: CAMERA.priority,
-      scene: scene(PRIORITY_COLUMNS),
+      scene: scene(PRIORITY_OUTLINES),
       filters: FILTERS,
       layers: [LAYER.priority],
       cards: toned([
@@ -677,7 +678,7 @@ export const URBAN_STORY: EstateStory = {
       finding:
         'Dubai Municipality can respond to growth through three planning actions: direct growth, phase development, or review and replan. The integrated view shows where growth can be encouraged, where it should be phased with capacity, and where the plan itself may need review.',
       camera: CAMERA.decision,
-      scene: scene(ACTION_COLUMNS),
+      scene: scene(ACTION_OUTLINES),
       filters: FILTERS,
       columns: 3,
       layers: [LAYER.action],
@@ -732,15 +733,15 @@ export const URBAN_STORY: EstateStory = {
 export const URBAN_PLACE: EstatePlace = {
   id: 'dubai',
   camera: { center: [55.255, 25.11], zoom: 10.9, pitch: 58, bearing: -20 },
-  scene: scene(PRESSURE_COLUMNS, { heat: POPULATION_HEAT }),
+  scene: scene(PRESSURE_OUTLINES, { heat: POPULATION_HEAT }),
 }
 
-/** A horizon's map: the communities it acts on in its colour, the rest muted low. */
-function horizonColumns(horizon: Horizon, acts: Record<string, string>, heightOf: (c: Community) => number = pressureHeight) {
-  return columns((c) =>
+/** A horizon's map: the communities it acts on in its colour, the rest muted. */
+function horizonOutlines(horizon: Horizon, acts: Record<string, string>) {
+  return outlines((c) =>
     acts[c.id]
-      ? { color: HORIZON_COLOR[horizon], heightM: heightOf(c), text: acts[c.id], label: true, rows: [['Action', acts[c.id]], ['Priority', PRIORITY[c.priority].label]] }
-      : { color: LEVEL.muted, heightM: 120, text: PRIORITY[c.priority].label, rows: [['Priority', PRIORITY[c.priority].label]] },
+      ? { color: HORIZON_COLOR[horizon], level: 0.5 + 0.5 * pressureLevel(c), text: acts[c.id], label: true, rows: [['Action', acts[c.id]], ['Priority', PRIORITY[c.priority].label]] }
+      : { color: LEVEL.muted, level: 0, text: PRIORITY[c.priority].label, rows: [['Priority', PRIORITY[c.priority].label]] },
   )
 }
 
@@ -789,7 +790,7 @@ const CORRIDOR: EstateLine[] = [
 const horizonLayer = (horizon: Horizon, title: string): MapDataLayer => ({
   group: 'communities',
   title,
-  mark: 'tower',
+  mark: 'area',
   color: {
     items: [
       { label: 'Acted on', color: HORIZON_COLOR[horizon], count: `${Object.keys(URBAN_ACTS[horizon]).length}` },
@@ -801,20 +802,20 @@ const horizonLayer = (horizon: Horizon, title: string): MapDataLayer => ({
 const ASK_CAMERA: EstateCamera = { center: [55.262, 25.1], zoom: 10.35, pitch: 52, bearing: -14 }
 
 export const URBAN_ASK_VIEWS = {
-  urban: { camera: ASK_CAMERA, scene: scene(PRIORITY_COLUMNS), layers: [LAYER.priority] },
+  urban: { camera: ASK_CAMERA, scene: scene(PRIORITY_OUTLINES), layers: [LAYER.priority] },
   'urban-immediate': {
     camera: { center: [55.26, 25.11], zoom: 10.6, pitch: 55, bearing: 6 },
-    scene: scene(horizonColumns('immediate', URBAN_ACTS.immediate)),
+    scene: scene(horizonOutlines('immediate', URBAN_ACTS.immediate)),
     layers: [horizonLayer('immediate', 'Approvals conditioned or fast-tracked')],
   },
   'urban-intermediate': {
     camera: { center: [55.255, 25.09], zoom: 10.45, pitch: 56, bearing: -24 },
-    scene: scene(horizonColumns('intermediate', URBAN_ACTS.intermediate)),
+    scene: scene(horizonOutlines('intermediate', URBAN_ACTS.intermediate)),
     layers: [horizonLayer('intermediate', 'Infrastructure and services delivered')],
   },
   'urban-long': {
     camera: { center: [55.215, 25.03], zoom: 10.3, pitch: 52, bearing: -38 },
-    scene: scene(horizonColumns('long', URBAN_ACTS.long), { lines: CORRIDOR }),
+    scene: scene(horizonOutlines('long', URBAN_ACTS.long), { lines: CORRIDOR }),
     layers: [
       horizonLayer('long', 'Areas replanned or growth directed'),
       { group: 'corridor', title: 'Southern growth corridor', mark: 'line', color: { items: [{ label: 'Planned corridor', color: HORIZON_COLOR.long }] } },

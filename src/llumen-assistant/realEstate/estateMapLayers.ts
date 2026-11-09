@@ -88,6 +88,8 @@ export type EstateMapScene = {
   heatRadiusM: number
   /** Low to high density. */
   heatRamp: string[]
+  /** Draws the heat under the areas, so their tints and outlines stay readable, instead of over them. */
+  heatUnder?: boolean
   areas?: EstateArea[]
   lines?: EstateLine[]
   wind?: EstateWind
@@ -108,6 +110,7 @@ function metersToPixels(meters: mapboxgl.ExpressionSpecification | number): mapb
 }
 
 const heatId = (prefix: string) => `${prefix}-heat`
+const heatUnderId = (prefix: string) => `${prefix}-heat-under`
 const paintId = (prefix: string) => `${prefix}-paint`
 const areaId = (prefix: string) => `${prefix}-area`
 const lineId = (prefix: string) => `${prefix}-line`
@@ -159,11 +162,12 @@ export function mountEstateLayers(map: mapboxgl.Map, prefix: string, towers: Est
   const id = heatId(prefix)
   if (map.getSource(id)) return
   map.addSource(id, { type: 'geojson', data: EMPTY })
-  map.addLayer({
-    id,
+  const heat = (layerId: string, under: boolean): mapboxgl.HeatmapLayerSpecification => ({
+    id: layerId,
     type: 'heatmap',
     source: id,
     slot: 'middle',
+    filter: under ? ['==', ['get', 'under'], true] : ['!=', ['get', 'under'], true],
     paint: {
       'heatmap-weight': ['get', 'weight'],
       'heatmap-intensity': 1,
@@ -172,6 +176,8 @@ export function mountEstateLayers(map: mapboxgl.Map, prefix: string, towers: Est
       'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 1, '#fff'],
     },
   })
+  map.addLayer(heat(id, false))
+  map.addLayer(heat(heatUnderId(prefix), true), `${areaId(prefix)}-fill`)
 }
 
 /**
@@ -436,11 +442,13 @@ export function drawEstateScene(
     type: 'FeatureCollection',
     features: (grow <= 0 ? [] : scene.heat.filter((point) => !hidden.has(point.group))).map((point) => ({
       type: 'Feature',
-      properties: { weight: point.weight * grow, radius: scene.heatRadiusM },
+      properties: { weight: point.weight * grow, radius: scene.heatRadiusM, under: scene.heatUnder === true },
       geometry: { type: 'Point', coordinates: point.at },
     })),
   })
-  map.setPaintProperty(heatId(prefix), 'heatmap-color', heatColor(scene.heatRamp))
+  const color = heatColor(scene.heatRamp)
+  map.setPaintProperty(heatId(prefix), 'heatmap-color', color)
+  if (map.getLayer(heatUnderId(prefix))) map.setPaintProperty(heatUnderId(prefix), 'heatmap-color', color)
 }
 
 function escapeHtml(text: string) {
@@ -561,16 +569,16 @@ export class TowerLabels {
       const sy = ((1 - cy / cw) / 2) * height
       const offMap = sx < 0 || sx > width || sy < 0 || sy > height
       el.style.visibility = entry.tower.rows && offMap ? 'hidden' : ''
-      if (entry.tower.rows && !offMap) tips.push({ entry, sx, sy })
+      if (!offMap && el.style.opacity !== '0') tips.push({ entry, sx, sy })
       el.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(calc(-50% + var(--estate-shift, 0px)), calc(-100% - var(--estate-stem)))`
     }
     this.declutter(tips, width)
   }
 
   /**
-   * Open tooltips stay on the map and clear of each other: each slides in from the map's sides (its
-   * stem still on its point), then, nearest the viewer first, one that would cover a placed one rises
-   * above it on a longer stem.
+   * Labels and open tooltips stay on the map and clear of each other: each slides in from the map's
+   * sides (its stem still on its point), then, nearest the viewer first, one that would cover a placed
+   * one rises above it on a longer stem.
    */
   private declutter(tips: { entry: LabelEntry; sx: number; sy: number }[], width: number) {
     const placed: { left: number; right: number; top: number; bottom: number }[] = []
