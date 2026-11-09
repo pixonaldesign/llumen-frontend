@@ -77,7 +77,7 @@ const REMEDIES: Readonly<Record<string, Remedy>> = {
     fix: 'Raise the timeout in Settings, or leave it empty for no limit.',
     action: { kind: 'field', field: 'Timeout (seconds)', tab: 'settings' },
   },
-  WF_SIMULATED: { fix: 'This failure came from the simulate buttons in the dev tools. Execute again without them.' },
+  WF_SIMULATED: { fix: 'This failure was simulated. Execute again for a real result.' },
   WF_ACTION_EMAIL_TO_EMPTY: emptied('To'),
   WF_ACTION_EMAIL_SUBJECT_EMPTY: emptied('Subject'),
   WF_ACTION_EMAIL_BODY_EMPTY: emptied('Body'),

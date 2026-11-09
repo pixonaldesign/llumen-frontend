@@ -1,5 +1,7 @@
-/* Covers the canvas under the header; the page scrolls edge to edge and its content carries the inset. */
+/* Covers the canvas under the header; the table runs edge to edge and its cells carry the inset. */
 .page {
+  --page-inset: var(--space-2xl);
+
   position: absolute;
   inset: 0;
   overflow-y: auto;
@@ -25,18 +27,6 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-.inner {
-  padding: 0 var(--space-2xl);
-}
-
-.title {
-  margin: 0 0 var(--space-xl);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -44,12 +34,25 @@
 }
 
 .table th {
-  padding: 0 var(--space-lg) var(--space-md);
+  height: 36px;
+  padding: 0 var(--space-lg);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 12px;
   font-weight: 500;
   text-align: left;
+}
+
+.table th:nth-child(1) {
+  width: 30%;
+}
+
+.table th:nth-child(2) {
+  width: 22%;
+}
+
+.table th:nth-child(3) {
+  width: 15%;
 }
 
 .table td {
@@ -60,11 +63,11 @@
 }
 
 .table :is(th, td):first-child {
-  padding-left: 0;
+  padding-left: var(--page-inset);
 }
 
 .table :is(th, td):last-child {
-  padding-right: 0;
+  padding-right: var(--page-inset);
 }
 
 .table tbody tr:hover td {
@@ -76,19 +79,15 @@
   font-weight: 500;
 }
 
-.muted {
-  color: rgba(255, 255, 255, 0.6);
+.duration {
+  color: rgba(255, 255, 255, 0.85);
   font-variant-numeric: tabular-nums;
 }
 
 .actions {
-  text-align: right;
-}
-
-.actions button {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
 }
 
 .status {
@@ -136,6 +135,7 @@
 }
 
 .empty {
+  margin: 0 var(--page-inset);
   padding: var(--space-5xl) 0;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   text-align: center;
@@ -154,13 +154,4 @@
   color: rgba(255, 255, 255, 0.5);
   font-size: 13px;
   line-height: 18px;
-}
-
-.hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }

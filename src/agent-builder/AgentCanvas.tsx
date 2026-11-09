@@ -222,6 +222,17 @@ const RUN_SKIP_MS = 90
 /** A wait plays in real time up to this, then as a time-lapse of its full length, so it still reads as a countdown. */
 const WAIT_PLAY_MAX_MS = 6000
 const PUBLISH_MS = 2000
+/** Earlier executions each flow starts with, newest first: minutes before the first visit, outcome, and run time. */
+const DEMO_EXECUTIONS: readonly { minutesAgo: number; outcome: RunOutcome; durationMs: number }[] = [
+  { minutesAgo: 60, outcome: 'pass', durationMs: 2590 },
+  { minutesAgo: 63, outcome: 'fail', durationMs: 4120 },
+  { minutesAgo: 66, outcome: 'pass', durationMs: 1890 },
+  { minutesAgo: 68, outcome: 'fail', durationMs: 3380 },
+  { minutesAgo: 71, outcome: 'pass', durationMs: 2410 },
+  { minutesAgo: 73, outcome: 'fail', durationMs: 5060 },
+  { minutesAgo: 76, outcome: 'pass', durationMs: 1730 },
+  { minutesAgo: 79, outcome: 'pass', durationMs: 2940 },
+]
 
 type Viewport = { x: number; y: number; zoom: number }
 type Positions = Record<string, Point>
@@ -337,6 +348,24 @@ const IDLE: NodeRun = { status: 'idle' }
 type CanvasMode = 'showcase' | TestFlowKind
 /** Everything a mode keeps while another one is on screen. */
 type ModeSnapshot = { doc: CanvasDoc; past: CanvasDoc[]; future: CanvasDoc[]; runs: Record<string, NodeRun> }
+
+/** The nodes a run of `scope` from `startId` visits, in order; annotations never run. */
+function runOrder(doc: CanvasDoc, startId: string, scope: RunScope) {
+  const scoped = scope === 'node' ? [startId] : scope === 'upstream' ? upstreamOrder(startId, doc.edges) : downstreamOrder(startId, doc.edges)
+  return scoped.filter((id) => {
+    const node = doc.nodes.find((candidate) => candidate.id === id)
+    return node && NODE_TYPES_BY_ID[node.type].category !== 'annotations'
+  })
+}
+
+/** Where a simulated failure breaks: the first node with an issue, or one about two thirds of the way along. */
+function failurePoint(doc: CanvasDoc, order: readonly string[]) {
+  const hasIssue = (id: string) => {
+    const node = doc.nodes.find((candidate) => candidate.id === id)
+    return Boolean(node && nodeIssue(node))
+  }
+  return order.find(hasIssue) ?? order[Math.max(1, Math.round((order.length - 1) * 0.66))] ?? order[0]
+}
 
 /** The canvas with only its first `share` of nodes, standing in for how it looked earlier. */
 function earlierDoc(doc: CanvasDoc, share: number): CanvasDoc {
@@ -794,7 +823,8 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
   const [spaceHeld, setSpaceHeld] = useState(false)
   const [tab, setTab] = useState<Tab>('builder')
   /** Runs started from Execute, newest first; each flow keeps its own. */
-  const [executions, setExecutions] = useState<Record<CanvasMode, readonly Execution[]>>({ showcase: [], simple: [], complex: [] })
+  /** Each flow's list starts with demo runs, made the first time it's needed. */
+  const [executions, setExecutions] = useState<Partial<Record<CanvasMode, readonly Execution[]>>>({})
   /** Saved copies of each flow, oldest first. */
   const [versions, setVersions] = useState<Partial<Record<CanvasMode, readonly CanvasVersion<CanvasDoc>[]>>>({})
   /** While open, the canvas can only be looked at. */
@@ -1527,22 +1557,8 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
   const runNodes = (startId: string, scope: RunScope, simulate?: RunOutcome, live = false) => {
     const current = docRef.current
     setRunKind(live ? 'execute' : 'test')
-    const scoped =
-      scope === 'node' ? [startId] : scope === 'upstream' ? upstreamOrder(startId, current.edges) : downstreamOrder(startId, current.edges)
-    const order = scoped.filter((id) => {
-      const node = current.nodes.find((candidate) => candidate.id === id)
-      return node && NODE_TYPES_BY_ID[node.type].category !== 'annotations'
-    })
-    const issueOf = (id: string) => {
-      const node = current.nodes.find((candidate) => candidate.id === id)
-      return node && nodeIssue(node)
-    }
-    const forcedFailure =
-      simulate === 'fail'
-        ? (order.find(issueOf) ??
-          order[Math.max(1, Math.round((order.length - 1) * 0.66))] ??
-          order[0])
-        : undefined
+    const order = runOrder(current, startId, scope)
+    const forcedFailure = simulate === 'fail' ? failurePoint(current, order) : undefined
     /** A new run abandons a parked one, as its chat session would no longer be waiting on it. */
     const unpark = (all: Record<string, NodeRun>) => Object.fromEntries(Object.entries(all).map(([id, run]) => [id, run.status === 'waiting' ? IDLE : run]))
     const previous = unpark(runs)
@@ -1579,22 +1595,53 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
     })
   }
 
+  /** The earlier executions a flow's list opens with, each a finished run of the flow from the Execute trigger. */
+  const demoExecutions = (current = docRef.current, flow = mode): Execution[] => {
+    const triggerIds = executableTriggers(current.nodes).map((node) => node.id)
+    const triggerId = triggerIds.find((id) => id === executeTriggerId) ?? triggerIds[0]
+    if (!triggerId) return []
+    const now = Date.now()
+    const order = runOrder(current, triggerId, 'downstream')
+    return DEMO_EXECUTIONS.map((demo, index) => {
+      const steps = planRun({
+        nodes: current.nodes,
+        edges: current.edges,
+        order,
+        previous: {},
+        fixtures,
+        triggerId,
+        stepTest: false,
+        simulate: demo.outcome,
+        forcedFailure: demo.outcome === 'fail' ? failurePoint(current, order) : undefined,
+        workflowName: name,
+      })
+      return {
+        id: `execution-${flow}-demo-${index}`,
+        startedAt: now - demo.minutesAgo * 60_000,
+        triggerId,
+        status: demo.outcome === 'pass' ? 'success' : 'error',
+        durationMs: demo.durationMs,
+        runs: Object.fromEntries(steps.map((step) => [step.id, step.run])),
+      }
+    })
+  }
+  const executionList = () => executions[mode] ?? demoExecutions()
+
+  const openExecutions = () => {
+    if (!executions[mode]) setExecutions({ ...executions, [mode]: demoExecutions() })
+    setTab('executions')
+  }
+
+  const retryExecution = (execution: Execution) => runNodes(execution.triggerId, 'downstream', undefined, true)
+
   const startExecution = (triggerId: string) => {
-    const trigger = docRef.current.nodes.find((node) => node.id === triggerId)
-    const execution: Execution = {
-      id: `execution-${Date.now()}`,
-      startedAt: Date.now(),
-      trigger: trigger ? nodeName(trigger, NODE_TYPES_BY_ID[trigger.type]) : 'Trigger',
-      status: 'running',
-      durationMs: 0,
-      runs: {},
-    }
-    setExecutions((all) => ({ ...all, [mode]: [execution, ...all[mode]] }))
+    const execution: Execution = { id: `execution-${Date.now()}`, startedAt: Date.now(), triggerId, status: 'running', durationMs: 0, runs: {} }
+    setExecutions({ ...executions, [mode]: [execution, ...executionList()] })
     return execution.id
   }
 
   const updateExecutions = (update: (execution: Execution) => Execution) =>
-    setExecutions((all) => ({ showcase: all.showcase.map(update), simple: all.simple.map(update), complex: all.complex.map(update) }))
+    setExecutions((all) => Object.fromEntries(Object.entries(all).map(([key, list]) => [key, list.map(update)])))
 
   /** Adds the played steps to the execution; a run resumed after a chat reply adds to the same one. */
   const recordExecution = (id: string, steps: readonly PlannedStep[], status: ExecutionStatus) =>
@@ -1623,6 +1670,13 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
     setRunFailures(null)
     setRunResult(null)
     setTab('builder')
+  }
+
+  /** Copies the execution to the canvas and opens the step it failed at. */
+  const debugExecution = (execution: Execution) => {
+    copyExecution(execution)
+    const failedId = Object.entries(execution.runs).find(([, run]) => run.status === 'error')?.[0]
+    if (failedId) showStep(failedId)
   }
 
   const failedSteps = (steps: readonly PlannedStep[]): FailedStep[] =>
@@ -1714,7 +1768,10 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
     for (const timer of runTimersRef.current.splice(0)) window.clearTimeout(timer)
     setActiveRuns(0)
     parkedRunRef.current = null
-    updateExecutions((execution) => (execution.status === 'running' || execution.status === 'waiting' ? { ...execution, status: 'stopped' } : execution))
+    const stoppedAt = Date.now()
+    updateExecutions((execution) =>
+      execution.status === 'running' || execution.status === 'waiting' ? { ...execution, status: 'canceled', durationMs: stoppedAt - execution.startedAt } : execution,
+    )
     setRuns((current) =>
       Object.fromEntries(Object.entries(current).map(([id, run]) => [id, run.status === 'running' || run.status === 'waiting' ? IDLE : run])),
     )
@@ -1737,6 +1794,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
       runs: Object.fromEntries(Object.entries(runs).map(([id, run]) => [id, run.status === 'running' || run.status === 'waiting' ? IDLE : run])),
     }
     pendingLayoutRef.current = parked || stored || target === 'showcase' ? 'fit' : target
+    if (tab === 'executions' && !executions[target]) setExecutions((all) => ({ ...all, [target]: demoExecutions(next.doc, target) }))
     docRef.current = next.doc
     setDoc(next.doc)
     setPast(next.past)
@@ -3671,7 +3729,17 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
 
       {runFailures ? <RunFailureToast steps={runFailures} onShow={showStep} onClose={() => setRunFailures(null)} /> : null}
 
-      {tab === 'executions' ? <ExecutionsList executions={executions[mode]} published={published} onCopy={copyExecution} /> : null}
+      {tab === 'executions' ? (
+        <ExecutionsList
+          executions={executions[mode] ?? []}
+          published={published}
+          running={running}
+          canRetry={(execution) => doc.nodes.some((node) => node.id === execution.triggerId)}
+          onRetry={retryExecution}
+          onCopy={copyExecution}
+          onDebug={debugExecution}
+        />
+      ) : null}
 
       <div className={styles.headerScrim} aria-hidden />
 
@@ -3734,7 +3802,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
                 role="tab"
                 aria-selected={tab === value}
                 className={styles.tab}
-                onClick={() => setTab(value)}
+                onClick={() => (value === 'executions' ? openExecutions() : setTab(value))}
               >
                 {value === 'builder' ? 'Builder' : 'Executions'}
               </button>
