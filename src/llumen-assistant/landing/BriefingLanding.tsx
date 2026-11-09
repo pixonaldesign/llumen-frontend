@@ -125,6 +125,13 @@ const ASSETS_SPLIT_MS = 1700
 const ASSETS_OPEN_PX = 8
 
 /** Findings style 6's slide between the findings and Assets and Apps; keep in step with --side-slide. */
+/** An element's top in the page from layout alone, so a finding still sliding in reads where it settles. */
+function layoutTop(el: HTMLElement) {
+  let top = 0
+  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) top += node.offsetTop
+  return top
+}
+
 /** A story opens on its first scene, framed clear of its insight column. */
 const STORY_OPENINGS: Record<string, { place: BriefingPlace; enter: BriefingMapEnter }> = Object.fromEntries(
   Object.values(ESTATE_STORIES).map((story) => [
@@ -357,20 +364,20 @@ export function BriefingLanding({
 
   /** Style 8 with a chart on top: where the chart starts, so the map turns its scene above it. */
   const charted = floating && Boolean(stop.chart)
-  const [measuredChartTop, setMeasuredChartTop] = useState<number | null>(null)
-  const chartTop = charted ? measuredChartTop : null
-  useEffect(() => {
+  const readChartTop = useCallback(() => {
     const mapEl = mapRef.current
-    const stage = mapEl?.parentElement
-    if (!charted || !mapEl || !stage) return
-    const measure = () => {
-      const chart = stage.querySelector<HTMLElement>('[data-chart="true"] > :first-child')
-      if (!chart) return
-      setMeasuredChartTop(Math.round(chart.getBoundingClientRect().top - mapEl.getBoundingClientRect().top))
-    }
-    /* Again while the finding slides in and settles; on a fresh load it arrives after the page's intro. */
-    const settle = [300, 800, 1600, 3000, 5000].map((delay) => window.setTimeout(measure, delay))
-    const observer = new ResizeObserver(measure)
+    const chart = mapEl?.parentElement?.querySelector<HTMLElement>('[data-chart="true"] > :first-child')
+    if (!mapEl || !chart) return null
+    return Math.round(layoutTop(chart) - layoutTop(mapEl))
+  }, [])
+  const [chartCheck, setChartCheck] = useState(0)
+  useEffect(() => {
+    const stage = mapRef.current?.parentElement
+    if (!charted || !stage) return
+    const recheck = () => setChartCheck((count) => count + 1)
+    /* In case the finding is laid out late, as on a fresh load behind the page's intro. */
+    const settle = [400, 1200, 3000].map((delay) => window.setTimeout(recheck, delay))
+    const observer = new ResizeObserver(recheck)
     observer.observe(stage)
     return () => {
       settle.forEach((timer) => window.clearTimeout(timer))
@@ -866,7 +873,8 @@ export function BriefingLanding({
               blank={mapBlurred}
               focusRight={findingsStyle === 2 || findingsStyle === 5}
               focusLow={findingsStyle === 8}
-              chartTop={chartTop}
+              chartTop={charted ? readChartTop : null}
+              chartCheck={chartCheck}
               enter={opening ? storyOpening.enter : null}
               onArrive={arriveAtStory}
               align={storyRelease && storyRelease !== 'home' ? storyRelease : null}

@@ -112,6 +112,7 @@ export function BriefingMap({
   focusRight = false,
   focusLow = false,
   chartTop = null,
+  chartCheck = 0,
   enter = null,
   onArrive,
   start = null,
@@ -124,8 +125,13 @@ export function BriefingMap({
   focusRight?: boolean
   /** The finding sits low on the stage: the columns frame down to just above it. */
   focusLow?: boolean
-  /** With `focusLow`: the finding's chart top edge, in px from the map's top, or null without a chart. */
-  chartTop?: number | null
+  /**
+   * With `focusLow`: reads the finding's chart top edge, in px from the map's top (null while it isn't
+   * laid out). Read whenever the camera's padding is worked out, so the first frame already clears it.
+   */
+  chartTop?: (() => number | null) | null
+  /** Bumped when the chart may have moved: the padding is read again and the camera follows if it changed. */
+  chartCheck?: number
   enter?: BriefingMapEnter | null
   onArrive?: () => void
   start?: BriefingMapEnter | null
@@ -178,14 +184,14 @@ export function BriefingMap({
       antialias: true,
       attributionControl: false,
     })
-    map.setPadding(heldRef.current?.padding ?? cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current))
+    map.setPadding(heldRef.current?.padding ?? cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null))
     if (heldRef.current) holdUntilRef.current = Number.POSITIVE_INFINITY
     mapRef.current = map
 
     const observer = new ResizeObserver(() => {
       map.resize()
       if ((focusRightRef.current || focusLowRef.current) && !flyingRef.current && !heldRef.current && !enterRef.current) {
-        map.setPadding(cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current))
+        map.setPadding(cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null))
       }
     })
     observer.observe(el)
@@ -221,7 +227,7 @@ export function BriefingMap({
       map.jumpTo(
         held
           ? { ...held.camera, padding: held.padding }
-          : { ...current.camera, padding: cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current) },
+          : { ...current.camera, padding: cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null) },
       )
       mountLayers(map, current)
       readyRef.current = true
@@ -229,7 +235,7 @@ export function BriefingMap({
         pendingReleaseRef.current = false
         holdUntilRef.current = 0
         flyingRef.current = true
-        flyHome(map, placeRef.current, cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current), alignRef.current)
+        flyHome(map, placeRef.current, cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null), alignRef.current)
         map.once('moveend', () => {
           flyingRef.current = false
         })
@@ -306,14 +312,17 @@ export function BriefingMap({
 
   useEffect(() => {
     const map = mapRef.current
-    if (focusRightRef.current === focusRight && focusLowRef.current === focusLow && chartTopRef.current === chartTop) {
-      return
-    }
+    const changed =
+      focusRightRef.current !== focusRight || focusLowRef.current !== focusLow || chartTopRef.current !== chartTop
     focusRightRef.current = focusRight
     focusLowRef.current = focusLow
     chartTopRef.current = chartTop
-    if (!map || !readyRef.current) return
-    const padding = cameraPadding(map.getContainer(), focusRight, focusLow, chartTop)
+    if (!map || !readyRef.current || heldRef.current || enterRef.current) return
+    if (!changed && flyingRef.current) return
+    const padding = cameraPadding(map.getContainer(), focusRight, focusLow, chartTop?.() ?? null)
+    const now = map.getPadding()
+    const near = (a = 0, b = 0) => Math.abs(a - b) < 3
+    if (near(now.top, padding.top) && near(now.bottom, padding.bottom) && near(now.left, padding.left)) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       map.setPadding(padding)
       return
@@ -329,7 +338,7 @@ export function BriefingMap({
     map.once('moveend', () => {
       if (flightRef.current === flight) flyingRef.current = false
     })
-  }, [focusRight, focusLow, chartTop])
+  }, [focusRight, focusLow, chartTop, chartCheck])
 
   useEffect(() => {
     const map = mapRef.current
@@ -353,7 +362,7 @@ export function BriefingMap({
     if (!moved && !swapping && from === target && !entering && !releasing) return
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const padding = cameraPadding(map.getContainer(), focusRightRef.current, focusLowRef.current, chartTopRef.current)
+    const padding = cameraPadding(map.getContainer(), focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null)
     window.cancelAnimationFrame(tweenRef.current)
     if (reduce) {
       if (entering) map.jumpTo({ ...enter.camera, padding: enter.padding })
