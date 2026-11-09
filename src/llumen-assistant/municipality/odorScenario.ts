@@ -571,14 +571,34 @@ const interventionCards = (): EstateCard[] =>
     ),
   )
 
-function actionPoints(horizons: Horizon[] = ['immediate', 'intermediate', 'long']): EstatePoint[] {
+const actionTitle = (item: Intervention) => `${item.code} · ${item.action}`
+const actionRows = (item: Intervention): [string, string][] => [
+  ['Acts on', item.asset],
+  ['Horizon', HORIZON_LABEL[item.horizon]],
+]
+
+function actionPoints(horizons: Horizon[] = ['immediate', 'intermediate', 'long'], pinned = false): EstatePoint[] {
   return INTERVENTIONS.filter((item) => horizons.includes(item.horizon)).map((item) => ({
     id: `action-${item.code}`,
     at: item.at,
     color: HORIZON_COLOR[item.horizon],
     radius: 7,
     group: 'actions',
-    tip: { title: `${item.code} · ${item.action}`, rows: [['Acts on', item.asset], ['Horizon', HORIZON_LABEL[item.horizon]]] },
+    tip: pinned ? undefined : { title: actionTitle(item), rows: actionRows(item) },
+  }))
+}
+
+/** One horizon's interventions, their tooltips held open over their points. */
+function actionTips(horizon: Horizon): EstateLabel[] {
+  return INTERVENTIONS.filter((item) => item.horizon === horizon).map((item) => ({
+    id: `action-tip-${item.code}`,
+    at: item.at,
+    heightM: 0,
+    color: HORIZON_COLOR[horizon],
+    title: actionTitle(item),
+    text: '',
+    rows: actionRows(item),
+    group: 'actions',
   }))
 }
 
@@ -1276,7 +1296,8 @@ const IMMEDIATE: EstateAskView = {
       BASELINE_OUTLINE,
     ],
     lines: networkLines(PIPE_BLUE, { ring: HORIZON_COLOR.immediate, east: HORIZON_COLOR.immediate }),
-    points: actionPoints(['immediate']),
+    points: actionPoints(['immediate'], true),
+    labels: actionTips('immediate'),
   }),
   layers: [
     { ...LAYER.actions, title: 'Immediate interventions', color: { items: INTERVENTIONS.filter((item) => item.horizon === 'immediate').map((item) => ({ label: `${item.code} ${item.action}`, color: HORIZON_COLOR.immediate })) } },
@@ -1304,18 +1325,23 @@ const SMART_CONTROLLERS: EstatePoint[] = Array.from({ length: 14 }, (_, index) =
 })
 
 const INTERMEDIATE: EstateAskView = {
-  camera: { center: [55.2048, 25.1012], zoom: 15.65, pitch: 60, bearing: 34 },
+  camera: { center: [55.2032, 25.1004], zoom: 15.3, pitch: 60, bearing: 34 },
   scene: scene({
     towers: [
-      tankTower(HORIZON_COLOR.intermediate, 'M1 · cleaned and rehabilitated', [
-        ['Sediment removed', '38 cm'],
-        ['Residence time', '1.6 days'],
-      ]),
+      /* M1's tooltip already stands over the tank. */
+      {
+        ...tankTower(HORIZON_COLOR.intermediate, 'M1 · cleaned and rehabilitated', [
+          ['Sediment removed', '38 cm'],
+          ['Residence time', '1.6 days'],
+        ]),
+        label: false,
+      },
       ...homesAfter(RESIDUAL.intermediate, HORIZON_COLOR.intermediate),
     ],
     areas: [...plumeAreas(RESIDUAL.intermediate), BASELINE_OUTLINE],
     lines: networkLines(),
-    points: [...SMART_CONTROLLERS, ...actionPoints(['intermediate'])],
+    points: [...SMART_CONTROLLERS, ...actionPoints(['intermediate'], true)],
+    labels: actionTips('intermediate'),
   }),
   layers: [
     { ...LAYER.actions, title: 'Intermediate interventions', color: { items: INTERVENTIONS.filter((item) => item.horizon === 'intermediate').map((item) => ({ label: `${item.code} ${item.action}`, color: HORIZON_COLOR.intermediate })) } },
@@ -1375,8 +1401,8 @@ const LONG_TERM: EstateAskView = {
     ],
     areas: [...parkAreas(), ...plumeAreas(RESIDUAL.long), BASELINE_OUTLINE],
     lines: [...networkLines(PIPE_BLUE, { supply: HORIZON_COLOR.long }), ...LOOPS],
-    points: [...SENSORS, ...actionPoints(['long'])],
-    labels: parkLabels(),
+    points: [...SENSORS, ...actionPoints(['long'], true)],
+    labels: [...parkLabels(), ...actionTips('long')],
   }),
   layers: [
     { ...LAYER.actions, title: 'Long-term interventions', color: { items: INTERVENTIONS.filter((item) => item.horizon === 'long').map((item) => ({ label: `${item.code} ${item.action}`, color: HORIZON_COLOR.long })) } },

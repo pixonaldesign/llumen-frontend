@@ -81,8 +81,20 @@ export type EstateFlow = {
 /** A site: a complaint, a sampling point, a sensor. */
 export type EstatePoint = { id: string; at: LngLat; color: string; radius?: number; group: string; tip?: EstateTip }
 
-/** A roof-style label pinned over a place that is not a tower. */
-export type EstateLabel = { id: string; at: LngLat; heightM: number; color: string; title: string; text: string; group: string }
+/**
+ * A roof-style label pinned over a place that is not a tower. With `rows` it is a tooltip that stays
+ * open instead: the title, then the rows (`text` is not shown).
+ */
+export type EstateLabel = {
+  id: string
+  at: LngLat
+  heightM: number
+  color: string
+  title: string
+  text: string
+  rows?: [string, string][]
+  group: string
+}
 
 export type EstateMapScene = {
   towers: EstateTower[]
@@ -544,7 +556,7 @@ export function estateTipHtml(tip: EstateTip) {
 }
 
 /** What a roof label needs: towers that carry one, and the scene's free labels. */
-type Labelled = Pick<EstateTower, 'id' | 'at' | 'heightM' | 'color' | 'title' | 'text' | 'group'>
+type Labelled = Pick<EstateTower, 'id' | 'at' | 'heightM' | 'color' | 'title' | 'text' | 'group'> & Pick<EstateLabel, 'rows'>
 
 const labelsOfScene = new WeakMap<EstateMapScene, Labelled[]>()
 
@@ -558,7 +570,14 @@ export function sceneLabels(scene: EstateMapScene): Labelled[] {
   return labels
 }
 
-type LabelEntry = { el: HTMLButtonElement; tower: Labelled; anchor: [number, number, number] }
+/** Keep in step with `--estate-stem` in estateMap.css. */
+const STEM_PX = 22
+/** Space kept between open tooltips that would otherwise overlap, and between one and the map's side. */
+const TIP_GAP_PX = 8
+const TIP_EDGE_PX = 12
+
+/** `size` is an open tooltip's width and height, measured once it is laid out. */
+type LabelEntry = { el: HTMLButtonElement; tower: Labelled; anchor: [number, number, number]; size?: [number, number] }
 
 /**
  * Each tower's name and headline on its roof, with the story tooltips' blurred card. A no-op custom
@@ -595,13 +614,16 @@ export class TowerLabels {
       const container = this.map.getContainer()
       this.entries = labels.map((tower) => {
         const el = document.createElement('button')
+        const pickable = this.onPick && !tower.rows
         el.type = 'button'
-        el.className = 'estate-label'
+        el.className = tower.rows ? 'estate-label estate-label-tip' : 'estate-label'
         el.style.setProperty('--tower', tower.color)
-        el.tabIndex = this.onPick ? 0 : -1
+        el.tabIndex = pickable ? 0 : -1
         el.setAttribute('aria-label', `${tower.title}: open details`)
-        el.innerHTML = `<i aria-hidden="true"></i><span><b>${escapeHtml(tower.title)}</b><span>${escapeHtml(tower.text)}</span></span>`
-        if (this.onPick) el.addEventListener('click', () => this.onPick?.(tower.id))
+        el.innerHTML = tower.rows
+          ? estateTipHtml({ title: tower.title, rows: tower.rows })
+          : `<i aria-hidden="true"></i><span><b>${escapeHtml(tower.title)}</b><span>${escapeHtml(tower.text)}</span></span>`
+        if (pickable) el.addEventListener('click', () => this.onPick?.(tower.id))
         else {
           el.dataset.static = 'true'
           el.setAttribute('aria-hidden', 'true')
@@ -624,7 +646,9 @@ export class TowerLabels {
     const canvas = this.map.getCanvas()
     const width = canvas.clientWidth
     const height = canvas.clientHeight
-    for (const { el, anchor } of this.entries) {
+    const tips: { entry: LabelEntry; sx: number; sy: number }[] = []
+    for (const entry of this.entries) {
+      const { el, anchor } = entry
       const [x, y, z] = anchor
       const cx = matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12]
       const cy = matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13]
@@ -633,10 +657,45 @@ export class TowerLabels {
         el.style.visibility = 'hidden'
         continue
       }
-      el.style.visibility = ''
       const sx = ((cx / cw + 1) / 2) * width
       const sy = ((1 - cy / cw) / 2) * height
-      el.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%, calc(-100% - 12px))`
+      const offMap = sx < 0 || sx > width || sy < 0 || sy > height
+      el.style.visibility = entry.tower.rows && offMap ? 'hidden' : ''
+      if (entry.tower.rows && !offMap) tips.push({ entry, sx, sy })
+      el.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(calc(-50% + var(--estate-shift, 0px)), calc(-100% - var(--estate-stem)))`
+    }
+    this.declutter(tips, width)
+  }
+
+  /**
+   * Open tooltips stay on the map and clear of each other: each slides in from the map's sides (its
+   * stem still on its point), then, nearest the viewer first, one that would cover a placed one rises
+   * above it on a longer stem.
+   */
+  private declutter(tips: { entry: LabelEntry; sx: number; sy: number }[], width: number) {
+    const placed: { left: number; right: number; top: number; bottom: number }[] = []
+    for (const { entry, sx, sy } of tips.sort((a, b) => b.sy - a.sy)) {
+      entry.size ??= entry.el.offsetWidth ? [entry.el.offsetWidth, entry.el.offsetHeight] : undefined
+      if (!entry.size) continue
+      const [w, h] = entry.size
+      const shift = Math.max(TIP_EDGE_PX - (sx - w / 2), Math.min(0, width - TIP_EDGE_PX - (sx + w / 2)))
+      const left = sx + shift - w / 2
+      const right = sx + shift + w / 2
+      entry.el.style.setProperty('--estate-shift', `${Math.round(shift)}px`)
+      let bottom = sy - STEM_PX
+      for (let moved = true; moved; ) {
+        moved = false
+        for (const box of placed) {
+          const across = left < box.right + TIP_GAP_PX && right > box.left - TIP_GAP_PX
+          const over = bottom - h < box.bottom + TIP_GAP_PX && bottom > box.top - TIP_GAP_PX
+          if (across && over) {
+            bottom = box.top - TIP_GAP_PX
+            moved = true
+          }
+        }
+      }
+      placed.push({ left, right, top: bottom - h, bottom })
+      entry.el.style.setProperty('--estate-stem', `${Math.round(sy - bottom)}px`)
     }
   }
 

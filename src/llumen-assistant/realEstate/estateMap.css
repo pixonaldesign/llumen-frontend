@@ -13,8 +13,9 @@
   -webkit-backdrop-filter: blur(30px) saturate(140%);
 }
 
-/* A tower's name on its roof, pinned by a stem in the tower's colour. */
+/* A tower's name on its roof, pinned by a neutral stem; `--estate-stem` also lifts the label clear of it. */
 .estate-label {
+  --estate-stem: 22px;
   position: absolute;
   top: 0;
   left: 0;
@@ -50,15 +51,26 @@
   outline-offset: 2px;
 }
 
+/* Keep in step with the story map's `.annotationStem`. */
 .estate-label::after {
   content: '';
   position: absolute;
   top: 100%;
-  left: 50%;
-  width: 1px;
-  height: 12px;
-  background: linear-gradient(var(--tower), transparent);
+  left: calc(50% - var(--estate-shift, 0px) - 0.75px);
+  width: 1.5px;
+  height: var(--estate-stem);
+  background: linear-gradient(rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.06));
   pointer-events: none;
+}
+
+/* A tooltip that stays open over its place, read like the hover `.estate-tip`. */
+.estate-label-tip {
+  display: block;
+  width: max-content;
+  min-width: 208px;
+  max-width: 280px;
+  padding: 10px 12px;
+  white-space: normal;
 }
 
 .estate-label > i {

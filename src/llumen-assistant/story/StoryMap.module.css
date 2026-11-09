@@ -63,10 +63,11 @@
   scale: 1.15;
 }
 
+/* Keep in step with the estate maps' `.estate-label::after`. */
 .annotationStem {
   width: 1.5px;
-  height: 14px;
-  background: linear-gradient(var(--annotation-color), color-mix(in srgb, var(--annotation-color) 10%, transparent));
+  height: 22px;
+  background: linear-gradient(rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.06));
   transform-origin: 50% 0;
   animation: annotationStemIn 320ms ease-out var(--annotation-delay, 0ms) both;
 }
