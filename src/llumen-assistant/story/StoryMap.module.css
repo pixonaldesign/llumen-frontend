@@ -75,7 +75,9 @@
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
-  width: 244px;
+  width: max-content;
+  min-width: 244px;
+  max-width: 320px;
   padding: 10px 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -141,17 +143,22 @@
 
 .annotationTipStats div {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
 }
 
 .annotationTipStats dt {
+  flex: none;
   color: rgba(255, 255, 255, 0.56);
+  white-space: nowrap;
 }
 
 .annotationTipStats dd {
+  min-width: 0;
   margin: 0;
-  white-space: nowrap;
+  text-align: right;
+  overflow-wrap: anywhere;
   color: #fff;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-weight: 500;

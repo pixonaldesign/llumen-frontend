@@ -88,7 +88,9 @@
 .estate-tip {
   position: absolute;
   z-index: 4;
-  width: 232px;
+  width: max-content;
+  min-width: 232px;
+  max-width: 320px;
   padding: 10px 12px;
   pointer-events: none;
   transform: translate(-50%, calc(-100% - 14px));
@@ -112,18 +114,23 @@
 
 .estate-tip-rows div {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
 }
 
 .estate-tip-rows dt {
+  flex: none;
   color: rgba(255, 255, 255, 0.56);
+  white-space: nowrap;
 }
 
 .estate-tip-rows dd {
+  min-width: 0;
   margin: 0;
   color: #fff;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-weight: 500;
-  white-space: nowrap;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
