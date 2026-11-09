@@ -232,7 +232,7 @@ const COMPLEX_NODES: readonly TestNode[] = [
     'n-start',
     'stickyNote',
     {
-      note: 'Test Agent starts from Manual Trigger; Every morning takes over once the flow is published. Run Field ops chat to see Alert field ops wait for a reply.',
+      note: 'Test starts from Manual Trigger; Every morning takes over once the flow is published. Run Field ops chat to see Alert field ops wait for a reply.',
       sticky: { color: 'yellow' },
     },
   ],

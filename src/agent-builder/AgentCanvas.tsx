@@ -21,10 +21,12 @@ import {
   ChatCircle,
   Check,
   CheckCircle,
+  CircleNotch,
   ClockCounterClockwise,
   Code,
   Columns,
   Cursor,
+  Export,
   Flask,
   FloppyDisk,
   FlowArrow,
@@ -43,7 +45,6 @@ import {
   Rectangle,
   Scan,
   Shapes,
-  ShareNetwork,
   SlidersHorizontal,
   Stop,
   Swatches,
@@ -102,7 +103,10 @@ import { CanvasTooltip } from './CanvasTooltip'
 import { annotateTestFlow, buildTestWorkflow, type TestFlowKind } from './testWorkflow'
 import { NodeToolbar } from './NodeToolbar'
 import { NodeActionsBar } from './NodeActionsBar'
+import { AgentMenu } from './AgentMenu'
 import { InsertNodePanel } from './InsertNodePanel'
+import { VersionHistoryPanel } from './VersionHistoryPanel'
+import { AUTOSAVE_GAP_MS, AUTOSAVE_IDLE_MS, UNTITLED_VERSION, newVersionId, seedVersions, type CanvasVersion } from './versionHistory'
 import { CanvasMinimap } from './CanvasMinimap'
 import { StickyNoteCard } from './StickyNoteCard'
 import { StickyToolbar } from './StickyToolbar'
@@ -217,6 +221,7 @@ const RUN_STEP_MAX_MS = 1500
 const RUN_SKIP_MS = 90
 /** A wait plays in real time up to this, then as a time-lapse of its full length, so it still reads as a countdown. */
 const WAIT_PLAY_MAX_MS = 6000
+const PUBLISH_MS = 2000
 
 type Viewport = { x: number; y: number; zoom: number }
 type Positions = Record<string, Point>
@@ -332,6 +337,18 @@ const IDLE: NodeRun = { status: 'idle' }
 type CanvasMode = 'showcase' | TestFlowKind
 /** Everything a mode keeps while another one is on screen. */
 type ModeSnapshot = { doc: CanvasDoc; past: CanvasDoc[]; future: CanvasDoc[]; runs: Record<string, NodeRun> }
+
+/** The canvas with only its first `share` of nodes, standing in for how it looked earlier. */
+function earlierDoc(doc: CanvasDoc, share: number): CanvasDoc {
+  const nodes = doc.nodes.slice(0, Math.max(1, Math.round(doc.nodes.length * share)))
+  const kept = new Set(nodes.map((node) => node.id))
+  return {
+    ...doc,
+    nodes,
+    edges: doc.edges.filter((edge) => kept.has(edge.from) && kept.has(edge.to)),
+    comments: doc.comments.filter((comment) => !comment.nodeId || kept.has(comment.nodeId)),
+  }
+}
 
 function testFlowDoc(kind: TestFlowKind): CanvasDoc {
   const { nodes: built, edges } = buildTestWorkflow(kind)
@@ -715,8 +732,14 @@ type AgentCanvasProps = {
   onClose: () => void
 }
 
-export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
+export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanvasProps) {
   useCoverPage()
+  const [name, setName] = useState(initialName)
+  const [renamingAgent, setRenamingAgent] = useState(false)
+  const finishAgentRename = (value: string) => {
+    setRenamingAgent(false)
+    if (value.trim()) setName(value.trim())
+  }
   const rootRef = useRef<HTMLDivElement>(null)
   const nodeRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [view, setView] = useState<Viewport>(() => ({
@@ -755,6 +778,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     executionId?: string
   } | null>(null)
   const [activeRuns, setActiveRuns] = useState(0)
+  /** What started the playing run: Execute records an execution, everything else is a test. */
+  const [runKind, setRunKind] = useState<'test' | 'execute'>('test')
   /**
    * The last flow run's outcome while its glow shows; `id` restarts the glow for back-to-back results.
    * After a real run (`fromRun`), the canvas keeps its run look until the glow ends.
@@ -768,12 +793,34 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   /** Space held: drags pan, like the hand tool, until it's let go. */
   const [spaceHeld, setSpaceHeld] = useState(false)
   const [tab, setTab] = useState<Tab>('builder')
-  /** Runs started from Execute Agent, newest first; each flow keeps its own. */
+  /** Runs started from Execute, newest first; each flow keeps its own. */
   const [executions, setExecutions] = useState<Record<CanvasMode, readonly Execution[]>>({ showcase: [], simple: [], complex: [] })
+  /** Saved copies of each flow, oldest first. */
+  const [versions, setVersions] = useState<Partial<Record<CanvasMode, readonly CanvasVersion<CanvasDoc>[]>>>({})
+  /** While open, the canvas can only be looked at. */
+  const [versionsOpen, setVersionsOpen] = useState(false)
+  /** The version on the canvas; null is the live one. */
+  const [previewId, setPreviewId] = useState<string | null>(null)
+  /** The live canvas, put aside while an older version is on screen. */
+  const liveDocRef = useRef<CanvasDoc | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   /** Schedules, webhooks, and chat only start the published Flow; their cards show what publishing assigns. */
   const [publishedAt, setPublishedAt] = useState<number | null>(null)
   const published = publishedAt !== null
+  const [publishing, setPublishing] = useState(false)
+  const publishTimerRef = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(publishTimerRef.current), [])
+  const togglePublished = () => {
+    if (published) {
+      setPublishedAt(null)
+      return
+    }
+    setPublishing(true)
+    publishTimerRef.current = window.setTimeout(() => {
+      setPublishing(false)
+      setPublishedAt(Date.now())
+    }, PUBLISH_MS)
+  }
   /** The trigger each run button starts from; null follows the flow's default. Simulated runs use the test one. */
   const [testTriggerId, setTestTriggerId] = useState<string | null>(null)
   const [executeTriggerId, setExecuteTriggerId] = useState<string | null>(null)
@@ -1479,6 +1526,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
    */
   const runNodes = (startId: string, scope: RunScope, simulate?: RunOutcome, live = false) => {
     const current = docRef.current
+    setRunKind(live ? 'execute' : 'test')
     const scoped =
       scope === 'node' ? [startId] : scope === 'upstream' ? upstreamOrder(startId, current.edges) : downstreamOrder(startId, current.edges)
     const order = scoped.filter((id) => {
@@ -1740,6 +1788,101 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     setSavedFlows((all) => ({ ...all, [flowKind]: false }))
   }
 
+  /** This mode's saved versions; a mode gets its demo history the first time it needs one. */
+  const versionList = () => versions[mode] ?? seedVersions(Date.now(), (share) => earlierDoc(past[0] ?? doc, share))
+  const addVersion = (version: Omit<CanvasVersion<CanvasDoc>, 'id'>) => {
+    const id = newVersionId()
+    setVersions({ ...versions, [mode]: [...versionList(), { ...version, id }] })
+    return id
+  }
+
+  const autosave = () => {
+    const list = versionList()
+    const latest = list.filter((version) => !version.name).reduce<CanvasVersion<CanvasDoc> | null>((newest, version) => (newest && newest.savedAt > version.savedAt ? newest : version), null)
+    const now = Date.now()
+    if (latest && (now - latest.savedAt < AUTOSAVE_GAP_MS || JSON.stringify(latest.doc) === JSON.stringify(docRef.current))) return
+    addVersion({ doc: docRef.current, savedAt: now, authors: [COMMENT_AUTHOR] })
+  }
+  const autosaveRef = useRef(autosave)
+  useEffect(() => {
+    autosaveRef.current = autosave
+  })
+  useEffect(() => {
+    if (past.length === 0 || versionsOpen) return
+    const timer = window.setTimeout(() => autosaveRef.current(), AUTOSAVE_IDLE_MS)
+    return () => window.clearTimeout(timer)
+  }, [past, versionsOpen])
+
+  /** Swaps what the canvas shows without touching the undo history. */
+  const showDoc = (next: CanvasDoc) => {
+    stopArrange()
+    docRef.current = next
+    setDoc(next)
+    setSelection(null)
+  }
+
+  const openVersions = () => {
+    stopRun()
+    if (!versions[mode]) setVersions({ ...versions, [mode]: versionList() })
+    setTab('builder')
+    setSelection(null)
+    setHoveredNodeId(null)
+    setConnection(null)
+    setPendingInsert(null)
+    setSplitting(null)
+    setTool('select')
+    setBarFlyout(null)
+    setLibraryOpen(false)
+    setAppearanceFor(null)
+    setCanvasLookOpen(false)
+    setCardStyleOpen(false)
+    setConfiguringId(null)
+    setDataDialogId(null)
+    setChatFrom(null)
+    setCommentDraft(null)
+    setTextDraft(null)
+    setEditingText(null)
+    setRenamingSection(null)
+    setRunFailures(null)
+    setVersionsOpen(true)
+  }
+
+  /** Puts a saved version on the canvas, or the live one back for null. */
+  const previewVersion = (id: string | null) => {
+    if (id === previewId) return
+    const version = id === null ? null : versions[mode]?.find((item) => item.id === id)
+    if (version) {
+      liveDocRef.current ??= doc
+      showDoc(version.doc)
+    } else if (id !== null) {
+      return
+    } else if (liveDocRef.current) {
+      showDoc(liveDocRef.current)
+      liveDocRef.current = null
+    }
+    setPreviewId(id)
+  }
+
+  const closeVersions = () => {
+    previewVersion(null)
+    setVersionsOpen(false)
+  }
+
+  /** Keeps the version on screen as an undoable edit, and the canvas it replaces as an autosave. */
+  const restoreVersion = () => {
+    const live = liveDocRef.current
+    if (!live || previewId === null) return
+    liveDocRef.current = null
+    addVersion({ doc: live, savedAt: Date.now(), authors: [COMMENT_AUTHOR] })
+    setPast((stack) => [...stack, live])
+    setFuture([])
+    setPreviewId(null)
+    setVersionsOpen(false)
+  }
+
+  const renameVersion = (id: string, name: string) =>
+    setVersions((all) => ({ ...all, [mode]: all[mode]?.map((version) => (version.id === id ? { ...version, name } : version)) }))
+
   const closeLibrary = useCallback(() => setLibraryOpen(false), [])
 
   useLayoutEffect(() => {
@@ -1855,6 +1998,8 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       if (configuringId) return
       if ((event.target as HTMLElement | null)?.closest('input, textarea, [contenteditable="true"]')) return
       const mod = event.metaKey || event.ctrlKey
+      const viewKey = event.code === 'Space' || (mod && ['=', '+', '-'].includes(event.key)) || (event.shiftKey && event.code === 'Digit1')
+      if (versionsOpen && !viewKey) return
       const shortcut = shortcutTool(event)
       if (event.code === 'Space' && !mod) {
         event.preventDefault()
@@ -1905,7 +2050,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [configuringId, deleteSelection, doc.edges, doc.nodes, fitToView, redo, tool, undo, zoomFromCenter])
+  }, [configuringId, deleteSelection, doc.edges, doc.nodes, fitToView, redo, tool, undo, versionsOpen, zoomFromCenter])
 
   useEffect(() => {
     const release = (event: Event) => {
@@ -1923,7 +2068,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   const onSurfacePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 && event.button !== 1) return
     stopAnimation()
-    const pans = event.button === 1 || tool === 'hand' || spaceHeld
+    const pans = versionsOpen || event.button === 1 || tool === 'hand' || spaceHeld
     if (!pans && !event.shiftKey) setSelection(null)
     setCommentDraft(null)
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -1957,6 +2102,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     const near = new Set(
       doc.nodes
         .filter((node) => {
+          if (versionsOpen) return false
           const position = doc.positions[node.id]
           const size = layouts[node.id] ?? DEFAULT_NODE_SIZE
           if (!position) return false
@@ -2163,7 +2309,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   }
 
   const onSectionPointerDown = (event: ReactPointerEvent<HTMLDivElement>, id: string) => {
-    if (event.button !== 0 || tool !== 'select') return
+    if (event.button !== 0 || tool !== 'select' || versionsOpen) return
     event.stopPropagation()
     setSelection({ kind: 'section', id })
     setCommentDraft(null)
@@ -2221,7 +2367,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   }
 
   const onTextPointerDown = (event: ReactPointerEvent<HTMLDivElement>, id: string) => {
-    if (event.button !== 0 || tool !== 'select') return
+    if (event.button !== 0 || tool !== 'select' || versionsOpen) return
     event.stopPropagation()
     setSelection({ kind: 'text', id })
     setCommentDraft(null)
@@ -2315,7 +2461,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 
   const onNodePointerDown = (event: ReactPointerEvent<HTMLDivElement>, id: string) => {
     // Placement tools work over nodes too, so let the press reach the surface.
-    if (event.button !== 0 || tool !== 'select') return
+    if (event.button !== 0 || tool !== 'select' || versionsOpen) return
     event.stopPropagation()
     const target = event.target as Element
     const control = target.closest('button, input, textarea, select, a, [data-node-interactive], [data-native-scroll]')
@@ -2524,7 +2670,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 
   /** An input already wired picks up its line; anything else starts a new one. */
   const onPortPointerDown = (event: ReactPointerEvent<HTMLSpanElement>, port: PortRef) => {
-    if (event.button !== 0) return
+    if (event.button !== 0 || versionsOpen) return
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     portPressRef.current = port.side === 'out' ? { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY } : null
@@ -2556,7 +2702,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
   }
 
   const onEdgePointerDown = (event: ReactPointerEvent<SVGPathElement>, id: string) => {
-    if (event.button !== 0) return
+    if (event.button !== 0 || versionsOpen) return
     event.stopPropagation()
     if (event.shiftKey) {
       setSelection(pickedSelection(selectedIds(selection, 'node'), toggled(selectedIds(selection, 'edge'), id)))
@@ -2923,6 +3069,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
     tool === 'hand' || spaceHeld ? styles.handTool : tool !== 'select' ? styles.placing : null,
     tool === 'comment' ? styles.commenting : null,
     runLook ? styles.runLook : null,
+    versionsOpen ? styles.viewOnly : null,
   ]
     .filter(Boolean)
     .join(' ')
@@ -3397,7 +3544,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </div>
       </div>
 
-      <div className={itemStyles.commentLayer}>
+      <div className={itemStyles.commentLayer} data-comment-layer>
         {doc.comments.map((comment) => (
           <CommentPin
             key={comment.id}
@@ -3529,129 +3676,188 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
       <div className={styles.headerScrim} aria-hidden />
 
       <header className={styles.header} data-covers-canvas>
-        <button type="button" className={controls.iconButton} aria-label="Back to home" onClick={onClose}>
-          <ArrowLeft size={20} weight="regular" aria-hidden />
-        </button>
+        {versionsOpen ? null : (
+          <button type="button" className={controls.iconButton} aria-label="Back to home" onClick={onClose}>
+            <ArrowLeft size={20} weight="regular" aria-hidden />
+          </button>
+        )}
         <div className={styles.titleGroup}>
           {workspace ? <p className={controls.eyebrow}>{workspace}</p> : null}
           <div className={styles.titleRow}>
-            <h1 className={controls.title}>{name}</h1>
+            {renamingAgent ? (
+              <input
+                className={`${controls.title} ${styles.titleInput}`}
+                defaultValue={name}
+                aria-label="Agent name"
+                autoFocus
+                onFocus={(event) => event.currentTarget.select()}
+                onBlur={(event) => finishAgentRename(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') finishAgentRename(event.currentTarget.value)
+                  else if (event.key === 'Escape') {
+                    // The input can blur as it unmounts, which saves whatever it holds.
+                    event.currentTarget.value = name
+                    setRenamingAgent(false)
+                  }
+                }}
+              />
+            ) : (
+              <h1 className={controls.title} onDoubleClick={versionsOpen ? undefined : () => setRenamingAgent(true)}>
+                {name}
+              </h1>
+            )}
             <span className={styles.draftBadge} data-published={published || undefined}>
               {published ? 'Published' : 'Draft'}
             </span>
+            {versionsOpen ? null : <AgentMenu name={name} onRename={() => setRenamingAgent(true)} onDelete={onClose} />}
           </div>
         </div>
       </header>
 
-      <div className={styles.tabs} role="tablist" aria-label="Agent view" data-covers-canvas>
-        {(['builder', 'executions'] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="tab"
-            aria-selected={tab === value}
-            className={styles.tab}
-            onClick={() => setTab(value)}
-          >
-            {value === 'builder' ? 'Builder' : 'Executions'}
-          </button>
-        ))}
-      </div>
-
-      {running ? (
-        <button type="button" className={styles.stopRun} onClick={stopRun}>
-          <Stop size={14} weight="fill" aria-hidden />
-          Stop run
-        </button>
-      ) : null}
-
-      <div className={styles.topRight} data-covers-canvas>
-        {flowKind && flowCustomised ? (
-          <button
-            type="button"
-            className={controls.iconButton}
-            aria-label={`Reset the ${flowKind} flow`}
-            data-tooltip={`Reset to the original ${flowKind} flow`}
-            onClick={resetFlow}
-          >
-            <ArrowCounterClockwise size={20} weight="regular" aria-hidden />
-          </button>
-        ) : null}
-        {flowKind && flowUnsaved ? (
-          <button
-            type="button"
-            className={controls.iconButton}
-            aria-label={`Save the ${flowKind} flow`}
-            data-tooltip={`Save as the default ${flowKind} flow`}
-            onClick={saveFlow}
-          >
-            <FloppyDisk size={20} weight="regular" aria-hidden />
-          </button>
-        ) : null}
-        <DevMenu
-          canSimulate={Boolean(testTrigger)}
-          onSimulate={(outcome) => testTrigger && runNodes(testTrigger.id, 'downstream', outcome)}
-          testFlow={mode === 'showcase' ? null : mode}
-          onTestFlow={(kind) => switchMode(kind ?? 'showcase')}
-          cardStyleOpen={cardStyleOpen}
-          onCardStyle={() => {
-            setCardStyleOpen((open) => !open)
-            setCanvasLookOpen(false)
-            setAppearanceFor(null)
-          }}
-          canvasLookOpen={canvasLookOpen}
-          onCanvasLook={() => {
-            setCanvasLookOpen((open) => !open)
-            setCardStyleOpen(false)
-            setAppearanceFor(null)
-          }}
-          canStyleNode={selection?.kind === 'node'}
-          nodeStyleOpen={Boolean(appearanceNode)}
-          onNodeStyle={() => selection?.kind === 'node' && toggleAppearance(selection.id)}
-          shaderPaused={shaderPaused}
-          onShaderPaused={toggleShaderPaused}
-          toolbarStyle={toolbarStyle}
-          onToolbarStyle={chooseToolbarStyle}
+      {versionsOpen ? (
+        <VersionHistoryPanel
+          versions={versions[mode] ?? []}
+          previewId={previewId}
+          onPreview={previewVersion}
+          onRename={renameVersion}
+          onSave={() => addVersion({ doc: liveDocRef.current ?? doc, savedAt: Date.now(), authors: [COMMENT_AUTHOR], name: UNTITLED_VERSION })}
+          onRestore={restoreVersion}
+          onClose={closeVersions}
         />
-        <span className={styles.topDivider} aria-hidden />
-        <button type="button" className={controls.iconButton} aria-label="Version history" data-tooltip="Version history">
-          <ClockCounterClockwise size={20} weight="regular" aria-hidden />
-        </button>
-        <button type="button" className={controls.iconButton} aria-label="Share" data-tooltip="Share">
-          <ShareNetwork size={20} weight="regular" aria-hidden />
-        </button>
-        <div className={SCOPE_CLASS} data-theme="dark" style={{ display: 'contents' }}>
-          <RunAgentButton
-            label="Test Agent"
-            icon={Flask}
-            variant="secondary"
-            tooltip={(title) => `Test from ${title}`}
-            triggers={triggers}
-            trigger={testTrigger}
-            onTrigger={setTestTriggerId}
-            onRun={(triggerId) => runNodes(triggerId, 'downstream')}
-          />
-          {published ? (
-            <RunAgentButton
-              label="Execute Agent"
-              icon={Play}
-              variant="primary"
-              tooltip={(title) => `Execute from ${title}`}
-              triggers={triggers}
-              trigger={triggerFor(executeTriggerId)}
-              onTrigger={setExecuteTriggerId}
-              onRun={(triggerId) => runNodes(triggerId, 'downstream', undefined, true)}
-            />
-          ) : null}
-          <button
-            type="button"
-            className={`pg-btn pg-btn--outline ${published ? 'pg-btn--warning' : 'pg-btn--primary'} ${styles.topButton}`}
-            onClick={() => setPublishedAt((current) => (current === null ? Date.now() : null))}
-          >
-            {published ? 'Unpublish' : 'Publish'}
-          </button>
-        </div>
-      </div>
+      ) : (
+        <>
+          <div className={styles.tabs} role="tablist" aria-label="Agent view" data-covers-canvas>
+            {(['builder', 'executions'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={tab === value}
+                className={styles.tab}
+                onClick={() => setTab(value)}
+              >
+                {value === 'builder' ? 'Builder' : 'Executions'}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.topRight} data-covers-canvas>
+            {running ? (
+              <div className={SCOPE_CLASS} data-theme="dark" style={{ display: 'contents' }}>
+                <button type="button" className={`pg-btn pg-btn--outline pg-btn--negative ${styles.topButton}`} onClick={stopRun}>
+                  <Stop size={16} weight="fill" aria-hidden />
+                  {runKind === 'execute' ? 'Stop execution' : 'Stop testing'}
+                </button>
+                <span
+                  className={`${runKind === 'execute' ? 'pg-btn pg-btn--primary' : styles.publishButton} ${styles.topButton} ${styles.executing}`}
+                  role="status"
+                >
+                  <CircleNotch size={16} weight="bold" className={styles.spinner} aria-hidden />
+                  {runKind === 'execute' ? 'Executing…' : 'Testing…'}
+                </span>
+              </div>
+            ) : (
+              <>
+                {flowKind && flowCustomised ? (
+                  <button
+                    type="button"
+                    className={controls.iconButton}
+                    aria-label={`Reset the ${flowKind} flow`}
+                    data-tooltip={`Reset to the original ${flowKind} flow`}
+                    onClick={resetFlow}
+                  >
+                    <ArrowCounterClockwise size={20} weight="regular" aria-hidden />
+                  </button>
+                ) : null}
+                {flowKind && flowUnsaved ? (
+                  <button
+                    type="button"
+                    className={controls.iconButton}
+                    aria-label={`Save the ${flowKind} flow`}
+                    data-tooltip={`Save as the default ${flowKind} flow`}
+                    onClick={saveFlow}
+                  >
+                    <FloppyDisk size={20} weight="regular" aria-hidden />
+                  </button>
+                ) : null}
+                <DevMenu
+                  canSimulate={Boolean(testTrigger)}
+                  onSimulate={(outcome) => testTrigger && runNodes(testTrigger.id, 'downstream', outcome)}
+                  testFlow={mode === 'showcase' ? null : mode}
+                  onTestFlow={(kind) => switchMode(kind ?? 'showcase')}
+                  cardStyleOpen={cardStyleOpen}
+                  onCardStyle={() => {
+                    setCardStyleOpen((open) => !open)
+                    setCanvasLookOpen(false)
+                    setAppearanceFor(null)
+                  }}
+                  canvasLookOpen={canvasLookOpen}
+                  onCanvasLook={() => {
+                    setCanvasLookOpen((open) => !open)
+                    setCardStyleOpen(false)
+                    setAppearanceFor(null)
+                  }}
+                  canStyleNode={selection?.kind === 'node'}
+                  nodeStyleOpen={Boolean(appearanceNode)}
+                  onNodeStyle={() => selection?.kind === 'node' && toggleAppearance(selection.id)}
+                  shaderPaused={shaderPaused}
+                  onShaderPaused={toggleShaderPaused}
+                  toolbarStyle={toolbarStyle}
+                  onToolbarStyle={chooseToolbarStyle}
+                />
+                <span className={styles.topDivider} aria-hidden />
+                <button type="button" className={controls.iconButton} aria-label="Version history" data-tooltip="Version history" onClick={openVersions}>
+                  <ClockCounterClockwise size={20} weight="regular" aria-hidden />
+                </button>
+                <button type="button" className={controls.iconButton} aria-label="Share" data-tooltip="Share">
+                  <Export size={20} weight="regular" aria-hidden />
+                </button>
+                <div className={SCOPE_CLASS} data-theme="dark" style={{ display: 'contents' }}>
+                  <RunAgentButton
+                    label="Test"
+                    icon={Flask}
+                    variant="secondary"
+                    tooltip={(title) => `Test from ${title}`}
+                    triggers={triggers}
+                    trigger={testTrigger}
+                    onTrigger={setTestTriggerId}
+                    onRun={(triggerId) => runNodes(triggerId, 'downstream')}
+                  />
+                  {published ? (
+                    <RunAgentButton
+                      label="Execute"
+                      icon={Play}
+                      variant="primary"
+                      tooltip={(title) => `Execute from ${title}`}
+                      triggers={triggers}
+                      trigger={triggerFor(executeTriggerId)}
+                      onTrigger={setExecuteTriggerId}
+                      onRun={(triggerId) => runNodes(triggerId, 'downstream', undefined, true)}
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    className={`pg-btn pg-btn--outline ${published ? 'pg-btn--warning' : 'pg-btn--primary'} ${styles.topButton}${publishing ? ` ${styles.busy}` : ''}`}
+                    aria-busy={publishing || undefined}
+                    onClick={publishing ? undefined : togglePublished}
+                  >
+                    {publishing ? (
+                      <>
+                        <CircleNotch size={16} weight="bold" className={styles.spinner} aria-hidden />
+                        Publishing…
+                      </>
+                    ) : published ? (
+                      'Unpublish'
+                    ) : (
+                      'Publish'
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       {chatFrom ? (
         <div className={styles.chatDock}>
@@ -3666,7 +3872,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
         </div>
       ) : null}
 
-      {tab === 'executions' ? null : toolbarStyle === 'split' ? (
+      {tab === 'executions' || versionsOpen ? null : toolbarStyle === 'split' ? (
         <footer className={styles.footer}>
           <div className={styles.footerStart}>
             {minimap}
@@ -3795,7 +4001,7 @@ export function AgentCanvas({ name, workspace, onClose }: AgentCanvasProps) {
 }
 
 type DevMenuProps = {
-  /** Simulated runs start from the Test Agent trigger, so they need one. */
+  /** Simulated runs start from the Test trigger, so they need one. */
   canSimulate: boolean
   onSimulate: (outcome: RunOutcome) => void
   /** The test flow on the canvas, or null for the node showcase. */
@@ -4026,7 +4232,7 @@ function DevMenu(props: DevMenuProps) {
           data-native-scroll
           onScroll={() => setSection(null)}
         >
-          {sectionItem('simulate', Lightning, props.canSimulate ? 'Passing or failing, from Test Agent' : 'Needs a trigger to start from')}
+          {sectionItem('simulate', Lightning, props.canSimulate ? 'Passing or failing, from Test' : 'Needs a trigger to start from')}
           {sectionItem('workflow', FlowArrow, activeFlow ? `Showing the ${activeFlow.label.toLowerCase()}` : 'Showing all nodes')}
           {sectionItem('look', Swatches, 'Cards, canvas, and node styles')}
           {sectionItem('toolbar', Toolbox, props.toolbarStyle === 'split' ? 'Split toolbars' : 'Single toolbar')}

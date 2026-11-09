@@ -30,7 +30,7 @@ export function ManualTriggerConfig() {
     <Card
       icon={<CursorClick size={16} aria-hidden />}
       title="Manual trigger"
-      description="Starts the flow when you click Test Agent or Execute Agent here, or Run on the published Flow. A flow has one manual trigger."
+      description="Starts the flow when you click Test or Execute here, or Run on the published Flow. A flow has one manual trigger."
     >
       <Notice>
         Its output is one row with the run id and who started it, so the steps after it run once. A manual run has no chat session, so Send chat

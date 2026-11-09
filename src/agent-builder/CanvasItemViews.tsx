@@ -19,6 +19,7 @@ import { NodeMenu, type NodeMenuItem } from './nodeParts'
 import { ColorField, Slider } from './PaintControls'
 import { SHORTCUTS } from './shortcuts'
 import { useDismiss } from './useDismiss'
+import { useNow } from './useNow'
 import styles from './CanvasItems.module.css'
 
 /** Pointer handlers for a drag started by the canvas; spread onto the element that captured the pointer. */
@@ -328,22 +329,13 @@ const initials = (author: string) =>
     .map((word) => word.charAt(0).toUpperCase())
     .join('') || '?'
 
-function Avatar({ author, small }: { author: string; small?: boolean }) {
+export function Avatar({ author, small, className }: { author: string; small?: boolean; className?: string }) {
+  const classes = [styles.commentAvatar, small ? styles.commentAvatarSmall : null, className].filter(Boolean).join(' ')
   return (
-    <span className={small ? `${styles.commentAvatar} ${styles.commentAvatarSmall}` : styles.commentAvatar} style={{ background: avatarColor(author) }} aria-hidden>
+    <span className={classes} style={{ background: avatarColor(author) }} aria-hidden>
       {initials(author)}
     </span>
   )
-}
-
-/** The current time, refreshed every half minute so "2 minutes ago" stays true. */
-function useNow() {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
-    return () => window.clearInterval(timer)
-  }, [])
-  return now
 }
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

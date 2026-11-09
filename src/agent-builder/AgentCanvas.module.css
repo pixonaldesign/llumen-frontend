@@ -71,6 +71,16 @@
   pointer-events: none;
 }
 
+/* Looking through version history: everything on the canvas lets presses through to the surface, which pans. Important, as ports and lines turn their own pointer events back on. */
+.viewOnly .surface *,
+.viewOnly [data-comment-layer] * {
+  pointer-events: none !important;
+}
+
+.viewOnly .surface {
+  cursor: grab;
+}
+
 .panning .surface,
 .panning .surface * {
   cursor: grabbing;
@@ -221,6 +231,26 @@ button.edgeAdd:focus-visible {
   max-width: 100%;
 }
 
+.titleInput {
+  width: 240px;
+  min-width: 0;
+  margin: -2px -6px;
+  padding: 1px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.titleInput:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .draftBadge {
   flex-shrink: 0;
   padding: var(--space-xxs) var(--space-md);
@@ -367,24 +397,23 @@ button.edgeAdd:focus-visible {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.stopRun {
-  composes: iconButton from '../llumen-assistant/FloatingControls.module.css';
-  position: absolute;
-  top: calc(var(--space-2xl) + 36px + var(--space-lg));
-  left: 50%;
-  gap: var(--space-sm);
-  width: auto;
-  padding: 0 var(--space-lg);
-  font-size: 14px;
-  line-height: 20px;
-  transform: translateX(-50%);
-  animation: stopRunIn var(--lc-duration) var(--lc-ease);
+/* Stands in for the run button while a run plays: its look, faded, and not pressable. */
+.executing {
+  opacity: 0.7;
+  pointer-events: none;
 }
 
-@keyframes stopRunIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -4px);
+.busy {
+  pointer-events: none;
+}
+
+.spinner {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -468,6 +497,11 @@ button.edgeAdd:focus-visible {
 .topRight .topButton:global(.pg-btn--outline.pg-btn--warning):is(:hover, :active) {
   border-color: var(--lc-border-warning-subtle);
   color: var(--lc-text-warning);
+}
+
+.topRight .topButton:global(.pg-btn--outline.pg-btn--negative):is(:hover, :active) {
+  border-color: var(--lc-border-negative-subtle);
+  color: var(--lc-text-negative);
 }
 
 .publishButton {

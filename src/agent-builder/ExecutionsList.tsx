@@ -87,7 +87,7 @@ export function ExecutionsList({ executions, published, onCopy }: ExecutionsList
             <p className={styles.emptyText}>
               {published
                 ? 'Runs of the published agent show up here as they happen. Test runs from the builder aren’t listed.'
-                : 'Publish the agent, then run it with Execute Agent. Test runs from the builder aren’t listed.'}
+                : 'Publish the agent, then run it with Execute. Test runs from the builder aren’t listed.'}
             </p>
           </div>
         )}
