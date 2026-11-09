@@ -502,14 +502,6 @@ export function EstateStoryView({
     setInfo(null)
   }
 
-  /** An intervention's View Impact: the page that tests it, on the what-if it names. */
-  const openImpact = ({ page: pageId, scenario: scenarioId }: { page: string; scenario?: string }) => {
-    const index = slides.findIndex((item) => pageOf[item.id]?.id === pageId)
-    if (index === -1) return
-    if (scenarioId) setScenarioBySlide((current) => ({ ...current, [slides[index].id]: scenarioId }))
-    goTo(index)
-  }
-
   const toggleInfo = (kind: 'story' | 'slide', button: HTMLElement) => {
     const group = titleGroupRef.current
     if (info?.kind === kind || !group) {
@@ -658,7 +650,6 @@ export function EstateStoryView({
           summaryTyping={summary && summaryRegenerating}
           scenario={scenario?.id}
           onScenario={(id) => setScenarioBySlide((current) => ({ ...current, [slide.id]: id }))}
-          onImpact={openImpact}
         />
         {summary && editing ? (
           <button

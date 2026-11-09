@@ -537,11 +537,11 @@ export const INTERVENTIONS: Intervention[] = [
 const POLICY_LAB = 'dm-odor-lab'
 const CHOOSE = 'dm-odor-choose'
 
+/** One row per horizon: Immediate, then Intermediate, then Long-term. */
 const interventionCards = (): EstateCard[] =>
-  [0, 1, 2].flatMap((row) =>
-    (['immediate', 'intermediate', 'long'] as const).map((horizon): EstateCard => {
-      const item = INTERVENTIONS.filter((entry) => entry.horizon === horizon)[row]
-      return {
+  (['immediate', 'intermediate', 'long'] as const).flatMap((horizon) =>
+    INTERVENTIONS.filter((entry) => entry.horizon === horizon).map(
+      (item): EstateCard => ({
         id: `option-${item.code.toLowerCase()}`,
         kind: 'intervention',
         span: 'cell',
@@ -550,9 +550,8 @@ const interventionCards = (): EstateCard[] =>
         horizon,
         asset: item.asset,
         benefit: item.benefit,
-        impact: item.code === 'I1' ? { page: POLICY_LAB, scenario: 'later' } : { page: CHOOSE },
-      }
-    }),
+      }),
+    ),
   )
 
 function actionPoints(horizons: Horizon[] = ['immediate', 'intermediate', 'long']): EstatePoint[] {
@@ -1113,7 +1112,7 @@ export const ODOR_STORY: EstateStory = {
             { em: ['intermediate'] },
             ' and ',
             { em: ['long-term'] },
-            '. These are nine alternative decisions, not nine mandatory steps. Open any one’s impact to test it.',
+            ', one row each. These are nine alternative decisions, not nine mandatory steps.',
           ],
         },
         ...interventionCards(),

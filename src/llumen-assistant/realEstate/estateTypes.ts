@@ -128,8 +128,6 @@ export type EstateCard = CardBase &
         horizon: Horizon
         asset: string
         benefit: string
-        /** The page its View Impact opens, and the scenario that page should show. */
-        impact: { page: string; scenario?: string }
       }
     /** The page's what-if controls: one option per scenario, the selected one shown on the cards and map. */
     | { kind: 'scenario'; options: { id: string; label: string; detail: string }[] }

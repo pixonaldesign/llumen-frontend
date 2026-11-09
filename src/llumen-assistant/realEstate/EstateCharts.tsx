@@ -401,7 +401,7 @@ function Table({ card }: { card: CardOf<'table'> }) {
   )
 }
 
-function Intervention({ card, onImpact }: { card: CardOf<'intervention'>; onImpact?: (impact: CardOf<'intervention'>['impact']) => void }) {
+function Intervention({ card }: { card: CardOf<'intervention'> }) {
   const color = HORIZON_COLOR[card.horizon]
   return (
     <div className={css.intervention} style={{ '--horizon': color } as CSSProperties}>
@@ -420,9 +420,6 @@ function Intervention({ card, onImpact }: { card: CardOf<'intervention'>; onImpa
           <dd>{card.benefit}</dd>
         </div>
       </dl>
-      <button type="button" className={css.interventionButton} onClick={() => onImpact?.(card.impact)}>
-        View Impact
-      </button>
     </div>
   )
 }
@@ -456,7 +453,6 @@ export function EstateCardBody({
   flat = false,
   scenario,
   onScenario,
-  onImpact,
 }: {
   card: EstateCard
   /** The summary's "Last updated" chip. */
@@ -467,12 +463,10 @@ export function EstateCardBody({
   /** The page's selected what-if, and how a scenario card picks another. */
   scenario?: string
   onScenario?: (id: string) => void
-  /** An intervention's View Impact. */
-  onImpact?: (impact: CardOf<'intervention'>['impact']) => void
 }) {
   switch (card.kind) {
     case 'intervention':
-      return <Intervention card={card} onImpact={onImpact} />
+      return <Intervention card={card} />
     case 'summary':
       return (
         <>

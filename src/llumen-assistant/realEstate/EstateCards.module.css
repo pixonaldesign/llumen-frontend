@@ -467,7 +467,7 @@ aside.grid > .section {
   -webkit-line-clamp: 2;
 }
 
-/* One of the nine decisions: its code and horizon, the action, what it acts on, and View Impact. */
+/* One of the nine decisions: its code and horizon, the action, and what it acts on. */
 .intervention {
   display: flex;
   flex: 1;
@@ -530,40 +530,14 @@ aside.grid > .section {
 }
 
 .interventionFacts dd {
+  display: -webkit-box;
   margin: 0;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.8);
   font-size: 11px;
   line-height: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.interventionButton {
-  align-self: stretch;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--horizon) 45%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--horizon) 14%, transparent);
-  color: #fff;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease;
-}
-
-.interventionButton:hover {
-  border-color: var(--horizon);
-  background: color-mix(in srgb, var(--horizon) 28%, transparent);
-}
-
-.interventionButton:focus-visible {
-  outline: 2px solid var(--horizon);
-  outline-offset: 2px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 /* The page's what-ifs side by side; the picked one is lit. */
