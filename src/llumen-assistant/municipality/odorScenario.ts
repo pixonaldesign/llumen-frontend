@@ -988,6 +988,7 @@ export const ODOR_STORY: EstateStory = {
           id: 'timing',
           kind: 'line',
           title: 'Complaints vs irrigation hours',
+          height: 2,
           kpi: { value: '0.81', unit: 'correlation, last 90 days' },
           x: ['16:00', '19:00', '22:00', '01:00', '04:00'],
           yLabels: ['100', '50', '0'],
