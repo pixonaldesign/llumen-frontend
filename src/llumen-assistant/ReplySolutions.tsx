@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { CaretLeft, CaretRight, MapTrifold } from '@phosphor-icons/react'
 import type { CreatedComponent, ReplySolution } from './assistantReplyTypes'
 import { useStoryMapStates } from './story/storyMapStates'
+import { StoryReplyChart } from './story/StoryReplyChart'
 import { useRevealScrollbarOnScroll } from './useRevealScrollbarOnScroll'
 import styles from './ReplySolutions.module.css'
 
@@ -170,6 +171,12 @@ function SolutionDetail({ solution, solutions, overlay, onSelect, onClose }: Sol
             </div>
           ))}
         </div>
+
+        {solution.chart ? (
+          <div className={styles.chart}>
+            <StoryReplyChart chart={solution.chart} />
+          </div>
+        ) : null}
 
         <p className={styles.mapNote}>
           <MapTrifold size={16} weight="regular" aria-hidden />

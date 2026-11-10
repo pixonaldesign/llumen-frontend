@@ -825,7 +825,7 @@ export const URBAN_ASK_VIEWS = {
 
 /** Each community a horizon acts on, by its short name, with what it does there. */
 export const urbanActions = (horizon: Horizon) =>
-  Object.entries(URBAN_ACTS[horizon]).map(([id, act]) => ({ name: short(BY_ID[id]), act }))
+  Object.entries(URBAN_ACTS[horizon]).map(([id, act]) => ({ name: short(BY_ID[id]), act, score: composite(BY_ID[id]) }))
 
 /** The communities by combined score, highest first, for the reply's chart. */
 export const URBAN_RANKING = top(composite).map((c) => ({ name: short(c), score: composite(c), color: PRIORITY[c.priority].color }))

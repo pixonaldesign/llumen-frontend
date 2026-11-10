@@ -177,6 +177,7 @@ function odorSolution(
 ): SolutionSpec {
   const items = INTERVENTIONS.filter((item) => item.horizon === horizon)
   const byCost = [...items].sort((a, b) => dirhams(a.cost) - dirhams(b.cost))
+  const best = Math.max(...items.map((item) => item.reduction))
   return {
     ...text,
     label: HORIZON_TAB[horizon],
@@ -184,9 +185,17 @@ function odorSolution(
     color: HORIZON_COLOR[horizon],
     stats: [
       { label: 'Homes cleared', value: `${HOMES_CLEARED[horizon]} of ${HOMES_EXPOSED}` },
-      { label: 'Best exposure cut', value: `${Math.max(...items.map((item) => item.reduction))}%` },
+      { label: 'Best exposure cut', value: `${best}%` },
       { label: 'Cost', value: `${byCost[0].cost}–${byCost[byCost.length - 1].cost.replace('AED ', '')}` },
     ],
+    chart: {
+      type: 'bars',
+      title: 'Modelled odor exposure removed, by action',
+      value: `${best}%`,
+      unit: 'the most any one action removes',
+      color: HORIZON_COLOR[horizon],
+      rows: items.map((item) => ({ label: `${item.code} ${item.action}`, value: item.reduction, display: `${item.reduction}%` })),
+    },
     actions: items.map((item) => ({
       code: item.code,
       title: item.action,
@@ -207,7 +216,16 @@ function urbanSolution(
   place: FindingStageId,
 ): SolutionSpec {
   const actions = urbanActions(horizon)
+  const ranked = [...actions].sort((a, b) => b.score - a.score)
   return {
+    chart: {
+      type: 'bars',
+      title: 'Combined planning score, communities acted on',
+      value: `${ranked[0].score}`,
+      unit: `${ranked[0].name}, of 100`,
+      color: HORIZON_COLOR[horizon],
+      rows: ranked.map((row) => ({ label: row.name, value: row.score, display: String(row.score) })),
+    },
     title: text.title,
     summary: text.summary,
     label: HORIZON_TAB[horizon],

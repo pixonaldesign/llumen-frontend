@@ -226,6 +226,7 @@ export type ReplySolution = {
   title: string
   summary: string
   stats: { label: string; value: string }[]
+  chart?: StoryReplyChartData
   /** What the map shows for it. */
   mapNote: string
   actions: { code?: string; title: string; subtitle?: string; detail?: string; metrics?: string[] }[]

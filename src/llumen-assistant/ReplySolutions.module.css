@@ -331,6 +331,16 @@
   line-height: 16px;
 }
 
+.chart {
+  margin-bottom: var(--space-lg);
+}
+
+/* The chart's own card, on the detail's lighter surface. */
+.chart > div {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+}
+
 .mapNote {
   display: flex;
   align-items: flex-start;
