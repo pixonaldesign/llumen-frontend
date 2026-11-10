@@ -120,6 +120,7 @@ const parkAreas = (): EstateArea[] =>
     ring: park.ring,
     color: PARK_GREEN,
     opacity: 0.2,
+    outlineWidth: 3,
     group: 'parks',
     tip: { title: park.name, rows: parkRows(park) },
   }))
@@ -673,6 +674,7 @@ const ZONES_UNDER_SUSPICION = (): EstateArea[] => [
 
 const DETECTED_SCENE = scene({
   heat: SOCIAL_HEAT,
+  heatUnder: true,
   areas: parkAreas(),
   labels: parkLabels(),
 })
@@ -1221,6 +1223,7 @@ export const ODOR_PLACE: EstatePlace = {
   scene: scene({
     towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
     heat: SOCIAL_HEAT,
+    heatUnder: true,
     areas: [...parkAreas(), ...plumeAreas(BASELINE)],
     labels: [parkLabels(false)[0]],
   }),
@@ -1234,6 +1237,7 @@ const OVERVIEW: EstateAskView = {
   scene: scene({
     towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
     heat: SOCIAL_HEAT,
+    heatUnder: true,
     areas: [...plumeAreas(BASELINE), parkAreas()[0]],
     wind: windField(),
     labels: [parkLabels()[0]],

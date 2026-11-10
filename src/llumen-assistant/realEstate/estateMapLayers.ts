@@ -56,6 +56,8 @@ export type EstateArea = {
   color: string
   /** Fill opacity; 0 leaves only the outline. */
   opacity?: number
+  /** Outline width in px; 1.5 by default. */
+  outlineWidth?: number
   dashed?: boolean
   group: string
   tip?: EstateTip
@@ -201,7 +203,7 @@ function mountOverlays(map: mapboxgl.Map, prefix: string) {
       source: area,
       slot: 'middle',
       filter: ['!=', ['get', 'dashed'], true],
-      paint: { 'line-color': ['get', 'color'], 'line-opacity': ['get', 'lo'], 'line-width': 1.5, 'line-emissive-strength': 1 },
+      paint: { 'line-color': ['get', 'color'], 'line-opacity': ['get', 'lo'], 'line-width': ['get', 'lw'], 'line-emissive-strength': 1 },
     })
     map.addLayer({
       id: `${area}-outline-dashed`,
@@ -212,7 +214,7 @@ function mountOverlays(map: mapboxgl.Map, prefix: string) {
       paint: {
         'line-color': ['get', 'color'],
         'line-opacity': ['get', 'lo'],
-        'line-width': 1.5,
+        'line-width': ['get', 'lw'],
         'line-dasharray': [3, 2],
         'line-emissive-strength': 1,
       },
@@ -294,6 +296,7 @@ function setOverlays(map: mapboxgl.Map, prefix: string, scene: EstateMapScene, g
         color: area.color,
         o: (area.opacity ?? 0.22) * grow,
         lo: 0.9 * grow,
+        lw: area.outlineWidth ?? 1.5,
         dashed: area.dashed === true,
         tip: tip(area.tip),
       },
