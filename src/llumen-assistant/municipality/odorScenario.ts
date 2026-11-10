@@ -1012,16 +1012,13 @@ export const ODOR_STORY: EstateStory = {
         {
           id: 'inspection',
           kind: 'specs',
-          title: 'Field inspection findings',
+          title: 'Field inspection findings, Zone Z-2',
           items: [
-            ['T-3 sediment', '38 cm'],
-            ['Residence time', '4.6 days'],
+            ['Water age', '4.6 days'],
             ['Dead-ends', '3, eastern lines'],
             ['Odor at vent', 'Strong'],
           ],
         },
-        { id: 'stagnation', kind: 'cell', title: 'Water age at Z-2', value: '4.6 days', note: 'target under 2 days', status: 'critical', spark: [1.8, 2.0, 2.4, 2.9, 3.3, 3.8, 4.2, 4.6] },
-        { id: 'confidence', kind: 'cell', title: 'Source confidence', value: 'Medium', note: 'a possible source, pending lab confirmation', status: 'moderate' },
       ]),
     },
     {
