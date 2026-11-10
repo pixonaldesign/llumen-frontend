@@ -936,16 +936,10 @@ export const ODOR_STORY: EstateStory = {
             ' in 90 days. The concern is growing, and its source is not yet known.',
           ],
         },
-        {
-          id: 'kpis',
-          kind: 'kpis',
-          title: 'Last 30 days',
-          tiles: [
-            { label: 'Negative social mentions', value: '412', note: '+64% vs prior 30 days' },
-            { label: 'CRM odor complaints', value: '118', note: 'in 90 days · +38%' },
-            { label: 'Affected parks', value: '3', note: 'of 7 in Al Barsha' },
-          ],
-        },
+        { id: 'mentions', kind: 'cell', title: 'Negative social mentions', value: '412', note: '+64% vs prior 30 days' },
+        { id: 'complaints', kind: 'cell', title: 'CRM odor complaints', value: '118', note: 'in 90 days · +38%' },
+        { id: 'affected', kind: 'cell', title: 'Affected parks', value: '3', note: 'of 7 in Al Barsha' },
+        { id: 'peak', kind: 'cell', title: 'Peak reporting', value: '21:00', note: 'to midnight, 7 in 10 complaints', spark: [2, 3, 3, 5, 9, 18, 26, 21, 9, 4] },
         {
           id: 'trend',
           kind: 'line',
@@ -965,8 +959,6 @@ export const ODOR_STORY: EstateStory = {
           title: 'CRM complaints by park, 90 days',
           bars: PARKS.map((park) => ({ label: park.name, value: complaintsAt(park), display: `${complaintsAt(park)}` })),
         },
-        { id: 'peak', kind: 'cell', title: 'Peak reporting', value: '21:00', note: 'to midnight, 7 in 10 complaints', spark: [2, 3, 3, 5, 9, 18, 26, 21, 9, 4] },
-        { id: 'unknown', kind: 'cell', title: 'Source', value: 'Unknown', note: 'complaints alone do not establish the cause', status: 'moderate' },
       ]),
     },
     {
