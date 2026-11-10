@@ -253,7 +253,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
           },
           {
             heading: 'Recommended action',
-            text: 'Retime Z-2 and Z-3 this week and flush the eastern lines, then schedule T-3’s rehabilitation. Take the treatment upgrade to capital planning: the quick fix needs re-tuning each season, so it does not replace the long-term one. Open the story to test schedules in the Policy Lab.',
+            text: 'Retime Z-2 and Z-3 this week and flush the eastern lines, then schedule T-3’s rehabilitation. Take the treatment upgrade to capital planning: the quick fix needs re-tuning each season, so it does not replace the long-term one.',
           },
         ],
       },

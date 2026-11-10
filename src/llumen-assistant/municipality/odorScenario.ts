@@ -1,7 +1,8 @@
 /**
- * The Unified Odor story: recycled-water irrigation odor around Al Barsha's parks. LLUMEN detects the
- * complaints, traces them to the Pond Park pump house, models who the evening wind carries the odor to,
- * lays out nine interventions, and tests them in a Policy Lab. Every value is an illustrative example.
+ * The Unified Odor story: recycled-water irrigation odor around Al Barsha's parks, in three findings.
+ * Complaints peak with the irrigation window, one recycled-water network feeds all three parks, and
+ * sampling shows that water failing its quality limits. The interventions, the wind model and the
+ * horizon maps serve Simulate recommended actions. Every value is an illustrative example.
  */
 import { hash, offsetKm, scatter, type LngLat } from '../realEstate/estateGeo'
 import type {
@@ -19,9 +20,7 @@ import {
   STATUS,
   type EstateAskView,
   type EstateCamera,
-  type EstateCard,
   type EstatePlace,
-  type EstateScenario,
   type EstateStory,
   type Horizon,
   type MapDataLayer,
@@ -42,7 +41,7 @@ const PARK_GREEN = PALETTE.categorical[3]
 const PIPE_BLUE = PALETTE.blue[3]
 const WIND_WHITE = 'rgba(236, 240, 255, 0.86)'
 
-/** `reports`: CRM odor complaints in 90 days by what residents reported, most first. */
+/** `reports`: CRM odor complaints in 30 days by what residents reported, most first. */
 type Park = { id: string; name: string; ring: LngLat[]; reports: [string, number][]; mentions: number }
 
 const PARKS: Park[] = [
@@ -110,7 +109,7 @@ const complaintsAt = (park: Park) => park.reports.reduce((sum, [, count]) => sum
 /** Each complaint type and how often it was reported, then the totals. */
 const parkRows = (park: Park): [string, string][] => [
   ...park.reports.map(([type, count]): [string, string] => [type, `${count} reports`]),
-  ['CRM complaints', `${complaintsAt(park)} in 90 days`],
+  ['CRM complaints', `${complaintsAt(park)} in 30 days`],
   ['Negative posts', `${park.mentions} in 30 days`],
 ]
 
@@ -133,7 +132,7 @@ const parkLabels = (pinned = true): EstateLabel[] =>
     heightM: 6,
     color: PARK_GREEN,
     title: park.name,
-    text: `${complaintsAt(park)} odor complaints · 90 days`,
+    text: `${complaintsAt(park)} odor complaints · 30 days`,
     rows: pinned ? parkRows(park) : undefined,
     group: 'parks',
   }))
@@ -143,11 +142,11 @@ const parkLabels = (pinned = true): EstateLabel[] =>
 type ZoneId = 'z1' | 'z2' | 'z3' | 'z4' | 'z5'
 
 const ZONES: Record<ZoneId, { name: string; ring: LngLat[]; schedule: string }> = {
-  z1: { name: 'Zone Z-1 · Pond Park west', ring: box([55.19958, 25.10028], [55.2028, 25.10351]), schedule: '20:00–22:30' },
-  z2: { name: 'Zone Z-2 · Pond Park east', ring: box([55.2028, 25.10031], [55.20606, 25.10354]), schedule: '20:30–23:00' },
-  z3: { name: 'Zone Z-3 · Eastern streetscape', ring: box([55.20628, 25.0975], [55.20688, 25.1075]), schedule: '21:00–23:30' },
-  z4: { name: 'Zone Z-4 · Al Barsha 1 Park', ring: PARKS[1].ring, schedule: '19:30–21:30' },
-  z5: { name: 'Zone Z-5 · Al Barsha 3 Park', ring: PARKS[2].ring, schedule: '19:30–21:00' },
+  z1: { name: 'Zone Z-1 · Pond Park west', ring: box([55.19958, 25.10028], [55.2028, 25.10351]), schedule: '17:00–19:30' },
+  z2: { name: 'Zone Z-2 · Pond Park east', ring: box([55.2028, 25.10031], [55.20606, 25.10354]), schedule: '17:30–20:00' },
+  z3: { name: 'Zone Z-3 · Eastern streetscape', ring: box([55.20628, 25.0975], [55.20688, 25.1075]), schedule: '17:30–20:00' },
+  z4: { name: 'Zone Z-4 · Al Barsha 1 Park', ring: PARKS[1].ring, schedule: '17:00–19:00' },
+  z5: { name: 'Zone Z-5 · Al Barsha 3 Park', ring: PARKS[2].ring, schedule: '17:00–18:30' },
 }
 
 function zoneArea(id: ZoneId, color: string, status: string, opacity = 0.26, dashed = false): EstateArea {
@@ -164,9 +163,19 @@ function zoneArea(id: ZoneId, color: string, status: string, opacity = 0.26, das
 }
 
 const SUPPLY_MAIN: LngLat[] = [
-  [55.19932, 25.0952],
+  [55.19932, 25.0826],
   [55.19932, 25.10024],
   [55.1997, 25.10045],
+]
+/** Branches off the supply main and the ring main to the other two parks. */
+const BARSHA3_BRANCH: LngLat[] = [
+  [55.19932, 25.0826],
+  [55.20728, 25.0826],
+]
+const BARSHA1_BRANCH: LngLat[] = [
+  [55.1997, 25.10335],
+  [55.193, 25.105],
+  [55.18975, 25.10765],
 ]
 const RING_MAIN: LngLat[] = [
   [55.1997, 25.10045],
@@ -208,24 +217,35 @@ function networkLines(color: string = PIPE_BLUE, highlight: Partial<Record<'ring
     pipe('east-north', EAST_NORTH, 'Eastern streetscape line', [['Dead-ends', '2'], ['Flow at night', '0.4 L/s']], highlight.east ?? color, 2),
     pipe('east-south', EAST_SOUTH, 'Eastern streetscape line', [['Dead-ends', '1'], ['Flow at night', '0.6 L/s']], highlight.east ?? color, 2),
     pipe('east-spur', EAST_SPUR, 'Al Barsha 2 spur', [['Residence time', '3.1 days']], highlight.east ?? color, 2),
+    pipe('barsha1-branch', BARSHA1_BRANCH, 'Al Barsha 1 branch', [['Fed from', 'Pond Park ring main'], ['Diameter', '200 mm']], color, 2.5),
     pipe('barsha1', BARSHA1_MAIN, 'Al Barsha 1 Park main', [['Residence time', '1.4 days']], color, 2),
+    pipe('barsha3-branch', BARSHA3_BRANCH, 'Al Barsha 3 branch', [['Fed from', 'TSE supply main'], ['Diameter', '200 mm']], color, 2.5),
   ]
 }
 
-/** Storage tank T-3 in the pump house: the suspected source, lit in `color`. */
-function tankTower(color: string, text: string, rows: [string, string][]): EstateTower {
+type Tank = { id: string; name: string; site: string; park: string; at: LngLat }
+
+/** One recycled-water storage tank per park, all filled from the same TSE supply main. */
+const TANKS = {
+  t1: { id: 't1', name: 'Storage tank T-1', site: 'Al Barsha 1 Park', park: 'Al Barsha 1 Park', at: [55.18985, 25.10752] },
+  t3: { id: 't3', name: 'Storage tank T-3', site: 'Pond Park pump house', park: 'Al Barsha Pond Park', at: PUMP_HOUSE },
+  t5: { id: 't5', name: 'Storage tank T-5', site: 'Al Barsha 3 Park', park: 'Al Barsha 3 Park', at: [55.20755, 25.08258] },
+} satisfies Record<string, Tank>
+
+/** A storage tank, lit in `color`; T-3 in the pump house unless another is given. */
+function tankTower(color: string, text: string, rows: [string, string][], tank: Tank = TANKS.t3): EstateTower {
   return {
-    id: 'tank-t3',
+    id: `tank-${tank.id}`,
     featureId: 0,
-    at: PUMP_HOUSE,
+    at: tank.at,
     heightM: 9,
     color,
     state: 'select',
-    footprint: circle(PUMP_HOUSE, 9),
+    footprint: circle(tank.at, 9),
     label: true,
-    title: 'Storage tank T-3',
+    title: tank.name,
     text,
-    tip: { title: 'Storage tank T-3 · Pond Park pump house', rows },
+    tip: { title: `${tank.name} · ${tank.site}`, rows },
     group: 'source',
   }
 }
@@ -331,25 +351,6 @@ function homesAfter(plume: Bands, benefit = HORIZON_COLOR.immediate) {
   })
 }
 
-type Facility = { id: string; name: string; kind: string; at: LngLat }
-
-const FACILITIES: Facility[] = [
-  { id: 'mawakeb', name: 'Al Mawakeb School', kind: 'School', at: [55.20164, 25.10468] },
-  { id: 'smart-vision', name: 'Smart Vision School', kind: 'School', at: [55.21148, 25.10741] },
-  { id: 'health', name: 'Al Barsha Health Centre', kind: 'Health centre', at: [55.20246, 25.09762] },
-  { id: 'salam', name: 'Al Salam School', kind: 'School', at: [55.19738, 25.09328] },
-]
-
-const facilityPoints = (): EstatePoint[] =>
-  FACILITIES.map((facility) => ({
-    id: `facility-${facility.id}`,
-    at: facility.at,
-    color: PALETTE.categorical[1],
-    radius: 6,
-    group: 'facilities',
-    tip: { title: facility.name, rows: [['Type', facility.kind], ['In plume', insidePlume(BASELINE.low, facility.at) ? 'Yes' : 'Within 600 m']] },
-  }))
-
 /* —— What residents report —— */
 
 /** Negative posts about odor, densest downwind of the pump house and around the three parks. */
@@ -375,22 +376,33 @@ const SAMPLES: Sample[] = [
   { id: 's4', name: 'Eastern streetscape dead-end', at: [55.2066, 25.1072], h2s: 0.24, oxygen: 1.6 },
   { id: 's5', name: 'Z-1 emitters', at: [55.2008, 25.1026], h2s: 0.05, oxygen: 4.6 },
   { id: 's6', name: 'Supply main inlet', at: [55.19932, 25.0975], h2s: 0.02, oxygen: 6.2 },
+  { id: 's7', name: 'T-1 outlet', at: [55.18998, 25.10742], h2s: 0.16, oxygen: 2.1 },
+  { id: 's8', name: 'T-5 outlet', at: [55.20742, 25.08268], h2s: 0.12, oxygen: 2.6 },
 ]
 
-const sampleColor = (h2s: number) => (h2s >= 0.3 ? STATUS.critical : h2s >= 0.15 ? LEVEL.high : LEVEL.ok)
+/** The recycled-water irrigation limits the samples are held to (illustrative). */
+const LIMIT = { h2s: 0.05, oxygen: 2 }
+
+const meetsLimit = (sample: Sample) => sample.h2s <= LIMIT.h2s && sample.oxygen >= LIMIT.oxygen
+const FAILING = SAMPLES.filter((sample) => !meetsLimit(sample))
+const WORST = SAMPLES.reduce((worst, sample) => (sample.h2s > worst.h2s ? sample : worst))
+const timesLimit = (sample: Sample) => `${(sample.h2s / LIMIT.h2s).toFixed(1)}×`
+
+const sampleColor = (sample: Sample) => (sample.h2s >= 0.3 ? STATUS.critical : meetsLimit(sample) ? LEVEL.ok : LEVEL.high)
 
 const samplePoints = (): EstatePoint[] =>
   SAMPLES.map((sample) => ({
     id: `sample-${sample.id}`,
     at: sample.at,
-    color: sampleColor(sample.h2s),
+    color: sampleColor(sample),
     radius: 6.5,
     group: 'sampling',
     tip: {
       title: `Sample · ${sample.name}`,
       rows: [
-        ['H₂S', `${sample.h2s.toFixed(2)} mg/L`],
-        ['Dissolved oxygen', `${sample.oxygen.toFixed(1)} mg/L`],
+        ['H₂S', `${sample.h2s.toFixed(2)} mg/L · limit ${LIMIT.h2s}`],
+        ['Dissolved oxygen', `${sample.oxygen.toFixed(1)} mg/L · min ${LIMIT.oxygen}`],
+        ['Status', meetsLimit(sample) ? 'Meets the standard' : 'Exceeds the standard'],
       ],
     },
   }))
@@ -523,26 +535,6 @@ export const INTERVENTIONS: Intervention[] = [
   },
 ]
 
-const POLICY_LAB = 'dm-odor-lab'
-const CHOOSE = 'dm-odor-choose'
-
-/** One row per horizon: Immediate, then Intermediate, then Long-term. */
-const interventionCards = (): EstateCard[] =>
-  (['immediate', 'intermediate', 'long'] as const).flatMap((horizon) =>
-    INTERVENTIONS.filter((entry) => entry.horizon === horizon).map(
-      (item): EstateCard => ({
-        id: `option-${item.code.toLowerCase()}`,
-        kind: 'intervention',
-        span: 'cell',
-        title: item.action,
-        code: item.code,
-        horizon,
-        asset: item.asset,
-        benefit: item.benefit,
-      }),
-    ),
-  )
-
 const actionTitle = (item: Intervention) => `${item.code} · ${item.action}`
 const actionRows = (item: Intervention): [string, string][] => [
   ['Acts on', item.asset],
@@ -580,7 +572,7 @@ const LAYER = {
   social: { group: 'social', title: 'Social media hotspots', mark: 'heat', color: { ramp: HEAT_RAMP, low: 'Fewer posts', high: 'More' } },
   parks: {
     group: 'parks',
-    title: 'Parks · CRM odor complaints',
+    title: 'Parks · CRM odor complaints, 30 days',
     mark: 'area',
     color: { items: PARKS.map((park) => ({ label: park.name, color: PARK_GREEN, count: `${complaintsAt(park)}` })) },
   },
@@ -597,15 +589,21 @@ const LAYER = {
     },
   },
   network: { group: 'network', title: 'Irrigation network assets', mark: 'line', color: { items: [{ label: 'Recycled-water mains', color: PIPE_BLUE }] } },
+  tanks: {
+    group: 'source',
+    title: 'Recycled-water storage tanks',
+    mark: 'tower',
+    color: { items: Object.values(TANKS).map((tank) => ({ label: `${tank.name.slice(-3)} · ${tank.park}`, color: PIPE_BLUE })) },
+  },
   sampling: {
     group: 'sampling',
     title: 'Water sampling locations',
     mark: 'point',
     color: {
       items: [
-        { label: 'H₂S over 0.3 mg/L', color: STATUS.critical, count: '1' },
-        { label: '0.15–0.3 mg/L', color: LEVEL.high, count: '3' },
-        { label: 'Under 0.15 mg/L', color: LEVEL.ok, count: '2' },
+        { label: 'Far over the limit', color: STATUS.critical, count: `${SAMPLES.filter((sample) => sampleColor(sample) === STATUS.critical).length}` },
+        { label: 'Exceeds the standard', color: LEVEL.high, count: `${SAMPLES.filter((sample) => sampleColor(sample) === LEVEL.high).length}` },
+        { label: 'Meets the standard', color: LEVEL.ok, count: `${SAMPLES.filter(meetsLimit).length}` },
       ],
     },
   },
@@ -615,7 +613,6 @@ const LAYER = {
     mark: 'tower',
     color: { items: [{ label: 'Storage tank T-3', color: STATUS.critical, count: '0.42 mg/L' }] },
   },
-  wind: { group: 'wind', title: 'Evening wind', mark: 'line', color: { items: [{ label: 'From WNW · 3.4 m/s', color: WIND_WHITE }] } },
   plume: {
     group: 'plume',
     title: 'Modelled wind-driven dispersion',
@@ -638,12 +635,6 @@ const LAYER = {
         { label: 'Moderate', color: PALETTE.diverging[2], count: `${EXPOSED_HOMES.filter((home) => home.color !== STATUS.critical).length}` },
       ],
     },
-  },
-  facilities: {
-    group: 'facilities',
-    title: 'Sensitive facilities',
-    mark: 'point',
-    color: { items: [{ label: 'Schools and health centre', color: PALETTE.categorical[1], count: `${FACILITIES.length}` }] },
   },
   actions: {
     group: 'actions',
@@ -678,165 +669,31 @@ const DETECTED_SCENE = scene({
   labels: parkLabels(),
 })
 
-const CAUSE_SCENE = scene({
-  towers: [SUSPECT_TANK],
+const NETWORK_SCENE = scene({
+  towers: Object.values(TANKS).map((tank) =>
+    tankTower(PIPE_BLUE, `Feeds ${tank.park}`, [['Supplies', tank.park], ['Filled from', 'TSE supply main']], tank),
+  ),
+  areas: parkAreas(),
+  lines: networkLines(),
+  labels: parkLabels(false),
+})
+
+const outletOf = (tank: Tank) => SAMPLES.find((sample) => sample.name === `${tank.name.slice(-3)} outlet`)!
+/** Only T-3 is in the quality camera's view; the other tanks keep their tooltips without a label. */
+const tankQuality = (tank: Tank): EstateTower => {
+  const outlet = outletOf(tank)
+  const tower = tankTower(sampleColor(outlet), `Exceeds · H₂S ${outlet.h2s.toFixed(2)} mg/L`, [['H₂S at outlet', `${outlet.h2s.toFixed(2)} mg/L`], ['Against the limit', timesLimit(outlet)]], tank)
+  return { ...tower, label: tank === TANKS.t3 }
+}
+
+const QUALITY_SCENE = scene({
+  towers: Object.values(TANKS).map(tankQuality),
   areas: ZONES_UNDER_SUSPICION(),
   lines: networkLines(),
   points: samplePoints(),
 })
 
-const EXPOSURE_SCENE = scene({
-  towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
-  areas: plumeAreas(BASELINE),
-  wind: windField(),
-  points: facilityPoints(),
-})
-
-const MENU_SCENE = scene({
-  towers: [SUSPECT_TANK],
-  areas: [...ZONES_UNDER_SUSPICION().slice(0, 3), ...plumeAreas(BASELINE)],
-  lines: networkLines(),
-  points: actionPoints(),
-})
-
-/* The Policy Lab: Irrigation Timing (I1), with the schedule as its what-if. */
-
-type Schedule = {
-  id: string
-  label: string
-  detail: string
-  scale: number
-  turn: number
-  complaints: number
-  residents: number
-  cost: number
-  events: number
-  perHour: string
-  seasons: string
-  interpretation: string
-}
-
-const SCHEDULES: Schedule[] = [
-  {
-    id: 'baseline',
-    label: 'Baseline',
-    detail: 'Today’s schedule, 20:00–23:30',
-    scale: 1,
-    turn: 0,
-    complaints: 40,
-    residents: 1850,
-    cost: 0,
-    events: 15,
-    perHour: '—',
-    seasons: '—',
-    interpretation: 'No intervention is applied. The baseline remains unchanged.',
-  },
-  {
-    id: 'earlier',
-    label: 'Earlier evening',
-    detail: 'Move irrigation to 17:30–20:00',
-    scale: 0.82,
-    turn: -8,
-    complaints: 33,
-    residents: 1500,
-    cost: 18000,
-    events: 12,
-    perHour: 'AED 167',
-    seasons: '2 of 4',
-    interpretation:
-      'Under this illustrative scenario, the selected schedule reduces modeled residential exposure by 19% and avoids 7 complaints per month compared with the baseline.',
-  },
-  {
-    id: 'later',
-    label: 'Later evening',
-    detail: 'Move irrigation to 00:30–03:00',
-    scale: 0.6,
-    turn: 14,
-    complaints: 24,
-    residents: 1100,
-    cost: 25000,
-    events: 9,
-    perHour: 'AED 116',
-    seasons: '3 of 4',
-    interpretation:
-      'Under this illustrative scenario, the selected schedule reduces modeled residential exposure by 41% and avoids 16 complaints per month compared with the baseline.',
-  },
-]
-
-const BASE = SCHEDULES[0]
-const fmt = (value: number) => value.toLocaleString('en-US')
-
-function labCards(schedule: Schedule): EstateCard[] {
-  return toned([
-    {
-      id: 'lab-control',
-      kind: 'scenario',
-      title: 'Test a different irrigation schedule',
-      options: SCHEDULES.map(({ id, label, detail }) => ({ id, label, detail })),
-    },
-    {
-      id: 'lab-kpis',
-      kind: 'kpis',
-      title: `What-if simulation · ${schedule.label}`,
-      tiles: [
-        { label: 'Complaints / month', value: `${schedule.complaints}`, note: `Baseline: ${BASE.complaints}` },
-        { label: 'Residents in exposure area', value: fmt(schedule.residents), note: `Baseline: ${fmt(BASE.residents)}` },
-        { label: 'Implementation cost', value: fmt(schedule.cost), unit: 'AED', note: 'Illustrative' },
-      ],
-    },
-    {
-      id: 'lab-compare',
-      kind: 'grouped',
-      title: 'Baseline vs selected scenario',
-      legend: ['Baseline', schedule.id === 'baseline' ? 'Selected' : schedule.label],
-      colors: ['rgba(255, 255, 255, 0.4)', HORIZON_COLOR.immediate],
-      groups: [
-        { label: 'Complaints', values: [BASE.complaints, schedule.complaints] },
-        { label: 'Exposure events', values: [BASE.events, schedule.events] },
-        { label: 'Exposure-hours', values: [BASE.events * 3, schedule.events * 3] },
-      ],
-    },
-    { id: 'lab-interpretation', kind: 'note', title: 'Simulation interpretation', text: schedule.interpretation },
-    { id: 'lab-cost', kind: 'cell', title: 'Cost-effectiveness', value: schedule.perHour, note: 'per avoided exposure-hour' },
-    { id: 'lab-seasons', kind: 'cell', title: 'Impact sustainability', value: schedule.seasons, note: 'seasonal wind patterns the benefit holds in' },
-    {
-      id: 'lab-decision',
-      kind: 'specs',
-      title: 'Decision panel',
-      items: [
-        ['Assumption', 'Complaints scale with exposure-hours'],
-        ['Uncertainty', '±25%, synthetic model'],
-        ['Owner', 'Parks irrigation operations'],
-        ['Approval', schedule.id === 'baseline' ? 'None needed' : 'Schedule change, Director'],
-      ],
-    },
-    {
-      id: 'lab-caveat',
-      kind: 'note',
-      title: 'About these values',
-      text: 'Values are synthetic examples, not calibrated predictions. In the real Policy Lab, outcomes are calculated from irrigation operations, meteorology, verified odor evidence and exposure modeling.',
-    },
-  ])
-}
-
-function labScenario(schedule: Schedule): EstateScenario {
-  const plume = bands(schedule.scale, schedule.turn)
-  const simulated = schedule.id !== 'baseline'
-  return {
-    id: schedule.id,
-    cards: labCards(schedule),
-    scene: scene({
-      towers: [SUSPECT_TANK, ...(simulated ? homesAfter(plume) : EXPOSED_HOMES)],
-      areas: [
-        zoneArea('z2', simulated ? HORIZON_COLOR.immediate : STATUS.critical, simulated ? `Retimed to ${schedule.detail.slice(-11)}` : 'Today’s schedule'),
-        zoneArea('z3', simulated ? HORIZON_COLOR.immediate : STATUS.critical, simulated ? `Retimed to ${schedule.detail.slice(-11)}` : 'Today’s schedule', 0.4),
-        ...plumeAreas(plume),
-        ...(simulated ? [BASELINE_OUTLINE] : []),
-      ],
-      wind: windField(WIND_TOWARD + schedule.turn),
-    }),
-  }
-}
+/* —— Simulate recommended actions: each horizon's what-if against the baseline —— */
 
 const LAB_LAYERS: MapDataLayer[] = [
   { ...LAYER.zones, title: 'Affected irrigation zones', color: { items: [{ label: 'Today’s schedule', color: STATUS.critical }, { label: 'Retimed', color: HORIZON_COLOR.immediate }] } },
@@ -860,50 +717,39 @@ const LAB_LAYERS: MapDataLayer[] = [
   },
 ]
 
-/* Which intervention to choose: homes by the earliest horizon whose best option clears them. */
-
+/** The plume left by each horizon's best option. */
 const RESIDUAL: Record<Horizon, Bands> = {
   immediate: bands(0.6, 14),
   intermediate: bands(0.45),
   long: bands(0.2),
 }
 
-const CLEARED_HOMES = homeTowers((home) => {
-  for (const horizon of ['immediate', 'intermediate', 'long'] as const) {
-    if (bandOf(RESIDUAL[horizon], home.at) === 'clear') return { color: HORIZON_COLOR[horizon], status: `Cleared by ${HORIZON_LABEL[horizon].toLowerCase()}` }
-  }
-  return { color: STATUS.critical, status: 'Still exposed' }
-})
-
-const residualOutline = (horizon: Horizon): EstateArea => ({
-  id: `residual-${horizon}`,
-  ring: plumeRing(RESIDUAL[horizon].moderate),
-  color: HORIZON_COLOR[horizon],
-  opacity: 0.08,
-  dashed: horizon !== 'long',
-  group: 'residual',
-  tip: { title: `Residual plume · best ${HORIZON_LABEL[horizon].toLowerCase()} option`, rows: [['Option', horizon === 'immediate' ? 'I1 · later evening' : horizon === 'intermediate' ? 'M1 · tank rehabilitation' : 'L1 · treatment upgrade']] },
-})
-
-const CHOOSE_SCENE = scene({
-  towers: [SUSPECT_TANK, ...CLEARED_HOMES],
-  areas: [BASELINE_OUTLINE, residualOutline('immediate'), residualOutline('intermediate'), residualOutline('long')],
-})
-
 /* —— The story —— */
 
 const CAMERA = {
-  detected: { center: [55.19886, 25.10413], zoom: 15.67, pitch: 64.5, bearing: -21.2 },
-  cause: { center: [55.2032, 25.1017], zoom: 15.75, pitch: 60, bearing: 24 },
-  exposure: { center: [55.21415, 25.10053], zoom: 15.97, pitch: 59.5, bearing: -14.8 },
-  menu: { center: [55.2052, 25.1004], zoom: 14.95, pitch: 52, bearing: 8 },
-  lab: { center: [55.2098, 25.0988], zoom: 15.0, pitch: 57, bearing: 6 },
-  choose: { center: [55.2092, 25.0992], zoom: 14.9, pitch: 50, bearing: -6 },
+  timing: { center: [55.19886, 25.10413], zoom: 15.67, pitch: 64.5, bearing: -21.2 },
+  network: { center: [55.1972, 25.0952], zoom: 14.15, pitch: 52, bearing: -18 },
+  quality: { center: [55.2032, 25.1017], zoom: 15.75, pitch: 60, bearing: 24 },
 } satisfies Record<string, EstateCamera>
 
-const FILTERS = ['Al Barsha', 'Last 90 days', 'Odor']
+const FILTERS = ['Al Barsha', 'Last 30 days', 'Odor']
 
-const WEEKS = ['12 Aug', '26 Aug', '9 Sep', '23 Sep', '7 Oct', '21 Oct', '4 Nov']
+/** The assumed irrigation window across the three parks. */
+const IRRIGATION_WINDOW = '5–8 PM'
+
+/** CRM odor complaints in 30 days by time of day; the 5–8 PM band is the irrigation window. */
+const BY_TIME_OF_DAY: { label: string; value: number; irrigating?: boolean }[] = [
+  { label: '6–9 AM', value: 8 },
+  { label: '9–12 PM', value: 6 },
+  { label: '12–3 PM', value: 10 },
+  { label: '3–5 PM', value: 12 },
+  { label: '5–8 PM', value: 64, irrigating: true },
+  { label: '8–11 PM', value: 14 },
+  { label: '11–6 AM', value: 4 },
+]
+const IN_WINDOW = BY_TIME_OF_DAY.filter((band) => band.irrigating).reduce((sum, band) => sum + band.value, 0)
+const ALL_COMPLAINTS = BY_TIME_OF_DAY.reduce((sum, band) => sum + band.value, 0)
+
 /** Negative odor mentions and CRM complaints a week, oldest first: 412 mentions in the last four weeks, up 64%. */
 export const MENTIONS_BY_WEEK = [38, 41, 44, 47, 52, 58, 66, 75, 88, 97, 106, 121]
 export const CRM_BY_WEEK = [4, 5, 4, 6, 7, 8, 9, 11, 13, 14, 17, 20]
@@ -912,15 +758,15 @@ export const ODOR_STORY: EstateStory = {
   id: 'dm-odor',
   title: 'Unified Odor Use Case',
   description:
-    'How LLUMEN detects an odor problem in Al Barsha, traces it to recycled-water irrigation, finds who is affected, lays out nine interventions and helps leadership choose. The same agent investigates odor from oil spills, waste or sewerage.',
+    'How LLUMEN links odor complaints around three Al Barsha parks to their irrigation hours, traces all three to one recycled-water network, and confirms that water fails its quality standard. The same agent investigates odor from oil spills, waste or sewerage.',
   place: 'barsha',
   pages: [
     {
-      id: 'dm-odor-detected',
-      title: 'Odor detected',
+      id: 'dm-odor-timing',
+      title: 'Temporal Correlation Identified',
       finding:
-        'An increase in negative social media sentiment about unpleasant odors has been detected near public parks in Al Barsha, supported by recurring CRM complaints. The source is not yet known.',
-      camera: CAMERA.detected,
+        'Analysis of irrigation schedules and CRM complaint timestamps across the three Al Barsha parks indicates that odor complaints consistently peak during or shortly after scheduled irrigation hours, suggesting a potential link between irrigation activities and unpleasant odors.',
+      camera: CAMERA.timing,
       scene: DETECTED_SCENE,
       filters: FILTERS,
       layers: [LAYER.social, LAYER.parks],
@@ -928,86 +774,152 @@ export const ODOR_STORY: EstateStory = {
         {
           id: 'summary',
           kind: 'summary',
-          title: 'Leadership alert',
-          parts: [
-            'Negative posts about odors near Al Barsha’s parks are up ',
-            { em: ['64% in 30 days'] },
-            ', backed by ',
-            { em: ['118 CRM complaints'] },
-            ' in 90 days. The concern is growing, and its source is not yet known.',
-          ],
-        },
-        { id: 'mentions', kind: 'cell', title: 'Negative social mentions', value: '412', note: '+64% vs prior 30 days' },
-        { id: 'complaints', kind: 'cell', title: 'CRM odor complaints', value: '118', note: 'in 90 days · +38%' },
-        { id: 'affected', kind: 'cell', title: 'Affected parks', value: '3', note: 'of 7 in Al Barsha' },
-        { id: 'peak', kind: 'cell', title: 'Peak reporting', value: '21:00', note: 'to midnight, 7 in 10 complaints', spark: [2, 3, 3, 5, 9, 18, 26, 21, 9, 4] },
-        {
-          id: 'trend',
-          kind: 'line',
-          title: 'Is it increasing?',
-          kpi: { value: '121', unit: 'negative mentions last week' },
-          x: WEEKS,
-          yLabels: ['150', '75', '0'],
-          yMax: 150,
-          series: [
-            { name: 'Social mentions', points: MENTIONS_BY_WEEK },
-            { name: 'CRM complaints ×4', points: CRM_BY_WEEK.map((value) => value * 4) },
-          ],
-        },
-        {
-          id: 'parks',
-          kind: 'hbars',
-          title: 'CRM complaints by park, 90 days',
-          bars: PARKS.map((park) => ({ label: park.name, value: complaintsAt(park), display: `${complaintsAt(park)}` })),
-        },
-      ]),
-    },
-    {
-      id: 'dm-odor-cause',
-      title: 'What is causing it?',
-      finding:
-        'Investigation of the affected parks has identified recycled-water irrigation as a potential source of the reported odor, based on irrigation operations, water-quality observations and preliminary field inspections.',
-      camera: CAMERA.cause,
-      scene: CAUSE_SCENE,
-      filters: FILTERS,
-      layers: [LAYER.zones, LAYER.network, LAYER.sampling, LAYER.source],
-      cards: toned([
-        {
-          id: 'summary',
-          kind: 'summary',
           title: 'Summary',
           parts: [
-            'Complaints rise within ',
-            { em: ['40 minutes'] },
-            ' of Zones Z-2 and Z-3 starting to irrigate, and water leaving ',
-            { em: ['storage tank T-3'] },
-            ' carries 20 times the inlet’s hydrogen sulphide. T-3 is a possible source, not yet confirmed.',
+            'Odor complaints at all three parks peak during the ',
+            { em: [`${IRRIGATION_WINDOW} irrigation window`] },
+            ': ',
+            { em: [`${IN_WINDOW} of ${ALL_COMPLAINTS} complaints`] },
+            ' in 30 days, falling away within an hour of the sprinklers stopping. Irrigation may be linked to the odor.',
           ],
+        },
+        { id: 'complaints', kind: 'cell', title: 'CRM odor complaints', value: `${ALL_COMPLAINTS}`, note: 'in 30 days, at 3 parks' },
+        { id: 'window', kind: 'cell', title: 'During irrigation', value: `${Math.round((IN_WINDOW / ALL_COMPLAINTS) * 100)}%`, note: `of complaints, ${IRRIGATION_WINDOW}, 3 hours of 24` },
+        { id: 'affected', kind: 'cell', title: 'Affected parks', value: '3', note: 'of 7 in Al Barsha' },
+        { id: 'mentions', kind: 'cell', title: 'Negative social mentions', value: '412', note: '+64% vs prior 30 days' },
+        {
+          id: 'time-of-day',
+          kind: 'vbars',
+          title: 'Odor complaints by time of day',
+          height: 2,
+          kpi: { value: `${IN_WINDOW}`, unit: `in the ${IRRIGATION_WINDOW} irrigation window` },
+          bars: BY_TIME_OF_DAY.map((band) => ({ label: band.label, value: band.value, color: band.irrigating ? undefined : 'rgba(255, 255, 255, 0.24)' })),
+        },
+        {
+          id: 'illustrative',
+          kind: 'note',
+          title: 'About this data',
+          text: `Illustrative 30-day complaint distribution, with the assumed irrigation window from 5 PM to 8 PM. Synthetic data, to be validated against actual irrigation schedules and complaint timestamps.`,
         },
         {
           id: 'timing',
           kind: 'line',
           title: 'Complaints vs irrigation hours',
           height: 2,
-          kpi: { value: '0.81', unit: 'correlation, last 90 days' },
-          x: ['16:00', '19:00', '22:00', '01:00', '04:00'],
+          kpi: { value: '0.81', unit: 'correlation, last 30 days' },
+          x: ['12 PM', '3 PM', '6 PM', '9 PM', '12 AM'],
           yLabels: ['100', '80', '60', '40', '20', '0'],
           yMax: 100,
           series: [
-            { name: 'Irrigation flow', points: [0, 0, 4, 12, 58, 86, 92, 74, 20, 4, 0, 0, 0] },
-            { name: 'Odor complaints', points: [2, 3, 3, 6, 22, 61, 88, 79, 44, 16, 6, 3, 2] },
+            { name: 'Irrigation flow', points: [0, 0, 0, 0, 0, 34, 90, 94, 82, 12, 0, 0, 0] },
+            { name: 'Odor complaints', points: [9, 7, 8, 11, 13, 24, 62, 88, 84, 42, 18, 9, 6] },
           ],
         },
         {
+          id: 'parks',
+          kind: 'hbars',
+          title: 'CRM complaints by park, 30 days',
+          bars: PARKS.map((park) => ({ label: park.name, value: complaintsAt(park), display: `${complaintsAt(park)}` })),
+        },
+      ]),
+    },
+    {
+      id: 'dm-odor-network',
+      title: 'Recycled Water Supply Network Identified',
+      finding:
+        'GIS analysis of the irrigation network confirms that all three affected parks are supplied with recycled water through connected irrigation pipelines and storage tanks, identifying a common potential source of the odor issue.',
+      camera: CAMERA.network,
+      scene: NETWORK_SCENE,
+      filters: FILTERS,
+      layers: [LAYER.network, LAYER.tanks, LAYER.parks],
+      cards: toned([
+        {
+          id: 'summary',
+          kind: 'summary',
+          title: 'Summary',
+          parts: [
+            'GIS tracing shows ',
+            { em: ['all three parks'] },
+            ' draw recycled (TSE) water from ',
+            { em: ['one supply main'] },
+            ', each through its own storage tank. The shared network is a common potential source of the odor.',
+          ],
+        },
+        { id: 'connected', kind: 'cell', title: 'Parks on the network', value: '3 of 3', note: 'all irrigated with recycled water' },
+        { id: 'tanks', kind: 'cell', title: 'Storage tanks', value: `${Object.keys(TANKS).length}`, note: 'one per park, filled from the same main' },
+        {
+          id: 'supply',
+          kind: 'table',
+          title: 'How each park is supplied',
+          columns: ['Park', 'Tank', 'Fed by', 'Irrigates'],
+          dotColumn: 0,
+          rows: [
+            { cells: ['Al Barsha Pond Park', 'T-3', 'Ring main', '5:30–8 PM'], color: PARK_GREEN },
+            { cells: ['Al Barsha 1 Park', 'T-1', 'Al Barsha 1 branch', '5–7 PM'], color: PARK_GREEN },
+            { cells: ['Al Barsha 3 Park', 'T-5', 'Al Barsha 3 branch', '5–6:30 PM'], color: PARK_GREEN },
+          ],
+        },
+        {
+          id: 'trace',
+          kind: 'specs',
+          title: 'Network traced',
+          items: [
+            ['Water source', 'TSE, Jebel Ali plant'],
+            ['Supply main', '450 mm'],
+            ['Branches', '2, to Al Barsha 1 and 3'],
+            ['Ring main water age', '4.6 days'],
+          ],
+        },
+      ]),
+    },
+    {
+      id: 'dm-odor-quality',
+      title: 'Water Quality Non-Compliance Confirmed',
+      finding:
+        'Subsequent water sampling and laboratory analysis reveal that recycled irrigation water does not meet the required quality standards, with exceedances in odor-related water-quality parameters, indicating a potential contribution to the recurring unpleasant odors.',
+      camera: CAMERA.quality,
+      scene: QUALITY_SCENE,
+      filters: FILTERS,
+      layers: [
+        LAYER.sampling,
+        { ...LAYER.tanks, color: { items: Object.values(TANKS).map((tank) => ({ label: tank.name, color: sampleColor(outletOf(tank)), count: timesLimit(outletOf(tank)) })) } },
+        LAYER.network,
+        LAYER.zones,
+      ],
+      cards: toned([
+        {
+          id: 'summary',
+          kind: 'summary',
+          title: 'Summary',
+          parts: [
+            { em: [`${FAILING.length} of ${SAMPLES.length} samples`] },
+            ' fail the recycled-water standard. Hydrogen sulphide at the ',
+            { em: [WORST.name] },
+            ` is ${timesLimit(WORST)} the limit and all three tanks exceed it, while water entering from the supply main meets it.`,
+          ],
+        },
+        { id: 'failing', kind: 'cell', title: 'Non-compliant samples', value: `${FAILING.length} of ${SAMPLES.length}`, note: 'against the H₂S and oxygen limits', status: 'critical' },
+        { id: 'worst', kind: 'cell', title: 'Worst exceedance', value: timesLimit(WORST), note: `H₂S at the ${WORST.name}, against ${LIMIT.h2s} mg/L` },
+        {
           id: 'samples',
           kind: 'table',
-          title: 'Water-quality results',
-          columns: ['Site', 'H₂S mg/L', 'DO mg/L'],
+          title: 'Water-quality results vs the standard',
+          height: 2,
+          columns: ['Site', 'H₂S mg/L', 'DO mg/L', 'Status'],
           dotColumn: 0,
           rows: SAMPLES.map((sample) => ({
-            cells: [sample.name, sample.h2s.toFixed(2), sample.oxygen.toFixed(1)],
-            color: sampleColor(sample.h2s),
+            cells: [sample.name, sample.h2s.toFixed(2), sample.oxygen.toFixed(1), meetsLimit(sample) ? 'Meets' : 'Exceeds'],
+            color: sampleColor(sample),
           })),
+        },
+        {
+          id: 'exceedance',
+          kind: 'hbars',
+          title: `H₂S against the ${LIMIT.h2s} mg/L limit`,
+          bars: [...FAILING]
+            .sort((a, b) => b.h2s - a.h2s)
+            .slice(0, 5)
+            .map((sample) => ({ label: sample.name, value: sample.h2s, display: timesLimit(sample), color: sampleColor(sample) })),
         },
         {
           id: 'inspection',
@@ -1019,193 +931,11 @@ export const ODOR_STORY: EstateStory = {
             ['Odor at vent', 'Strong'],
           ],
         },
-      ]),
-    },
-    {
-      id: 'dm-odor-affected',
-      title: 'Who is affected?',
-      finding:
-        'Prevailing evening winds may carry odor from the suspected irrigation source toward nearby residential areas, potentially affecting residents beyond the park boundaries.',
-      camera: CAMERA.exposure,
-      scene: EXPOSURE_SCENE,
-      filters: FILTERS,
-      layers: [LAYER.source, LAYER.wind, LAYER.plume, LAYER.homes, LAYER.facilities],
-      cards: toned([
         {
-          id: 'summary',
-          kind: 'summary',
-          title: 'Summary',
-          parts: [
-            'Evening winds carry odor from tank T-3 up to ',
-            { em: ['1.4 km'] },
-            ' into Al Barsha 2, where about ',
-            { em: [`${fmt(BASE.residents)} residents`] },
-            ` in ${EXPOSED_HOMES.length} homes sit inside the modelled exposure area.`,
-          ],
-        },
-        {
-          id: 'kpis',
-          kind: 'kpis',
-          title: 'Modelled exposure area',
-          tiles: [
-            { label: 'Residential buildings', value: `${EXPOSED_HOMES.length}`, note: `${EXPOSED_HOMES.filter((home) => home.color === STATUS.critical).length} in the high band` },
-            { label: 'Residents', value: fmt(BASE.residents), note: 'estimated' },
-            { label: 'Exposure events', value: `${BASE.events}`, note: 'a month' },
-          ],
-        },
-        {
-          id: 'overlap',
-          kind: 'vbars',
-          title: 'Nights irrigation overlapped an onshore wind',
-          kpi: { value: '22 of 30', unit: 'nights at 21:00' },
-          bars: [
-            { label: '19:00', value: 4 },
-            { label: '20:00', value: 11 },
-            { label: '21:00', value: 22 },
-            { label: '22:00', value: 19 },
-            { label: '23:00', value: 12 },
-            { label: '00:00', value: 6 },
-            { label: '01:00', value: 3 },
-          ],
-        },
-        {
-          id: 'bands',
-          kind: 'donut',
-          title: 'Residents by exposure band',
-          total: fmt(BASE.residents),
-          totalLabel: 'residents',
-          slices: [
-            { name: 'High', value: 520, color: STATUS.critical },
-            { name: 'Moderate', value: 1330, color: PALETTE.diverging[2] },
-          ],
-        },
-        { id: 'wind', kind: 'cell', title: 'Evening wind', value: '3.4 m/s', note: 'from the west-north-west, 19:00–23:00' },
-        { id: 'facilities', kind: 'cell', title: 'Sensitive facilities', value: `${FACILITIES.length}`, note: '3 schools and a health centre within 600 m' },
-      ]),
-    },
-    {
-      id: 'dm-odor-options',
-      title: 'What can we do?',
-      finding:
-        'LLUMEN has identified nine alternative interventions to address the suspected odor source and reduce residential exposure, with three options evaluated for each impact horizon.',
-      camera: CAMERA.menu,
-      scene: MENU_SCENE,
-      filters: FILTERS,
-      columns: 3,
-      layers: [LAYER.actions, LAYER.zones, LAYER.network, LAYER.plume],
-      cards: [
-        {
-          id: 'summary',
-          kind: 'summary',
-          title: 'Nine interventions',
-          parts: [
-            'Three options for each impact horizon: ',
-            { em: ['immediate'] },
-            ', ',
-            { em: ['intermediate'] },
-            ' and ',
-            { em: ['long-term'] },
-            ', one row each. These are nine alternative decisions, not nine mandatory steps.',
-          ],
-        },
-        ...interventionCards(),
-      ],
-    },
-    {
-      id: POLICY_LAB,
-      title: 'Policy Lab',
-      finding:
-        'Policy Lab · Irrigation Timing (I1), Al Barsha, illustrative scenario. Pick a schedule to see how complaints, residents in the exposure area and cost change against the baseline.',
-      camera: CAMERA.lab,
-      scene: labScenario(BASE).scene,
-      filters: ['Al Barsha', 'I1 · Irrigation timing', 'Illustrative'],
-      layers: LAB_LAYERS,
-      cards: labCards(BASE),
-      scenarios: SCHEDULES.map(labScenario),
-    },
-    {
-      id: CHOOSE,
-      title: 'Which one to choose?',
-      finding:
-        'The nine independent interventions compared on the same baseline: effectiveness, cost-effectiveness and impact sustainability. Quick, low-cost options are not a substitute for longer-term fixes.',
-      camera: CAMERA.choose,
-      scene: CHOOSE_SCENE,
-      filters: FILTERS,
-      layers: [
-        {
-          group: 'homes',
-          title: 'Homes by the horizon that clears them',
-          mark: 'tower',
-          color: {
-            items: [
-              ...(['immediate', 'intermediate', 'long'] as const).map((horizon) => ({
-                label: HORIZON_LABEL[horizon],
-                color: HORIZON_COLOR[horizon],
-                count: `${CLEARED_HOMES.filter((home) => home.color === HORIZON_COLOR[horizon]).length}`,
-              })),
-            ],
-          },
-        },
-        {
-          group: 'residual',
-          title: 'Residual plume, best option per horizon',
-          mark: 'area',
-          color: { items: (['immediate', 'intermediate', 'long'] as const).map((horizon) => ({ label: HORIZON_LABEL[horizon], color: HORIZON_COLOR[horizon] })) },
-        },
-      ],
-      cards: toned([
-        {
-          id: 'summary',
-          kind: 'summary',
-          title: 'Summary',
-          parts: [
-            'Retiming irrigation (I1) cuts exposure ',
-            { em: ['41% for AED 25k'] },
-            ', the most per dirham, but needs re-tuning each season. Upgrading treatment (L1) removes ',
-            { em: ['78%'] },
-            ' and lasts, for AED 6.5M. A quick win does not replace the long-term fix.',
-          ],
-        },
-        {
-          id: 'compare',
-          kind: 'table',
-          title: 'Nine interventions on the same baseline',
-          height: 2,
-          columns: ['Option', 'Exposure cut', 'AED / hour', 'Lasts'],
-          dotColumn: 0,
-          rows: INTERVENTIONS.map((item) => ({
-            cells: [`${item.code} ${item.action}`, `${item.reduction}%`, fmt(item.perHour), item.sustainability],
-            color: HORIZON_COLOR[item.horizon],
-          })),
-        },
-        {
-          id: 'effectiveness',
-          kind: 'hbars',
-          title: 'Effectiveness · exposure removed',
-          bars: [...INTERVENTIONS]
-            .sort((a, b) => b.reduction - a.reduction)
-            .slice(0, 5)
-            .map((item) => ({ label: `${item.code} ${item.action}`, value: item.reduction, display: `${item.reduction}%`, color: HORIZON_COLOR[item.horizon] })),
-        },
-        {
-          id: 'value',
-          kind: 'hbars',
-          title: 'Cost-effectiveness · AED per avoided exposure-hour',
-          bars: [...INTERVENTIONS]
-            .sort((a, b) => a.perHour - b.perHour)
-            .slice(0, 5)
-            .map((item) => ({ label: `${item.code} ${item.action}`, value: 1 / item.perHour, display: `AED ${fmt(item.perHour)}`, color: HORIZON_COLOR[item.horizon] })),
-        },
-        {
-          id: 'criteria',
-          kind: 'specs',
-          title: 'What leadership needs to weigh',
-          items: [
-            ['Effectiveness', 'Exposure removed'],
-            ['Cost-effectiveness', 'Cut per dirham'],
-            ['Sustainability', 'Lasts without rework'],
-            ['Ranking', 'From validated models'],
-          ],
+          id: 'conclusion',
+          kind: 'note',
+          title: 'Preliminary conclusion',
+          text: 'The combined findings suggest that recycled irrigation water may be contributing to odor complaints across the three parks, requiring corrective action and further source verification.',
         },
       ]),
     },
