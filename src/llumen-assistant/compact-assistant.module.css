@@ -2446,6 +2446,12 @@
   grid-area: chat-stack;
 }
 
+/* No composer to clear: the transcript runs to the bottom. */
+.middleNoComposer {
+  /* Over the inline reserve a composer mounted earlier left on this element. */
+  --lc-composer-reserve: 0px !important;
+}
+
 /* A reply's solution is open over the transcript (ReplySolutions); the transcript keeps its scroll. */
 .middle[data-solution-open='true'] > .transcript {
   visibility: hidden;

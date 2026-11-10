@@ -2905,6 +2905,9 @@ export function CompactAssistantDemo() {
   const railComposerOpen = open && !hubSessionsRail
   const hubChatComponents = storyActive ? storyChatComponents : []
   const inStudio = landingVariant === 'briefing' && !storyActive && briefingView === 'studio'
+  /** Briefings has no chat bar: neither on the page nor in the AI panel its findings open. */
+  const briefingWithoutBar = landingVariant === 'briefing' && !storyActive && !inStudio
+  const showComposer = !(briefingWithoutBar && landingAsk)
   const showHub =
     isHub &&
     (!inStudio || studioAskBar !== null) &&
@@ -2930,7 +2933,10 @@ export function CompactAssistantDemo() {
     )
 
   const chatMiddle = (
-    <div ref={chatMiddleRef} className={`${styles.middle} ${isNewChat ? styles.middleEmpty : ''}`}>
+    <div
+      ref={chatMiddleRef}
+      className={`${styles.middle} ${isNewChat ? styles.middleEmpty : ''}${showComposer ? '' : ` ${styles.middleNoComposer}`}`}
+    >
       {isNewChat ? (
         <AssistantHero />
       ) : (
@@ -2990,35 +2996,37 @@ export function CompactAssistantDemo() {
           ))}
         </div>
       )}
-      <ChatComposer
-        ref={composerRef}
-        value={draft}
-        onChange={setDraft}
-        onSend={send}
-        onStop={stop}
-        sendState={sendVisual}
-        showParameters
-        onAttachClick={() => {}}
-        findingSlot={toastOverRail ? noticeToast(true) : null}
-        findingCue={findingBorderCue && !showHub}
-        findingCueColors={ALERT_BAR_CUE_STOPS}
-        questionSlot={
-          composerQuestion ? (
-            <AgentQuestionPrompt
-              key={composerQuestion.id}
-              prompt={composerQuestion.prompt}
-              options={composerQuestion.options}
-              questionIndex={composerQuestion.questionIndex}
-              questionCount={composerQuestion.questionCount}
-              onAnswer={(optionId, label) => answerWorkflowQuestion(composerQuestion.id, optionId, label)}
-              onDismiss={() => dismissComposerQuestion(composerQuestion.id)}
-            />
-          ) : null
-        }
-        suggestedPrompt={streaming ? undefined : (railComponentPrompt ?? storyAnnotationPrompt)}
-        onSendSuggested={sendRailSuggested}
-        onPickLocation={storyPrompts ? openLocationPicker : undefined}
-      />
+      {showComposer ? (
+        <ChatComposer
+          ref={composerRef}
+          value={draft}
+          onChange={setDraft}
+          onSend={send}
+          onStop={stop}
+          sendState={sendVisual}
+          showParameters
+          onAttachClick={() => {}}
+          findingSlot={toastOverRail ? noticeToast(true) : null}
+          findingCue={findingBorderCue && !showHub}
+          findingCueColors={ALERT_BAR_CUE_STOPS}
+          questionSlot={
+            composerQuestion ? (
+              <AgentQuestionPrompt
+                key={composerQuestion.id}
+                prompt={composerQuestion.prompt}
+                options={composerQuestion.options}
+                questionIndex={composerQuestion.questionIndex}
+                questionCount={composerQuestion.questionCount}
+                onAnswer={(optionId, label) => answerWorkflowQuestion(composerQuestion.id, optionId, label)}
+                onDismiss={() => dismissComposerQuestion(composerQuestion.id)}
+              />
+            ) : null
+          }
+          suggestedPrompt={streaming ? undefined : (railComponentPrompt ?? storyAnnotationPrompt)}
+          onSendSuggested={sendRailSuggested}
+          onPickLocation={storyPrompts ? openLocationPicker : undefined}
+        />
+      ) : null}
       {locationPickerOpen ? (
         <StoryLocationModal onApply={applyStoryLocation} onClose={closeLocationPicker} />
       ) : null}
@@ -3303,6 +3311,7 @@ export function CompactAssistantDemo() {
                 )}
               </div>
             ) : null}
+            {briefingWithoutBar ? null : (
             <HubChatbox
                 // Remount when leaving a story so draft/focus/files don't carry over engaged.
                 key={storyActive ? `story-${activeStoryId}` : 'landing'}
@@ -3363,6 +3372,7 @@ export function CompactAssistantDemo() {
                       : LANDING_DEMO_PROMPT
                 }
               />
+            )}
           </div>
         ) : null}
         {landingAsk ? (
