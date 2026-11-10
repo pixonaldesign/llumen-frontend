@@ -42,7 +42,8 @@ const PARK_GREEN = PALETTE.categorical[3]
 const PIPE_BLUE = PALETTE.blue[3]
 const WIND_WHITE = 'rgba(236, 240, 255, 0.86)'
 
-type Park = { id: string; name: string; ring: LngLat[]; complaints: number; mentions: number }
+/** `reports`: CRM odor complaints in 90 days by what residents reported, most first. */
+type Park = { id: string; name: string; ring: LngLat[]; reports: [string, number][]; mentions: number }
 
 const PARKS: Park[] = [
   {
@@ -54,7 +55,11 @@ const PARKS: Park[] = [
       [55.206111, 25.100308],
       [55.19962, 25.100234],
     ],
-    complaints: 71,
+    reports: [
+      ['Rotten-egg odor', 32],
+      ['Sewage-like smell', 24],
+      ['Stale water smell', 15],
+    ],
     mentions: 248,
   },
   {
@@ -73,7 +78,11 @@ const PARKS: Park[] = [
       [55.186606, 25.106182],
       [55.185817, 25.105867],
     ],
-    complaints: 29,
+    reports: [
+      ['Rotten-egg odor', 11],
+      ['Sewage-like smell', 10],
+      ['Stale water smell', 8],
+    ],
     mentions: 101,
   },
   {
@@ -85,12 +94,25 @@ const PARKS: Park[] = [
       [55.207792, 25.082089],
       [55.207278, 25.082089],
     ],
-    complaints: 18,
+    reports: [
+      ['Stale water smell', 7],
+      ['Rotten-egg odor', 6],
+      ['Sewage-like smell', 5],
+    ],
     mentions: 63,
   },
 ]
 
 const POND = PARKS[0]
+
+const complaintsAt = (park: Park) => park.reports.reduce((sum, [, count]) => sum + count, 0)
+
+/** Each complaint type and how often it was reported, then the totals. */
+const parkRows = (park: Park): [string, string][] => [
+  ...park.reports.map(([type, count]): [string, string] => [type, `${count} reports`]),
+  ['CRM complaints', `${complaintsAt(park)} in 90 days`],
+  ['Negative posts', `${park.mentions} in 30 days`],
+]
 
 const parkAreas = (): EstateArea[] =>
   PARKS.map((park) => ({
@@ -99,23 +121,19 @@ const parkAreas = (): EstateArea[] =>
     color: PARK_GREEN,
     opacity: 0.2,
     group: 'parks',
-    tip: {
-      title: park.name,
-      rows: [
-        ['CRM odor complaints', `${park.complaints} in 90 days`],
-        ['Negative mentions', `${park.mentions} in 30 days`],
-      ],
-    },
+    tip: { title: park.name, rows: parkRows(park) },
   }))
 
-const parkLabels = (): EstateLabel[] =>
+/** Each park's complaints, held open over it; `pinned: false` leaves a roof label with the total. */
+const parkLabels = (pinned = true): EstateLabel[] =>
   PARKS.map((park) => ({
     id: `label-${park.id}`,
     at: centroid(park.ring),
     heightM: 6,
     color: PARK_GREEN,
     title: park.name,
-    text: `${park.complaints} odor complaints · 90 days`,
+    text: `${complaintsAt(park)} odor complaints · 90 days`,
+    rows: pinned ? parkRows(park) : undefined,
     group: 'parks',
   }))
 
@@ -346,29 +364,6 @@ const SOCIAL_HEAT: EstateHeatPoint[] = [
 
 const HEAT_RAMP = [PALETTE.purple[0], PALETTE.purple[2], PALETTE.categorical[5], PALETTE.categorical[4]]
 
-const COMPLAINT_TIMES = ['20:40', '21:15', '21:50', '22:20', '22:45', '23:10', '23:35', '00:05']
-const COMPLAINT_DAYS = ['12 Oct', '16 Oct', '19 Oct', '23 Oct', '26 Oct', '29 Oct', '2 Nov', '5 Nov']
-
-/** The last 30 days of CRM odor complaints: most downwind of the pump house, the rest at the other two parks. */
-const CRM_POINTS: EstatePoint[] = [
-  ...scatter(toward(PUMP_HOUSE, WIND_TOWARD, 0.5), 60, 0.6, 11).filter((at) => insidePlume(BASELINE.low, at)).slice(0, 30),
-  ...scatter(centroid(PARKS[1].ring), 9, 0.28, 13),
-  ...scatter(centroid(PARKS[2].ring), 7, 0.2, 15),
-].map((at, index) => ({
-  id: `crm-${index}`,
-  at,
-  color: LEVEL.watch,
-  radius: 4.5,
-  group: 'crm',
-  tip: {
-    title: `CRM complaint C-${41820 + index * 7}`,
-    rows: [
-      ['Reported', index % 3 === 0 ? 'Sewage-like smell' : index % 3 === 1 ? 'Rotten-egg odor' : 'Stale water smell'],
-      ['When', `${COMPLAINT_DAYS[index % COMPLAINT_DAYS.length]} · ${COMPLAINT_TIMES[(index * 3) % COMPLAINT_TIMES.length]}`],
-    ],
-  },
-}))
-
 /* —— Sampling —— */
 
 type Sample = { id: string; name: string; at: LngLat; h2s: number; oxygen: number }
@@ -583,17 +578,11 @@ function actionTips(horizon: Horizon): EstateLabel[] {
 
 const LAYER = {
   social: { group: 'social', title: 'Social media hotspots', mark: 'heat', color: { ramp: HEAT_RAMP, low: 'Fewer posts', high: 'More' } },
-  crm: {
-    group: 'crm',
-    title: 'CRM complaint locations',
-    mark: 'point',
-    color: { items: [{ label: 'Odor complaint', color: LEVEL.watch, count: `${CRM_POINTS.length} in 30 days` }] },
-  },
   parks: {
     group: 'parks',
-    title: 'Public park boundaries',
+    title: 'Parks · CRM odor complaints',
     mark: 'area',
-    color: { items: PARKS.map((park) => ({ label: park.name, color: PARK_GREEN, count: `${park.complaints}` })) },
+    color: { items: PARKS.map((park) => ({ label: park.name, color: PARK_GREEN, count: `${complaintsAt(park)}` })) },
   },
   zones: {
     group: 'zones',
@@ -686,7 +675,6 @@ const DETECTED_SCENE = scene({
   heat: SOCIAL_HEAT,
   areas: parkAreas(),
   labels: parkLabels(),
-  points: CRM_POINTS,
 })
 
 const CAUSE_SCENE = scene({
@@ -934,7 +922,7 @@ export const ODOR_STORY: EstateStory = {
       camera: CAMERA.detected,
       scene: DETECTED_SCENE,
       filters: FILTERS,
-      layers: [LAYER.social, LAYER.crm, LAYER.parks],
+      layers: [LAYER.social, LAYER.parks],
       cards: toned([
         {
           id: 'summary',
@@ -975,7 +963,7 @@ export const ODOR_STORY: EstateStory = {
           id: 'parks',
           kind: 'hbars',
           title: 'CRM complaints by park, 90 days',
-          bars: PARKS.map((park) => ({ label: park.name, value: park.complaints, display: `${park.complaints}` })),
+          bars: PARKS.map((park) => ({ label: park.name, value: complaintsAt(park), display: `${complaintsAt(park)}` })),
         },
         { id: 'peak', kind: 'cell', title: 'Peak reporting', value: '21:00', note: 'to midnight, 7 in 10 complaints', spark: [2, 3, 3, 5, 9, 18, 26, 21, 9, 4] },
         { id: 'unknown', kind: 'cell', title: 'Source', value: 'Unknown', note: 'complaints alone do not establish the cause', status: 'moderate' },
@@ -1242,7 +1230,7 @@ export const ODOR_PLACE: EstatePlace = {
     towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
     heat: SOCIAL_HEAT,
     areas: [...parkAreas(), ...plumeAreas(BASELINE)],
-    labels: [parkLabels()[0]],
+    labels: [parkLabels(false)[0]],
   }),
 }
 
@@ -1256,10 +1244,9 @@ const OVERVIEW: EstateAskView = {
     heat: SOCIAL_HEAT,
     areas: [...plumeAreas(BASELINE), parkAreas()[0]],
     wind: windField(),
-    points: CRM_POINTS.slice(0, 30),
     labels: [parkLabels()[0]],
   }),
-  layers: [LAYER.source, LAYER.plume, LAYER.homes, LAYER.crm, LAYER.social],
+  layers: [LAYER.source, LAYER.plume, LAYER.homes, LAYER.parks, LAYER.social],
 }
 
 const IMMEDIATE: EstateAskView = {
@@ -1379,7 +1366,7 @@ const LONG_TERM: EstateAskView = {
     areas: [...parkAreas(), ...plumeAreas(RESIDUAL.long), BASELINE_OUTLINE],
     lines: [...networkLines(PIPE_BLUE, { supply: HORIZON_COLOR.long }), ...LOOPS],
     points: [...SENSORS, ...actionPoints(['long'], true)],
-    labels: [...parkLabels(), ...actionTips('long')],
+    labels: [...parkLabels(false), ...actionTips('long')],
   }),
   layers: [
     { ...LAYER.actions, title: 'Long-term interventions', color: { items: INTERVENTIONS.filter((item) => item.horizon === 'long').map((item) => ({ label: `${item.code} ${item.action}`, color: HORIZON_COLOR.long })) } },
