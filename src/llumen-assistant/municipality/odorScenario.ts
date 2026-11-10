@@ -41,8 +41,8 @@ const PARK_GREEN = PALETTE.categorical[3]
 const PIPE_BLUE = PALETTE.blue[3]
 const WIND_WHITE = 'rgba(236, 240, 255, 0.86)'
 
-/** `reports`: CRM odor complaints in 30 days by what residents reported, most first. */
-type Park = { id: string; name: string; ring: LngLat[]; reports: [string, number][]; mentions: number }
+/** `complaints`: CRM odor complaints in 30 days; `posts`: negative posts in 30 days by the smell they describe, most first. */
+type Park = { id: string; name: string; ring: LngLat[]; complaints: number; posts: [string, number][] }
 
 const PARKS: Park[] = [
   {
@@ -54,12 +54,12 @@ const PARKS: Park[] = [
       [55.206111, 25.100308],
       [55.19962, 25.100234],
     ],
-    reports: [
-      ['Rotten-egg odor', 32],
-      ['Sewage-like smell', 24],
-      ['Stale water smell', 15],
+    complaints: 71,
+    posts: [
+      ['Rotten-egg odor', 112],
+      ['Sewage-like smell', 84],
+      ['Stale water smell', 52],
     ],
-    mentions: 248,
   },
   {
     id: 'barsha1',
@@ -77,12 +77,12 @@ const PARKS: Park[] = [
       [55.186606, 25.106182],
       [55.185817, 25.105867],
     ],
-    reports: [
-      ['Rotten-egg odor', 11],
-      ['Sewage-like smell', 10],
-      ['Stale water smell', 8],
+    complaints: 29,
+    posts: [
+      ['Rotten-egg odor', 46],
+      ['Stale water smell', 31],
+      ['Sewage-like smell', 24],
     ],
-    mentions: 101,
   },
   {
     id: 'barsha3',
@@ -93,24 +93,25 @@ const PARKS: Park[] = [
       [55.207792, 25.082089],
       [55.207278, 25.082089],
     ],
-    reports: [
-      ['Stale water smell', 7],
-      ['Rotten-egg odor', 6],
-      ['Sewage-like smell', 5],
+    complaints: 18,
+    posts: [
+      ['Sewage-like smell', 29],
+      ['Stale water smell', 19],
+      ['Rotten-egg odor', 15],
     ],
-    mentions: 63,
   },
 ]
 
 const POND = PARKS[0]
 
-const complaintsAt = (park: Park) => park.reports.reduce((sum, [, count]) => sum + count, 0)
+const complaintsAt = (park: Park) => park.complaints
+const postsAt = (park: Park) => park.posts.reduce((sum, [, count]) => sum + count, 0)
 
-/** Each complaint type and how often it was reported, then the totals. */
+/** Each smell the negative posts describe and how often, then the totals. */
 const parkRows = (park: Park): [string, string][] => [
-  ...park.reports.map(([type, count]): [string, string] => [type, `${count} reports`]),
+  ...park.posts.map(([type, count]): [string, string] => [type, `${count} posts`]),
   ['CRM complaints', `${complaintsAt(park)} in 30 days`],
-  ['Negative posts', `${park.mentions} in 30 days`],
+  ['Negative posts', `${postsAt(park)} in 30 days`],
 ]
 
 const parkAreas = (): EstateArea[] =>
