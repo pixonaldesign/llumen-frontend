@@ -26,7 +26,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
   },
   {
     id: 'dm-creek-app',
-    storyId: 'dm-urban',
+    storyId: 'dm-infrastructure',
     title: 'Spare Capacity — Dubai Creek Harbour',
     description:
       'Sewerage at 61% and 58 ha of developable land leave room to direct 15,300 pipeline homes here without new trunk mains.',
@@ -35,16 +35,16 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
   },
   {
     id: 'dm-jvc-app',
-    storyId: 'dm-urban',
-    title: 'Growth Outpacing Services — JVC',
+    storyId: 'dm-facilities',
+    title: 'Growth Outpacing Facilities — JVC',
     description:
-      'JVC runs sewerage at 94% with 0.6 school seats per 1,000 residents, while 18,400 more homes are in the pipeline.',
+      'JVC has 11,800 school seats for 22,400 children who need one, and two of the five health centres it needs, while 18,400 more homes are in the pipeline.',
     image: `${APPS_BASE}/dm-jvc.jpg`,
     focus: 'center',
   },
   {
     id: 'dm-quoz-app',
-    storyId: 'dm-urban',
+    storyId: 'dm-facilities',
     title: 'Land Use Drifting — Al Quoz',
     description:
       '38 change-of-use applications in 24 months as light industry turns residential; worker accommodation is at 108%.',

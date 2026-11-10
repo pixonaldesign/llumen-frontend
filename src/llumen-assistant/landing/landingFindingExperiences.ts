@@ -14,7 +14,9 @@ import type {
 } from '../assistantReplyTypes'
 import { HORIZON_COLOR, HORIZON_SPAN } from '../municipality/dmShared'
 import { HOMES_CLEARED, HOMES_EXPOSED, INTERVENTIONS, ODOR_BRIEFING } from '../municipality/odorScenario'
-import { URBAN_COUNTS, URBAN_RANKING, urbanActions } from '../municipality/urbanScenario'
+import { FACILITIES_BRIEFING, FACILITIES_SOLUTIONS } from '../municipality/facilitiesScenario'
+import type { PlanningSolution } from '../municipality/growthAreas'
+import { INFRASTRUCTURE_BRIEFING, INFRASTRUCTURE_SOLUTIONS } from '../municipality/infrastructureScenario'
 import { ESTATE_ASK_VIEWS, isAskView, type EstateAskViewId } from '../realEstate/estateScenario'
 import { STATUS, type EstateAskView, type Horizon } from '../realEstate/estateTypes'
 import type { StoryAiSnapshot } from '../story/storyAiScenarios'
@@ -207,39 +209,31 @@ function odorSolution(
   }
 }
 
-const URBAN_SPAN: Record<Horizon, string> = { immediate: 'next 6 months', intermediate: '1–3 years', long: '3–10 years' }
+/** When each planning horizon lands; capital works take longer than the odor fixes. */
+const PLANNING_SPAN: Record<Horizon, string> = { immediate: 'next 12 months', intermediate: '1–3 years', long: '3–10 years' }
 
-/** An urban horizon as a solution: the communities it acts on and what it does in each. */
-function urbanSolution(
-  horizon: Horizon,
-  text: { title: string; summary: string; lever: string },
-  place: FindingStageId,
-): SolutionSpec {
-  const actions = urbanActions(horizon)
-  const ranked = [...actions].sort((a, b) => b.score - a.score)
-  return {
-    chart: {
-      type: 'bars',
-      title: 'Combined planning score, communities acted on',
-      value: `${ranked[0].score}`,
-      unit: `${ranked[0].name}, of 100`,
+const HORIZONS: Horizon[] = ['immediate', 'intermediate', 'long']
+
+/** A planning story's three horizons as solutions, each on its own map view of the three areas. */
+function planningSolutions(solutions: Record<Horizon, PlanningSolution>, place: (horizon: Horizon) => FindingStageId): SolutionSpec[] {
+  return HORIZONS.map((horizon) => {
+    const solution = solutions[horizon]
+    return {
+      ...solution,
+      label: HORIZON_TAB[horizon],
+      span: PLANNING_SPAN[horizon],
       color: HORIZON_COLOR[horizon],
-      rows: ranked.map((row) => ({ label: row.name, value: row.score, display: String(row.score) })),
-    },
-    title: text.title,
-    summary: text.summary,
-    label: HORIZON_TAB[horizon],
-    span: URBAN_SPAN[horizon],
-    color: HORIZON_COLOR[horizon],
-    stats: [
-      { label: 'Communities', value: `${actions.length} of 20` },
-      { label: 'Lever', value: text.lever },
-    ],
-    mapNote: `The map highlights the ${actions.length} communities this horizon acts on.`,
-    actions: actions.map(({ name, act }) => ({ title: name, detail: act })),
-    map: { place, title: `${HORIZON_TAB[horizon]} · ${text.title}`, tag: 'Dubai', meta: `${actions.length} communities` },
-  }
+      map: {
+        place: place(horizon),
+        title: `${HORIZON_TAB[horizon]} · ${solution.title}`,
+        tag: 'JVC · Arjan · Motor City',
+        meta: `${solution.actions.length} actions`,
+      },
+    }
+  })
 }
+
+const fmt = (value: number) => value.toLocaleString('en-US')
 
 const odorShare = Math.round((ODOR_BRIEFING.inWindow / ODOR_BRIEFING.complaints) * 100)
 
@@ -312,70 +306,87 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
       stateId,
     ),
 
-  'urban-growth': (stateId) =>
+  'urban-facilities': (stateId) =>
     experience(
       {
-        id: 'finding-urban',
-        prompt: 'Where should Dubai Municipality intervene to keep growth in step with capacity?',
-        read: 'Reading population, density, built-up growth and the committed pipeline for 20 communities…',
-        search: 'Comparing planned and actual land use, infrastructure capacity, housing and services…',
-        reason: 'Combining the four signals and sorting each community into an action for each horizon…',
-        headline: `${URBAN_COUNTS.priority} communities need priority intervention, where growth, land-use drift and capacity gaps overlap.`,
+        id: 'finding-facilities',
+        prompt: 'Why are families and workers in JVC, Arjan and Motor City short of facilities, and what should we do?',
+        read: 'Reading population, tenancy and residency records for JVC, Arjan and Motor City…',
+        search: 'Comparing school seats, health centres, nurseries and parks with what each household group needs…',
+        reason: 'Weighing nine actions across three impact horizons, and mapping each one…',
+        headline: `JVC, Arjan and Motor City are ${fmt(FACILITIES_BRIEFING.seatGap)} school seats short, and every other facility trails their growth.`,
         headlineDetail: 'Three solutions follow, each with its own map. Open one to see its detail and switch the map.',
         problem: [
-          `${URBAN_COUNTS.priority} of 20 Dubai communities need priority intervention: growth, land-use drift and capacity gaps overlap there.`,
-          `${URBAN_COUNTS.manage} more need managing and ${URBAN_COUNTS.monitor} are on track.`,
-          'Dubai South grows fastest but is not a priority: its land and capacity are still ahead of demand.',
+          `The three areas grew from ${fmt(FACILITIES_BRIEFING.population2021)} to ${fmt(FACILITIES_BRIEFING.population)} residents in five years, +${FACILITIES_BRIEFING.growth}%.`,
+          `They are ${fmt(FACILITIES_BRIEFING.seatGap)} school seats short, with ${FACILITIES_BRIEFING.clinics} of the ${FACILITIES_BRIEFING.clinicsNeeded} health centres they need and ${FACILITIES_BRIEFING.parkAccess}% of homes near a park.`,
+          `${fmt(FACILITIES_BRIEFING.pipeline)} more homes are committed, bringing about ${fmt(FACILITIES_BRIEFING.newResidents)} more residents by 2030.`,
         ],
         cause: [
-          'JVC, Business Bay and Arjan score highest when growth, land use, infrastructure and services are combined.',
-          'Each runs sewerage above 90% of capacity, with school seats below one per 1,000 residents.',
-          'JVC and Arjan keep filing land-use change applications, pulling them further from the plan.',
+          `Facilities follow the 2019 community plans, sized for ${FACILITIES_BRIEFING.plannedFor}k residents.`,
+          `Most new residents are families with children (${FACILITIES_BRIEFING.familiesJvc}% of JVC households, ${FACILITIES_BRIEFING.familiesMotorCity}% of Motor City) and ${fmt(FACILITIES_BRIEFING.workers)} workers in shared housing.`,
+          `Those two groups rely most on local schools, clinics, nurseries and transport, so ${fmt(FACILITIES_BRIEFING.children)} school-age children compete for the seats that exist.`,
         ],
         chart: chartComponent(
-          'finding-urban-ranking',
+          'finding-facilities-met',
           {
             type: 'bars',
-            title: 'Combined planning score',
-            value: `${URBAN_RANKING[0].score}`,
-            unit: `${URBAN_RANKING[0].name}, of 100`,
+            title: 'Share of need met',
+            value: `${FACILITIES_BRIEFING.met[0].value}%`,
+            unit: 'of school seats needed',
             color: STATUS.critical,
-            rows: barRows(URBAN_RANKING.slice(0, 5).map((row) => [row.name, row.score, String(row.score)])),
+            rows: FACILITIES_BRIEFING.met.map((row) => ({ label: row.label, value: row.value, display: `${row.value}%` })),
           },
-          'Growth, land-use, infrastructure and service signals combined, out of 100.',
+          'Facilities in JVC, Arjan and Motor City as a share of what their residents need.',
         ),
-        map: { place: 'urban', title: 'Integrated planning priority · Dubai', tag: 'Dubai', meta: `${URBAN_COUNTS.priority} priority areas` },
+        map: { place: 'facilities', title: 'Facility shortage · JVC, Arjan and Motor City', tag: 'JVC · Arjan · Motor City', meta: `${fmt(FACILITIES_BRIEFING.seatGap)} seats short` },
         solutionsIntro:
-          'Open one to see its detail and its map. Put conditional approvals in place in the priority areas now, and bring the JVC sewer trunk forward in the capital plan.',
-        solutions: [
-          urbanSolution(
-            'immediate',
-            {
-              title: 'Condition, pause and fast-track approvals',
-              summary: 'Condition approvals in JVC and Arjan on sewerage sign-off, phase Business Bay’s to capacity, pause change-of-use approvals in Al Quoz and fast-track aligned applications where capacity exists.',
-              lever: 'Approvals',
-            },
-            'urban-immediate',
-          ),
-          urbanSolution(
-            'intermediate',
-            {
-              title: 'Phase growth with infrastructure',
-              summary: 'Deliver a sewer trunk and two schools for JVC, drainage and a school for Business Bay, upgrades in Al Furjan, Town Square, JLT and International City, and Dubai South’s services ahead of its handovers.',
-              lever: 'Infrastructure',
-            },
-            'urban-intermediate',
-          ),
-          urbanSolution(
-            'long',
-            {
-              title: 'Replan and open a growth corridor',
-              summary: 'Revise density and zoning where pressure keeps recurring, rezone Al Quoz for mixed use with worker housing, and direct new growth along a southern corridor from the Marina to Expo City and Dubai South.',
-              lever: 'Zoning',
-            },
-            'urban-long',
-          ),
+          'Open one to see its detail and its map. Start the modular classrooms and worker shuttles now, and take the new schools and health centres to capital planning.',
+        solutions: planningSolutions(FACILITIES_SOLUTIONS, (horizon) => `facilities-${horizon}`),
+      },
+      stateId,
+    ),
+
+  'urban-infrastructure': (stateId) =>
+    experience(
+      {
+        id: 'finding-infrastructure',
+        prompt: 'Why is infrastructure in JVC, Arjan and Motor City falling behind their growth, and what should we do?',
+        read: 'Reading sewerage, drainage, power and traffic loads for JVC, Arjan and Motor City…',
+        search: 'Tracing each network to its pumping stations, mains, low points and junctions, and modelling the pipeline…',
+        reason: 'Weighing nine actions across three impact horizons, and mapping each one…',
+        headline: `${INFRASTRUCTURE_BRIEFING.over} of ${INFRASTRUCTURE_BRIEFING.networks} networks in JVC, Arjan and Motor City are past their planning limit, and the pipeline arrives before the upgrades.`,
+        headlineDetail: 'Three solutions follow, each with its own map. Open one to see its detail and switch the map.',
+        problem: [
+          `${INFRASTRUCTURE_BRIEFING.over} of the ${INFRASTRUCTURE_BRIEFING.networks} sewerage, drainage, power and road networks run past the ${INFRASTRUCTURE_BRIEFING.limit}% planning limit; JVC sewerage is at ${INFRASTRUCTURE_BRIEFING.jvcSewer}%.`,
+          `${INFRASTRUCTURE_BRIEFING.floodSpots} low points drew ${INFRASTRUCTURE_BRIEFING.floodReports} flooding reports after 38 mm of rain, and peak delays reach ${INFRASTRUCTURE_BRIEFING.worstDelay} minutes at the JVC entrance.`,
+          `Sewage flow overtakes treatment capacity from ${INFRASTRUCTURE_BRIEFING.shortfallFrom}, up to ${INFRASTRUCTURE_BRIEFING.peakShortfall} ML/day short.`,
         ],
+        cause: [
+          `The three areas grew +${INFRASTRUCTURE_BRIEFING.growth}% in five years on networks sized for their original plans.`,
+          `A few assets bind: the PS-1 pumping station at ${INFRASTRUCTURE_BRIEFING.ps1}% of its design, the TM-2 trunk sewer, five drainage low points and three access junctions.`,
+          `${fmt(INFRASTRUCTURE_BRIEFING.earlyHomes)} of ${fmt(INFRASTRUCTURE_BRIEFING.pipeline)} pipeline homes complete before the upgrades arrive in ${INFRASTRUCTURE_BRIEFING.upgradesArrive}.`,
+        ],
+        chart: chartComponent(
+          'finding-infrastructure-loads',
+          {
+            type: 'bars',
+            title: 'Most loaded networks',
+            value: `${INFRASTRUCTURE_BRIEFING.loads[0].value}%`,
+            unit: `${INFRASTRUCTURE_BRIEFING.loads[0].label}, of design`,
+            color: STATUS.critical,
+            rows: barRows(INFRASTRUCTURE_BRIEFING.loads.map((row) => [row.label, row.value, `${row.value}%`])),
+          },
+          `Peak load as a share of design capacity. Planning keeps ${100 - INFRASTRUCTURE_BRIEFING.limit}% in reserve.`,
+        ),
+        map: {
+          place: 'infrastructure',
+          title: 'Capacity shortfall · JVC, Arjan and Motor City',
+          tag: 'JVC · Arjan · Motor City',
+          meta: `${fmt(INFRASTRUCTURE_BRIEFING.earlyHomes)} homes ahead of upgrades`,
+        },
+        solutionsIntro:
+          'Open one to see its detail and its map. Phase approvals to capacity now, and bring the PS-1 upgrade and the second TM-2 main forward in the capital plan.',
+        solutions: planningSolutions(INFRASTRUCTURE_SOLUTIONS, (horizon) => `infrastructure-${horizon}`),
       },
       stateId,
     ),

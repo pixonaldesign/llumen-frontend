@@ -1,3 +1,5 @@
+import { AREA_LIST, TOTAL_GROWTH, TOTALS } from '../municipality/growthAreas'
+import { INFRASTRUCTURE_BRIEFING } from '../municipality/infrastructureScenario'
 import { CRM_BY_WEEK, MENTIONS_BY_WEEK } from '../municipality/odorScenario'
 import type { BriefingPlaceId } from './briefingMapPlaces'
 
@@ -52,7 +54,29 @@ const ODOR_SIGNALS: FeedChart = {
   ],
 }
 
-/** The Briefing findings: the Al Barsha odor on its parks, then Dubai's growth pressure across the city. */
+/** Residents of JVC, Arjan and Motor City, thousands, 2021–2026; the chart sums the three. */
+const GROWTH_SIGNALS: FeedChart = {
+  kind: 'line',
+  label: 'Residents in JVC, Arjan and Motor City',
+  total: TOTALS.population,
+  delta: `+${TOTAL_GROWTH}% in 5 years`,
+  axis: ['2021', '2022', '2023', '2024', '2025', '2026'],
+  lines: AREA_LIST.map((area) => ({ name: area.short, color: '#9673e8', points: area.byYear })),
+}
+
+/** Spare sewerage capacity in each area against the 20% reserve planning keeps. */
+const SEWER_HEADROOM: FeedChart = {
+  kind: 'columns',
+  label: 'Spare sewerage capacity',
+  value: `${INFRASTRUCTURE_BRIEFING.spare[0].value}%`,
+  unit: `left in ${INFRASTRUCTURE_BRIEFING.spare[0].label}`,
+  delta: `${100 - INFRASTRUCTURE_BRIEFING.limit}% reserve required`,
+  threshold: 100 - INFRASTRUCTURE_BRIEFING.limit,
+  max: 30,
+  columns: INFRASTRUCTURE_BRIEFING.spare.map((area) => ({ name: area.label, value: area.value })),
+}
+
+/** The Briefing findings: the Al Barsha odor on its parks, then the facilities and infrastructure growth has outrun in JVC, Arjan and Motor City. */
 export const FEED_STOPS: FeedStop[] = [
   {
     id: 'odor',
@@ -66,13 +90,25 @@ export const FEED_STOPS: FeedStop[] = [
     chart: ODOR_SIGNALS,
   },
   {
-    id: 'urban-growth',
-    place: 'dubai',
+    id: 'urban-facilities',
+    place: 'facilities',
     domain: 'Urban Planning',
-    title: 'Growth is outpacing capacity in five communities',
-    before: 'JVC, Business Bay, Arjan, Motor City and Al Quoz are ',
-    highlight: 'priority planning areas',
-    after: ': fast growth, land-use drift and strained infrastructure and services overlap there.',
-    storyId: 'dm-urban',
+    title: 'Families and workers are short of facilities in JVC, Arjan and Motor City',
+    before: 'The three communities have grown ',
+    highlight: `${TOTAL_GROWTH}% in five years`,
+    after: ', mostly with families and workers, and their schools, clinics, nurseries and parks have not kept pace.',
+    storyId: 'dm-facilities',
+    chart: GROWTH_SIGNALS,
+  },
+  {
+    id: 'urban-infrastructure',
+    place: 'infrastructure',
+    domain: 'Infrastructure',
+    title: 'Infrastructure is falling behind growth in JVC, Arjan and Motor City',
+    before: `${INFRASTRUCTURE_BRIEFING.over} of their ${INFRASTRUCTURE_BRIEFING.networks} sewerage, drainage, power and road networks are `,
+    highlight: `past the ${INFRASTRUCTURE_BRIEFING.limit}% planning limit`,
+    after: `, and ${INFRASTRUCTURE_BRIEFING.earlyHomes.toLocaleString('en-US')} pipeline homes complete before the upgrades they need.`,
+    storyId: 'dm-infrastructure',
+    chart: SEWER_HEADROOM,
   },
 ]

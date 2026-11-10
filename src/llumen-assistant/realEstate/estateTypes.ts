@@ -152,7 +152,7 @@ export type EstatePage = {
   scenarios?: EstateScenario[]
 }
 
-export type EstatePlaceId = 'barsha' | 'dubai'
+export type EstatePlaceId = 'barsha' | 'facilities' | 'infrastructure'
 
 /** A Briefing place: where its finding's map opens, and what the map shows there. */
 export type EstatePlace = { id: EstatePlaceId; camera: EstateCamera; scene: EstateMapScene }

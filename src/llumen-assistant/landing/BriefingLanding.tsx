@@ -70,7 +70,7 @@ type SummaryPart = { text: string; highlight?: boolean }
 const ASSETS_STATEMENT: SummaryPart[] = [
   { text: 'Odor complaints around Al Barsha’s parks rose ' },
   { text: '64% in 30 days', highlight: true },
-  { text: ', and five communities are now priority planning areas.' },
+  { text: ', and JVC, Arjan and Motor City are outgrowing their facilities and infrastructure.' },
 ]
 
 /** What the assets below say about it. */
@@ -83,7 +83,7 @@ const ASSETS_DETAIL: SummaryPart[] = [
     text: ' as hydrogen sulphide at tank T-3 climbed to 420 µg/L. In the growth areas, JVC already runs its sewerage at ',
   },
   { text: '94% of capacity', highlight: true },
-  { text: ', and 8 of 20 communities have drifted from their plan.' },
+  { text: ', and JVC, Arjan and Motor City are 18,200 school seats short.' },
 ]
 
 /** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
@@ -102,7 +102,7 @@ const ASSETS_INSIGHTS: SummaryPart[][] = [
   [
     { text: 'JVC runs its sewerage at ' },
     { text: '94% of capacity', highlight: true },
-    { text: ', and 8 of 20 communities have drifted from their plan.' },
+    { text: ', and with Arjan and Motor City is 18,200 school seats short.' },
   ],
 ]
 
