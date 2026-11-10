@@ -324,7 +324,6 @@ export const INFRASTRUCTURE_STORY: EstateStory = {
           id: 'loads',
           kind: 'grouped',
           title: 'Peak load, % of design capacity',
-          height: 2,
           legend: NETWORKS.map((network) => NETWORK_LABEL[network]),
           groups: AREA_LIST.map((area) => ({ label: area.short, values: NETWORKS.map((network) => LOAD[area.id][network]) })),
         },
