@@ -895,7 +895,7 @@ const CHOOSE_SCENE = scene({
 const CAMERA = {
   detected: { center: [55.19886, 25.10413], zoom: 15.67, pitch: 64.5, bearing: -21.2 },
   cause: { center: [55.2032, 25.1017], zoom: 15.75, pitch: 60, bearing: 24 },
-  exposure: { center: [55.2096, 25.0984], zoom: 14.95, pitch: 56, bearing: -14 },
+  exposure: { center: [55.21415, 25.10053], zoom: 15.97, pitch: 59.5, bearing: -14.8 },
   menu: { center: [55.2052, 25.1004], zoom: 14.95, pitch: 52, bearing: 8 },
   lab: { center: [55.2098, 25.0988], zoom: 15.0, pitch: 57, bearing: 6 },
   choose: { center: [55.2092, 25.0992], zoom: 14.9, pitch: 50, bearing: -6 },
