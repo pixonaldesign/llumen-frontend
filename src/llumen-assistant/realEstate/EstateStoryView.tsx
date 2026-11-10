@@ -845,7 +845,6 @@ export function EstateStoryView({
   const layerAttrs = (layer: MapDataLayer) => (
     <div className={styles.mapLayerAttrs}>
       <div className={styles.mapLayerAttr}>
-        <p className={styles.mapLayerAttrLabel}>Color</p>
         {'ramp' in layer.color ? (
           <div className={styles.legendScale}>
             <span>{layer.color.low ?? 'Low'}</span>

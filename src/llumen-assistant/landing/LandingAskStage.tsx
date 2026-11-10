@@ -332,7 +332,6 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: Es
             <div className={storyStyles.mapLayerAttrs}>
               {'ramp' in layer.color ? (
                 <div className={storyStyles.mapLayerAttr}>
-                  <p className={storyStyles.mapLayerAttrLabel}>Color</p>
                   <div className={storyStyles.legendScale}>
                     <span>{layer.color.low ?? 'Low'}</span>
                     <span
@@ -345,7 +344,6 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: Es
                 </div>
               ) : (
                 <div className={storyStyles.mapLayerAttr}>
-                  <p className={storyStyles.mapLayerAttrLabel}>Color</p>
                   {layer.color.items.map((item) => (
                     <div key={item.label} className={storyStyles.legendRow}>
                       <span className={`${storyStyles.legendMark} ${estateStyles.legendLabel}`}>{item.label}</span>
