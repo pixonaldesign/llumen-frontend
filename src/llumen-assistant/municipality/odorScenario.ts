@@ -232,7 +232,6 @@ function tankTower(color: string, text: string, rows: [string, string][]): Estat
 
 const SUSPECT_TANK = tankTower(STATUS.critical, 'Suspected source · H₂S 0.42 mg/L', [
   ['H₂S at outlet', '0.42 mg/L'],
-  ['Sediment', '38 cm'],
   ['Last cleaned', 'Mar 2025'],
 ])
 
