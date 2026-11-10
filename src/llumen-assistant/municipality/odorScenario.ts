@@ -791,7 +791,6 @@ export const ODOR_STORY: EstateStory = {
           id: 'time-of-day',
           kind: 'vbars',
           title: 'Odor complaints by time of day',
-          height: 2,
           kpi: { value: `${IN_WINDOW}`, unit: `in the ${IRRIGATION_WINDOW} irrigation window` },
           bars: BY_TIME_OF_DAY.map((band) => ({ label: band.label, value: band.value, color: band.irrigating ? undefined : 'rgba(255, 255, 255, 0.24)' })),
         },
