@@ -317,8 +317,8 @@ const bandOf = (plume: Bands, at: LngLat) =>
 
 const EXPOSED_HOMES = homeTowers((home) =>
   bandOf(BASELINE, home.at) === 'high'
-    ? { color: STATUS.critical, status: 'High · over 14 odor-hours a month' }
-    : { color: PALETTE.diverging[2], status: 'Moderate · 6–14 odor-hours a month' },
+    ? { color: STATUS.critical, status: 'High' }
+    : { color: PALETTE.diverging[2], status: 'Moderate' },
 )
 
 /** Homes after a what-if: still exposed in its plume, or clear of it and benefiting. */
