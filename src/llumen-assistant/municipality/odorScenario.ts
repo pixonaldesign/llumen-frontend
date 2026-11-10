@@ -892,7 +892,7 @@ const CHOOSE_SCENE = scene({
 /* —— The story —— */
 
 const CAMERA = {
-  detected: { center: [55.1962, 25.0953], zoom: 14.35, pitch: 50, bearing: -18 },
+  detected: { center: [55.19886, 25.10413], zoom: 15.67, pitch: 64.5, bearing: -21.2 },
   cause: { center: [55.2032, 25.1017], zoom: 15.75, pitch: 60, bearing: 24 },
   exposure: { center: [55.2096, 25.0984], zoom: 14.95, pitch: 56, bearing: -14 },
   menu: { center: [55.2052, 25.1004], zoom: 14.95, pitch: 52, bearing: 8 },
