@@ -991,7 +991,7 @@ export const ODOR_STORY: EstateStory = {
           height: 2,
           kpi: { value: '0.81', unit: 'correlation, last 90 days' },
           x: ['16:00', '19:00', '22:00', '01:00', '04:00'],
-          yLabels: ['100', '50', '0'],
+          yLabels: ['100', '80', '60', '40', '20', '0'],
           yMax: 100,
           series: [
             { name: 'Irrigation flow', points: [0, 0, 4, 12, 58, 86, 92, 74, 20, 4, 0, 0, 0] },
