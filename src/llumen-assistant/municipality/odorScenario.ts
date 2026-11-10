@@ -795,12 +795,6 @@ export const ODOR_STORY: EstateStory = {
           bars: BY_TIME_OF_DAY.map((band) => ({ label: band.label, value: band.value, color: band.irrigating ? undefined : 'rgba(255, 255, 255, 0.24)' })),
         },
         {
-          id: 'illustrative',
-          kind: 'note',
-          title: 'About this data',
-          text: `Illustrative 30-day complaint distribution, with the assumed irrigation window from 5 PM to 8 PM. Synthetic data, to be validated against actual irrigation schedules and complaint timestamps.`,
-        },
-        {
           id: 'timing',
           kind: 'line',
           title: 'Complaints vs irrigation hours',
