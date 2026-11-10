@@ -728,7 +728,7 @@ const RESIDUAL: Record<Horizon, Bands> = {
 
 const CAMERA = {
   timing: { center: [55.19886, 25.10413], zoom: 15.67, pitch: 64.5, bearing: -21.2 },
-  network: { center: [55.1972, 25.0952], zoom: 14.15, pitch: 52, bearing: -18 },
+  network: { center: [55.20624, 25.09475], zoom: 15.24, pitch: 61.5, bearing: -18 },
   quality: { center: [55.2032, 25.1017], zoom: 15.75, pitch: 60, bearing: 24 },
 } satisfies Record<string, EstateCamera>
 
