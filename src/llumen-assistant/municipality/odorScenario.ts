@@ -953,7 +953,7 @@ export const ODOR_PLACE: EstatePlace = {
 const ISOLATED_Z3 = zoneArea('z3', LEVEL.muted, 'Isolated · supply valved off', 0.18, true)
 
 const OVERVIEW: EstateAskView = {
-  camera: { center: [55.2082, 25.0996], zoom: 15.05, pitch: 58, bearing: -20 },
+  camera: { center: [55.2072, 25.1008], zoom: 15.6, pitch: 62, bearing: -20 },
   scene: scene({
     towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
     heat: SOCIAL_HEAT,
@@ -966,7 +966,7 @@ const OVERVIEW: EstateAskView = {
 }
 
 const IMMEDIATE: EstateAskView = {
-  camera: { center: [55.2074, 25.1006], zoom: 15.25, pitch: 56, bearing: 12 },
+  camera: { center: [55.2068, 25.1012], zoom: 15.7, pitch: 62, bearing: 12 },
   scene: scene({
     towers: [SUSPECT_TANK, ...homesAfter(RESIDUAL.immediate)],
     areas: [
@@ -1005,14 +1005,14 @@ const SMART_CONTROLLERS: EstatePoint[] = Array.from({ length: 14 }, (_, index) =
 })
 
 const INTERMEDIATE: EstateAskView = {
-  camera: { center: [55.2032, 25.1004], zoom: 15.3, pitch: 60, bearing: 34 },
+  camera: { center: [55.2036, 25.1008], zoom: 15.7, pitch: 62, bearing: 34 },
   scene: scene({
     towers: [
       /* M1's tooltip already stands over the tank. */
       {
         ...tankTower(HORIZON_COLOR.intermediate, 'M1 · cleaned and rehabilitated', [
-          ['Sediment removed', '38 cm'],
-          ['Residence time', '1.6 days'],
+          ['H₂S at outlet', 'under 0.05 mg/L'],
+          ['Water age', '1.6 days'],
         ]),
         label: false,
       },
@@ -1073,7 +1073,7 @@ const SENSORS: EstatePoint[] = Array.from({ length: 36 }, (_, index) => {
 })
 
 const LONG_TERM: EstateAskView = {
-  camera: { center: [55.2012, 25.0982], zoom: 14.15, pitch: 50, bearing: -8 },
+  camera: { center: [55.203, 25.1002], zoom: 15.3, pitch: 62, bearing: -8 },
   scene: scene({
     towers: [
       tankTower(HORIZON_COLOR.long, 'Fed by polished TSE (L1)', [['H₂S at outlet', 'under 0.05 mg/L']]),
@@ -1107,3 +1107,14 @@ export const HOMES_CLEARED: Record<Horizon, number> = {
   long: homesAfter(RESIDUAL.long).filter((home) => home.text.startsWith('Benefits')).length,
 }
 export const HOMES_EXPOSED = EXPOSED_HOMES.length
+
+/** The story's three findings in figures, for the Tell Me More briefing. */
+export const ODOR_BRIEFING = {
+  complaints: ALL_COMPLAINTS,
+  inWindow: IN_WINDOW,
+  window: IRRIGATION_WINDOW,
+  samples: [...SAMPLES].sort((a, b) => b.h2s - a.h2s).map((sample) => ({ name: sample.name, h2s: sample.h2s })),
+  failing: FAILING.length,
+  limit: LIMIT.h2s,
+  worst: { name: WORST.name, times: timesLimit(WORST) },
+}

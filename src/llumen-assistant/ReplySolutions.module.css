@@ -1,0 +1,440 @@
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tab {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 14px 8px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.56);
+  -webkit-backdrop-filter: blur(30px);
+  backdrop-filter: blur(30px);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 200ms ease,
+    background 200ms ease,
+    box-shadow 200ms ease;
+  animation: solutionIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.tab:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.tab:nth-child(3) {
+  animation-delay: 160ms;
+}
+
+.tab:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tab:focus-visible {
+  outline: 2px solid rgba(109, 233, 225, 0.7);
+  outline-offset: 2px;
+}
+
+.tabActive,
+.tabActive:hover {
+  border-color: rgba(112, 174, 255, 0.6);
+  box-shadow: 0 0 0 1px rgba(112, 174, 255, 0.28), 0 0 18px rgba(112, 174, 255, 0.18);
+}
+
+@keyframes solutionIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.thumb {
+  position: relative;
+  flex: 0 0 auto;
+  width: 132px;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.thumbImage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  transition: transform 280ms ease;
+  animation: thumbIn 600ms ease both;
+}
+
+.tab:hover .thumbImage {
+  transform: scale(1.05);
+}
+
+@keyframes thumbIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.thumbPlaceholder {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.08) 50%, transparent 70%) 0 0 / 220% 100%;
+  animation: thumbShimmer 1400ms linear infinite;
+}
+
+@keyframes thumbShimmer {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -120% 0;
+  }
+}
+
+.tabBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.tabTitle {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.tabMeta {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabCaret {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.48);
+  transition:
+    color 200ms ease,
+    transform 200ms ease;
+}
+
+.tab:hover .tabCaret {
+  color: #fff;
+  transform: translateX(2px);
+}
+
+/*
+ * Over the chat column's transcript (which hides while it is open), under the composer. Full bleed so its
+ * scrollbar hugs the column edge; the content insets itself like the transcript's turns.
+ */
+.detailOverlay {
+  grid-area: chat-stack;
+  z-index: 4;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+  padding: var(--space-xl) 0 calc(var(--lc-composer-reserve, 200px) + var(--space-lg));
+  --solution-fade-end: calc(100% - var(--lc-composer-reserve, 200px));
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(var(--solution-fade-end) - 32px), transparent var(--solution-fade-end));
+  mask-image: linear-gradient(to bottom, #000 calc(var(--solution-fade-end) - 32px), transparent var(--solution-fade-end));
+}
+
+.detailOverlay .detail {
+  max-width: var(--ask-read-w, 800px);
+  margin-inline: auto;
+  padding-left: var(--space-xl);
+  padding-right: calc(var(--lc-transcript-gutter, 12px) + var(--lc-transcript-scrollbar-inset, 4px));
+  box-sizing: border-box;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  animation: detailIn 360ms var(--lc-ease) both;
+}
+
+@keyframes detailIn {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.detailNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: var(--space-xl);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 10px 6px 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.back:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.switcher {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.56);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.switch:hover {
+  color: #fff;
+}
+
+.switchActive {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.title {
+  margin: 8px 0 var(--space-md);
+  font: var(--lc-font-heading-md);
+  color: rgba(241, 245, 249, 0.98);
+  letter-spacing: -0.01em;
+}
+
+.summary {
+  margin: 0 0 var(--space-xl);
+  font: var(--lc-font-body-lg);
+  color: rgba(241, 245, 249, 0.95);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: var(--space-lg);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+}
+
+.statValue {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 26px;
+  white-space: nowrap;
+}
+
+.statLabel {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.mapNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 var(--space-2xl);
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.mapNote svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.actionsHeading {
+  margin: 0 0 var(--space-md);
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.action {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(26, 26, 26, 0.5);
+}
+
+.code {
+  flex: 0 0 auto;
+  min-width: 26px;
+  padding: 2px 6px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.actionBody {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.actionTitle {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.actionSubtitle {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.actionDetail {
+  color: rgba(241, 245, 249, 0.86);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.metric {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab,
+  .thumbImage,
+  .thumbPlaceholder,
+  .detail {
+    animation: none;
+  }
+}

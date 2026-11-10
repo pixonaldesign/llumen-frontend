@@ -12,6 +12,7 @@ import {
   type Ref,
 } from 'react'
 import { MeshGradient } from '@paper-design/shaders-react'
+import { CaretDown } from '@phosphor-icons/react'
 import gsap from 'gsap'
 import { MapBleedHeader, type DetailTab } from '../ComponentDetailPanel'
 import detailStyles from '../compact-assistant.module.css'
@@ -318,63 +319,72 @@ const steppedRamp = (ramp: readonly string[]) =>
 /** The story's Map Data card, read-only: each layer's colours, and the labelled towers a ramp ranks. */
 function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: EstateTower[] }) {
   const labelled = towers.filter((tower) => tower.label !== false && !tower.footprint)
+  const [open, setOpen] = useState(false)
   return (
     <div className={`${storyStyles.mapData} ${styles.mapData}`}>
-      <div className={storyStyles.mapDataHeader}>
+      <button
+        type="button"
+        className={`${storyStyles.mapDataHeader}${open ? '' : ` ${storyStyles.mapDataHeaderSolo}`}`}
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+      >
         <span>Map Data</span>
-      </div>
-      <div className={storyStyles.mapLayers}>
-        {layers.map((layer) => (
-          <section key={layer.group} className={storyStyles.mapLayer}>
-            <div className={storyStyles.mapLayerHead}>
-              <p className={storyStyles.mapLayerTitle}>{layer.title}</p>
-            </div>
-            <div className={storyStyles.mapLayerAttrs}>
-              {'ramp' in layer.color ? (
-                <div className={storyStyles.mapLayerAttr}>
-                  <div className={storyStyles.legendScale}>
-                    <span>{layer.color.low ?? 'Low'}</span>
-                    <span
-                      className={storyStyles.colorRamp}
-                      style={{ backgroundImage: steppedRamp(layer.color.ramp) }}
-                      aria-hidden
-                    />
-                    <span>{layer.color.high ?? 'High'}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className={storyStyles.mapLayerAttr}>
-                  {layer.color.items.map((item) => (
-                    <div key={item.label} className={storyStyles.legendRow}>
-                      <span className={`${storyStyles.legendMark} ${estateStyles.legendLabel}`}>{item.label}</span>
-                      <span className={storyStyles.legendMark}>
-                        {item.count ? <span className={storyStyles.legendCount}>{item.count}</span> : null}
-                        <EstateLegendGlyph mark={layer.mark} color={item.color} />
-                      </span>
+        <CaretDown size={18} weight="regular" className={open ? undefined : storyStyles.caretClosed} aria-hidden />
+      </button>
+      {open ? (
+        <div className={storyStyles.mapLayers}>
+          {layers.map((layer) => (
+            <section key={layer.group} className={storyStyles.mapLayer}>
+              <div className={storyStyles.mapLayerHead}>
+                <p className={storyStyles.mapLayerTitle}>{layer.title}</p>
+              </div>
+              <div className={storyStyles.mapLayerAttrs}>
+                {'ramp' in layer.color ? (
+                  <div className={storyStyles.mapLayerAttr}>
+                    <div className={storyStyles.legendScale}>
+                      <span>{layer.color.low ?? 'Low'}</span>
+                      <span
+                        className={storyStyles.colorRamp}
+                        style={{ backgroundImage: steppedRamp(layer.color.ramp) }}
+                        aria-hidden
+                      />
+                      <span>{layer.color.high ?? 'High'}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-              {labelled.length ? (
-                <div className={storyStyles.mapLayerAttr}>
-                  <p className={storyStyles.mapLayerAttrLabel}>Top towers</p>
-                  {labelled
-                    .filter((tower) => tower.group === layer.group)
-                    .map((tower) => (
-                      <div key={tower.id} className={storyStyles.legendRow}>
-                        <span className={`${storyStyles.legendMark} ${estateStyles.legendLabel}`}>{tower.title}</span>
+                  </div>
+                ) : (
+                  <div className={storyStyles.mapLayerAttr}>
+                    {layer.color.items.map((item) => (
+                      <div key={item.label} className={storyStyles.legendRow}>
+                        <span className={`${storyStyles.legendMark} ${estateStyles.legendLabel}`}>{item.label}</span>
                         <span className={storyStyles.legendMark}>
-                          <span className={storyStyles.legendCount}>{tower.tip.rows?.[0]?.[1]}</span>
-                          <i className={estateStyles.towerGlyph} style={{ background: tower.color }} aria-hidden />
+                          {item.count ? <span className={storyStyles.legendCount}>{item.count}</span> : null}
+                          <EstateLegendGlyph mark={layer.mark} color={item.color} />
                         </span>
                       </div>
                     ))}
-                </div>
-              ) : null}
-            </div>
-          </section>
-        ))}
-      </div>
+                  </div>
+                )}
+                {labelled.length ? (
+                  <div className={storyStyles.mapLayerAttr}>
+                    <p className={storyStyles.mapLayerAttrLabel}>Top towers</p>
+                    {labelled
+                      .filter((tower) => tower.group === layer.group)
+                      .map((tower) => (
+                        <div key={tower.id} className={storyStyles.legendRow}>
+                          <span className={`${storyStyles.legendMark} ${estateStyles.legendLabel}`}>{tower.title}</span>
+                          <span className={storyStyles.legendMark}>
+                            <span className={storyStyles.legendCount}>{tower.tip.rows?.[0]?.[1]}</span>
+                            <i className={estateStyles.towerGlyph} style={{ background: tower.color }} aria-hidden />
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

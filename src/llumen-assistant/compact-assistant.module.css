@@ -2446,6 +2446,11 @@
   grid-area: chat-stack;
 }
 
+/* A reply's solution is open over the transcript (ReplySolutions); the transcript keeps its scroll. */
+.middle[data-solution-open='true'] > .transcript {
+  visibility: hidden;
+}
+
 .middleEmpty .heroBlock {
   flex: 0 0 auto;
   justify-content: flex-start;

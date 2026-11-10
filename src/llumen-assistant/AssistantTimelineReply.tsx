@@ -27,6 +27,7 @@ import type {
 } from './assistantReplyTypes'
 import { thinkingStepsFromTimeline } from './thinkingSteps'
 import { InlineVisualCard } from './InlineVisualCard'
+import { ReplySolutions } from './ReplySolutions'
 import { ReportThumbnail } from './ReportThumbnail'
 import { WorkflowProposalCard } from './WorkflowProposalCard'
 import { useRevealScrollbarOnScroll } from './useRevealScrollbarOnScroll'
@@ -787,6 +788,41 @@ export function AssistantTimelineReply({
                     onComplete={isAnimating ? onActiveBlockComplete : undefined}
                   />
                 </div>
+              )
+            }
+
+            if (block.type === 'bullets') {
+              return (
+                <AnswerBlockShell
+                  key={`bullets-${index}`}
+                  animating={isAnimating}
+                  reduceMotion={reduceMotion}
+                  onComplete={isAnimating ? onActiveBlockComplete : undefined}
+                >
+                  <ul className={styles.finalReplyBullets}>
+                    {block.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </AnswerBlockShell>
+              )
+            }
+
+            if (block.type === 'solutions') {
+              return (
+                <AnswerBlockShell
+                  key={`solutions-${index}`}
+                  animating={isAnimating}
+                  reduceMotion={reduceMotion}
+                  onComplete={isAnimating ? onActiveBlockComplete : undefined}
+                >
+                  <ReplySolutions
+                    solutions={block.solutions}
+                    components={componentById}
+                    overviewId={block.overviewId}
+                    panelRef={conversationPanelRef}
+                  />
+                </AnswerBlockShell>
               )
             }
 

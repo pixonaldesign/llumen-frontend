@@ -411,7 +411,7 @@ type LandingAskPlan = {
   prompt?: string
   reply: AssistantReplyPayload
   stateId: string
-  map: { snapshot: StoryAiSnapshot; captureDelay: number } | null
+  map: { snapshot: StoryAiSnapshot; captureDelay: number; revealWith?: string } | null
 }
 
 /**
@@ -429,7 +429,13 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
       prompt: experience.prompt,
       stateId: experience.map?.stateId ?? stateId,
       reply: experience.reply,
-      map: experience.map ? { snapshot: experience.map.snapshot, captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS } : null,
+      map: experience.map
+        ? {
+            snapshot: experience.map.snapshot,
+            captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS,
+            revealWith: experience.map.revealWith,
+          }
+        : null,
     }
   }
   const region = location ? locationRegion(location) : null
@@ -488,7 +494,7 @@ function mapStateAsset(messages: ChatMessage[], stateId: string | null) {
       title: component.title,
       place: component.preview.tag,
       caption: component.preview.meta,
-      analysis: opening?.type === 'text' ? opening.content : undefined,
+      analysis: component.analysis ?? (opening?.type === 'text' ? opening.content : undefined),
     }
   }
   return null
@@ -605,6 +611,8 @@ export function CompactAssistantDemo() {
     stateId: string
     snapshot: StoryAiSnapshot
     captureDelay: number
+    /** The visual whose reveal slides the map in, when the reply carries no card for the map itself. */
+    revealWith?: string
   } | null>(null)
   const landingAskMapTimer = useRef(0)
   const landingAskStageRef = useRef<LandingAskStageHandle>(null)
@@ -2465,7 +2473,7 @@ export function CompactAssistantDemo() {
   const revealLandingAskMap = useCallback((messageId: string, componentId: string | null) => {
     const pending = landingAskPendingRef.current
     if (!pending || pending.messageId !== messageId) return
-    if (componentId !== null && componentId !== pending.stateId) return
+    if (componentId !== null && componentId !== (pending.revealWith ?? pending.stateId)) return
     landingAskPendingRef.current = null
     // A finding's place is its own scene and goes in with the slide; other annotations land once the map settles.
     const placed = pending.snapshot.findingPlace !== undefined

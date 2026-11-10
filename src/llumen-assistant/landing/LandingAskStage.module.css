@@ -2,6 +2,8 @@
 .stage {
   --ask-header-h: 56px;
   --ask-chat-w: 100%;
+  /* The chat column beside an open map: a third of the screen, never narrower than the rail. */
+  --ask-rail-w: max(var(--lc-rail-width), 33.333vw);
   --ask-move: 760ms;
   /* The landing's push (demoPageRailOpen), so the rail and the page move together. */
   --ask-resize: var(--lc-rail-enter-duration, 320ms);
@@ -30,6 +32,10 @@
 }
 
 .stage[data-map='true'] {
+  --ask-chat-w: var(--ask-rail-w);
+}
+
+.stage[data-shrunk='true'][data-map='true'] {
   --ask-chat-w: var(--lc-rail-width);
 }
 
@@ -141,8 +147,8 @@
 .mapPane {
   position: absolute;
   top: calc(-1 * var(--ask-header-h));
-  left: var(--lc-rail-width);
-  width: calc(100vw - var(--lc-rail-width));
+  left: var(--ask-rail-w);
+  width: calc(100vw - var(--ask-rail-w));
   height: 100vh;
   overflow: hidden;
   background: #0e1014;
@@ -184,7 +190,7 @@
   top: 0;
   right: 0;
   z-index: -1;
-  width: calc(100vw - var(--lc-rail-width));
+  width: calc(100vw - var(--ask-rail-w));
   height: 100vh;
   opacity: 0;
   pointer-events: none;
