@@ -7,7 +7,6 @@
 import { hash, offsetKm, scatter, type LngLat } from '../realEstate/estateGeo'
 import type {
   EstateArea,
-  EstateHeatPoint,
   EstateLabel,
   EstateLine,
   EstateMapScene,
@@ -25,6 +24,7 @@ import {
   type Horizon,
   type MapDataLayer,
 } from '../realEstate/estateTypes'
+import { BARSHA_BLOCKS } from './barshaBlocks'
 import { BARSHA_HOMES } from './barshaHomes'
 import { box, centroid, circle, insidePlume, plumeRing, shiftPlume, toward, type Plume } from './dmGeo'
 import { HORIZON_COLOR, HORIZON_LABEL, LEVEL, toned } from './dmShared'
@@ -56,9 +56,8 @@ const PARKS: Park[] = [
     ],
     complaints: 71,
     posts: [
-      ['Rotten-egg odor', 112],
-      ['Sewage-like smell', 84],
-      ['Stale water smell', 52],
+      ['Rotten-egg odor', 148],
+      ['Stale water smell', 100],
     ],
   },
   {
@@ -79,9 +78,8 @@ const PARKS: Park[] = [
     ],
     complaints: 29,
     posts: [
-      ['Rotten-egg odor', 46],
-      ['Stale water smell', 31],
-      ['Sewage-like smell', 24],
+      ['Rotten-egg odor', 58],
+      ['Damp, musty smell', 43],
     ],
   },
   {
@@ -95,9 +93,8 @@ const PARKS: Park[] = [
     ],
     complaints: 18,
     posts: [
-      ['Sewage-like smell', 29],
-      ['Stale water smell', 19],
-      ['Rotten-egg odor', 15],
+      ['Sewage-like smell', 41],
+      ['Stale water smell', 22],
     ],
   },
 ]
@@ -105,13 +102,11 @@ const PARKS: Park[] = [
 const POND = PARKS[0]
 
 const complaintsAt = (park: Park) => park.complaints
-const postsAt = (park: Park) => park.posts.reduce((sum, [, count]) => sum + count, 0)
 
-/** Each smell the negative posts describe and how often, then the totals. */
+/** Each smell the negative posts describe and how often, then the CRM complaints. */
 const parkRows = (park: Park): [string, string][] => [
   ...park.posts.map(([type, count]): [string, string] => [type, `${count} posts`]),
   ['CRM complaints', `${complaintsAt(park)} in 30 days`],
-  ['Negative posts', `${postsAt(park)} in 30 days`],
 ]
 
 const parkAreas = (): EstateArea[] =>
@@ -354,17 +349,65 @@ function homesAfter(plume: Bands, benefit = HORIZON_COLOR.immediate) {
 
 /* —— What residents report —— */
 
-/** Negative posts about odor, densest downwind of the pump house and around the three parks. */
-const SOCIAL_HEAT: EstateHeatPoint[] = [
+/** Where negative posts about odor were made: densest downwind of the pump house and around the three parks. */
+const POST_SITES: { at: LngLat; weight: number }[] = [
   ...scatter(toward(PUMP_HOUSE, WIND_TOWARD, 0.45), 70, 0.55, 3)
     .filter((at) => insidePlume(BASELINE.low, at))
-    .map((at, index) => ({ at, weight: 0.45 + 0.5 * hash(index, 4), group: 'social' })),
-  ...scatter(centroid(POND.ring), 30, 0.35, 5).map((at, index) => ({ at, weight: 0.35 + 0.4 * hash(index, 6), group: 'social' })),
-  ...scatter(centroid(PARKS[1].ring), 22, 0.3, 7).map((at) => ({ at, weight: 0.45, group: 'social' })),
-  ...scatter(centroid(PARKS[2].ring), 16, 0.25, 9).map((at) => ({ at, weight: 0.4, group: 'social' })),
+    .map((at, index) => ({ at, weight: 0.45 + 0.5 * hash(index, 4) })),
+  ...scatter(centroid(POND.ring), 30, 0.35, 5).map((at, index) => ({ at, weight: 0.35 + 0.4 * hash(index, 6) })),
+  ...scatter(centroid(PARKS[1].ring), 22, 0.3, 7).map((at) => ({ at, weight: 0.45 })),
+  ...scatter(centroid(PARKS[2].ring), 16, 0.25, 9).map((at) => ({ at, weight: 0.4 })),
 ]
 
-const HEAT_RAMP = [PALETTE.purple[0], PALETTE.purple[2], PALETTE.categorical[5], PALETTE.categorical[4]]
+/** Fewest posts to most: dim purple up to bright purple, then orange, each block one shade. */
+const POST_SHADES: { color: string; opacity: number }[] = [
+  { color: PALETTE.purple[0], opacity: 0.3 },
+  { color: PALETTE.purple[2], opacity: 0.4 },
+  { color: PALETTE.purple[3], opacity: 0.55 },
+  { color: PALETTE.categorical[5], opacity: 0.4 },
+  { color: PALETTE.categorical[5], opacity: 0.68 },
+]
+
+const POSTS_RAMP = [PALETTE.purple[0], PALETTE.purple[3], PALETTE.categorical[5]]
+
+const M_PER_DEG = { lng: 100780, lat: 110574 }
+const POST_REACH_M = 230
+
+/** The posts made in and near a block, weighed by how far from it they were made. */
+const postsNear = (at: LngLat) =>
+  POST_SITES.reduce((sum, site) => {
+    const dx = (site.at[0] - at[0]) * M_PER_DEG.lng
+    const dy = (site.at[1] - at[1]) * M_PER_DEG.lat
+    return sum + site.weight * Math.exp(-(dx * dx + dy * dy) / (2 * POST_REACH_M ** 2))
+  }, 0)
+
+/**
+ * Each street block with posts, shaded by how it ranks among them so every park's blocks span the shades;
+ * blocks with almost none are left clear.
+ */
+const SOCIAL_BLOCKS: EstateArea[] = (() => {
+  const blocks = BARSHA_BLOCKS.map((ring) => {
+    const samples = [centroid(ring), ...ring]
+    return { ring, density: samples.reduce((sum, at) => sum + postsNear(at), 0) / samples.length }
+  })
+  const peak = Math.max(...blocks.map((block) => block.density))
+  const shown = blocks.filter((block) => block.density >= 0.04 * peak)
+  const ranked = shown.map((block) => block.density).sort((a, b) => a - b)
+  const sum = ranked.reduce((total, density) => total + density, 0)
+  const posts = PARKS.reduce((total, park) => total + park.posts.reduce((count, [, n]) => count + n, 0), 0)
+  return shown.map((block, index) => {
+    const rank = ranked.indexOf(block.density) / ranked.length
+    const shade = POST_SHADES[Math.floor(rank * POST_SHADES.length)]
+    return {
+      id: `posts-${index}`,
+      ring: block.ring,
+      ...shade,
+      outlineWidth: 1,
+      group: 'social',
+      tip: { title: 'Street block', rows: [['Negative posts', `${Math.max(1, Math.round((posts * block.density) / sum))} in 30 days`]] },
+    }
+  })
+})()
 
 /* —— Sampling —— */
 
@@ -570,7 +613,7 @@ function actionTips(horizon: Horizon): EstateLabel[] {
 /* —— Map Data —— */
 
 const LAYER = {
-  social: { group: 'social', title: 'Social media hotspots', mark: 'heat', color: { ramp: HEAT_RAMP, low: 'Fewer posts', high: 'More' } },
+  social: { group: 'social', title: 'Social media hotspots', mark: 'area', color: { ramp: POSTS_RAMP, low: 'Fewer posts', high: 'More' } },
   parks: {
     group: 'parks',
     title: 'Parks · CRM odor complaints, 30 days',
@@ -651,7 +694,7 @@ const scene = (parts: Partial<EstateMapScene>): EstateMapScene => ({
   towers: [],
   heat: [],
   heatRadiusM: 140,
-  heatRamp: HEAT_RAMP,
+  heatRamp: POSTS_RAMP,
   ...parts,
 })
 
@@ -664,9 +707,7 @@ const ZONES_UNDER_SUSPICION = (): EstateArea[] => [
 ]
 
 const DETECTED_SCENE = scene({
-  heat: SOCIAL_HEAT,
-  heatUnder: true,
-  areas: parkAreas(),
+  areas: [...SOCIAL_BLOCKS, ...parkAreas()],
   labels: parkLabels(),
 })
 
@@ -845,12 +886,12 @@ export const ODOR_STORY: EstateStory = {
           id: 'supply',
           kind: 'table',
           title: 'How each park is supplied',
-          columns: ['Park', 'Tank', 'Fed by', 'Irrigates'],
+          columns: ['Park', 'Tank', 'Irrigates'],
           dotColumn: 0,
           rows: [
-            { cells: ['Al Barsha Pond Park', 'T-3', 'Ring main', '5:30–8 PM'], color: PARK_GREEN },
-            { cells: ['Al Barsha 1 Park', 'T-1', 'Al Barsha 1 branch', '5–7 PM'], color: PARK_GREEN },
-            { cells: ['Al Barsha 3 Park', 'T-5', 'Al Barsha 3 branch', '5–6:30 PM'], color: PARK_GREEN },
+            { cells: ['Al Barsha Pond Park', 'T-3', '5:30–8 PM'], color: PARK_GREEN },
+            { cells: ['Al Barsha 1 Park', 'T-1', '5–7 PM'], color: PARK_GREEN },
+            { cells: ['Al Barsha 3 Park', 'T-5', '5–6:30 PM'], color: PARK_GREEN },
           ],
         },
         {
@@ -859,9 +900,7 @@ export const ODOR_STORY: EstateStory = {
           title: 'Network traced',
           items: [
             ['Water source', 'TSE, Jebel Ali plant'],
-            ['Supply main', '450 mm'],
-            ['Branches', '2, to Al Barsha 1 and 3'],
-            ['Ring main water age', '4.6 days'],
+            ['Water age', '4.6 days'],
           ],
         },
       ]),
@@ -943,9 +982,7 @@ export const ODOR_PLACE: EstatePlace = {
   camera: { center: [55.21084, 25.10088], zoom: 14.2, pitch: 60, bearing: -30 },
   scene: scene({
     towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
-    heat: SOCIAL_HEAT,
-    heatUnder: true,
-    areas: [...parkAreas(), ...plumeAreas(BASELINE)],
+    areas: [...SOCIAL_BLOCKS, ...parkAreas(), ...plumeAreas(BASELINE)],
     labels: [parkLabels(false)[0]],
   }),
 }
@@ -957,9 +994,7 @@ const OVERVIEW: EstateAskView = {
   camera: { center: [55.2072, 25.1008], zoom: 15.6, pitch: 62, bearing: -20 },
   scene: scene({
     towers: [SUSPECT_TANK, ...EXPOSED_HOMES],
-    heat: SOCIAL_HEAT,
-    heatUnder: true,
-    areas: [...plumeAreas(BASELINE), parkAreas()[0]],
+    areas: [...SOCIAL_BLOCKS, ...plumeAreas(BASELINE), parkAreas()[0]],
     wind: windField(),
     labels: [parkLabels()[0]],
   }),
