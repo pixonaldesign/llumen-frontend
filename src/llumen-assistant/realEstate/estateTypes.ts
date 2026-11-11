@@ -66,8 +66,8 @@ export type MapDataLayer = {
 type CardBase = {
   id: string
   title: string
-  /** `cell` is one 184px square; `full` spans the row. */
-  span?: 'full' | 'cell'
+  /** `cell` is one 184px square; `block` is two side by side; `full` spans the row. */
+  span?: 'full' | 'cell' | 'block'
   /** Height in 184px rows. */
   height?: 1 | 2
   /** The headline number over a chart, as the story's chart cards show it. */

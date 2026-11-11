@@ -35,6 +35,8 @@ export type EstateTower = {
    * in `color`, rising as the scene grows, and leaves the basemap's two building states alone.
    */
   footprint?: LngLat[]
+  /** A ring that keeps swelling out from its foot and fading, to mark it as live. */
+  pulse?: boolean
   /** Whether its roof carries a label; its hover tooltip shows either way. */
   label?: boolean
   title: string
@@ -46,6 +48,9 @@ export type EstateTower = {
 const painted = (tower: EstateTower) => tower.footprint !== undefined
 /** Clears the basemap roof the painted extrusion caps. */
 const PAINT_TOP_M = 1.5
+/** One swell of a pulse ring, and how far out it reaches against the foot's radius. */
+const PULSE_MS = 2000
+const PULSE_REACH = 5.5
 
 export type EstateHeatPoint = { at: LngLat; weight: number; group: string }
 
@@ -117,6 +122,7 @@ const paintId = (prefix: string) => `${prefix}-paint`
 const areaId = (prefix: string) => `${prefix}-area`
 const lineId = (prefix: string) => `${prefix}-line`
 const pointId = (prefix: string) => `${prefix}-point`
+const pulseId = (prefix: string) => `${prefix}-pulse`
 const windId = (prefix: string) => `${prefix}-wind`
 /** The overlay layers a hover can name, top first. */
 const tipLayers = (prefix: string) => [
@@ -279,6 +285,25 @@ function mountOverlays(map: mapboxgl.Map, prefix: string) {
   }
   const wind = windOf(map, prefix)
   if (!map.getLayer(wind.id)) map.addLayer(wind)
+  const pulse = pulseId(prefix)
+  if (!map.getSource(pulse)) {
+    map.addSource(pulse, { type: 'geojson', data: EMPTY })
+    map.addLayer({
+      id: pulse,
+      type: 'circle',
+      source: pulse,
+      slot: 'middle',
+      paint: {
+        ...pulsePaint(0.5),
+        'circle-color': ['get', 'color'],
+        'circle-stroke-color': ['get', 'color'],
+        'circle-stroke-width': 2,
+        'circle-pitch-alignment': 'map',
+        'circle-pitch-scale': 'map',
+        'circle-emissive-strength': 1,
+      },
+    })
+  }
   const point = pointId(prefix)
   if (!map.getSource(point)) {
     map.addSource(point, { type: 'geojson', data: EMPTY })
@@ -310,6 +335,48 @@ function windOf(map: mapboxgl.Map, prefix: string) {
     windFields.set(map, field)
   }
   return field
+}
+
+/** A pulse ring `phase` (0 to 1) of the way through its swell: wider and fainter as it goes. */
+function pulsePaint(phase: number) {
+  const fade = 1 - phase
+  return {
+    'circle-radius': metersToPixels(['*', ['get', 'r'], 1 + (PULSE_REACH - 1) * phase]),
+    'circle-opacity': ['*', ['get', 'o'], 0.42 * fade] as mapboxgl.ExpressionSpecification,
+    'circle-stroke-opacity': ['*', ['get', 'o'], fade] as mapboxgl.ExpressionSpecification,
+  }
+}
+
+/** Per map: the frame that swells its pulse rings, while a scene has any. */
+const pulseFrames = new WeakMap<mapboxgl.Map, number>()
+
+function runPulse(map: mapboxgl.Map, prefix: string, on: boolean) {
+  const frame = pulseFrames.get(map)
+  if (!on || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (frame !== undefined) window.cancelAnimationFrame(frame)
+    pulseFrames.delete(map)
+    return
+  }
+  if (frame !== undefined) return
+  const id = pulseId(prefix)
+  const tick = (now: number) => {
+    if ((map as unknown as { _removed?: boolean })._removed) return void pulseFrames.delete(map)
+    if (map.getLayer(id)) {
+      for (const [property, value] of Object.entries(pulsePaint((now % PULSE_MS) / PULSE_MS))) {
+        map.setPaintProperty(id, property as 'circle-radius', value)
+      }
+    }
+    pulseFrames.set(map, window.requestAnimationFrame(tick))
+  }
+  pulseFrames.set(map, window.requestAnimationFrame(tick))
+}
+
+/** A footprint's radius in meters: from its point to its first corner. */
+function radiusM(at: LngLat, ring: LngLat[]) {
+  const [lng, lat] = ring[0]
+  const dx = (lng - at[0]) * 111320 * Math.cos((at[1] * Math.PI) / 180)
+  const dy = (lat - at[1]) * 110540
+  return Math.hypot(dx, dy)
 }
 
 function setOverlays(map: mapboxgl.Map, prefix: string, scene: EstateMapScene, grow: number, hidden: ReadonlySet<string>) {
@@ -468,6 +535,16 @@ export function drawEstateScene(
       geometry: { type: 'Polygon', coordinates: [[...tower.footprint!, tower.footprint![0]]] },
     })),
   })
+  const pulsing = grow <= 0 ? [] : shown.filter((tower) => tower.pulse)
+  ;(map.getSource(pulseId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
+    type: 'FeatureCollection',
+    features: pulsing.map((tower) => ({
+      type: 'Feature',
+      properties: { color: tower.color, o: grow, r: radiusM(tower.at, tower.footprint!) },
+      geometry: { type: 'Point', coordinates: tower.at },
+    })),
+  })
+  runPulse(map, prefix, pulsing.length > 0)
   const source = map.getSource(heatId(prefix)) as mapboxgl.GeoJSONSource | undefined
   if (!source) return
   source.setData({

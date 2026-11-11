@@ -595,23 +595,6 @@ const timesLimit = (sample: Sample) => `${(sample.h2s / LIMIT.h2s).toFixed(1)}×
 
 const sampleColor = (sample: Sample) => (sample.h2s >= 0.3 ? STATUS.critical : meetsLimit(sample) ? LEVEL.ok : LEVEL.high)
 
-const samplePoints = (): EstatePoint[] =>
-  SAMPLES.map((sample) => ({
-    id: `sample-${sample.id}`,
-    at: sample.at,
-    color: sampleColor(sample),
-    radius: 6.5,
-    group: 'sampling',
-    tip: {
-      title: `Sample · ${sample.name}`,
-      rows: [
-        ['H₂S', `${sample.h2s.toFixed(2)} mg/L · limit ${LIMIT.h2s}`],
-        ['Dissolved oxygen', `${sample.oxygen.toFixed(1)} mg/L · min ${LIMIT.oxygen}`],
-        ['Status', meetsLimit(sample) ? 'Meets the standard' : 'Exceeds the standard'],
-      ],
-    },
-  }))
-
 /* —— The nine interventions —— */
 
 type Intervention = {
@@ -870,14 +853,6 @@ const scene = (parts: Partial<EstateMapScene>): EstateMapScene => ({
   ...parts,
 })
 
-const ZONES_UNDER_SUSPICION = (): EstateArea[] => [
-  zoneArea('z1', LEVEL.watch, 'Under watch'),
-  zoneArea('z2', STATUS.critical, 'Suspected · odor at emitters'),
-  zoneArea('z3', STATUS.critical, 'Suspected · stagnant dead-ends', 0.4),
-  zoneArea('z4', LEVEL.ok, 'Normal'),
-  zoneArea('z5', LEVEL.ok, 'Normal'),
-]
-
 const NETWORK_SCENE = scene({
   towers: Object.values(TANKS).map((tank) =>
     tankTower(PIPE_BLUE, `Feeds ${tank.park}`, [['Supplies', tank.park], ['Filled from', 'TSE supply main']], tank),
@@ -888,18 +863,25 @@ const NETWORK_SCENE = scene({
 })
 
 const outletOf = (tank: Tank) => SAMPLES.find((sample) => sample.name === `${tank.name.slice(-3)} outlet`)!
-/** Only T-3 is in the quality camera's view; the other tanks keep their tooltips without a label. */
-const tankQuality = (tank: Tank): EstateTower => {
+/** The three tanks, worst outlet first. */
+const TANKS_BY_H2S = Object.values(TANKS).sort((a, b) => outletOf(b).h2s - outletOf(a).h2s)
+const TANK_OUTLETS = TANKS_BY_H2S.map(outletOf)
+
+/** Each tank as a pulsing red cylinder, big enough to stand out with all three parks in view. */
+const tankCylinder = (tank: Tank): EstateTower => {
   const outlet = outletOf(tank)
-  const tower = tankTower(sampleColor(outlet), `Exceeds · H₂S ${outlet.h2s.toFixed(2)} mg/L`, [['H₂S at outlet', `${outlet.h2s.toFixed(2)} mg/L`], ['Against the limit', timesLimit(outlet)]], tank)
-  return { ...tower, label: tank === TANKS.t3 }
+  return {
+    ...tankTower(STATUS.critical, `Exceeds · H₂S ${outlet.h2s.toFixed(2)} mg/L`, [['H₂S at outlet', `${outlet.h2s.toFixed(2)} mg/L`], ['Against the limit', timesLimit(outlet)]], tank),
+    title: `${tank.name} · ${tank.park}`,
+    heightM: 70,
+    footprint: circle(tank.at, 40, 32),
+    pulse: true,
+  }
 }
 
 const QUALITY_SCENE = scene({
-  towers: Object.values(TANKS).map(tankQuality),
-  areas: ZONES_UNDER_SUSPICION(),
-  lines: networkLines(),
-  points: samplePoints(),
+  towers: TANKS_BY_H2S.map(tankCylinder),
+  areas: parkAreas(),
 })
 
 /* —— Simulate recommended actions: each horizon's what-if against the baseline —— */
@@ -938,10 +920,10 @@ const RESIDUAL: Record<Horizon, Bands> = {
 const CAMERA = {
   timing: { center: [55.19886, 25.10413], zoom: 15.67, pitch: 64.5, bearing: -21.2 },
   network: { center: [55.20624, 25.09475], zoom: 15.24, pitch: 61.5, bearing: -18 },
-  quality: { center: [55.2032, 25.1017], zoom: 15.75, pitch: 60, bearing: 24 },
+  quality: { center: [55.1993, 25.0961], zoom: 14.75, pitch: 58, bearing: 24 },
 } satisfies Record<string, EstateCamera>
 
-const FILTERS = ['Al Barsha', 'Last 7 days', 'Odor']
+const FILTERS = ['Al Barsha', 'Last 7 days']
 
 /** The assumed irrigation window across the three parks. */
 const IRRIGATION_WINDOW = '5–8 PM'
@@ -1160,7 +1142,14 @@ export const ODOR_STORY: EstateStory = {
           ],
         },
         { id: 'connected', kind: 'cell', title: 'Parks on the network', value: '3 of 3', note: 'all irrigated with recycled water' },
-        { id: 'tanks', kind: 'cell', title: 'Storage tanks', value: `${Object.keys(TANKS).length}`, note: 'one per park, filled from the same main' },
+        {
+          id: 'tanks',
+          kind: 'cell',
+          title: 'Storage tanks',
+          value: `${Object.keys(TANKS).length}`,
+          span: 'block',
+          note: 'One per park (T-1, T-3 and T-5), all filled from the same TSE supply main. Water that turns stagnant upstream reaches every park, so the odor can appear at all three at once.',
+        },
         {
           id: 'supply',
           kind: 'table',
@@ -1193,10 +1182,8 @@ export const ODOR_STORY: EstateStory = {
       scene: QUALITY_SCENE,
       filters: FILTERS,
       layers: [
-        LAYER.sampling,
-        { ...LAYER.tanks, color: { items: Object.values(TANKS).map((tank) => ({ label: tank.name, color: sampleColor(outletOf(tank)), count: timesLimit(outletOf(tank)) })) } },
-        LAYER.network,
-        LAYER.zones,
+        { ...LAYER.tanks, color: { items: TANKS_BY_H2S.map((tank) => ({ label: tank.name, color: STATUS.critical, count: timesLimit(outletOf(tank)) })) } },
+        LAYER.parks,
       ],
       cards: toned([
         {
@@ -1204,34 +1191,44 @@ export const ODOR_STORY: EstateStory = {
           kind: 'summary',
           title: 'Summary',
           parts: [
-            { em: [`${FAILING.length} of ${SAMPLES.length} samples`] },
-            ' fail the recycled-water standard. Hydrogen sulphide at the ',
+            'Water from ',
+            { em: ['all 3 park tanks'] },
+            ' failed the quality test. At the ',
             { em: [WORST.name] },
-            ` is ${timesLimit(WORST)} the limit and all three tanks exceed it, while water entering from the supply main meets it.`,
+            `, the gas that smells like rotten eggs is ${timesLimit(WORST)} the safe limit, and the other two tanks are ${TANK_OUTLETS.slice(1)
+              .map(timesLimit)
+              .join(' and ')} the limit.`,
           ],
         },
-        { id: 'failing', kind: 'cell', title: 'Non-compliant samples', value: `${FAILING.length} of ${SAMPLES.length}`, note: 'against the H₂S and oxygen limits', status: 'critical' },
-        { id: 'worst', kind: 'cell', title: 'Worst exceedance', value: timesLimit(WORST), note: `H₂S at the ${WORST.name}, against ${LIMIT.h2s} mg/L` },
+        {
+          id: 'failing',
+          kind: 'cell',
+          title: 'Non-compliant tanks',
+          value: `${TANK_OUTLETS.filter((outlet) => !meetsLimit(outlet)).length} of ${TANK_OUTLETS.length}`,
+          note: 'all over the H₂S limit',
+          status: 'critical',
+        },
+        {
+          id: 'worst',
+          kind: 'cell',
+          title: 'Worst exceedance',
+          value: timesLimit(WORST),
+          span: 'block',
+          note: `H₂S at the ${WORST.name}, against ${LIMIT.h2s} mg/L`,
+        },
         {
           id: 'samples',
           kind: 'table',
           title: 'Water-quality results vs the standard',
-          height: 2,
-          columns: ['Site', 'H₂S mg/L', 'DO mg/L', 'Status'],
+          columns: ['Tank', 'H₂S mg/L', 'DO mg/L', 'Status'],
           dotColumn: 0,
-          rows: SAMPLES.map((sample) => ({
-            cells: [sample.name, sample.h2s.toFixed(2), sample.oxygen.toFixed(1), meetsLimit(sample) ? 'Meets' : 'Exceeds'],
-            color: sampleColor(sample),
-          })),
-        },
-        {
-          id: 'exceedance',
-          kind: 'hbars',
-          title: `H₂S against the ${LIMIT.h2s} mg/L limit`,
-          bars: [...FAILING]
-            .sort((a, b) => b.h2s - a.h2s)
-            .slice(0, 5)
-            .map((sample) => ({ label: sample.name, value: sample.h2s, display: timesLimit(sample), color: sampleColor(sample) })),
+          rows: TANKS_BY_H2S.map((tank) => {
+            const outlet = outletOf(tank)
+            return {
+              cells: [`${tank.name.slice(-3)} · ${tank.park}`, outlet.h2s.toFixed(2), outlet.oxygen.toFixed(1), meetsLimit(outlet) ? 'Meets' : `Exceeds ${timesLimit(outlet)}`],
+              color: STATUS.critical,
+            }
+          }),
         },
         {
           id: 'inspection',
