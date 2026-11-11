@@ -166,8 +166,16 @@ export type EstatePlaceId = 'barsha' | 'facilities' | 'infrastructure'
 /** A Briefing place: where its finding's map opens, and what the map shows there. */
 export type EstatePlace = { id: EstatePlaceId; camera: EstateCamera; scene: EstateMapScene }
 
-/** What Tell Me More opens on the map: its camera, the scene, and the Map Data that reads it. */
-export type EstateAskView = { camera: EstateCamera; scene: EstateMapScene; layers: MapDataLayer[] }
+/**
+ * What Tell Me More opens on the map: its camera, the scene, and the Map Data that reads it. A solution's
+ * view can `compare` against the problem: that view's scene is drawn above this one, at this camera.
+ */
+export type EstateAskView = {
+  camera: EstateCamera
+  scene: EstateMapScene
+  layers: MapDataLayer[]
+  compare?: { before: EstateAskView; labels: [before: string, after: string] }
+}
 
 export type EstateStory = {
   id: string

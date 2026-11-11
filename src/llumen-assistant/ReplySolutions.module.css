@@ -307,6 +307,10 @@
   margin-bottom: var(--space-lg);
 }
 
+.statsPairs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .stat {
   display: flex;
   flex-direction: column;

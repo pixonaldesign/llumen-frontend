@@ -3409,6 +3409,7 @@ export function CompactAssistantDemo() {
                   onAddSource={addSource}
                   shrunk={landingAskShrunk}
                   onToggleShrunk={() => setLandingAskShrunk((current) => !current)}
+                  sessionsLocked
                 />
               </div>
             }

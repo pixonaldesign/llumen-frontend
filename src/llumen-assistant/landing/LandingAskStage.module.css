@@ -172,6 +172,92 @@
   overflow: hidden;
 }
 
+/*
+ * A finding's maps. A solution stacks below its problem: the split divides the stage under the asset header,
+ * and the upper map runs up beneath the header as the single map does.
+ */
+.mapStack {
+  --compare-top: calc(
+    var(--asset-header-h, 0px) + var(--compare-split, 0.5) * (100% - var(--asset-header-h, 0px))
+  );
+  position: absolute;
+  inset: 0;
+  container-type: size;
+}
+
+.mapSingle {
+  position: absolute;
+  inset: 0;
+}
+
+.comparePane {
+  position: absolute;
+  right: 0;
+  left: 0;
+  overflow: hidden;
+}
+
+.compareBefore {
+  top: 0;
+  height: var(--compare-top);
+}
+
+.compareAfter {
+  top: var(--compare-top);
+  bottom: 0;
+}
+
+/* Each map stays the stage's full height and its pane clips it, so dragging the split never resizes a canvas. */
+.comparePane .compareMap {
+  height: 100cqh;
+}
+
+.compareBefore .compareMap {
+  top: 0;
+  bottom: auto;
+}
+
+.compareAfter .compareMap {
+  top: auto;
+  bottom: 0;
+}
+
+.mapStack .compareHandle {
+  top: var(--compare-top);
+}
+
+/* Always in its hover colours, so the split reads at a glance. */
+.mapStack .compareHandle::before {
+  background: #70aeff;
+}
+
+.mapStack .compareHandle > span {
+  border-color: #70aeff;
+  color: #fff;
+}
+
+.compareTag {
+  position: absolute;
+  top: 16px;
+  left: 32px;
+  z-index: 4;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(26, 26, 26, 0.6);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  pointer-events: none;
+}
+
+.compareBefore .compareTag {
+  top: calc(var(--asset-header-h, 0px) + 16px);
+}
+
 /* A finding map's legend, where the story keeps its Map Data. */
 .mapData {
   position: absolute;

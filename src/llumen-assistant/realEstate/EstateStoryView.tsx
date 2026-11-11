@@ -683,6 +683,7 @@ export function EstateStoryView({
           className={`${styles.cardActions}${menuOpen ? ` ${styles.cardActionsOpen}` : ''}`}
           role="toolbar"
           aria-label={`${card.title} actions`}
+          inert
         >
           {canAddToChat ? (
             <CardActionButton

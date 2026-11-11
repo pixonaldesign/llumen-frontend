@@ -163,7 +163,7 @@ function SolutionDetail({ solution, solutions, overlay, onSelect, onClose }: Sol
         <h3 className={styles.title}>{solution.title}</h3>
         <p className={styles.summary}>{solution.summary}</p>
 
-        <div className={styles.stats}>
+        <div className={`${styles.stats}${solution.stats.length === 4 ? ` ${styles.statsPairs}` : ''}`}>
           {solution.stats.map((stat) => (
             <div key={stat.label} className={styles.stat}>
               <span className={styles.statValue}>{stat.value}</span>
@@ -183,7 +183,7 @@ function SolutionDetail({ solution, solutions, overlay, onSelect, onClose }: Sol
           {solution.mapNote}
         </p>
 
-        <h4 className={styles.actionsHeading}>{solution.actions.length} actions</h4>
+        <h4 className={styles.actionsHeading}>Actions</h4>
         <ol className={styles.actions}>
           {solution.actions.map((action) => (
             <li key={action.code ?? action.title} className={styles.action}>

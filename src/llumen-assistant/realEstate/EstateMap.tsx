@@ -11,6 +11,7 @@ import { MapControls } from '../InteractiveMap'
 import type { StoryMapView } from '../story/StoryMap'
 import { captureMapView } from '../story/captureMapView'
 import type { StoryMapCapture } from '../story/storyAiScenarios'
+import type { StoryCamera, StoryCameraLink } from '../story/storyCameraLink'
 import {
   ESTATE_MAP_STYLE,
   TowerLabels,
@@ -76,6 +77,7 @@ export function EstateMap({
   onTowerClick,
   onReady,
   handleRef,
+  cameraLink,
 }: {
   className?: string
   camera: EstateCamera
@@ -94,6 +96,7 @@ export function EstateMap({
   onTowerClick?: (id: string) => void
   onReady?: (stage: 'loaded' | 'painted') => void
   handleRef?: Ref<EstateMapHandle>
+  cameraLink?: StoryCameraLink
 }) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -250,6 +253,41 @@ export function EstateMap({
     // The map mounts once; later props are read from latestRef.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  /* Linked maps share one camera: a move here is replayed on the others, and a joining map adopts theirs. */
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !cameraLink) return
+    let following = false
+    const read = (): StoryCamera => {
+      const center = map.getCenter()
+      return { center: [center.lng, center.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }
+    }
+    const follow = (shared: StoryCamera) => {
+      following = true
+      map.jumpTo(shared)
+      following = false
+    }
+    const onMove = () => {
+      if (!following) cameraLink.publish(follow, read())
+    }
+    const shared = cameraLink.join(follow)
+    if (shared) follow(shared)
+    else cameraLink.publish(follow, read())
+    map.on('move', onMove)
+    return () => {
+      map.off('move', onMove)
+      cameraLink.leave(follow)
+    }
+  }, [cameraLink])
+
+  /*
+   * New padding applies at once, ahead of the page's flight below: a linked map's jumps stop that flight
+   * before it could ease the padding in.
+   */
+  useEffect(() => {
+    mapRef.current?.setPadding(padding)
+  }, [padding])
 
   /* A new page: fly to its camera, fade the old heat out and the new one in. */
   useEffect(() => {

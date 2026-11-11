@@ -16,8 +16,8 @@ export const HORIZON_LABEL: Record<Horizon, string> = {
 /** When each horizon pays back, as the cards and replies word it. */
 export const HORIZON_SPAN: Record<Horizon, string> = {
   immediate: 'days to weeks',
-  intermediate: '3–12 months',
-  long: '1–3 years',
+  intermediate: '3–6 months',
+  long: '6 months to 1 year',
 }
 
 /** A warm-to-cool reading of how bad something is, shared by both stories' maps. */

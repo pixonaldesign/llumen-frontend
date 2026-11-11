@@ -65,6 +65,26 @@ export function centroid(ring: LngLat[]): LngLat {
   return [sum[0] / ring.length, sum[1] / ring.length]
 }
 
+/** Metres from `point` to the nearest edge of `ring`, or 0 inside it. */
+export function metresFromRing(ring: LngLat[], point: LngLat): number {
+  const local = ([lng, lat]: LngLat): [number, number] => [
+    (lng - point[0]) * kmPerDegLng(point[1]) * 1000,
+    (lat - point[1]) * KM_PER_DEG_LAT * 1000,
+  ]
+  const corners = ring.map(local)
+  let inside = false
+  let nearest = Number.POSITIVE_INFINITY
+  corners.forEach(([ax, ay], index) => {
+    const [bx, by] = corners[(index + 1) % corners.length]
+    if (ay > 0 !== by > 0 && ax + ((bx - ax) * -ay) / (by - ay) > 0) inside = !inside
+    const dx = bx - ax
+    const dy = by - ay
+    const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy || 1)))
+    nearest = Math.min(nearest, Math.hypot(ax + t * dx, ay + t * dy))
+  })
+  return inside ? 0 : nearest
+}
+
 /** The four corners of an axis-aligned box between two corners. */
 export function box([west, south]: LngLat, [east, north]: LngLat): LngLat[] {
   return [

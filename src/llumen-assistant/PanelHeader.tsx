@@ -71,6 +71,8 @@ export type PanelHeaderProps = {
   /** Shows a shrink / expand toggle beside Close; `shrunk` picks which one. */
   onToggleShrunk?: () => void
   shrunk?: boolean
+  /** Shows Conversations and New conversation without letting either be clicked. */
+  sessionsLocked?: boolean
 }
 
 const CONVERSATION_MENU_ITEMS = [
@@ -109,6 +111,7 @@ export function PanelHeader({
   subcontextOpen = false,
   onToggleShrunk,
   shrunk = false,
+  sessionsLocked = false,
 }: PanelHeaderProps) {
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(chatTitle)
@@ -352,7 +355,7 @@ export function PanelHeader({
 
   return (
     <div className={styles.headerRow}>
-      <div className={styles.headerActions}>
+      <div className={styles.headerActions} inert={sessionsLocked}>
         <div className={styles.headerSessionsWrap} ref={sessionsWrapRef}>
           <button
             type="button"

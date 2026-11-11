@@ -8,11 +8,13 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
   type Ref,
+  type RefObject,
 } from 'react'
 import { MeshGradient } from '@paper-design/shaders-react'
-import { CaretDown } from '@phosphor-icons/react'
+import { CaretDown, DotsSix } from '@phosphor-icons/react'
 import gsap from 'gsap'
 import { MapBleedHeader, type DetailTab } from '../ComponentDetailPanel'
 import detailStyles from '../compact-assistant.module.css'
@@ -34,6 +36,7 @@ import estateStyles from '../realEstate/EstateStory.module.css'
 import type { EstateTower } from '../realEstate/estateMapLayers'
 import type { MapDataLayer } from '../realEstate/estateTypes'
 import storyStyles from '../story/StoryView.module.css'
+import { createCameraLink } from '../story/storyCameraLink'
 
 /** Loads the asset builder's styles only once Data or Source is opened. */
 const LandingAssetPanels = lazy(() => import('./LandingAssetPanels'))
@@ -246,6 +249,7 @@ export function LandingAskAsset({
     setTab('component')
   }
 
+  /* The header remounts per view (it is keyed by stateId), so each one is measured afresh. */
   useLayoutEffect(() => {
     const root = rootRef.current
     const header = headerRef.current
@@ -259,8 +263,9 @@ export function LandingAskAsset({
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(header)
+    observer.observe(root)
     return () => observer.disconnect()
-  }, [])
+  }, [stateId])
 
   return (
     <div ref={rootRef} className={styles.asset}>
@@ -389,7 +394,96 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: Es
   )
 }
 
-/** A real-estate finding's place, as Tell Me More reads it: every tall tower coloured by its potential. */
+const COMPARE_SPLIT_DEFAULT = 0.5
+const COMPARE_SPLIT_MIN = 0.25
+const COMPARE_SPLIT_MAX = 0.8
+const COMPARE_SPLIT_STEP = 0.05
+
+const clampCompareSplit = (value: number) => Math.min(COMPARE_SPLIT_MAX, Math.max(COMPARE_SPLIT_MIN, value))
+
+/**
+ * A comparison's maps are each as tall as the stage and clipped by their panes, so dragging the split never
+ * resizes a canvas (which blanks it until Mapbox redraws). Padding frames each map in its pane at the default
+ * split; the upper one also clears the asset header.
+ */
+function comparePadding(stack: { height: number; header: number }) {
+  const seam = stack.header + COMPARE_SPLIT_DEFAULT * (stack.height - stack.header)
+  return {
+    before: { top: stack.header + 40, right: 40, bottom: stack.height - seam + 40, left: 40 },
+    after: { top: seam + 56, right: 40, bottom: 40, left: 40 },
+  }
+}
+
+/**
+ * The divider between a comparison's maps, splitting the stage below the asset header. Dragging writes the
+ * split straight to the stack's style each frame and commits it on release.
+ */
+function CompareHandle({
+  stackRef,
+  split,
+  onSplit,
+}: {
+  stackRef: RefObject<HTMLDivElement | null>
+  split: number
+  onSplit: (split: number) => void
+}) {
+  const dragRef = useRef<{ value: number; frame: number | null } | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const endDrag = () => {
+    const drag = dragRef.current
+    if (!drag) return
+    if (drag.frame !== null) cancelAnimationFrame(drag.frame)
+    dragRef.current = null
+    setDragging(false)
+    onSplit(drag.value)
+  }
+  return (
+    <div
+      className={`${storyStyles.splitHandle} ${styles.compareHandle}${dragging ? ` ${storyStyles.splitHandleActive}` : ''}`}
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="Resize comparison maps"
+      aria-valuemin={COMPARE_SPLIT_MIN * 100}
+      aria-valuemax={COMPARE_SPLIT_MAX * 100}
+      aria-valuenow={Math.round(split * 100)}
+      tabIndex={0}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId)
+        dragRef.current = { value: split, frame: null }
+        setDragging(true)
+      }}
+      onPointerMove={(event) => {
+        const drag = dragRef.current
+        const stack = stackRef.current
+        if (!drag || !stack) return
+        const rect = stack.getBoundingClientRect()
+        const header = parseFloat(getComputedStyle(stack).getPropertyValue('--asset-header-h')) || 0
+        drag.value = clampCompareSplit((event.clientY - rect.top - header) / (rect.height - header))
+        drag.frame ??= requestAnimationFrame(() => {
+          drag.frame = null
+          stack.style.setProperty('--compare-split', String(drag.value))
+        })
+      }}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onDoubleClick={() => onSplit(COMPARE_SPLIT_DEFAULT)}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+        event.preventDefault()
+        onSplit(clampCompareSplit(split + (event.key === 'ArrowUp' ? -COMPARE_SPLIT_STEP : COMPARE_SPLIT_STEP)))
+      }}
+    >
+      <span className={storyStyles.splitHandleGrip} aria-hidden>
+        <DotsSix size={16} weight="bold" />
+      </span>
+    </div>
+  )
+}
+
+/**
+ * A real-estate finding's place, as Tell Me More reads it: every tall tower coloured by its potential. A
+ * solution opens below the problem it solves, the two maps on one camera with a divider between them.
+ */
 function FindingPlaceMap({
   place,
   capture,
@@ -397,7 +491,11 @@ function FindingPlaceMap({
   preview,
 }: Omit<LandingAskMapProps, 'snapshot'> & { place: FindingStageId }) {
   const handleRef = useRef<EstateMapHandle>(null)
+  const stackRef = useRef<HTMLDivElement>(null)
+  const [cameraLink] = useState(createCameraLink)
+  const [split, setSplit] = useState(COMPARE_SPLIT_DEFAULT)
   const stage = findingStage(place)
+  const compare = preview ? undefined : stage.compare
   const camera = useMemo(
     () => (preview ? { ...stage.camera, zoom: stage.camera.zoom + PREVIEW_ZOOM_OFFSET } : stage.camera),
     [preview, stage],
@@ -411,20 +509,61 @@ function FindingPlaceMap({
     }, capture.delay)
     return () => window.clearTimeout(timer)
   }, [capture, onCapture])
+  const [stackSize, setStackSize] = useState<{ height: number; header: number } | null>(null)
+  useLayoutEffect(() => {
+    const stack = stackRef.current
+    if (!stack || !compare) return
+    const measure = () => {
+      const height = stack.clientHeight
+      const header = parseFloat(getComputedStyle(stack).getPropertyValue('--asset-header-h')) || 0
+      setStackSize((current) => (current?.height === height && current.header === header ? current : { height, header }))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(stack)
+    return () => observer.disconnect()
+  }, [compare])
+  const padding = useMemo(() => (stackSize ? comparePadding(stackSize) : null), [stackSize])
+  /* The solution's map keeps its place in the tree, so opening a comparison adds a map rather than reloading it. */
   return (
-    <>
-      <EstateMap
-        camera={camera}
-        scene={stage.scene}
-        hidden={NO_HIDDEN}
-        padding={preview ? PREVIEW_PADDING : MAP_PADDING}
-        controls={!preview}
-        interactive={!preview}
-        controlsClassName={styles.mapControls}
-        handleRef={handleRef}
-      />
-      {preview ? null : <FindingMapData layers={stage.layers} towers={stage.scene.towers} />}
-    </>
+    <div
+      ref={stackRef}
+      className={styles.mapStack}
+      style={compare ? ({ '--compare-split': split } as CSSProperties) : undefined}
+    >
+      {compare ? (
+        <div className={`${styles.comparePane} ${styles.compareBefore}`}>
+          <EstateMap
+            className={styles.compareMap}
+            camera={camera}
+            scene={compare.before.scene}
+            hidden={NO_HIDDEN}
+            padding={padding?.before ?? MAP_PADDING}
+            controlsClassName={styles.mapControls}
+            cameraLink={cameraLink}
+          />
+          <span className={styles.compareTag}>{compare.labels[0]}</span>
+          <FindingMapData layers={compare.before.layers} towers={compare.before.scene.towers} />
+        </div>
+      ) : null}
+      <div className={compare ? `${styles.comparePane} ${styles.compareAfter}` : styles.mapSingle}>
+        <EstateMap
+          className={compare ? styles.compareMap : undefined}
+          camera={camera}
+          scene={stage.scene}
+          hidden={NO_HIDDEN}
+          padding={preview ? PREVIEW_PADDING : compare ? (padding?.after ?? MAP_PADDING) : MAP_PADDING}
+          controls={!preview && !compare}
+          interactive={!preview}
+          controlsClassName={styles.mapControls}
+          handleRef={handleRef}
+          cameraLink={compare ? cameraLink : undefined}
+        />
+        {compare ? <span className={styles.compareTag}>{compare.labels[1]}</span> : null}
+        {preview ? null : <FindingMapData layers={stage.layers} towers={stage.scene.towers} />}
+      </div>
+      {compare ? <CompareHandle stackRef={stackRef} split={split} onSplit={setSplit} /> : null}
+    </div>
   )
 }
 

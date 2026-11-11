@@ -13,7 +13,14 @@ import type {
   TimelineStep,
 } from '../assistantReplyTypes'
 import { HORIZON_COLOR, HORIZON_SPAN } from '../municipality/dmShared'
-import { HOMES_CLEARED, HOMES_EXPOSED, INTERVENTIONS, ODOR_BRIEFING } from '../municipality/odorScenario'
+import {
+  HOMES_EXPOSED,
+  INTERVENTIONS,
+  ODOR_BRIEFING,
+  ODOR_DECLINE,
+  UNITS_CLEARED,
+  UNITS_EXPOSED,
+} from '../municipality/odorScenario'
 import { FACILITIES_BRIEFING, FACILITIES_SOLUTIONS } from '../municipality/facilitiesScenario'
 import type { PlanningSolution } from '../municipality/growthAreas'
 import { INFRASTRUCTURE_BRIEFING, INFRASTRUCTURE_SOLUTIONS } from '../municipality/infrastructureScenario'
@@ -166,40 +173,44 @@ function experience(spec: ExperienceSpec, stateId: (place: FindingStageId) => st
 
 const HORIZON_TAB: Record<Horizon, string> = { immediate: 'Immediate', intermediate: 'Intermediate', long: 'Long-term' }
 
-const cleared = (horizon: Horizon) => `${HOMES_CLEARED[horizon]} of ${HOMES_EXPOSED} homes clear`
+const cleared = (horizon: Horizon) => `${UNITS_CLEARED[horizon]} of ${UNITS_EXPOSED} homes clear`
 
-/** "AED 25k" or "AED 6.5M" in dirhams, to order a horizon's costs. */
+/** "AED 5k" or "AED 6.5M" in dirhams, to order a horizon's costs. */
 const dirhams = (cost: string) => parseFloat(cost.replace('AED ', '')) * (cost.endsWith('M') ? 1e6 : 1e3)
 
 /** An odor horizon as a solution: its three interventions, what they clear and what they cost. */
 function odorSolution(
   horizon: Horizon,
-  text: { title: string; summary: string; mapNote: string },
+  text: { title: string; summary: string; mapNote: string; costLabel?: string },
   map: Omit<FindingMap, 'title' | 'meta'>,
 ): SolutionSpec {
   const items = INTERVENTIONS.filter((item) => item.horizon === horizon)
   const byCost = [...items].sort((a, b) => dirhams(a.cost) - dirhams(b.cost))
   const best = Math.max(...items.map((item) => item.reduction))
+  const cheapest = byCost[0].cost
+  const dearest = byCost[byCost.length - 1].cost
+  const { costLabel = 'Cost', ...copy } = text
   return {
-    ...text,
+    ...copy,
     label: HORIZON_TAB[horizon],
     span: HORIZON_SPAN[horizon],
     color: HORIZON_COLOR[horizon],
     stats: [
-      { label: 'Homes cleared', value: `${HOMES_CLEARED[horizon]} of ${HOMES_EXPOSED}` },
-      { label: 'Best exposure cut', value: `${best}%` },
-      { label: 'Cost', value: `${byCost[0].cost}–${byCost[byCost.length - 1].cost.replace('AED ', '')}` },
+      { label: 'Residential units exposed to odor', value: `${UNITS_EXPOSED} → ${UNITS_EXPOSED - UNITS_CLEARED[horizon]}` },
+      { label: costLabel, value: items.length > 1 ? `${cheapest}–${dearest.replace('AED ', '')}` : cheapest },
+      { label: 'Decline in negative posts about odor', value: `−${ODOR_DECLINE[horizon].posts}%` },
+      { label: 'Decline in complaints about odor', value: `−${ODOR_DECLINE[horizon].complaints}%` },
     ],
     chart: {
       type: 'bars',
       title: 'Modelled odor exposure removed, by action',
       value: `${best}%`,
-      unit: 'the most any one action removes',
+      unit: items.length > 1 ? 'the most any one action removes' : 'of the modelled exposure removed',
       color: HORIZON_COLOR[horizon],
-      rows: items.map((item) => ({ label: `${item.code} ${item.action}`, value: item.reduction, display: `${item.reduction}%` })),
+      rows: items.map((item) => ({ label: items.length > 1 ? `${item.code} ${item.action}` : item.action, value: item.reduction, display: `${item.reduction}%` })),
     },
     actions: items.map((item) => ({
-      code: item.code,
+      code: items.length > 1 ? item.code : undefined,
       title: item.action,
       subtitle: item.asset,
       detail: item.benefit,
@@ -255,7 +266,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
         ],
         cause: [
           'All three parks are irrigated with recycled water from one supply network, through storage tanks T-1, T-3 and T-5.',
-          `${ODOR_BRIEFING.failing} of ${ODOR_BRIEFING.samples.length} water samples fail the standard. The ${ODOR_BRIEFING.worst.name} is worst, at ${ODOR_BRIEFING.worst.times} the hydrogen sulphide limit.`,
+          `Water from ${ODOR_BRIEFING.failing === ODOR_BRIEFING.tanks.length ? 'all' : ODOR_BRIEFING.failing} ${ODOR_BRIEFING.tanks.length} tanks fails the standard. The ${ODOR_BRIEFING.worst.name} is worst, at ${ODOR_BRIEFING.worst.times} the hydrogen sulphide limit.`,
           'Water entering from the supply main meets the standard, so it turns septic in the tanks and mains before the sprinklers release it.',
         ],
         chart: chartComponent(
@@ -266,9 +277,9 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
             value: ODOR_BRIEFING.worst.times,
             unit: `the limit at the ${ODOR_BRIEFING.worst.name}`,
             color: STATUS.critical,
-            rows: barRows(ODOR_BRIEFING.samples.map((sample) => [sample.name, sample.h2s, sample.h2s.toFixed(2)])),
+            rows: barRows(ODOR_BRIEFING.tanks.map((tank) => [tank.name, tank.h2s, tank.h2s.toFixed(2)])),
           },
-          `Hydrogen sulphide by sampling site, mg/L. The standard allows ${ODOR_BRIEFING.limit}.`,
+          `Hydrogen sulphide at each storage tank outlet, mg/L. The standard allows ${ODOR_BRIEFING.limit}.`,
         ),
         map: { place: 'odor', title: 'Odor plume and exposed homes · Al Barsha', tag: 'Al Barsha', meta: `${HOMES_EXPOSED} homes in the plume` },
         solutionsIntro:
@@ -277,18 +288,19 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
           odorSolution(
             'immediate',
             {
-              title: 'Retime, flush and isolate',
-              summary: `Move Z-2 and Z-3 out of the ${ODOR_BRIEFING.window} window, flush the stagnant lines and isolate the worst zone while the tanks are fixed. Retiming alone cuts modelled exposure 41% for AED 25k, the best value of all nine options.`,
-              mapNote: 'The map shows Z-2 retimed to 00:30–03:00, Z-3 isolated, the flushed lines and the plume that remains.',
+              title: 'Retime irrigation',
+              summary: `Move Z-2 and Z-3 irrigation out of the ${ODOR_BRIEFING.window} window while the tanks are fixed. Retiming cuts modelled exposure ${INTERVENTIONS[0].reduction}% for ${INTERVENTIONS[0].cost}, the best value of all the options.`,
+              mapNote: 'The map shows Z-2 and Z-3 retimed to 00:30–03:00.',
+              costLabel: 'Cost of rescheduling the irrigation time only',
             },
             { place: 'odor-immediate', tag: 'Al Barsha' },
           ),
           odorSolution(
             'intermediate',
             {
-              title: 'Rehabilitate T-3, dose and control',
-              summary: 'Clean and rehabilitate storage tank T-3 so its water stops turning septic, dose the supply before it reaches the parks, and fit 14 smart controllers that hold irrigation back when wind or water quality turns.',
-              mapNote: 'The map shows T-3 rehabilitated, the dosing point on the supply main, the 14 controllers and the plume that remains.',
+              title: 'Rehabilitate tank T-3',
+              summary: `Clean and repair tank T-3 so its water stops going bad before it reaches Pond Park. This cuts modelled exposure ${INTERVENTIONS[1].reduction}% for ${INTERVENTIONS[1].cost}.`,
+              mapNote: 'The map shows T-3 cleaned and rehabilitated.',
             },
             { place: 'odor-intermediate', tag: 'Pond Park' },
           ),
