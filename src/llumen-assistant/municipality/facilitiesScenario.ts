@@ -19,7 +19,7 @@ import {
   type MapDataLayer,
 } from '../realEstate/estateTypes'
 import { kmBetween } from './dmGeo'
-import { HORIZON_COLOR, LEVEL, toned } from './dmShared'
+import { HORIZON_COLOR, HORIZON_SPAN, LEVEL, toned } from './dmShared'
 import {
   AREA_LIST,
   AREAS,
@@ -798,9 +798,6 @@ const MOVED_IN: Record<Horizon, number> = { immediate: 0, intermediate: 0.4, lon
 /** Average time to reach a park or community facility without action, minutes, as more residents compete for it. */
 const ACCESS_MIN: Record<Horizon, number> = { immediate: 12, intermediate: 15, long: 19 }
 
-/** How long each horizon's options take to deliver. */
-const SPAN: Record<Horizon, string> = { immediate: '1–3 months', intermediate: '8–12 months', long: '3–5 years' }
-
 /** Residents the facilities serve: what the 2019 plans sized them for, unchanged until capacity is added. */
 const CAPACITY = PLANNED_FOR_ALL * 1000
 
@@ -1092,7 +1089,7 @@ function facilitySolution(horizon: Horizon): PlanningSolution {
   return {
     title: decision.title,
     summary: decision.summary(option),
-    span: SPAN[horizon],
+    span: HORIZON_SPAN[horizon],
     meta: `Coverage ${before.coverage}% → ${coverage(capacity, before.population)}%`,
     mapNote: decision.mapNote,
     stats: [
