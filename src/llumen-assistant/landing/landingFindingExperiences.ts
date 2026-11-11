@@ -243,13 +243,13 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
       {
         id: 'finding-odor',
         prompt: 'What is causing the odor around Al Barsha’s parks, and how do we fix it?',
-        read: 'Reading 30 days of CRM odor complaints and social posts around Al Barsha’s parks…',
+        read: 'Reading 7 days of CRM odor complaints and social posts around Al Barsha’s parks…',
         search: 'Matching complaints to irrigation schedules, the recycled-water network and water samples…',
         reason: 'Weighing nine interventions across three impact horizons, and mapping each one…',
         headline: 'Recycled irrigation water that fails the quality standard is the likely source of the odor in Al Barsha’s parks.',
         headlineDetail: 'Three solutions follow, each with its own map. Open one to see its detail and switch the map.',
         problem: [
-          `${ODOR_BRIEFING.complaints} odor complaints in 30 days across Al Barsha’s three parks.`,
+          `${ODOR_BRIEFING.complaints} odor complaints in 7 days across Al Barsha’s three parks.`,
           `${ODOR_BRIEFING.inWindow} of them (${odorShare}%) came in the ${ODOR_BRIEFING.window} irrigation window, and complaints track irrigation hours closely.`,
           `Evening winds carry the smell into ${HOMES_EXPOSED} homes in Al Barsha 2.`,
         ],

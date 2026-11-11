@@ -54,14 +54,17 @@ const ASSET_FITS: Record<string, Fit> = {
   'dm-odor-week': { cols: 2, min: 2, max: 4, rows: 2 },
   'dm-h2s': { cols: 2, min: 2, max: 4, rows: 2 },
   'dm-utilisation': { cols: 4, min: 3, max: 4, rows: 2 },
+  'dm-odor-posts': { cols: 2, min: 2, max: 3, rows: 2 },
+  'dm-seat-gap': { cols: 2, min: 2, max: 3, rows: 2 },
+  'dm-creek-sewer': { cols: 2, min: 1, max: 3, rows: 1 },
+  'dm-quoz-changes': { cols: 4, min: 3, max: 5, rows: 1 },
 }
 
 /**
- * A roomy board's cell is wide enough for the small charts, so they pair up a cell each (the donut and
- * pie without their legends, the week's complaints beside the H₂S line). Apps take a square cell each too,
- * thumbnail on top, except JVC's, thumbnail-left across the row. The rest
- * run the board's width one row tall, so three cards down the first column still fit the edge peek above
- * the composer.
+ * A roomy board's cell is wide enough for the small charts, so they pair up a cell each (the donut
+ * without its legend, the week's complaints beside the H₂S line, the odor posts beside the Creek Harbour
+ * gauge). The rest run the board's width one row tall, the complaint-types donut with its legend, so three
+ * cards down the first column still fit the edge peek above the composer.
  */
 const ROOMY_SMALL: Fit = { cols: 1, min: 1, max: 2, rows: 1 }
 const ROOMY_APP: Fit = { cols: 1, min: 1, max: 1, rows: 1 }
@@ -70,11 +73,12 @@ const ROOMY_FITS: Record<string, Fit> = {
   'dm-odor-complaints': ROOMY_SMALL,
   'dm-jvc-sewer': ROOMY_SMALL,
   'dm-plan-alignment': ROOMY_SMALL,
-  'dm-complaint-types': ROOMY_SMALL,
+  'dm-complaint-types': ROOMY_WIDE,
   'dm-odor-week': ROOMY_SMALL,
   'dm-h2s': ROOMY_SMALL,
   'dm-utilisation': { cols: 2, min: 2, max: 2, rows: 2 },
-  'dm-jvc-app': ROOMY_WIDE,
+  'dm-odor-posts': ROOMY_SMALL,
+  'dm-creek-sewer': ROOMY_SMALL,
 }
 
 const APP_LAYOUTS: Record<string, AppLayout> = {

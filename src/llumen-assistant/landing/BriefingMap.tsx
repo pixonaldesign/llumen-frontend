@@ -1,6 +1,6 @@
 /**
  * Briefing backdrop: each finding's night Dubai scene (its towers lit, sales heat and roof labels),
- * slowly orbiting and flying to each map stop's place. Dragging, rotating or pinching pauses the orbit.
+ * slowly orbiting and flying to each map stop's place. It is a backdrop: it takes no pointer, wheel or touch.
  */
 import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
@@ -20,7 +20,6 @@ import styles from './BriefingLanding.module.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
 const ORBIT_DEG_PER_S = 2.2
-const RESUME_AFTER_MS = 2600
 const FLY_MS = 2800
 const SHRINK_MS = 700
 const GROW_DELAY_MS = 1300
@@ -183,6 +182,7 @@ export function BriefingMap({
       maxPitch: MAX_PITCH,
       antialias: true,
       attributionControl: false,
+      interactive: false,
     })
     map.setPadding(heldRef.current?.padding ?? cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null))
     if (heldRef.current) holdUntilRef.current = Number.POSITIVE_INFINITY
@@ -260,29 +260,6 @@ export function BriefingMap({
       tweenRef.current = window.requestAnimationFrame(grow)
     })
 
-    const hold = (ms: number) => {
-      holdUntilRef.current = Math.max(holdUntilRef.current, performance.now() + ms)
-    }
-    let pressed = false
-    const onPress = () => {
-      pressed = true
-      holdUntilRef.current = Number.POSITIVE_INFINITY
-    }
-    const onRelease = () => {
-      if (!pressed) return
-      pressed = false
-      if (enterRef.current || heldRef.current) return
-      holdUntilRef.current = 0
-      hold(RESUME_AFTER_MS)
-    }
-    const canvas = map.getCanvasContainer()
-    canvas.addEventListener('pointerdown', onPress)
-    window.addEventListener('pointerup', onRelease)
-    window.addEventListener('pointercancel', onRelease)
-    map.on('move', (event) => {
-      if (event.originalEvent) hold(RESUME_AFTER_MS)
-    })
-
     let frame = 0
     let last = performance.now()
     const orbit = (now: number) => {
@@ -298,9 +275,6 @@ export function BriefingMap({
     return () => {
       window.cancelAnimationFrame(frame)
       window.cancelAnimationFrame(tweenRef.current)
-      canvas.removeEventListener('pointerdown', onPress)
-      window.removeEventListener('pointerup', onRelease)
-      window.removeEventListener('pointercancel', onRelease)
       observer.disconnect()
       onSamplerRef.current?.(null)
       labelsByMap.get(map)?.clear()

@@ -136,6 +136,12 @@ export type EstateCard = CardBase &
 /** A what-if state of a page: its own map and cards (which repeat the page's scenario control). */
 export type EstateScenario = { id: string; scene: EstateMapScene; cards: EstateCard[]; layers?: MapDataLayer[] }
 
+/** A filter the viewer can change: a menu of options, the first picked until another is. */
+export type EstatePicker = { id: string; icon: 'time' | 'park'; options: { id: string; label: string }[] }
+
+/** A page as its picks show it; the same picks give the same objects. */
+export type EstatePageView = { camera: EstateCamera; scene: EstateMapScene; cards: EstateCard[]; layers: MapDataLayer[] }
+
 export type EstatePage = {
   id: string
   title: string
@@ -144,6 +150,9 @@ export type EstatePage = {
   camera: EstateCamera
   scene: EstateMapScene
   filters: string[]
+  /** Shown after `filters`; `view` answers their picks, by picker id. */
+  pickers?: EstatePicker[]
+  view?: (picks: Readonly<Record<string, string>>) => EstatePageView
   cards: EstateCard[]
   layers: MapDataLayer[]
   /** Sidebar columns the page opens with; 2 when unset. */

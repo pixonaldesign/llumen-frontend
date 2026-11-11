@@ -239,6 +239,51 @@
   transition: opacity 480ms ease 360ms;
 }
 
+/*
+ * The introduction (BriefingIntro) over the zoomed-out map: the finding, its scrims and the arrows fade,
+ * and My Board leaves by the right edge. Entering, the finding rises in as the map lands on it, then the
+ * board slides back in (INTRO_ENTER_MS).
+ */
+.root[data-intro] .stage .dockLayer,
+.root[data-intro] .scrim,
+.root[data-intro] .fadeBlur,
+.root[data-intro] .edgeArrow {
+  transition:
+    opacity 420ms ease,
+    translate 420ms ease;
+}
+
+.root[data-intro='shown'] .stage .dockLayer,
+.root[data-intro='shown'] .scrim,
+.root[data-intro='shown'] .fadeBlur,
+.root[data-intro='shown'] .edgeArrow {
+  opacity: 0;
+}
+
+.root[data-intro='shown'] .stage .dockLayer {
+  translate: 0 28px;
+}
+
+.root[data-intro='shown'] .assetPeek,
+.root[data-intro='shown'] .peekFade {
+  translate: calc(var(--side-peek, 96px) + 48px) 0;
+  transition: translate 640ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.root[data-intro='entering'] .stage .dockLayer,
+.root[data-intro='entering'] .scrim,
+.root[data-intro='entering'] .fadeBlur,
+.root[data-intro='entering'] .edgeArrow {
+  transition:
+    opacity 900ms ease 1500ms,
+    translate 1100ms cubic-bezier(0.16, 1, 0.3, 1) 1500ms;
+}
+
+.root[data-intro='entering'] .assetPeek,
+.root[data-intro='entering'] .peekFade {
+  transition: translate 1100ms cubic-bezier(0.16, 1, 0.3, 1) 2100ms;
+}
+
 .findingMain,
 .findingCopy {
   display: flex;

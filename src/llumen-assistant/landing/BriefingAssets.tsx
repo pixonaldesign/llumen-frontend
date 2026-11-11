@@ -210,7 +210,8 @@ function AssetVisual({
     case 'pie':
       return <Ring slices={asset.slices} pie legend={legend} showTip={showTip} />
     case 'kpi': {
-      const last = asset.spark.length - 1
+      const points = spark ? asset.spark : undefined
+      const last = (points?.length ?? 0) - 1
       return (
         <>
           <p className={`${styles.value} ${styles.kpiValue}`}>
@@ -218,14 +219,14 @@ function AssetVisual({
             <CountUp value={asset.value} play={play} delay={delay} />
             {asset.suffix}
           </p>
-          <p className={`${styles.caption}${spark ? '' : ` ${styles.captionFoot}`}`}>{asset.caption}</p>
-          {spark ? (
+          <p className={`${styles.caption}${points ? '' : ` ${styles.captionFoot}`}`}>{asset.caption}</p>
+          {points ? (
             <Sparkline
-              points={asset.spark}
+              points={points}
               showTip={showTip}
               describe={(i) => ({
                 label: i === last ? 'This week' : `${last - i} wk ago`,
-                value: `${asset.prefix ?? ''}${asset.spark[i].toLocaleString('en-US')}${asset.suffix ?? ''}`,
+                value: `${asset.prefix ?? ''}${points[i].toLocaleString('en-US')}${asset.suffix ?? ''}`,
               })}
             />
           ) : null}

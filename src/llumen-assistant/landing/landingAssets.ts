@@ -5,6 +5,8 @@ export const landingAssets = {
   logoMark: `${b}/llumen-logo.png`,
   /** Dubai Municipality's logo, in white, for the top bar beside the Llumen mark. */
   dmLogo: `${b}/dm-logo.png`,
+  /** The DM Mind event mark, teal and orange on transparent, for the introduction. */
+  dmMindLogo: `${b}/dm-mind-logo.png`,
   wordmark: `${b}/llumen-wordmark.svg`,
   userBtn: `${b}/user-btn.png`,
   slideMap: `${b}/slide-map.png`,

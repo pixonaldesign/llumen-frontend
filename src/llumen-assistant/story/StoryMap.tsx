@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { MapControls, type InteractiveMapHandle } from '../InteractiveMap'
+import { ESTATE_MAP_STYLE, coverSand } from '../realEstate/estateMapLayers'
 import { DEMO_COLUMNS, DEMO_JUNCTIONS } from './storyDemoMapData'
 import {
   hexToRgb,
@@ -1126,6 +1127,7 @@ export function StoryMap({
     }
 
     map.on('load', () => {
+      if (appliedStyleRef.current === ESTATE_MAP_STYLE) coverSand(map)
       mountStoryLayers(map, frameRef.current)
       mountAnnotationLayers(map, frameRef.current.lift)
       syncDemoLayers(map, layersRef.current, layerOpacityRef.current)
@@ -1525,6 +1527,7 @@ export function StoryMap({
     appliedStyleRef.current = styleUrl
     setReady(false)
     map.once('style.load', () => {
+      if (styleUrl === ESTATE_MAP_STYLE) coverSand(map)
       mountStoryLayers(map, frameRef.current)
       mountAnnotationLayers(map, frameRef.current.lift)
       syncDemoLayers(map, layersRef.current, layerOpacityRef.current)

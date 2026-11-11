@@ -6,12 +6,17 @@
 import mapboxgl from 'mapbox-gl'
 import type { LngLat } from './estateGeo'
 
-/** Where the wind blows: `bearing` is where it blows toward, clockwise from north. */
+/**
+ * Where the wind blows: `bearing` is where it blows toward, clockwise from north. With `flows`, several
+ * winds share the field instead: each holds its own drifting stretch, weighed by `weight`, and they turn
+ * into each other between, falling calm where they meet head on.
+ */
 export type EstateWind = {
   center: LngLat
   /** Half the side of the square the trails fill. */
   radiusKm: number
   bearing: number
+  flows?: { toward: number; weight: number }[]
   color: string
   group: string
 }
@@ -36,11 +41,65 @@ const smooth = (t: number) => {
   return x * x * (3 - 2 * x)
 }
 
-/** The field's direction at `x`, `y` km from the centre, `t` s in: the mean bearing with a slow sway. */
-function heading(bearing: number, x: number, y: number, t: number) {
+/** A slow pattern across the field, 0 to 1, drifting with time: the flows split it into bands. */
+const pattern = (x: number, y: number, t: number) =>
+  0.5 + 0.25 * Math.sin(2.2 * x + 1 * y + 0.06 * t) + 0.25 * Math.sin(-1.2 * x + 2.6 * y + 2.1 - 0.05 * t)
+/** How far either side of a band's edge one flow turns into the next. */
+const BLEND = 0.04
+/** The slowest a calm, where flows meet head on, lets the trails drift. */
+const CALM = 0.3
+
+const bandEdges = new WeakMap<EstateWind, number[]>()
+
+/** Where each flow's band ends on the pattern, so that each holds its weight's share of the field. */
+function edgesOf(wind: EstateWind, flows: NonNullable<EstateWind['flows']>) {
+  let edges = bandEdges.get(wind)
+  if (!edges) {
+    const side = 41
+    const values: number[] = []
+    for (let i = 0; i < side; i += 1)
+      for (let j = 0; j < side; j += 1)
+        values.push(pattern(wind.radiusKm * ((2 * i) / (side - 1) - 1), wind.radiusKm * ((2 * j) / (side - 1) - 1), 0))
+    values.sort((a, b) => a - b)
+    const total = flows.reduce((sum, flow) => sum + flow.weight, 0)
+    let share = 0
+    edges = flows.slice(0, -1).map((flow) => {
+      share += flow.weight / total
+      return values[Math.round(share * (values.length - 1))]
+    })
+    bandEdges.set(wind, edges)
+  }
+  return edges
+}
+
+/**
+ * The field at `x`, `y` km from the centre, `t` s in: its direction, with a slow sway, and how fast it
+ * blows there (1 inside a flow's band, slower where two meet).
+ */
+function flowAt(wind: EstateWind, x: number, y: number, t: number): [angle: number, pace: number] {
+  let bearing = wind.bearing
+  let pace = 1
+  const flows = wind.flows
+  if (flows?.length) {
+    const edges = edgesOf(wind, flows)
+    const at = pattern(x, y, t)
+    let east = 0
+    let north = 0
+    let total = 0
+    flows.forEach((flow, index) => {
+      const from = index > 0 ? smooth((at - edges[index - 1] + BLEND) / (2 * BLEND)) : 1
+      const to = index < edges.length ? 1 - smooth((at - edges[index] + BLEND) / (2 * BLEND)) : 1
+      const weight = from * to
+      east += weight * Math.sin(rad(flow.toward))
+      north += weight * Math.cos(rad(flow.toward))
+      total += weight
+    })
+    bearing = (Math.atan2(east, north) * 180) / Math.PI
+    pace = total > 0 ? Math.max(CALM, Math.hypot(east, north) / total) : CALM
+  }
   const sway =
     Math.sin(0.9 * x + 0.32 * t) * Math.cos(0.7 * y - 0.18 * t) * 0.7 + Math.sin(1.6 * y + 0.5 * x + 0.24 * t) * 0.3
-  return rad(bearing + SWAY_DEG * sway)
+  return [rad(bearing + SWAY_DEG * sway), pace]
 }
 
 function speed(x: number, y: number, t: number) {
@@ -233,8 +292,8 @@ export class WindField implements mapboxgl.CustomLayerInterface {
       this.trails[base + point * 2] = x
       this.trails[base + point * 2 + 1] = y
       if (!wind) continue
-      const angle = heading(wind.bearing, x, y, this.clock)
-      const step = speed(x, y, this.clock) * SAMPLE_S
+      const [angle, pace] = flowAt(wind, x, y, this.clock)
+      const step = speed(x, y, this.clock) * pace * SAMPLE_S
       x += Math.sin(angle) * step
       y += Math.cos(angle) * step
     }
@@ -261,8 +320,8 @@ export class WindField implements mapboxgl.CustomLayerInterface {
         continue
       }
       if (shed) trails.copyWithin(base, base + 2, base + TRAIL * 2)
-      const angle = heading(wind.bearing, x, y, this.clock)
-      const step = speed(x, y, this.clock) * dt
+      const [angle, pace] = flowAt(wind, x, y, this.clock)
+      const step = speed(x, y, this.clock) * pace * dt
       trails[head] = x + Math.sin(angle) * step
       trails[head + 1] = y + Math.cos(angle) * step
     }

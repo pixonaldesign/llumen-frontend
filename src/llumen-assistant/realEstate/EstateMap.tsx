@@ -186,6 +186,12 @@ export function EstateMap({
 
     map.on('load', () => {
       readyRef.current = true
+      const latest = latestRef.current
+      if (latest.camera !== start.camera && !latest.focus) {
+        const options = { ...cameraOptions(latest.camera, latest.flat), padding: latest.padding }
+        if (reducedMotion()) map.jumpTo(options)
+        else map.flyTo({ ...options, duration: FLY_MS, curve: 1.5, essential: true })
+      }
       onReadyRef.current?.('loaded')
       const announce = () => {
         if (!map.areTilesLoaded()) return

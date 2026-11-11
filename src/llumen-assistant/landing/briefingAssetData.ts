@@ -51,7 +51,8 @@ export type BriefingAsset = AssetBase &
     | { kind: 'vbar'; value: number; unit: string; tipUnit: string; delta: string; bars: AssetBar[] }
     | { kind: 'donut'; centre: string; centreLabel: string; slices: AssetSlice[] }
     | { kind: 'pie'; slices: AssetSlice[] }
-    | { kind: 'kpi'; value: number; prefix?: string; suffix?: string; caption: string; spark: number[] }
+    /** Without `spark`, the value alone, its caption at the foot of the card. */
+    | { kind: 'kpi'; value: number; prefix?: string; suffix?: string; caption: string; spark?: number[] }
     | { kind: 'kpiGrid'; metrics: AssetMetric[] }
     | {
         kind: 'gauge'
@@ -73,23 +74,22 @@ export type BriefingAsset = AssetBase &
   )
 
 /**
- * Findings style 6's Assets grid, by asset and dashboard app id: the apps sit among the charts, and the
- * grid fills densely, so smaller cards backfill the gaps.
+ * Findings style 6's Assets grid, by asset id; the grid fills densely, so smaller cards backfill the gaps.
  */
 export const DEFAULT_BOARD_ORDER: readonly string[] = [
   'dm-reports-today',
   'dm-odor-complaints',
-  'dm-odor-app',
-  'dm-jvc-app',
+  'dm-odor-posts',
+  'dm-seat-gap',
   'dm-jvc-sewer',
-  'dm-creek-app',
+  'dm-creek-sewer',
   'dm-growth-pressure',
   'dm-plan-alignment',
   'dm-complaint-types',
   'dm-odor-week',
   'dm-h2s',
   'dm-utilisation',
-  'dm-quoz-app',
+  'dm-quoz-changes',
 ]
 
 /** Order matters: it fills the bento grid row by row, starting with a row of four small cards. */
@@ -108,28 +108,26 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
   },
   {
     id: 'dm-plan-alignment',
-    kind: 'donut',
-    visualTypeId: 'donut-chart',
+    kind: 'kpi',
+    visualTypeId: 'kpi-card',
     size: 'small',
     category: 'Urban planning',
     title: 'Land use vs the plan',
     accent: '#9673e8',
-    centre: '8 of 20',
-    centreLabel: 'Off plan',
-    slices: [
-      { name: 'Aligned', pct: 60, color: '#45cdb9' },
-      { name: 'Diverging', pct: 25, color: '#ffcf6b' },
-      { name: 'Misaligned', pct: 15, color: '#df3f3f' },
-    ],
+    value: 8,
+    suffix: ' of 20',
+    caption: 'areas off plan',
   },
   {
     id: 'dm-complaint-types',
-    kind: 'pie',
+    kind: 'donut',
     visualTypeId: 'donut-chart',
     size: 'small',
     category: 'Customer service',
     title: 'Municipal complaints by type',
     accent: '#a9b8ff',
+    centre: '24%',
+    centreLabel: 'Odor',
     slices: [
       { name: 'Odor', pct: 24, color: '#f38666' },
       { name: 'Waste', pct: 21, color: '#6a9ef0' },
@@ -239,7 +237,7 @@ export const BOARD_ASSETS: BriefingAsset[] = [
     size: 'small',
     category: 'Water quality',
     title: 'H₂S at tank T-3 outlet',
-    accent: '#ffcf6b',
+    accent: '#6a9ef0',
     value: 420,
     unit: 'µg/L',
     tipUnit: 'µg/L',
@@ -247,6 +245,64 @@ export const BOARD_ASSETS: BriefingAsset[] = [
     labels: ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'],
     points: [110, 140, 180, 220, 270, 350, 420],
     axis: ['May', 'Aug', 'Nov'],
+  },
+  {
+    id: 'dm-odor-posts',
+    kind: 'hbar',
+    visualTypeId: 'horizontal-bar',
+    size: 'medium',
+    category: 'Public health',
+    title: 'Negative odor posts by park, 30 days',
+    accent: '#f38666',
+    unit: 'posts',
+    bars: [
+      { label: 'Pond Park', value: 248, display: '248' },
+      { label: 'Al Barsha 1', value: 101, display: '101' },
+      { label: 'Al Barsha 3', value: 63, display: '63' },
+    ],
+  },
+  {
+    id: 'dm-seat-gap',
+    kind: 'hbar',
+    visualTypeId: 'horizontal-bar',
+    size: 'medium',
+    category: 'Urban planning',
+    title: 'School seats short',
+    accent: '#9673e8',
+    unit: 'seats',
+    bars: [
+      { label: 'JVC', value: 10600, display: '10,600' },
+      { label: 'Arjan', value: 4500, display: '4,500' },
+      { label: 'Motor City', value: 3100, display: '3,100' },
+    ],
+  },
+  {
+    id: 'dm-creek-sewer',
+    kind: 'gauge',
+    visualTypeId: 'gauge-linear',
+    size: 'small',
+    category: 'Infrastructure',
+    title: 'Creek Harbour sewerage capacity used',
+    accent: '#45cdb9',
+    value: 61,
+    caption: 'at peak, room for 15,300 pipeline homes',
+    tips: { fill: 'Used', fillSuffix: ' of capacity', gap: 'Headroom' },
+  },
+  {
+    id: 'dm-quoz-changes',
+    kind: 'line',
+    visualTypeId: 'line-chart',
+    size: 'wide',
+    category: 'Urban planning',
+    title: 'Change-of-use applications, Al Quoz',
+    accent: '#ffcf6b',
+    value: 38,
+    unit: 'in 24 months',
+    tipUnit: 'applications',
+    delta: '+8 last quarter',
+    labels: ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'],
+    points: [2, 5, 9, 13, 18, 24, 30, 38],
+    axis: ['Q1 2025', 'Q1 2026', 'Q4 2026'],
   },
 ]
 

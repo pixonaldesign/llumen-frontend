@@ -38,11 +38,14 @@ import { BriefingAssetBoard } from './BriefingAssetBoard'
 import { AssetCard, BriefingAssetGrid } from './BriefingAssets'
 import { BOARD_ASSETS, DEFAULT_BOARD_ORDER } from './briefingAssetData'
 import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
+import { BriefingIntro } from './BriefingIntro'
 import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
+import { BriefingTour, type TourStep } from './BriefingTour'
 import { BRIEFING_PLACES, type BriefingPlace } from './briefingMapPlaces'
 import { landingAssets } from './landingAssets'
 import { STORY_CAMERA_PADDING } from '../story/StoryMap'
 import { ESTATE_STORIES } from '../realEstate/estateScenario'
+import { EMPTY_SCENE } from '../realEstate/estateMapLayers'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
 import { VoteButton } from './VoteButton'
@@ -69,7 +72,7 @@ type SummaryPart = { text: string; highlight?: boolean }
 /** What is happening now, in two lines at most. */
 const ASSETS_STATEMENT: SummaryPart[] = [
   { text: 'Odor complaints around Al Barsha’s parks rose ' },
-  { text: '64% in 30 days', highlight: true },
+  { text: '18% in 7 days', highlight: true },
   { text: ', and JVC, Arjan and Motor City are outgrowing their facilities and infrastructure.' },
 ]
 
@@ -143,6 +146,45 @@ const STORY_OPENINGS: Record<string, { place: BriefingPlace; enter: BriefingMapE
   ]),
 )
 const DM_LOGO = { src: landingAssets.dmLogo, alt: 'Dubai Municipality' }
+
+/** The introduction's map: Dubai from the Palm to Downtown, no scene on it. */
+const INTRO_PLACE: BriefingPlace = {
+  ...BRIEFING_PLACES.barsha,
+  camera: { center: [55.235, 25.14], zoom: 10.5, pitch: 48, bearing: -18 },
+  scene: EMPTY_SCENE,
+}
+/** The modal waits for the map's first frames on load, and for it to start zooming out on the way back. */
+const INTRO_FIRST_DELAY_MS = 350
+const INTRO_RETURN_DELAY_MS = 900
+/**
+ * Entering the platform: the modal dissolves as the map flies into the first finding, which fades in as
+ * the flight lands (1500ms in, BriefingLanding.module.css), then My Board slides in from the right (2100ms).
+ * The tour starts once both have settled.
+ */
+const INTRO_ENTER_MS = 3400
+/** Past the introduction once this load: a page remounted on the way back from a story skips it. */
+const introSeen = { current: false }
+
+const TOUR_STEPS: readonly TourStep[] = [
+  {
+    target: '[data-tour="view"]',
+    title: 'View the full story',
+    body: 'Open the story behind a finding: the map, the evidence and how the problem developed, step by step.',
+    side: 'bottom',
+  },
+  {
+    target: '[data-tour="simulate"]',
+    title: 'Simulate recommended actions',
+    body: 'Try the actions DM Mind recommends and see their effect on the map before committing crews or budget.',
+    side: 'bottom',
+  },
+  {
+    target: '[data-tour="board"]',
+    title: 'My Board',
+    body: 'Your live KPIs and charts across Dubai. Open it to arrange, add and explore the numbers that matter to you.',
+    side: 'left',
+  },
+]
 const FIRST_STORY = FEED_STOPS.find((stop) => stop.storyId)?.storyId ?? Object.keys(ESTATE_STORIES)[0]
 /** BriefingMap's flight (2200ms) plus slack. */
 const STORY_FLIGHT_FALLBACK_MS = 3200
@@ -296,6 +338,14 @@ export function BriefingLanding({
     onViewChange?.(next)
   }
   const [active, setActive] = useState(0)
+  /** The introduction over the zoomed-out map; `entering` while it hands over to the findings. */
+  const [intro, setIntro] = useState<'shown' | 'entering' | null>(() =>
+    introSeen.current || storyReturn || storyRelease ? null : 'shown',
+  )
+  /** Remounts the introduction each time the logo brings it back, so it opens on its first view. */
+  const [introEpoch, setIntroEpoch] = useState(0)
+  const [touring, setTouring] = useState(false)
+  const introTimerRef = useRef(0)
   /** The story whose opening view the map is flying to; the page's chrome steps aside meanwhile. */
   const [storyFlight, setStoryFlight] = useState<string | null>(null)
   if (storyRelease && storyFlight) setStoryFlight(null)
@@ -400,12 +450,13 @@ export function BriefingLanding({
   const opening = storyFlight !== null && !storyRelease && !returnHeld
   const mapPlace = useMemo(() => {
     if (opening || returnHeld) return storyOpening.place
+    if (intro === 'shown') return INTRO_PLACE
     for (let index = active; index >= 0; index -= 1) {
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
     return BRIEFING_PLACES.barsha
-  }, [active, opening, returnHeld, storyOpening])
+  }, [active, opening, returnHeld, storyOpening, intro])
 
   const enterStory = useCallback(
     (storyId: string) => {
@@ -816,8 +867,31 @@ export function BriefingLanding({
     return () => window.removeEventListener('keydown', onKey)
   }, [floating, sideAssets, addingAsset, flyAssets])
 
+  const enterPlatform = useCallback(() => {
+    introSeen.current = true
+    setIntro('entering')
+    window.clearTimeout(introTimerRef.current)
+    introTimerRef.current = window.setTimeout(() => {
+      setIntro(null)
+      setTouring(true)
+    }, INTRO_ENTER_MS)
+  }, [])
+
+  /** The logo: the page steps aside and the map zooms out to Dubai under the introduction. */
+  const showIntro = useCallback(() => {
+    if (intro === 'shown') return
+    window.clearTimeout(introTimerRef.current)
+    setTouring(false)
+    if (sideAssets) flyAssets(false)
+    setIntroEpoch((epoch) => epoch + 1)
+    setIntro('shown')
+  }, [intro, sideAssets, flyAssets])
+
+  useEffect(() => () => window.clearTimeout(introTimerRef.current), [])
+
+  const introShown = intro === 'shown'
   const blurred = !stop.place || !!findingToast
-  const mapBlurred = blurred && !opening && !returnHeld
+  const mapBlurred = blurred && !opening && !returnHeld && !introShown
   const storyState = storyRelease
     ? 'back'
     : storyFlight
@@ -835,6 +909,7 @@ export function BriefingLanding({
       data-findings-style={findingsStyle}
       data-alert={alert}
       data-story={storyState}
+      data-intro={intro ?? undefined}
       inert={opening || returnHeld}
       style={{
         ['--feed-pad' as string]: reserveComposer ? '106px' : '48px',
@@ -855,6 +930,8 @@ export function BriefingLanding({
           view={view}
           onViewChange={changeView}
           partnerLogo={DM_LOGO}
+          logoOnly
+          onLogoClick={showIntro}
         />
       </header>
       {inStudio ? (
@@ -876,7 +953,7 @@ export function BriefingLanding({
           settlePage()
         }}
       >
-        <div className={styles.stage} data-away={away} inert={away}>
+        <div className={styles.stage} data-away={away} inert={away || introShown}>
           <div ref={mapRef} className={`${styles.map}${mapBlurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
             <BriefingMap
               place={mapPlace}
@@ -899,7 +976,7 @@ export function BriefingLanding({
           <ConversationalBubble
             stop={stop}
             findingsStyle={findingsStyle}
-            frozen={assetsOpen || away || storyState !== undefined}
+            frozen={assetsOpen || away || storyState !== undefined || introShown}
             vote={votes[stop.id] ?? null}
             onVote={(value) =>
               setVotes((prev) => ({
@@ -924,7 +1001,9 @@ export function BriefingLanding({
                   !findingToast &&
                   !opening &&
                   !storyRelease &&
-                  !storyReturn
+                  !storyReturn &&
+                  !intro &&
+                  !touring
                 }
                 onSelect={setActive}
                 onStep={stepFeed}
@@ -985,7 +1064,8 @@ export function BriefingLanding({
               className={styles.assetPeek}
               data-away={away}
               data-landed={away && landed}
-              inert={away}
+              data-tour="board"
+              inert={away || introShown}
               role="button"
               tabIndex={0}
               aria-label="Open Assets and Apps"
@@ -1015,6 +1095,15 @@ export function BriefingLanding({
           </div>
         )}
       </div>
+      {intro !== null || introEpoch > 0 ? (
+        <BriefingIntro
+          key={introEpoch}
+          shown={introShown}
+          delay={introEpoch > 0 ? INTRO_RETURN_DELAY_MS : INTRO_FIRST_DELAY_MS}
+          onEnter={enterPlatform}
+        />
+      ) : null}
+      {touring ? <BriefingTour rootRef={rootRef} steps={TOUR_STEPS} onClose={() => setTouring(false)} /> : null}
     </div>
   )
 }
@@ -1688,6 +1777,7 @@ function FindingBody({
         <button
           type="button"
           className={`${home.actionBtn} ${styles.tellMoreBtn}`}
+          data-tour="simulate"
           aria-label="Simulate recommended actions"
           aria-disabled={stop.tellMore === false || undefined}
           onClick={() => {
@@ -1706,7 +1796,12 @@ function FindingBody({
           </span>
         </button>
         {stop.storyId ? (
-          <button type="button" className={styles.storyBtn} onClick={() => onOpenStory?.(stop.storyId!)}>
+          <button
+            type="button"
+            className={styles.storyBtn}
+            data-tour="view"
+            onClick={() => onOpenStory?.(stop.storyId!)}
+          >
             <ArrowUpRight size={20} weight="regular" aria-hidden />
             View
           </button>

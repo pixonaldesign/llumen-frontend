@@ -19,6 +19,8 @@ import {
   STATUS,
   type EstateAskView,
   type EstateCamera,
+  type EstatePageView,
+  type EstatePicker,
   type EstatePlace,
   type EstateStory,
   type Horizon,
@@ -41,28 +43,85 @@ const PARK_GREEN = PALETTE.categorical[3]
 const PIPE_BLUE = PALETTE.blue[3]
 const WIND_WHITE = 'rgba(236, 240, 255, 0.86)'
 
-/** `complaints`: CRM odor complaints in 30 days; `posts`: negative posts in 30 days by the smell they describe, most first. */
-type Park = { id: string; name: string; ring: LngLat[]; complaints: number; posts: [string, number][] }
+/* —— The periods the first page can show, the last 7 days first —— */
+
+type Period = {
+  id: string
+  label: string
+  /** As in "in 7 days" and "prior 7 days". */
+  span: string
+  days: number
+  /** Points on the mentions chart, each an equal stretch of the period. */
+  steps: number
+  complaints: number
+  posts: number
+  postsBefore: number
+}
+
+const PERIODS: Period[] = [
+  { id: '7d', label: 'Last 7 days', span: '7 days', days: 7, steps: 7, complaints: 20, posts: 96, postsBefore: 84 },
+  { id: '14d', label: 'Last 2 weeks', span: '2 weeks', days: 14, steps: 14, complaints: 37, posts: 180, postsBefore: 150 },
+  { id: '30d', label: 'Last month', span: '30 days', days: 30, steps: 10, complaints: 72, posts: 370, postsBefore: 300 },
+  { id: '90d', label: 'Last 3 months', span: '3 months', days: 91, steps: 13, complaints: 118, posts: 690, postsBefore: 500 },
+  { id: '180d', label: 'Last 6 months', span: '6 months', days: 182, steps: 26, complaints: 151, posts: 900, postsBefore: 610 },
+]
+const WEEK = PERIODS[0]
+
+/** `total` shared out by `weights` in whole numbers that still add up to it. */
+function apportion(total: number, weights: number[]): number[] {
+  const sum = weights.reduce((a, b) => a + b, 0)
+  const exact = weights.map((weight) => (total * weight) / sum)
+  const whole = exact.map(Math.floor)
+  let left = total - whole.reduce((a, b) => a + b, 0)
+  for (const index of exact.map((_, i) => i).sort((a, b) => exact[b] - whole[b] - (exact[a] - whole[a]))) {
+    if (left <= 0) break
+    whole[index] += 1
+    left -= 1
+  }
+  return whole
+}
+
+/**
+ * `complaints` and `posts`: the park's weight in each period's CRM complaints and negative posts (its
+ * counts over the last 7 days); `smells` splits its posts by the smell they describe, most first.
+ */
+type Park = {
+  id: string
+  name: string
+  short: string
+  ring: LngLat[]
+  zoom: number
+  complaints: number
+  posts: number
+  smells: [string, number][]
+  correlation: number
+}
 
 const PARKS: Park[] = [
   {
     id: 'pond',
     name: 'Al Barsha Pond Park',
+    short: 'Pond Park',
+    zoom: 16.4,
     ring: [
       [55.199522, 25.103499],
       [55.206078, 25.103558],
       [55.206111, 25.100308],
       [55.19962, 25.100234],
     ],
-    complaints: 71,
-    posts: [
-      ['Rotten-egg odor', 148],
-      ['Stale water smell', 100],
+    complaints: 12,
+    posts: 57,
+    smells: [
+      ['Rotten-egg odor', 34],
+      ['Stale water smell', 23],
     ],
+    correlation: 0.86,
   },
   {
     id: 'barsha1',
     name: 'Al Barsha 1 Park',
+    short: 'Al Barsha 1',
+    zoom: 16.9,
     ring: [
       [55.185678, 25.106517],
       [55.18649, 25.10678],
@@ -76,60 +135,91 @@ const PARKS: Park[] = [
       [55.186606, 25.106182],
       [55.185817, 25.105867],
     ],
-    complaints: 29,
-    posts: [
-      ['Rotten-egg odor', 58],
-      ['Damp, musty smell', 43],
+    complaints: 5,
+    posts: 24,
+    smells: [
+      ['Rotten-egg odor', 14],
+      ['Damp, musty smell', 10],
     ],
+    correlation: 0.74,
   },
   {
     id: 'barsha3',
     name: 'Al Barsha 3 Park',
+    short: 'Al Barsha 3',
+    zoom: 17.4,
     ring: [
       [55.207278, 25.083094],
       [55.207792, 25.083094],
       [55.207792, 25.082089],
       [55.207278, 25.082089],
     ],
-    complaints: 18,
-    posts: [
-      ['Sewage-like smell', 41],
-      ['Stale water smell', 22],
+    complaints: 3,
+    posts: 15,
+    smells: [
+      ['Sewage-like smell', 10],
+      ['Stale water smell', 5],
     ],
+    correlation: 0.69,
   },
 ]
 
 const POND = PARKS[0]
 
-const complaintsAt = (park: Park) => park.complaints
+type Tally = { complaints: number; posts: number; smells: [string, number][] }
+
+const tallies = new Map<Period, Map<Park, Tally>>()
+
+/** A park's share of the period's complaints and posts. */
+function tally(park: Park, period: Period): Tally {
+  let byPark = tallies.get(period)
+  if (!byPark) {
+    const complaints = apportion(period.complaints, PARKS.map((item) => item.complaints))
+    const posts = apportion(period.posts, PARKS.map((item) => item.posts))
+    byPark = new Map(
+      PARKS.map((item, index) => {
+        const smells = apportion(posts[index], item.smells.map(([, weight]) => weight))
+        return [item, { complaints: complaints[index], posts: posts[index], smells: item.smells.map(([smell], i) => [smell, smells[i]]) }]
+      }),
+    )
+    tallies.set(period, byPark)
+  }
+  return byPark.get(park)!
+}
+
+const complaintsAt = (park: Park, period = WEEK) => tally(park, period).complaints
 
 /** Each smell the negative posts describe and how often, then the CRM complaints. */
-const parkRows = (park: Park): [string, string][] => [
-  ...park.posts.map(([type, count]): [string, string] => [type, `${count} posts`]),
-  ['CRM complaints', `${complaintsAt(park)} in 30 days`],
+const parkRows = (park: Park, period = WEEK): [string, string][] => [
+  ...tally(park, period).smells.map(([type, count]): [string, string] => [type, `${count} posts`]),
+  ['CRM complaints', `${complaintsAt(park, period)} in ${period.span}`],
 ]
 
-const parkAreas = (): EstateArea[] =>
-  PARKS.map((park) => ({
-    id: `park-${park.id}`,
-    ring: park.ring,
-    color: PARK_GREEN,
-    opacity: 0.2,
-    outlineWidth: 3,
-    group: 'parks',
-    tip: { title: park.name, rows: parkRows(park) },
-  }))
+/** With `picked`, the other parks fade back. */
+const parkAreas = (period = WEEK, picked?: Park): EstateArea[] =>
+  PARKS.map((park) => {
+    const faded = picked !== undefined && park !== picked
+    return {
+      id: `park-${park.id}`,
+      ring: park.ring,
+      color: PARK_GREEN,
+      opacity: faded ? 0.08 : 0.2,
+      outlineWidth: faded ? 1.5 : 3,
+      group: 'parks',
+      tip: { title: park.name, rows: parkRows(park, period) },
+    }
+  })
 
-/** Each park's complaints, held open over it; `pinned: false` leaves a roof label with the total. */
-const parkLabels = (pinned = true): EstateLabel[] =>
+/** Each park's complaints, held open over it; `pinned: false` leaves a roof label with the total, as do the parks besides `picked`. */
+const parkLabels = (pinned = true, period = WEEK, picked?: Park): EstateLabel[] =>
   PARKS.map((park) => ({
     id: `label-${park.id}`,
     at: centroid(park.ring),
     heightM: 6,
     color: PARK_GREEN,
     title: park.name,
-    text: `${complaintsAt(park)} odor complaints · 30 days`,
-    rows: pinned ? parkRows(park) : undefined,
+    text: `${complaintsAt(park, period)} odor complaints · ${period.span}`,
+    rows: pinned && (!picked || park === picked) ? parkRows(park, period) : undefined,
     group: 'parks',
   }))
 
@@ -303,6 +393,47 @@ function windField(bearing = WIND_TOWARD): EstateWind {
   return { center: toward(PUMP_HOUSE, WIND_TOWARD, 0.35), radiusKm: 2.2, bearing, color: WIND_WHITE, group: 'wind' }
 }
 
+/** Al Barsha's winds: `toward` is where each blows, clockwise from north. */
+const WINDS = {
+  sea: { name: 'Sea breeze', from: 'WNW', toward: WIND_TOWARD },
+  shamal: { name: 'Shamal', from: 'NNW', toward: 160 },
+  land: { name: 'Night land breeze', from: 'SE', toward: 300 },
+  south: { name: 'Summer southerly', from: 'S', toward: 10 },
+} as const
+
+type WindId = keyof typeof WINDS
+
+/** Each period's winds by share of its hours: the evening sea breeze leads the last week, while longer periods reach back into summer. */
+const WIND_MIX: Record<string, Partial<Record<WindId, number>>> = {
+  '7d': { sea: 55, shamal: 25, land: 20 },
+  '14d': { sea: 48, shamal: 30, land: 22 },
+  '30d': { sea: 42, shamal: 32, land: 26 },
+  '90d': { sea: 36, land: 26, shamal: 24, south: 14 },
+  '180d': { sea: 30, land: 28, south: 24, shamal: 18 },
+}
+
+const WIND_CENTER: LngLat = [55.197, 25.097]
+const windMix = (period: Period) => Object.entries(WIND_MIX[period.id]) as [WindId, number][]
+const windsByPeriod = new Map<Period, EstateWind>()
+
+/** The period's winds over all three parks, each holding its own stretch of the field. */
+function periodWind(period: Period): EstateWind {
+  let wind = windsByPeriod.get(period)
+  if (!wind) {
+    const mix = windMix(period)
+    wind = {
+      center: WIND_CENTER,
+      radiusKm: 2.4,
+      bearing: WINDS[mix[0][0]].toward,
+      flows: mix.map(([id, share]) => ({ toward: WINDS[id].toward, weight: share })),
+      color: WIND_WHITE,
+      group: 'wind',
+    }
+    windsByPeriod.set(period, wind)
+  }
+  return wind
+}
+
 const HOMES = BARSHA_HOMES.map((ring, index) => ({ index, ring, at: centroid(ring) }))
 
 type HomeState = { color: string; status: string }
@@ -349,15 +480,32 @@ function homesAfter(plume: Bands, benefit = HORIZON_COLOR.immediate) {
 
 /* —— What residents report —— */
 
-/** Where negative posts about odor were made: densest downwind of the pump house and around the three parks. */
-const POST_SITES: { at: LngLat; weight: number }[] = [
+/**
+ * Where negative posts about odor were made: downwind of the pump house (`plume`) and around each park,
+ * by its index in PARKS.
+ */
+const POST_SITES: { at: LngLat; weight: number; near: 'plume' | number }[] = [
   ...scatter(toward(PUMP_HOUSE, WIND_TOWARD, 0.45), 70, 0.55, 3)
     .filter((at) => insidePlume(BASELINE.low, at))
-    .map((at, index) => ({ at, weight: 0.45 + 0.5 * hash(index, 4) })),
-  ...scatter(centroid(POND.ring), 30, 0.35, 5).map((at, index) => ({ at, weight: 0.35 + 0.4 * hash(index, 6) })),
-  ...scatter(centroid(PARKS[1].ring), 22, 0.3, 7).map((at) => ({ at, weight: 0.45 })),
-  ...scatter(centroid(PARKS[2].ring), 16, 0.25, 9).map((at) => ({ at, weight: 0.4 })),
+    .map((at, index) => ({ at, weight: 0.45 + 0.5 * hash(index, 4), near: 'plume' as const })),
+  ...scatter(centroid(POND.ring), 30, 0.35, 5).map((at, index) => ({ at, weight: 0.35 + 0.4 * hash(index, 6), near: 0 })),
+  ...scatter(centroid(PARKS[1].ring), 22, 0.3, 7).map((at) => ({ at, weight: 0.45, near: 1 })),
+  ...scatter(centroid(PARKS[2].ring), 16, 0.25, 9).map((at) => ({ at, weight: 0.4, near: 2 })),
 ]
+
+/**
+ * How each period's posts spread: the last week's crowd downwind of the pump house, while longer periods
+ * reach further around all three parks. `plume` and `parks` weigh the sites, `reachM` is how far a post
+ * counts toward the blocks around it, blocks under `cutoff` of the busiest are left clear, and `heat`
+ * under 1 shades more blocks hot, as more posts come in.
+ */
+const POST_SPREAD: Record<string, { plume: number; parks: [number, number, number]; reachM: number; cutoff: number; heat: number }> = {
+  '7d': { plume: 1, parks: [1, 1, 1], reachM: 230, cutoff: 0.04, heat: 1 },
+  '14d': { plume: 0.85, parks: [1, 1.2, 1.2], reachM: 250, cutoff: 0.032, heat: 0.92 },
+  '30d': { plume: 0.7, parks: [1, 1.5, 1.6], reachM: 280, cutoff: 0.024, heat: 0.84 },
+  '90d': { plume: 0.5, parks: [1, 1.9, 2.1], reachM: 320, cutoff: 0.016, heat: 0.76 },
+  '180d': { plume: 0.35, parks: [1, 2.3, 2.6], reachM: 360, cutoff: 0.01, heat: 0.68 },
+}
 
 /** Fewest posts to most: dim purple up to bright purple, then orange, each block one shade. */
 const POST_SHADES: { color: string; opacity: number }[] = [
@@ -371,43 +519,56 @@ const POST_SHADES: { color: string; opacity: number }[] = [
 const POSTS_RAMP = [PALETTE.purple[0], PALETTE.purple[3], PALETTE.categorical[5]]
 
 const M_PER_DEG = { lng: 100780, lat: 110574 }
-const POST_REACH_M = 230
 
-/** The posts made in and near a block, weighed by how far from it they were made. */
-const postsNear = (at: LngLat) =>
+/** The posts made in and near a point, weighed by how far from it they were made. */
+const postsNear = (at: LngLat, spread: (typeof POST_SPREAD)[string]) =>
   POST_SITES.reduce((sum, site) => {
     const dx = (site.at[0] - at[0]) * M_PER_DEG.lng
     const dy = (site.at[1] - at[1]) * M_PER_DEG.lat
-    return sum + site.weight * Math.exp(-(dx * dx + dy * dy) / (2 * POST_REACH_M ** 2))
+    const weight = site.weight * (site.near === 'plume' ? spread.plume : spread.parks[site.near])
+    return sum + weight * Math.exp(-(dx * dx + dy * dy) / (2 * spread.reachM ** 2))
   }, 0)
 
+const BLOCK_SAMPLES = BARSHA_BLOCKS.map((ring) => ({ ring, samples: [centroid(ring), ...ring] }))
+
+const socialByPeriod = new Map<Period, EstateArea[]>()
+
 /**
- * Each street block with posts, shaded by how it ranks among them so every park's blocks span the shades;
- * blocks with almost none are left clear.
+ * The period's posts by street block, each shaded by how it ranks among the blocks with posts so every
+ * park's blocks span the shades; blocks with almost none are left clear.
  */
-const SOCIAL_BLOCKS: EstateArea[] = (() => {
-  const blocks = BARSHA_BLOCKS.map((ring) => {
-    const samples = [centroid(ring), ...ring]
-    return { ring, density: samples.reduce((sum, at) => sum + postsNear(at), 0) / samples.length }
-  })
-  const peak = Math.max(...blocks.map((block) => block.density))
-  const shown = blocks.filter((block) => block.density >= 0.04 * peak)
-  const ranked = shown.map((block) => block.density).sort((a, b) => a - b)
-  const sum = ranked.reduce((total, density) => total + density, 0)
-  const posts = PARKS.reduce((total, park) => total + park.posts.reduce((count, [, n]) => count + n, 0), 0)
-  return shown.map((block, index) => {
-    const rank = ranked.indexOf(block.density) / ranked.length
-    const shade = POST_SHADES[Math.floor(rank * POST_SHADES.length)]
-    return {
-      id: `posts-${index}`,
-      ring: block.ring,
-      ...shade,
-      outlineWidth: 1,
-      group: 'social',
-      tip: { title: 'Street block', rows: [['Negative posts', `${Math.max(1, Math.round((posts * block.density) / sum))} in 30 days`]] },
-    }
-  })
-})()
+function socialBlocks(period = WEEK): EstateArea[] {
+  let areas = socialByPeriod.get(period)
+  if (!areas) {
+    const spread = POST_SPREAD[period.id]
+    const blocks = BLOCK_SAMPLES.map(({ ring, samples }) => ({
+      ring,
+      density: samples.reduce((sum, at) => sum + postsNear(at, spread), 0) / samples.length,
+    }))
+    const peak = Math.max(...blocks.map((block) => block.density))
+    const shown = blocks.filter((block) => block.density >= spread.cutoff * peak)
+    const ranked = shown.map((block) => block.density).sort((a, b) => a - b)
+    const sum = ranked.reduce((total, density) => total + density, 0)
+    areas = shown.map((block, index) => {
+      const rank = (ranked.indexOf(block.density) / ranked.length) ** spread.heat
+      return {
+        id: `posts-${index}`,
+        ring: block.ring,
+        ...POST_SHADES[Math.min(POST_SHADES.length - 1, Math.floor(rank * POST_SHADES.length))],
+        outlineWidth: 1,
+        group: 'social',
+        tip: {
+          title: 'Street block',
+          rows: [['Negative posts', `${Math.max(1, Math.round((period.posts * block.density) / sum))} in ${period.span}`]],
+        },
+      }
+    })
+    socialByPeriod.set(period, areas)
+  }
+  return areas
+}
+
+const SOCIAL_BLOCKS = socialBlocks()
 
 /* —— Sampling —— */
 
@@ -612,14 +773,25 @@ function actionTips(horizon: Horizon): EstateLabel[] {
 
 /* —— Map Data —— */
 
+const parksLayer = (period = WEEK): MapDataLayer => ({
+  group: 'parks',
+  title: `Parks · CRM odor complaints, ${period.span}`,
+  mark: 'area',
+  color: { items: PARKS.map((park) => ({ label: park.name, color: PARK_GREEN, count: `${complaintsAt(park, period)}` })) },
+})
+
+const windLayer = (period: Period): MapDataLayer => ({
+  group: 'wind',
+  title: `Wind, ${period.label.toLowerCase()}`,
+  mark: 'line',
+  color: {
+    items: windMix(period).map(([id, share]) => ({ label: `${WINDS[id].name} · from ${WINDS[id].from}`, color: WIND_WHITE, count: `${share}%` })),
+  },
+})
+
 const LAYER = {
   social: { group: 'social', title: 'Social media hotspots', mark: 'area', color: { ramp: POSTS_RAMP, low: 'Fewer posts', high: 'More' } },
-  parks: {
-    group: 'parks',
-    title: 'Parks · CRM odor complaints, 30 days',
-    mark: 'area',
-    color: { items: PARKS.map((park) => ({ label: park.name, color: PARK_GREEN, count: `${complaintsAt(park)}` })) },
-  },
+  parks: parksLayer(),
   zones: {
     group: 'zones',
     title: 'Irrigation zones',
@@ -706,11 +878,6 @@ const ZONES_UNDER_SUSPICION = (): EstateArea[] => [
   zoneArea('z5', LEVEL.ok, 'Normal'),
 ]
 
-const DETECTED_SCENE = scene({
-  areas: [...SOCIAL_BLOCKS, ...parkAreas()],
-  labels: parkLabels(),
-})
-
 const NETWORK_SCENE = scene({
   towers: Object.values(TANKS).map((tank) =>
     tankTower(PIPE_BLUE, `Feeds ${tank.park}`, [['Supplies', tank.park], ['Filled from', 'TSE supply main']], tank),
@@ -774,27 +941,184 @@ const CAMERA = {
   quality: { center: [55.2032, 25.1017], zoom: 15.75, pitch: 60, bearing: 24 },
 } satisfies Record<string, EstateCamera>
 
-const FILTERS = ['Al Barsha', 'Last 30 days', 'Odor']
+const FILTERS = ['Al Barsha', 'Last 7 days', 'Odor']
 
 /** The assumed irrigation window across the three parks. */
 const IRRIGATION_WINDOW = '5–8 PM'
 
-/** CRM odor complaints in 30 days by time of day; the 5–8 PM band is the irrigation window. */
-const BY_TIME_OF_DAY: { label: string; value: number; irrigating?: boolean }[] = [
-  { label: '6–9 AM', value: 8 },
-  { label: '9–12 PM', value: 6 },
-  { label: '12–3 PM', value: 10 },
-  { label: '3–5 PM', value: 12 },
-  { label: '5–8 PM', value: 64, irrigating: true },
-  { label: '8–11 PM', value: 14 },
-  { label: '11–6 AM', value: 4 },
+/** How CRM odor complaints fall across the day; the 5–8 PM band is the irrigation window. */
+const TIME_OF_DAY: { label: string; weight: number; irrigating?: boolean }[] = [
+  { label: '6–9 AM', weight: 8 },
+  { label: '9–12 PM', weight: 6 },
+  { label: '12–3 PM', weight: 10 },
+  { label: '3–5 PM', weight: 12 },
+  { label: '5–8 PM', weight: 64, irrigating: true },
+  { label: '8–11 PM', weight: 14 },
+  { label: '11–6 AM', weight: 4 },
 ]
-const IN_WINDOW = BY_TIME_OF_DAY.filter((band) => band.irrigating).reduce((sum, band) => sum + band.value, 0)
-const ALL_COMPLAINTS = BY_TIME_OF_DAY.reduce((sum, band) => sum + band.value, 0)
 
-/** Negative odor mentions and CRM complaints a week, oldest first: 412 mentions in the last four weeks, up 64%. */
-export const MENTIONS_BY_WEEK = [38, 41, 44, 47, 52, 58, 66, 75, 88, 97, 106, 121]
-export const CRM_BY_WEEK = [4, 5, 4, 6, 7, 8, 9, 11, 13, 14, 17, 20]
+const byTimeOfDay = (complaints: number) => {
+  const counts = apportion(complaints, TIME_OF_DAY.map((band) => band.weight))
+  return TIME_OF_DAY.map((band, index) => ({ ...band, value: counts[index] }))
+}
+
+const inWindow = (complaints: number) =>
+  byTimeOfDay(complaints)
+    .filter((band) => band.irrigating)
+    .reduce((sum, band) => sum + band.value, 0)
+
+const ALL_COMPLAINTS = WEEK.complaints
+const IN_WINDOW = inWindow(ALL_COMPLAINTS)
+
+const LAST_DAY = Date.UTC(2026, 10, 10)
+const DAY_MS = 86_400_000
+const DAY_LABEL = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+
+/** Up to seven dates, evenly across the period and ending on its last day. */
+const periodDates = (period: Period) => {
+  const count = Math.min(7, period.steps)
+  return Array.from({ length: count }, (_, index) =>
+    DAY_LABEL.format(LAST_DAY - Math.round((1 - index / (count - 1)) * (period.days - 1)) * DAY_MS),
+  )
+}
+
+/** `total` over `steps` points, rising by `rise` from the first to the last; unrounded, so small totals keep the shape. */
+const trend = (total: number, steps: number, rise: number, wobble: number) => {
+  const weights = Array.from({ length: steps }, (_, index) => 1 + (rise * index) / (steps - 1) + wobble * Math.sin(index * 1.9))
+  const sum = weights.reduce((a, b) => a + b, 0)
+  return weights.map((weight) => (total * weight) / sum)
+}
+
+/** Four even steps from 0 to just above `max`. */
+function yAxis(max: number) {
+  const raw = (max * 1.1) / 4
+  const magnitude = 10 ** Math.floor(Math.log10(raw))
+  const step = [1, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => m * magnitude).find((value) => value >= raw)!
+  return { yMax: step * 4, yLabels: [4, 3, 2, 1, 0].map((k) => `${Number((k * step).toFixed(2))}`) }
+}
+
+const FADED_BAR = 'rgba(255, 255, 255, 0.24)'
+const ALL_PARKS = 'all'
+
+const timingCamera = (park?: Park): EstateCamera => {
+  if (!park) return CAMERA.timing
+  return { center: centroid(park.ring), zoom: park.zoom, pitch: CAMERA.timing.pitch, bearing: CAMERA.timing.bearing }
+}
+
+/** The first page's cards for a period, over all three parks or one. */
+function timingCards(period: Period, park?: Park) {
+  const complaints = park ? complaintsAt(park, period) : period.complaints
+  const share = park ? tally(park, period).posts / period.posts : 1
+  const posts = park ? tally(park, period).posts : period.posts
+  const postsBefore = Math.round(period.postsBefore * share)
+  const bands = byTimeOfDay(complaints)
+  const peak = inWindow(complaints)
+  const recent = trend(posts, period.steps, 0.6, 0.04)
+  const before = trend(postsBefore, period.steps, 0.05, 0.06)
+  return toned([
+    {
+      id: 'summary',
+      kind: 'summary',
+      title: 'Executive summary',
+      parts: [
+        'Odor complaints at ',
+        { em: [park ? park.name : 'all three parks'] },
+        ' peak during the ',
+        { em: [`${IRRIGATION_WINDOW} irrigation window`] },
+        ': ',
+        { em: [`${peak} of ${complaints} complaints`] },
+        ` in ${period.span}. `,
+        { em: ['Irrigation'] },
+        ' may be linked to the odor.',
+      ],
+    },
+    { id: 'complaints', kind: 'cell', title: 'CRM odor complaints', value: `${complaints}`, note: `in ${period.span}, ${park ? `at ${park.short}` : 'at 3 parks'}` },
+    { id: 'window', kind: 'cell', title: 'During irrigation', value: `${Math.round((peak / complaints) * 100)}%`, note: `of complaints, ${IRRIGATION_WINDOW}, 3 hours of 24` },
+    park
+      ? { id: 'affected', kind: 'cell', title: 'Share of complaints', value: `${Math.round((complaints / period.complaints) * 100)}%`, note: 'of the 3 affected parks' }
+      : { id: 'affected', kind: 'cell', title: 'Affected parks', value: '3', note: 'of 7 in Al Barsha' },
+    {
+      id: 'mentions',
+      kind: 'line',
+      title: 'Negative social mentions',
+      height: 2,
+      kpi: { value: `${posts}`, unit: `in ${period.span}, +${Math.round((posts / postsBefore - 1) * 100)}% vs prior ${period.span}` },
+      x: periodDates(period),
+      ...yAxis(Math.max(...recent, ...before)),
+      series: [
+        { name: `Last ${period.span}`, points: recent },
+        { name: `Prior ${period.span}`, points: before, dashed: true },
+      ],
+    },
+    {
+      id: 'time-of-day',
+      kind: 'vbars',
+      title: 'Odor complaints by time of day',
+      kpi: { value: `${peak}`, unit: `in the ${IRRIGATION_WINDOW} irrigation window` },
+      bars: bands.map((band) => ({ label: band.label, value: band.value, color: band.irrigating ? undefined : FADED_BAR })),
+    },
+    {
+      id: 'timing',
+      kind: 'line',
+      title: 'Complaints vs irrigation hours',
+      height: 2,
+      kpi: { value: (park?.correlation ?? 0.81).toFixed(2), unit: `correlation, ${period.label.toLowerCase()}` },
+      x: ['12 PM', '3 PM', '6 PM', '9 PM', '12 AM'],
+      yLabels: ['100', '80', '60', '40', '20', '0'],
+      yMax: 100,
+      series: [
+        { name: 'Irrigation flow', points: [0, 0, 0, 0, 0, 34, 90, 94, 82, 12, 0, 0, 0] },
+        { name: 'Odor complaints', points: [9, 7, 8, 11, 13, 24, 62, 88, 84, 42, 18, 9, 6] },
+      ],
+    },
+    {
+      id: 'parks',
+      kind: 'hbars',
+      title: `CRM complaints by park, ${period.span}`,
+      bars: PARKS.map((item) => ({
+        label: item.name,
+        value: complaintsAt(item, period),
+        display: `${complaintsAt(item, period)}`,
+        color: park && item !== park ? FADED_BAR : undefined,
+      })),
+    },
+  ])
+}
+
+const timingViews = new Map<string, EstatePageView>()
+
+/** The first page for its picks: the period's figures, and with a park picked, that park close up. */
+function timingView(picks: Readonly<Record<string, string>>): EstatePageView {
+  const period = PERIODS.find((item) => item.id === picks.period) ?? WEEK
+  const park = PARKS.find((item) => item.id === picks.park)
+  const key = `${period.id}:${park?.id ?? ALL_PARKS}`
+  let view = timingViews.get(key)
+  if (!view) {
+    view = {
+      camera: timingCamera(park),
+      scene: scene({
+        areas: [...socialBlocks(period), ...parkAreas(period, park)],
+        labels: parkLabels(true, period, park),
+        wind: periodWind(period),
+      }),
+      cards: timingCards(period, park),
+      layers: [LAYER.social, parksLayer(period), windLayer(period)],
+    }
+    timingViews.set(key, view)
+  }
+  return view
+}
+
+const TIMING = timingView({})
+
+const TIMING_PICKERS: EstatePicker[] = [
+  { id: 'period', icon: 'time', options: PERIODS.map((period) => ({ id: period.id, label: period.label })) },
+  {
+    id: 'park',
+    icon: 'park',
+    options: [{ id: ALL_PARKS, label: 'All parks' }, ...PARKS.map((park) => ({ id: park.id, label: park.name }))],
+  },
+]
 
 export const ODOR_STORY: EstateStory = {
   id: 'dm-odor',
@@ -808,55 +1132,10 @@ export const ODOR_STORY: EstateStory = {
       title: 'Temporal Correlation Identified',
       finding:
         'Analysis of irrigation schedules and CRM complaint timestamps across the three Al Barsha parks indicates that odor complaints consistently peak during or shortly after scheduled irrigation hours, suggesting a potential link between irrigation activities and unpleasant odors.',
-      camera: CAMERA.timing,
-      scene: DETECTED_SCENE,
-      filters: FILTERS,
-      layers: [LAYER.social, LAYER.parks],
-      cards: toned([
-        {
-          id: 'summary',
-          kind: 'summary',
-          title: 'Summary',
-          parts: [
-            'Odor complaints at all three parks peak during the ',
-            { em: [`${IRRIGATION_WINDOW} irrigation window`] },
-            ': ',
-            { em: [`${IN_WINDOW} of ${ALL_COMPLAINTS} complaints`] },
-            ' in 30 days, falling away within an hour of the sprinklers stopping. Irrigation may be linked to the odor.',
-          ],
-        },
-        { id: 'complaints', kind: 'cell', title: 'CRM odor complaints', value: `${ALL_COMPLAINTS}`, note: 'in 30 days, at 3 parks' },
-        { id: 'window', kind: 'cell', title: 'During irrigation', value: `${Math.round((IN_WINDOW / ALL_COMPLAINTS) * 100)}%`, note: `of complaints, ${IRRIGATION_WINDOW}, 3 hours of 24` },
-        { id: 'affected', kind: 'cell', title: 'Affected parks', value: '3', note: 'of 7 in Al Barsha' },
-        { id: 'mentions', kind: 'cell', title: 'Negative social mentions', value: '412', note: '+64% vs prior 30 days' },
-        {
-          id: 'time-of-day',
-          kind: 'vbars',
-          title: 'Odor complaints by time of day',
-          kpi: { value: `${IN_WINDOW}`, unit: `in the ${IRRIGATION_WINDOW} irrigation window` },
-          bars: BY_TIME_OF_DAY.map((band) => ({ label: band.label, value: band.value, color: band.irrigating ? undefined : 'rgba(255, 255, 255, 0.24)' })),
-        },
-        {
-          id: 'timing',
-          kind: 'line',
-          title: 'Complaints vs irrigation hours',
-          height: 2,
-          kpi: { value: '0.81', unit: 'correlation, last 30 days' },
-          x: ['12 PM', '3 PM', '6 PM', '9 PM', '12 AM'],
-          yLabels: ['100', '80', '60', '40', '20', '0'],
-          yMax: 100,
-          series: [
-            { name: 'Irrigation flow', points: [0, 0, 0, 0, 0, 34, 90, 94, 82, 12, 0, 0, 0] },
-            { name: 'Odor complaints', points: [9, 7, 8, 11, 13, 24, 62, 88, 84, 42, 18, 9, 6] },
-          ],
-        },
-        {
-          id: 'parks',
-          kind: 'hbars',
-          title: 'CRM complaints by park, 30 days',
-          bars: PARKS.map((park) => ({ label: park.name, value: complaintsAt(park), display: `${complaintsAt(park)}` })),
-        },
-      ]),
+      ...TIMING,
+      filters: ['Al Barsha'],
+      pickers: TIMING_PICKERS,
+      view: timingView,
     },
     {
       id: 'dm-odor-network',

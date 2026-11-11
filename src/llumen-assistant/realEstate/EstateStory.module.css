@@ -108,6 +108,42 @@
   white-space: nowrap;
 }
 
+/* A filter pill that opens its options. */
+.pickerPill {
+  margin: 0;
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.pickerPill:hover,
+.pickerPill[aria-expanded='true'] {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(54, 64, 64, 0.6);
+}
+
+.pickerPill:focus-visible {
+  outline: 2px solid #70aeff;
+  outline-offset: 2px;
+}
+
+.pickerCaret {
+  transition: rotate 200ms ease;
+}
+
+.pickerPill[aria-expanded='true'] .pickerCaret {
+  rotate: 180deg;
+}
+
+.pickerMenu {
+  width: auto;
+  min-width: 200px;
+}
+
 /*
  * Dive: a tower's details take the right of the story, wider than the edit sheet, while the cards slide
  * off to the left one after another and Map Data to the right; the toolbar moves to the middle of the

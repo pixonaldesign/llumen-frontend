@@ -25,6 +25,26 @@
   min-width: 0;
 }
 
+.leadCentred {
+  grid-column: 2;
+  justify-self: center;
+}
+
+.leadButton {
+  margin: 0;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.leadButton:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
 .logoRule {
   flex-shrink: 0;
   width: 1px;

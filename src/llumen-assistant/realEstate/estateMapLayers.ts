@@ -137,7 +137,36 @@ function heatColor(ramp: string[]): mapboxgl.ExpressionSpecification {
 }
 
 /** Paints the basemap's two building states in the towers' colours, and adds the heat under the buildings. */
+const SAND_COVER = 'estate-sand-cover'
+/** The night land colour as it renders; sand otherwise stands out pale yellow across the desert edge. */
+const SAND_COLOR = '#181d2b'
+
+/**
+ * Standard draws sand in a fixed pale yellow no config reaches, so a fill of the same polygons covers it
+ * in the bottom slot: over the land and landuse, under roads and buildings. Reads Standard's own tiles.
+ */
+export function coverSand(map: mapboxgl.Map) {
+  if (map.getLayer(SAND_COVER)) return
+  if (!map.getSource(SAND_COVER)) {
+    map.addSource(SAND_COVER, {
+      type: 'vector',
+      url: 'mapbox://mapbox.mapbox-bathymetry-v2,mapbox.mapbox-streets-v8-lite,mapbox.mapbox-terrain-v3,mapbox.mapbox-models-v1',
+    })
+  }
+  map.addLayer({
+    id: SAND_COVER,
+    type: 'fill',
+    source: SAND_COVER,
+    'source-layer': 'landuse',
+    slot: 'bottom',
+    minzoom: 8,
+    filter: ['==', ['get', 'class'], 'sand'],
+    paint: { 'fill-color': SAND_COLOR, 'fill-emissive-strength': 1 },
+  })
+}
+
 export function mountEstateLayers(map: mapboxgl.Map, prefix: string, towers: EstateTower[]) {
+  coverSand(map)
   for (const tower of towers) {
     if (painted(tower)) continue
     map.setConfigProperty(BASEMAP, tower.state === 'select' ? 'colorBuildingSelect' : 'colorBuildingHighlight', tower.color)

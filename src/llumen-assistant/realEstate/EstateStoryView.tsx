@@ -45,6 +45,7 @@ import {
   SquaresFour,
   Toolbox,
   Trash,
+  Tree,
 } from '@phosphor-icons/react'
 import { llumenAssets } from '../assets'
 import { ShareModal } from '../ShareModal'
@@ -77,7 +78,7 @@ import { cardClass, cardFootprint } from './estateCardLayout'
 import { ESTATE_MAP_STYLE } from './estateMapLayers'
 import { ESTATE_BUILDINGS, isBuildingId } from './estateBuildings'
 import { ESTATE_STORIES } from './estateScenario'
-import type { BuildingId, EstateCard, EstatePage, MapDataLayer } from './estateTypes'
+import type { BuildingId, EstateCard, EstatePage, EstatePicker, MapDataLayer } from './estateTypes'
 import cardCss from './EstateCards.module.css'
 import css from './EstateStory.module.css'
 
@@ -100,6 +101,7 @@ type Props = {
 }
 
 const NO_GROUPS: ReadonlySet<string> = new Set()
+const NO_PICKS: Readonly<Record<string, string>> = {}
 
 /** The Assets picker's categories for each chart kind. */
 const CHART_CATEGORY: Record<EstateCard['kind'], string> = {
@@ -181,6 +183,11 @@ function filterIcon(id: string) {
   if (id === 'loc') return <MapPin size={18} weight="regular" aria-hidden />
   if (id === 'year') return <CalendarBlank size={18} weight="regular" aria-hidden />
   return <SquaresFour size={18} weight="regular" aria-hidden />
+}
+
+function pickerIcon(icon: EstatePicker['icon']) {
+  if (icon === 'time') return <CalendarBlank size={18} weight="regular" aria-hidden />
+  return <Tree size={18} weight="regular" aria-hidden />
 }
 
 function makePresentationSettings(): StoryPresentationSettings {
@@ -346,6 +353,8 @@ export function EstateStoryView({
   const [columnsBySlide, setColumnsBySlide] = useState<Record<string, SidebarColumns>>({})
   /** The what-if each Policy Lab slide shows. */
   const [scenarioBySlide, setScenarioBySlide] = useState<Record<string, string>>({})
+  /** Each slide's picked option, by picker id. */
+  const [picksBySlide, setPicksBySlide] = useState<Record<string, Record<string, string>>>({})
   const [removedCards, setRemovedCards] = useState<Record<string, string[]>>({})
   const [addedCards, setAddedCards] = useState<Record<string, EstateCard[]>>({})
   const [layerOrder, setLayerOrder] = useState<Record<string, string[]>>({})
@@ -372,6 +381,7 @@ export function EstateStoryView({
   const [layoutMenu, setLayoutMenu] = useState<MenuAt | null>(null)
   const [cardMenu, setCardMenu] = useState<(MenuAt & { card: EstateCard }) | null>(null)
   const [filterMenu, setFilterMenu] = useState<(MenuAt & { filter: StoryFilter }) | null>(null)
+  const [pickerMenu, setPickerMenu] = useState<(MenuAt & { picker: EstatePicker }) | null>(null)
   const [layerMenu, setLayerMenu] = useState<(MenuAt & { group: string; title: string }) | null>(null)
 
   const mapRef = useRef<EstateMapHandle>(null)
@@ -381,14 +391,17 @@ export function EstateStoryView({
   const slide = slides[activeSlideIndex]
   const page = pageOf[slide.id]
   const filters = filtersBySlide[slide.id] ?? []
-  const columns = columnsBySlide[slide.id] ?? page.columns ?? 2
+  const columns = columnsBySlide[slide.id] ?? page.columns ?? 3
   const editing = storyMode === 'edit'
   const removed = removedCards[slide.id]
   const added = addedCards[slide.id]
   const scenario = page.scenarios?.find((item) => item.id === scenarioBySlide[slide.id]) ?? page.scenarios?.[0]
-  const pageCards = scenario?.cards ?? page.cards
-  const pageScene = scenario?.scene ?? page.scene
-  const pageLayers = scenario?.layers ?? page.layers
+  const picks = picksBySlide[slide.id] ?? NO_PICKS
+  const pageView = page.view?.(picks)
+  const pageCamera = pageView?.camera ?? page.camera
+  const pageCards = scenario?.cards ?? pageView?.cards ?? page.cards
+  const pageScene = scenario?.scene ?? pageView?.scene ?? page.scene
+  const pageLayers = scenario?.layers ?? pageView?.layers ?? page.layers
   const hasBuildings = pageScene.towers.some((tower) => isBuildingId(tower.id))
   const cards = useMemo(
     () => [...pageCards, ...(added ?? [])].filter((card) => !removed?.includes(card.id)),
@@ -468,6 +481,7 @@ export function EstateStoryView({
   useDismiss(Boolean(layoutMenu), '#estate-layout-menu, [data-layout-menu-trigger]', () => setLayoutMenu(null))
   useDismiss(Boolean(cardMenu), '#estate-card-menu, [data-card-menu-trigger]', () => setCardMenu(null))
   useDismiss(Boolean(filterMenu), '#estate-filter-menu, [data-filter-menu-trigger]', () => setFilterMenu(null))
+  useDismiss(Boolean(pickerMenu), '#estate-picker-menu, [data-picker-trigger]', () => setPickerMenu(null))
   useDismiss(Boolean(layerMenu), '#estate-layer-menu, [data-layer-menu-trigger]', () => setLayerMenu(null))
 
   const closeMenus = () => {
@@ -476,6 +490,7 @@ export function EstateStoryView({
     setLayoutMenu(null)
     setCardMenu(null)
     setFilterMenu(null)
+    setPickerMenu(null)
     setLayerMenu(null)
   }
 
@@ -837,6 +852,29 @@ export function EstateStoryView({
           ) : null}
         </span>
       ))}
+      {page.pickers?.map((picker) => {
+        const open = pickerMenu?.picker.id === picker.id
+        const option = picker.options.find((item) => item.id === picks[picker.id]) ?? picker.options[0]
+        return (
+          <button
+            key={picker.id}
+            type="button"
+            className={`${styles.filterPill} ${css.pickerPill}`}
+            data-picker-trigger
+            aria-haspopup="menu"
+            aria-expanded={open}
+            onClick={(event) => {
+              if (open) return setPickerMenu(null)
+              closeMenus()
+              setPickerMenu({ picker, ...menuAt(event.currentTarget, picker.options.length * 40 + 8) })
+            }}
+          >
+            {pickerIcon(picker.icon)}
+            <span>{option.label}</span>
+            <CaretDown className={`${styles.filterCaret} ${css.pickerCaret}`} size={14} weight="bold" aria-hidden />
+          </button>
+        )
+      })}
     </div>
   )
 
@@ -1035,8 +1073,10 @@ export function EstateStoryView({
   const askButton = onAsk ? (
     <button
       type="button"
-      className={styles.askBtn}
+      className={`${styles.askBtn} ${styles.demoLocked}`}
       aria-label={agentOpen ? 'Close the assistant' : 'Ask about this story'}
+      aria-disabled
+      tabIndex={-1}
       aria-expanded={agentOpen}
       onClick={(event) => {
         if (agentOpen) {
@@ -1070,9 +1110,11 @@ export function EstateStoryView({
       </button>
       <button
         type="button"
-        className={`${styles.modeBtn}${editing ? ` ${styles.modeBtnActive}` : ''}`}
+        className={`${styles.modeBtn} ${styles.demoLocked}${editing ? ` ${styles.modeBtnActive}` : ''}`}
         aria-label="Edit mode"
         aria-pressed={editing}
+        aria-disabled
+        tabIndex={-1}
         onClick={() => {
           setStoryMode('edit')
           setInfo(null)
@@ -1121,7 +1163,7 @@ export function EstateStoryView({
     >
       <div className={styles.mapPane}>
         <EstateMap
-          camera={page.camera}
+          camera={pageCamera}
           scene={pageScene}
           hidden={mapHiddenGroups}
           padding={STORY_CAMERA_PADDING}
@@ -1605,6 +1647,38 @@ export function EstateStoryView({
                 <Trash size={16} weight="regular" aria-hidden />
                 Remove
               </button>
+            </div>,
+            document.body,
+          )
+        : null}
+      {pickerMenu
+        ? createPortal(
+            <div
+              id="estate-picker-menu"
+              className={`${styles.storyMenu} ${styles.layoutMenu} ${css.pickerMenu}`}
+              role="menu"
+              style={{ top: pickerMenu.top, left: pickerMenu.left }}
+            >
+              {pickerMenu.picker.options.map((option) => {
+                const checked = (picks[pickerMenu.picker.id] ?? pickerMenu.picker.options[0].id) === option.id
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={checked}
+                    className={checked ? styles.storyMenuSelected : undefined}
+                    onClick={() => {
+                      const id = pickerMenu.picker.id
+                      setPicksBySlide((current) => ({ ...current, [slide.id]: { ...current[slide.id], [id]: option.id } }))
+                      setPickerMenu(null)
+                    }}
+                  >
+                    {option.label}
+                    {checked ? <Check className={styles.storyMenuCheck} size={14} weight="bold" aria-hidden /> : null}
+                  </button>
+                )
+              })}
             </div>,
             document.body,
           )

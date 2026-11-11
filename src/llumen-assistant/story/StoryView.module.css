@@ -2693,6 +2693,12 @@ button.summaryStatus:disabled {
   background: rgba(40, 40, 40, 0.7);
 }
 
+/* Shown as in the product, but inert in the demo. */
+.demoLocked {
+  pointer-events: none;
+  cursor: default;
+}
+
 .unreadDot {
   position: absolute;
   top: -3px;
