@@ -61,6 +61,8 @@ export type MapDataLayer = {
   mark: LegendMark
   /** Categories by colour, or a low-to-high ramp. */
   color: { items: { label: string; color: string; count?: string }[] } | { ramp: string[]; low?: string; high?: string }
+  /** A layer of one kind: its first item's count and mark sit on the title row, with no rows below. */
+  inline?: boolean
 }
 
 type CardBase = {
@@ -100,15 +102,16 @@ export type EstateCard = CardBase &
         /** Dashed series are references (last year, typical), drawn like the story's "Typical". */
         series: { name: string; points: (number | null)[]; dashed?: boolean; color?: string }[]
       }
-    | { kind: 'vbars'; bars: { label: string; value: number; display?: string; color?: string }[] }
-    | { kind: 'hbars'; bars: { label: string; value: number; display: string; color?: string }[] }
+    /** `dim` sets a bar back, as outside the page's filter, while it stays in for comparison. */
+    | { kind: 'vbars'; bars: { label: string; value: number; display?: string; color?: string; dim?: boolean }[] }
+    | { kind: 'hbars'; bars: { label: string; value: number; display: string; color?: string; dim?: boolean }[] }
     | { kind: 'split'; total: string; unit: string; parts: { name: string; value: number; display: string }[] }
     | {
         kind: 'grouped'
         legend: string[]
         /** One colour per series; the tone's categorical colours when unset. */
         colors?: string[]
-        groups: { label: string; values: number[] }[]
+        groups: { label: string; values: number[]; dim?: boolean }[]
       }
     | { kind: 'donut'; total: string; totalLabel: string; slices: { name: string; value: number; color?: string }[] }
     | {
@@ -136,8 +139,11 @@ export type EstateCard = CardBase &
 /** A what-if state of a page: its own map and cards (which repeat the page's scenario control). */
 export type EstateScenario = { id: string; scene: EstateMapScene; cards: EstateCard[]; layers?: MapDataLayer[] }
 
-/** A filter the viewer can change: a menu of options, the first picked until another is. */
-export type EstatePicker = { id: string; icon: 'time' | 'park'; options: { id: string; label: string }[] }
+/**
+ * A filter the viewer can change: a menu of options, the first picked until another is. A pick holds on
+ * every page with a picker of the same id. `lead` shows it before the page's fixed filters.
+ */
+export type EstatePicker = { id: string; icon: 'time' | 'park' | 'place'; options: { id: string; label: string }[]; lead?: boolean }
 
 /** A page as its picks show it; the same picks give the same objects. */
 export type EstatePageView = { camera: EstateCamera; scene: EstateMapScene; cards: EstateCard[]; layers: MapDataLayer[] }

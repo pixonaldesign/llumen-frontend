@@ -23,6 +23,11 @@
   scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
 }
 
+.inlineMark {
+  font-size: 12px;
+  line-height: 16px;
+}
+
 .mapLayers::-webkit-scrollbar {
   width: var(--lc-scrollbar-size, 4px);
 }

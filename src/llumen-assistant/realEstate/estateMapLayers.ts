@@ -95,6 +95,8 @@ export type EstateMapScene = {
   heatRadiusM: number
   /** Low to high density. */
   heatRamp: string[]
+  /** Heat groups drawn on a heatmap of their own in their own ramp, over the areas, so two populations don't merge into one density. */
+  heatRamps?: Record<string, string[]>
   /** Draws the heat under the areas, so their tints and outlines stay readable, instead of over them. */
   heatUnder?: boolean
   areas?: EstateArea[]
@@ -199,23 +201,28 @@ export function mountEstateLayers(map: mapboxgl.Map, prefix: string, towers: Est
   const id = heatId(prefix)
   if (map.getSource(id)) return
   map.addSource(id, { type: 'geojson', data: EMPTY })
-  const heat = (layerId: string, under: boolean): mapboxgl.HeatmapLayerSpecification => ({
-    id: layerId,
-    type: 'heatmap',
-    source: id,
-    slot: 'middle',
-    filter: under ? ['==', ['get', 'under'], true] : ['!=', ['get', 'under'], true],
-    paint: {
-      'heatmap-weight': ['get', 'weight'],
-      'heatmap-intensity': 1,
-      'heatmap-radius': metersToPixels(['get', 'radius']),
-      'heatmap-opacity': 0.55,
-      'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 1, '#fff'],
-    },
-  })
-  map.addLayer(heat(id, false))
-  map.addLayer(heat(heatUnderId(prefix), true), `${areaId(prefix)}-fill`)
+  map.addLayer(heatLayer(prefix, id, ['all', ['!=', ['get', 'under'], true], ['==', ['get', 'ramp'], '']]))
+  map.addLayer(
+    heatLayer(prefix, heatUnderId(prefix), ['all', ['==', ['get', 'under'], true], ['==', ['get', 'ramp'], '']]),
+    `${areaId(prefix)}-fill`,
+  )
 }
+
+/** A heatmap over the scene's heat source; `filter` picks the points it accumulates. */
+const heatLayer = (prefix: string, layerId: string, filter: mapboxgl.FilterSpecification): mapboxgl.HeatmapLayerSpecification => ({
+  id: layerId,
+  type: 'heatmap',
+  source: heatId(prefix),
+  slot: 'middle',
+  filter,
+  paint: {
+    'heatmap-weight': ['get', 'weight'],
+    'heatmap-intensity': 1,
+    'heatmap-radius': metersToPixels(['get', 'radius']),
+    'heatmap-opacity': 0.55,
+    'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 1, '#fff'],
+  },
+})
 
 /**
  * Zones under the buildings, routes over them, then sites facing the camera on top. Every colour and
@@ -547,17 +554,28 @@ export function drawEstateScene(
   runPulse(map, prefix, pulsing.length > 0)
   const source = map.getSource(heatId(prefix)) as mapboxgl.GeoJSONSource | undefined
   if (!source) return
+  const ramps = scene.heatRamps ?? {}
   source.setData({
     type: 'FeatureCollection',
     features: (grow <= 0 ? [] : scene.heat.filter((point) => !hidden.has(point.group))).map((point) => ({
       type: 'Feature',
-      properties: { weight: point.weight * grow, radius: scene.heatRadiusM, under: scene.heatUnder === true },
+      properties: {
+        weight: point.weight * grow,
+        radius: scene.heatRadiusM,
+        under: scene.heatUnder === true,
+        ramp: point.group in ramps ? point.group : '',
+      },
       geometry: { type: 'Point', coordinates: point.at },
     })),
   })
   const color = heatColor(scene.heatRamp)
   map.setPaintProperty(heatId(prefix), 'heatmap-color', color)
   if (map.getLayer(heatUnderId(prefix))) map.setPaintProperty(heatUnderId(prefix), 'heatmap-color', color)
+  for (const [group, ramp] of Object.entries(ramps)) {
+    const layerId = `${heatId(prefix)}-${group}`
+    if (!map.getLayer(layerId)) map.addLayer(heatLayer(prefix, layerId, ['==', ['get', 'ramp'], group]), heatId(prefix))
+    map.setPaintProperty(layerId, 'heatmap-color', heatColor(ramp))
+  }
 }
 
 function escapeHtml(text: string) {

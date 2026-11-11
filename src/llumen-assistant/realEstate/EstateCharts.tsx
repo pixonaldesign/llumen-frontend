@@ -225,7 +225,7 @@ function VBars({ card }: { card: CardOf<'vbars'> }) {
       {card.kpi ? <Kpi {...card.kpi} /> : null}
       <div className={css.vbars}>
         {card.bars.map((bar) => (
-          <div key={bar.label} className={css.vbar}>
+          <div key={bar.label} className={`${css.vbar}${bar.dim ? ` ${css.dimmed}` : ''}`}>
             <span className={css.vbarValue}>{bar.display ?? formatCount(bar.value)}</span>
             <span className={css.vbarTrack}>
               <span
@@ -249,7 +249,7 @@ function HBars({ card }: { card: CardOf<'hbars'> }) {
       {card.kpi ? <Kpi {...card.kpi} /> : null}
       <div className={css.rows}>
         {card.bars.map((bar) => (
-          <div key={bar.label} className={css.hbar}>
+          <div key={bar.label} className={`${css.hbar}${bar.dim ? ` ${css.dimmed}` : ''}`}>
             <span className={css.hbarLabel}>{bar.label}</span>
             <span className={css.track}>
               <span className={css.fill} style={{ width: `${(bar.value / max) * 100}%`, background: bar.color ?? accent }} />
@@ -297,7 +297,7 @@ function Grouped({ card }: { card: CardOf<'grouped'> }) {
       <Legend items={card.legend.map((name, index) => ({ name, color: colorAt(index) }))} />
       <div className={css.vbars}>
         {card.groups.map((group) => (
-          <div key={group.label} className={css.vbar}>
+          <div key={group.label} className={`${css.vbar}${group.dim ? ` ${css.dimmed}` : ''}`}>
             <span className={css.groupBars}>
               {group.values.map((value, i) => (
                 <span

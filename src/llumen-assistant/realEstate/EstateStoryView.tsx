@@ -176,7 +176,8 @@ function toSlide(page: EstatePage): StorySlide {
 }
 
 function toFilters(page: EstatePage): StoryFilter[] {
-  return page.filters.map((label, index) => ({ id: FILTER_IDS[index] ?? `filter-${index}`, label }))
+  const lead = page.pickers?.filter((picker) => picker.lead).length ?? 0
+  return page.filters.map((label, index) => ({ id: FILTER_IDS[index + lead] ?? `filter-${index}`, label }))
 }
 
 function filterIcon(id: string) {
@@ -187,6 +188,7 @@ function filterIcon(id: string) {
 
 function pickerIcon(icon: EstatePicker['icon']) {
   if (icon === 'time') return <CalendarBlank size={18} weight="regular" aria-hidden />
+  if (icon === 'place') return <MapPin size={18} weight="regular" aria-hidden />
   return <Tree size={18} weight="regular" aria-hidden />
 }
 
@@ -811,6 +813,30 @@ export function EstateStoryView({
     </nav>
   ) : null
 
+  const pickerPill = (picker: EstatePicker) => {
+    const open = pickerMenu?.picker.id === picker.id
+    const option = picker.options.find((item) => item.id === picks[picker.id]) ?? picker.options[0]
+    return (
+      <button
+        key={picker.id}
+        type="button"
+        className={`${styles.filterPill} ${css.pickerPill}`}
+        data-picker-trigger
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={(event) => {
+          if (open) return setPickerMenu(null)
+          closeMenus()
+          setPickerMenu({ picker, ...menuAt(event.currentTarget, picker.options.length * 40 + 8) })
+        }}
+      >
+        {pickerIcon(picker.icon)}
+        <span>{option.label}</span>
+        <CaretDown className={`${styles.filterCaret} ${css.pickerCaret}`} size={14} weight="bold" aria-hidden />
+      </button>
+    )
+  }
+
   const filterRow = (
     <div className={styles.filters}>
       {editing ? (
@@ -827,6 +853,7 @@ export function EstateStoryView({
           {filters.length > 0 ? <span className={styles.filterDivider} aria-hidden /> : null}
         </>
       ) : null}
+      {page.pickers?.filter((picker) => picker.lead).map(pickerPill)}
       {filters.map((filter) => (
         <span key={filter.id} className={`${styles.filterPill}${editing ? ` ${styles.filterPillEditing}` : ''}`}>
           {filterIcon(filter.id)}
@@ -853,29 +880,7 @@ export function EstateStoryView({
           ) : null}
         </span>
       ))}
-      {page.pickers?.map((picker) => {
-        const open = pickerMenu?.picker.id === picker.id
-        const option = picker.options.find((item) => item.id === picks[picker.id]) ?? picker.options[0]
-        return (
-          <button
-            key={picker.id}
-            type="button"
-            className={`${styles.filterPill} ${css.pickerPill}`}
-            data-picker-trigger
-            aria-haspopup="menu"
-            aria-expanded={open}
-            onClick={(event) => {
-              if (open) return setPickerMenu(null)
-              closeMenus()
-              setPickerMenu({ picker, ...menuAt(event.currentTarget, picker.options.length * 40 + 8) })
-            }}
-          >
-            {pickerIcon(picker.icon)}
-            <span>{option.label}</span>
-            <CaretDown className={`${styles.filterCaret} ${css.pickerCaret}`} size={14} weight="bold" aria-hidden />
-          </button>
-        )
-      })}
+      {page.pickers?.filter((picker) => !picker.lead).map(pickerPill)}
     </div>
   )
 
@@ -928,6 +933,7 @@ export function EstateStoryView({
           const title = layerTitle(layer)
           const off = hidden.has(layer.group)
           const menuOpen = layerMenu?.group === layer.group
+          const inlineItem = layer.inline && 'items' in layer.color ? layer.color.items[0] : undefined
           return (
             <section
               key={layer.group}
@@ -952,6 +958,12 @@ export function EstateStoryView({
                   </button>
                 ) : null}
                 <p className={styles.mapLayerTitle}>{title}</p>
+                {inlineItem ? (
+                  <span className={`${styles.legendMark} ${css.inlineMark}`}>
+                    {inlineItem.count ? <span className={styles.legendCount}>{inlineItem.count}</span> : null}
+                    <EstateLegendGlyph mark={layer.mark} color={inlineItem.color} />
+                  </span>
+                ) : null}
                 <span className={styles.legendActions}>
                   <button
                     type="button"
@@ -981,7 +993,7 @@ export function EstateStoryView({
                   ) : null}
                 </span>
               </div>
-              {layerAttrs(layer)}
+              {inlineItem ? null : layerAttrs(layer)}
             </section>
           )
         })}
@@ -1671,7 +1683,15 @@ export function EstateStoryView({
                     className={checked ? styles.storyMenuSelected : undefined}
                     onClick={() => {
                       const id = pickerMenu.picker.id
-                      setPicksBySlide((current) => ({ ...current, [slide.id]: { ...current[slide.id], [id]: option.id } }))
+                      setPicksBySlide((current) => {
+                        const next = { ...current }
+                        for (const each of slides) {
+                          if (each.id === slide.id || pageOf[each.id]?.pickers?.some((picker) => picker.id === id)) {
+                            next[each.id] = { ...current[each.id], [id]: option.id }
+                          }
+                        }
+                        return next
+                      })
                       setPickerMenu(null)
                     }}
                   >

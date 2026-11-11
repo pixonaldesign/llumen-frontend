@@ -183,7 +183,7 @@ function SolutionDetail({ solution, solutions, overlay, onSelect, onClose }: Sol
           {solution.mapNote}
         </p>
 
-        <h4 className={styles.actionsHeading}>Actions</h4>
+        <h4 className={styles.actionsHeading}>{solution.actionsHeading ?? 'Actions'}</h4>
         <ol className={styles.actions}>
           {solution.actions.map((action) => (
             <li key={action.code ?? action.title} className={styles.action}>

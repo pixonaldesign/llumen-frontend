@@ -285,7 +285,7 @@ export const BOARD_ASSETS: BriefingAsset[] = [
     title: 'Creek Harbour sewerage capacity used',
     accent: '#45cdb9',
     value: 61,
-    caption: 'at peak, room for 15,300 pipeline homes',
+    caption: 'at peak, room for 15,300 pipeline residential units',
     tips: { fill: 'Used', fillSuffix: ' of capacity', gap: 'Headroom' },
   },
   {

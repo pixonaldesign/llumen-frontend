@@ -173,7 +173,7 @@ function experience(spec: ExperienceSpec, stateId: (place: FindingStageId) => st
 
 const HORIZON_TAB: Record<Horizon, string> = { immediate: 'Immediate', intermediate: 'Intermediate', long: 'Long-term' }
 
-const cleared = (horizon: Horizon) => `${UNITS_CLEARED[horizon]} of ${UNITS_EXPOSED} homes clear`
+const cleared = (horizon: Horizon) => `${UNITS_CLEARED[horizon]} of ${UNITS_EXPOSED} residential units clear`
 
 /** "AED 5k" or "AED 6.5M" in dirhams, to order a horizon's costs. */
 const dirhams = (cost: string) => parseFloat(cost.replace('AED ', '')) * (cost.endsWith('M') ? 1e6 : 1e3)
@@ -228,17 +228,17 @@ const HORIZONS: Horizon[] = ['immediate', 'intermediate', 'long']
 /** A planning story's three horizons as solutions, each on its own map view of the three areas. */
 function planningSolutions(solutions: Record<Horizon, PlanningSolution>, place: (horizon: Horizon) => FindingStageId): SolutionSpec[] {
   return HORIZONS.map((horizon) => {
-    const solution = solutions[horizon]
+    const { span, meta, ...solution } = solutions[horizon]
     return {
       ...solution,
       label: HORIZON_TAB[horizon],
-      span: PLANNING_SPAN[horizon],
+      span: span ?? PLANNING_SPAN[horizon],
       color: HORIZON_COLOR[horizon],
       map: {
         place: place(horizon),
         title: `${HORIZON_TAB[horizon]} · ${solution.title}`,
         tag: 'JVC · Arjan · Motor City',
-        meta: `${solution.actions.length} actions`,
+        meta: meta ?? `${solution.actions.length} actions`,
       },
     }
   })
@@ -247,6 +247,9 @@ function planningSolutions(solutions: Record<Horizon, PlanningSolution>, place: 
 const fmt = (value: number) => value.toLocaleString('en-US')
 
 const odorShare = Math.round((ODOR_BRIEFING.inWindow / ODOR_BRIEFING.complaints) * 100)
+
+const roundK = (value: number) => Math.round(value / 1000) * 1000
+const [today, twoYears, fiveYears] = FACILITIES_BRIEFING.baseline
 
 const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) => FindingExperience> = {
   odor: (stateId) =>
@@ -262,7 +265,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
         problem: [
           `${ODOR_BRIEFING.complaints} odor complaints in 7 days across Al Barsha’s three parks.`,
           `${ODOR_BRIEFING.inWindow} of them (${odorShare}%) came in the ${ODOR_BRIEFING.window} irrigation window, and complaints track irrigation hours closely.`,
-          `Evening winds carry the smell into ${HOMES_EXPOSED} homes in Al Barsha 2.`,
+          `Evening winds carry the smell into ${HOMES_EXPOSED} residential units in Al Barsha 2.`,
         ],
         cause: [
           'All three parks are irrigated with recycled water from one supply network, through storage tanks T-1, T-3 and T-5.',
@@ -281,7 +284,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
           },
           `Hydrogen sulphide at each storage tank outlet, mg/L. The standard allows ${ODOR_BRIEFING.limit}.`,
         ),
-        map: { place: 'odor', title: 'Odor plume and exposed homes · Al Barsha', tag: 'Al Barsha', meta: `${HOMES_EXPOSED} homes in the plume` },
+        map: { place: 'odor', title: 'Odor plume and exposed residential units · Al Barsha', tag: 'Al Barsha', meta: `${HOMES_EXPOSED} residential units in the plume` },
         solutionsIntro:
           'Open one to see its detail and its map. Start the immediate fixes this week and take the treatment upgrade to capital planning: retiming needs re-tuning each season.',
         solutions: [
@@ -290,7 +293,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
             {
               title: 'Retime irrigation',
               summary: `Move Z-2 and Z-3 irrigation out of the ${ODOR_BRIEFING.window} window while the tanks are fixed. Retiming cuts modelled exposure ${INTERVENTIONS[0].reduction}% for ${INTERVENTIONS[0].cost}, the best value of all the options.`,
-              mapNote: 'The map shows Z-2 and Z-3 retimed to 00:30–03:00.',
+              mapNote: 'The lower map shows the odor, residential units, posts and complaints left once irrigation is retimed.',
               costLabel: 'Cost of rescheduling the irrigation time only',
             },
             { place: 'odor-immediate', tag: 'Al Barsha' },
@@ -300,7 +303,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
             {
               title: 'Rehabilitate tank T-3',
               summary: `Clean and repair tank T-3 so its water stops going bad before it reaches Pond Park. This cuts modelled exposure ${INTERVENTIONS[1].reduction}% for ${INTERVENTIONS[1].cost}.`,
-              mapNote: 'The map shows T-3 cleaned and rehabilitated.',
+              mapNote: 'The lower map shows the odor, residential units, posts and complaints left once T-3 is rehabilitated.',
             },
             { place: 'odor-intermediate', tag: 'Pond Park' },
           ),
@@ -309,7 +312,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
             {
               title: 'Treat, loop and predict',
               summary: 'Polish the recycled water before it reaches Al Barsha so it meets the standard at every tank, loop the dead-end mains so water keeps moving, and forecast odor six hours ahead with 36 sensors.',
-              mapNote: 'The map shows the polished supply, the proposed looped mains and the sensor grid across all three parks.',
+              mapNote: 'The lower map shows the odor, residential units, posts and complaints left once all three actions land.',
             },
             { place: 'odor-long', tag: 'Al Barsha' },
           ),
@@ -324,35 +327,35 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
         id: 'finding-facilities',
         prompt: 'Why are families and workers in JVC, Arjan and Motor City short of facilities, and what should we do?',
         read: 'Reading population, tenancy and residency records for JVC, Arjan and Motor City…',
-        search: 'Comparing school seats, health centres, nurseries and parks with what each household group needs…',
-        reason: 'Weighing nine actions across three impact horizons, and mapping each one…',
-        headline: `JVC, Arjan and Motor City are ${fmt(FACILITIES_BRIEFING.seatGap)} school seats short, and every other facility trails their growth.`,
-        headlineDetail: 'Three solutions follow, each with its own map. Open one to see its detail and switch the map.',
+        search: 'Comparing parks, playgrounds, community centres and transport access with what each household group needs…',
+        reason: 'Forecasting the baseline at 2 and 5 years, and weighing three options in each impact horizon against it…',
+        headline: `Community facilities in JVC, Arjan and Motor City serve ${today.coverage}% of their residents today, falling to ${fiveYears.coverage}% in five years without action.`,
+        headlineDetail: 'Three solutions follow, one per impact horizon, each compared on the map with the baseline it is measured against.',
         problem: [
           `The three areas grew from ${fmt(FACILITIES_BRIEFING.population2021)} to ${fmt(FACILITIES_BRIEFING.population)} residents in five years, +${FACILITIES_BRIEFING.growth}%.`,
-          `They are ${fmt(FACILITIES_BRIEFING.seatGap)} school seats short, with ${FACILITIES_BRIEFING.clinics} of the ${FACILITIES_BRIEFING.clinicsNeeded} health centres they need and ${FACILITIES_BRIEFING.parkAccess}% of homes near a park.`,
-          `${fmt(FACILITIES_BRIEFING.pipeline)} more homes are committed, bringing about ${fmt(FACILITIES_BRIEFING.newResidents)} more residents by 2030.`,
+          `Their facilities serve ${fmt(today.capacity)} residents, ${fmt(roundK(today.gap))} short today, and public parks run at ${FACILITIES_BRIEFING.parkUse}% of capacity at peak.`,
+          `With ${fmt(FACILITIES_BRIEFING.pipeline)} residential units committed, the gap reaches ${fmt(roundK(twoYears.gap))} in two years and ${fmt(roundK(fiveYears.gap))} in five, and the average trip to a facility grows from ${today.access} to ${fiveYears.access} minutes.`,
         ],
         cause: [
           `Facilities follow the 2019 community plans, sized for ${FACILITIES_BRIEFING.plannedFor}k residents.`,
           `Most new residents are families with children (${FACILITIES_BRIEFING.familiesJvc}% of JVC households, ${FACILITIES_BRIEFING.familiesMotorCity}% of Motor City) and ${fmt(FACILITIES_BRIEFING.workers)} workers in shared housing.`,
-          `Those two groups rely most on local schools, clinics, nurseries and transport, so ${fmt(FACILITIES_BRIEFING.children)} school-age children compete for the seats that exist.`,
+          `Those two groups rely most on local parks, playgrounds, community centres and buses, and ${FACILITIES_BRIEFING.farFromTransport}% of residential units are 800 m or more from a stop.`,
         ],
         chart: chartComponent(
-          'finding-facilities-met',
+          'finding-facilities-baseline',
           {
             type: 'bars',
-            title: 'Share of need met',
-            value: `${FACILITIES_BRIEFING.met[0].value}%`,
-            unit: 'of school seats needed',
+            title: 'Residents served without action',
+            value: `${today.coverage}%`,
+            unit: 'of residents served today',
             color: STATUS.critical,
-            rows: FACILITIES_BRIEFING.met.map((row) => ({ label: row.label, value: row.value, display: `${row.value}%` })),
+            rows: FACILITIES_BRIEFING.baseline.map((row) => ({ label: row.label, value: row.coverage, display: `${row.coverage}% · ${fmt(roundK(row.gap))} short` })),
           },
-          'Facilities in JVC, Arjan and Motor City as a share of what their residents need.',
+          `Facility capacity for ${fmt(today.capacity)} residents against the forecast population. Each solution is measured against the baseline for its own date.`,
         ),
-        map: { place: 'facilities', title: 'Facility shortage · JVC, Arjan and Motor City', tag: 'JVC · Arjan · Motor City', meta: `${fmt(FACILITIES_BRIEFING.seatGap)} seats short` },
+        map: { place: 'facilities', title: 'Facility shortage · JVC, Arjan and Motor City', tag: 'JVC · Arjan · Motor City', meta: `Parks at ${FACILITIES_BRIEFING.parkUse}% of capacity` },
         solutionsIntro:
-          'Open one to see its detail and its map. Start the modular classrooms and worker shuttles now, and take the new schools and health centres to capital planning.',
+          'Each horizon weighs three options and recommends one: optimize scheduling now, repurpose municipal assets next, and construct new facilities for the long term. Recommendations are horizon-specific, so their gains must not be added without checking overlap and dependencies.',
         solutions: planningSolutions(FACILITIES_SOLUTIONS, (horizon) => `facilities-${horizon}`),
       },
       stateId,
@@ -376,7 +379,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
         cause: [
           `The three areas grew +${INFRASTRUCTURE_BRIEFING.growth}% in five years on networks sized for their original plans.`,
           `A few assets bind: the PS-1 pumping station at ${INFRASTRUCTURE_BRIEFING.ps1}% of its design, the TM-2 trunk sewer, five drainage low points and three access junctions.`,
-          `${fmt(INFRASTRUCTURE_BRIEFING.earlyHomes)} of ${fmt(INFRASTRUCTURE_BRIEFING.pipeline)} pipeline homes complete before the upgrades arrive in ${INFRASTRUCTURE_BRIEFING.upgradesArrive}.`,
+          `${fmt(INFRASTRUCTURE_BRIEFING.earlyHomes)} of ${fmt(INFRASTRUCTURE_BRIEFING.pipeline)} pipeline residential units complete before the upgrades arrive in ${INFRASTRUCTURE_BRIEFING.upgradesArrive}.`,
         ],
         chart: chartComponent(
           'finding-infrastructure-loads',
@@ -394,7 +397,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
           place: 'infrastructure',
           title: 'Capacity shortfall · JVC, Arjan and Motor City',
           tag: 'JVC · Arjan · Motor City',
-          meta: `${fmt(INFRASTRUCTURE_BRIEFING.earlyHomes)} homes ahead of upgrades`,
+          meta: `${fmt(INFRASTRUCTURE_BRIEFING.earlyHomes)} residential units ahead of upgrades`,
         },
         solutionsIntro:
           'Open one to see its detail and its map. Phase approvals to capacity now, and bring the PS-1 upgrade and the second TM-2 main forward in the capital plan.',

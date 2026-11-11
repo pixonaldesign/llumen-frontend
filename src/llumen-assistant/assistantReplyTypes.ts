@@ -229,6 +229,8 @@ export type ReplySolution = {
   chart?: StoryReplyChartData
   /** What the map shows for it. */
   mapNote: string
+  /** Heads the list below, "Actions" unless set. */
+  actionsHeading?: string
   actions: { code?: string; title: string; subtitle?: string; detail?: string; metrics?: string[] }[]
 }
 

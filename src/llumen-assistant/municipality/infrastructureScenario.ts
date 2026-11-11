@@ -208,7 +208,7 @@ const pipelinePoints = (): EstatePoint[] =>
     color: YEAR_COLOR[site.year],
     radius: 4 + site.homes / 900,
     group: 'pipeline',
-    tip: { title: `${fmt(site.homes)} homes · ${AREAS[site.area].short}`, rows: [['Completes', `${site.year}`], ['Upgrades arrive', site.year < UPGRADES_ARRIVE ? 'After it' : 'Before it']] }
+    tip: { title: `${fmt(site.homes)} residential units · ${AREAS[site.area].short}`, rows: [['Completes', `${site.year}`], ['Upgrades arrive', site.year < UPGRADES_ARRIVE ? 'After it' : 'Before it']] }
   }))
 
 const loadOutlines = () =>
@@ -231,7 +231,7 @@ const LAYER = {
     mark: 'area',
     color: { items: AREA_LIST.map((area) => ({ label: area.name, color: loadColor(worst(area.id)), count: `${worst(area.id)}%` })) },
   },
-  demand: { group: 'load', title: 'Sewage flow by home', mark: 'heat', color: { ramp: GAP_RAMP, low: 'Lower', high: 'Higher' } },
+  demand: { group: 'load', title: 'Sewage flow by residential unit', mark: 'heat', color: { ramp: GAP_RAMP, low: 'Lower', high: 'Higher' } },
   sewer: {
     group: 'sewer',
     title: 'Sewerage network',
@@ -247,7 +247,7 @@ const LAYER = {
   },
   pipeline: {
     group: 'pipeline',
-    title: 'Pipeline homes, by completion',
+    title: 'Pipeline residential units, by completion',
     mark: 'point',
     color: {
       items: [2027, 2028, 2029, 2030].map((year) => ({
@@ -278,10 +278,10 @@ const SHORTFALL_SCENE = scene({
   ...areaOutlines((area) => ({
     color: PALETTE.purple[3],
     level: 0.15,
-    text: `${fmt(earlyIn(area.id))} homes before the upgrades`,
+    text: `${fmt(earlyIn(area.id))} residential units before the upgrades`,
     rows: [
-      ['Pipeline', `${fmt(area.pipeline)} homes`],
-      ['Before the upgrades', `${fmt(earlyIn(area.id))} homes`],
+      ['Pipeline', `${fmt(area.pipeline)} residential units`],
+      ['Before the upgrades', `${fmt(earlyIn(area.id))} residential units`],
       ['Sewerage', `${LOAD[area.id].sewer}% of design`],
     ],
   })),
@@ -309,7 +309,7 @@ export const INFRASTRUCTURE_STORY: EstateStory = {
         {
           id: 'summary',
           kind: 'summary',
-          title: 'Summary',
+          title: 'Executive summary',
           parts: [
             `The three areas grew +${TOTAL_GROWTH}% in five years, but their networks did not: `,
             { em: [`${OVER} of ${NETWORK_COUNT} networks`] },
@@ -360,7 +360,7 @@ export const INFRASTRUCTURE_STORY: EstateStory = {
         {
           id: 'summary',
           kind: 'summary',
-          title: 'Summary',
+          title: 'Executive summary',
           parts: [
             'A few assets set the limit. ',
             { em: [`PS-1 runs at ${STATIONS[0].load}%`] },
@@ -406,7 +406,7 @@ export const INFRASTRUCTURE_STORY: EstateStory = {
       id: 'dm-infrastructure-shortfall',
       title: 'Capacity Shortfall Confirmed',
       finding:
-        'Modelling the committed pipeline against planned upgrades confirms a shortfall: most new homes complete before the upgrades they depend on, and sewage flow overtakes treatment capacity first.',
+        'Modelling the committed pipeline against planned upgrades confirms a shortfall: most new residential units complete before the upgrades they depend on, and sewage flow overtakes treatment capacity first.',
       camera: { center: [55.2125, 25.0515], zoom: 13.65, pitch: 56, bearing: -24 },
       scene: SHORTFALL_SCENE,
       filters: FILTERS,
@@ -415,15 +415,15 @@ export const INFRASTRUCTURE_STORY: EstateStory = {
         {
           id: 'summary',
           kind: 'summary',
-          title: 'Summary',
+          title: 'Executive summary',
           parts: [
-            { em: [`${fmt(EARLY_HOMES)} of ${fmt(TOTALS.pipeline)} pipeline homes`] },
+            { em: [`${fmt(EARLY_HOMES)} of ${fmt(TOTALS.pipeline)} pipeline residential units`] },
             ` complete before the upgrades arrive in ${UPGRADES_ARRIVE}. Sewage flow passes treatment capacity in `,
             { em: [SHORTFALL_FROM] },
             ` and runs up to ${PEAK_SHORTFALL} ML/day short until PS-1 is upgraded.`,
           ],
         },
-        { id: 'early', kind: 'cell', title: 'Homes ahead of upgrades', value: thousands(EARLY_HOMES), note: `complete before ${UPGRADES_ARRIVE}`, status: 'critical' },
+        { id: 'early', kind: 'cell', title: 'Residential units ahead of upgrades', value: thousands(EARLY_HOMES), note: `complete before ${UPGRADES_ARRIVE}`, status: 'critical' },
         { id: 'from', kind: 'cell', title: 'Sewerage short from', value: SHORTFALL_FROM, note: `up to ${PEAK_SHORTFALL} ML/day short` },
         {
           id: 'flow',
@@ -442,7 +442,7 @@ export const INFRASTRUCTURE_STORY: EstateStory = {
         {
           id: 'by-year',
           kind: 'vbars',
-          title: 'Pipeline homes completing, thousands',
+          title: 'Pipeline residential units completing, thousands',
           bars: [2027, 2028, 2029, 2030].map((year) => {
             const homes = PIPELINE.filter((site) => site.year === year).reduce((sum, site) => sum + site.homes, 0)
             return { label: `${year}`, value: homes / 1000, display: thousands(homes), color: YEAR_COLOR[year] }
@@ -452,7 +452,7 @@ export const INFRASTRUCTURE_STORY: EstateStory = {
           id: 'upgrades',
           kind: 'table',
           title: 'Planned upgrades',
-          columns: ['Upgrade', 'Due', 'Homes before it'],
+          columns: ['Upgrade', 'Due', 'Residential units before it'],
           dotColumn: 0,
           rows: [
             { cells: ['PS-1 pumping station', '2029', fmt(EARLY_HOMES)], color: STATUS.critical },
@@ -489,7 +489,7 @@ const ACTIONS: PlanningAction[] = [
     benefit: 'Holds occupation back until each site’s network can take it',
     at: PIPELINE[7].at,
     impact: 35,
-    gain: '6,800 homes phased',
+    gain: '6,800 residential units phased',
     cost: 'AED 0.5M',
     sustainability: 'Medium',
   },
@@ -522,7 +522,7 @@ const ACTIONS: PlanningAction[] = [
     horizon: 'intermediate',
     action: 'Bring the PS-1 upgrade forward',
     asset: 'PS-1, from 2029 to 2027',
-    benefit: 'Capacity arrives with the first pipeline homes',
+    benefit: 'Capacity arrives with the first pipeline residential units',
     at: STATIONS[0].at,
     impact: 55,
     gain: '+45% pumping capacity',
@@ -600,7 +600,7 @@ export const INFRASTRUCTURE_SOLUTIONS: Record<Horizon, PlanningSolution> = {
     summary: `Phase approvals on the ${EARLY.length} sites completing before ${UPGRADES_ARRIVE} to the capacity each network has, manage peak flow at PS-1 to stop overflows, and retime signals at the three access junctions.`,
     mapNote: 'The map shows the phased pipeline sites, PS-1 and the three retimed junctions.',
     stats: [
-      { label: 'Homes phased', value: '6,800' },
+      { label: 'Residential units phased', value: '6,800' },
       { label: 'Overflows', value: 'Stopped' },
       { label: 'Cost', value: 'AED 0.5M–8M' },
     ],

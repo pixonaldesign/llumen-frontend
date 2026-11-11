@@ -4,13 +4,12 @@
  * sampling shows that water failing its quality limits. The interventions, the wind model and the
  * horizon maps serve Simulate recommended actions. Every value is an illustrative example.
  */
-import { hash, offsetKm, scatter, type LngLat } from '../realEstate/estateGeo'
+import { hash, scatter, type LngLat } from '../realEstate/estateGeo'
 import type {
   EstateArea,
   EstateLabel,
   EstateLine,
   EstateMapScene,
-  EstatePoint,
   EstateTower,
   EstateWind,
 } from '../realEstate/estateMapLayers'
@@ -29,8 +28,8 @@ import {
 import { BARSHA_BLOCKS } from './barshaBlocks'
 import { BARSHA_HOMES } from './barshaHomes'
 import { BARSHA1_HOMES, BARSHA3_HOMES } from './barshaParkHomes'
-import { box, centroid, circle, insidePlume, metresFromRing, plumeRing, shiftPlume, toward, type Plume } from './dmGeo'
-import { HORIZON_COLOR, HORIZON_LABEL, LEVEL, toned } from './dmShared'
+import { centroid, circle, insidePlume, metresFromRing, plumeRing, shiftPlume, toward, type Plume } from './dmGeo'
+import { HORIZON_COLOR, LEVEL, toned } from './dmShared'
 
 /* —— Al Barsha: parks, the irrigation network and the pump house —— */
 
@@ -224,31 +223,6 @@ const parkLabels = (pinned = true, period = WEEK, picked?: Park): EstateLabel[] 
     group: 'parks',
   }))
 
-/* Irrigation zones, fed by recycled (TSE) water through the park ring mains. */
-
-type ZoneId = 'z1' | 'z2' | 'z3' | 'z4' | 'z5'
-
-const ZONES: Record<ZoneId, { name: string; ring: LngLat[]; schedule: string }> = {
-  z1: { name: 'Zone Z-1 · Pond Park west', ring: box([55.19958, 25.10028], [55.2028, 25.10351]), schedule: '17:00–19:30' },
-  z2: { name: 'Zone Z-2 · Pond Park east', ring: box([55.2028, 25.10031], [55.20606, 25.10354]), schedule: '17:30–20:00' },
-  z3: { name: 'Zone Z-3 · Eastern streetscape', ring: box([55.20628, 25.0975], [55.20688, 25.1075]), schedule: '17:30–20:00' },
-  z4: { name: 'Zone Z-4 · Al Barsha 1 Park', ring: PARKS[1].ring, schedule: '17:00–19:00' },
-  z5: { name: 'Zone Z-5 · Al Barsha 3 Park', ring: PARKS[2].ring, schedule: '17:00–18:30' },
-}
-
-function zoneArea(id: ZoneId, color: string, status: string, opacity = 0.26, dashed = false): EstateArea {
-  const zone = ZONES[id]
-  return {
-    id: `zone-${id}`,
-    ring: zone.ring,
-    color,
-    opacity,
-    dashed,
-    group: 'zones',
-    tip: { title: zone.name, rows: [['Irrigation', zone.schedule], ['Status', status]] },
-  }
-}
-
 const SUPPLY_MAIN: LngLat[] = [
   [55.19932, 25.0826],
   [55.19932, 25.10024],
@@ -372,21 +346,10 @@ function plumeAreas(plume: Bands, group = 'plume'): EstateArea[] {
     tip: { title, rows: [['Modelled odor-hours', hours]] },
   })
   return [
-    area('low', 0.1, 'Low exposure band', '2–6 a month'),
-    area('moderate', 0.14, 'Moderate exposure band', '6–14 a month'),
-    area('high', 0.22, 'High exposure band', 'over 14 a month'),
+    area('low', 0.1, 'Faint smell', '2–6 a month'),
+    area('moderate', 0.14, 'Noticeable smell', '6–14 a month'),
+    area('high', 0.22, 'Strong smell', 'over 14 a month'),
   ]
-}
-
-/** The baseline plume's outline, dashed, under a what-if's own plume. */
-const BASELINE_OUTLINE: EstateArea = {
-  id: 'baseline-outline',
-  ring: plumeRing(BASELINE.low),
-  color: 'rgba(255, 255, 255, 0.78)',
-  opacity: 0,
-  dashed: true,
-  group: 'baseline',
-  tip: { title: 'Baseline odor plume', rows: [['Residents inside', '1,850']] },
 }
 
 /** The evening wind as streamlines over the park, the source and the homes it reaches. */
@@ -518,7 +481,7 @@ function homesLayer(homes: EstateTower[]): MapDataLayer {
   const high = homes.filter((home) => home.color === STATUS.critical).length
   return {
     group: 'homes',
-    title: 'Residential buildings exposed',
+    title: 'Residential units exposed',
     mark: 'tower',
     color: {
       items: [
@@ -595,14 +558,16 @@ const postsNear = (at: LngLat, spread: (typeof POST_SPREAD)[string]) =>
 
 const BLOCK_SAMPLES = BARSHA_BLOCKS.map((ring) => ({ ring, samples: [centroid(ring), ...ring] }))
 
-const socialByPeriod = new Map<Period, EstateArea[]>()
+const socialByPeriod = new Map<string, EstateArea[]>()
 
 /**
  * The period's posts by street block, each shaded by how it ranks among the blocks with posts so every
- * park's blocks span the shades; blocks with almost none are left clear.
+ * park's blocks span the shades; blocks with almost none are left clear. `remaining` is the share of the
+ * posts a solution leaves: each block keeps that share and is shaded and cleared against today's blocks.
  */
-function socialBlocks(period = WEEK): EstateArea[] {
-  let areas = socialByPeriod.get(period)
+function socialBlocks(period = WEEK, remaining = 1): EstateArea[] {
+  const key = `${period.id}:${remaining}`
+  let areas = socialByPeriod.get(key)
   if (!areas) {
     const spread = POST_SPREAD[period.id]
     const blocks = BLOCK_SAMPLES.map(({ ring, samples }) => ({
@@ -610,11 +575,16 @@ function socialBlocks(period = WEEK): EstateArea[] {
       density: samples.reduce((sum, at) => sum + postsNear(at, spread), 0) / samples.length,
     }))
     const peak = Math.max(...blocks.map((block) => block.density))
-    const shown = blocks.filter((block) => block.density >= spread.cutoff * peak)
-    const ranked = shown.map((block) => block.density).sort((a, b) => a - b)
+    const ranked = blocks
+      .map((block) => block.density)
+      .filter((density) => density >= spread.cutoff * peak)
+      .sort((a, b) => a - b)
     const sum = ranked.reduce((total, density) => total + density, 0)
+    const shown = blocks
+      .map((block) => ({ ...block, density: block.density * remaining }))
+      .filter((block) => block.density >= spread.cutoff * peak)
     areas = shown.map((block, index) => {
-      const rank = (ranked.indexOf(block.density) / ranked.length) ** spread.heat
+      const rank = (ranked.filter((density) => density < block.density).length / ranked.length) ** spread.heat
       return {
         id: `posts-${index}`,
         ring: block.ring,
@@ -627,7 +597,7 @@ function socialBlocks(period = WEEK): EstateArea[] {
         },
       }
     })
-    socialByPeriod.set(period, areas)
+    socialByPeriod.set(key, areas)
   }
   return areas
 }
@@ -681,7 +651,7 @@ export const INTERVENTIONS: Intervention[] = [
     horizon: 'immediate',
     action: 'Optimize irrigation timing',
     asset: 'Zones Z-2 and Z-3 controllers',
-    benefit: 'Irrigate when the wind carries less odor toward homes',
+    benefit: 'Irrigate when the wind carries less odor toward residential units',
     at: [55.2049, 25.1029],
     reduction: 41,
     cost: 'AED 5k–10k',
@@ -738,46 +708,16 @@ export const INTERVENTIONS: Intervention[] = [
   },
 ]
 
-/** A horizon's only action goes by its name alone; its code would tell it from nothing. */
-const actionTitle = (item: Intervention) =>
-  INTERVENTIONS.filter((other) => other.horizon === item.horizon).length > 1 ? `${item.code} · ${item.action}` : item.action
-const actionRows = (item: Intervention): [string, string][] => [
-  ['Acts on', item.asset],
-  ['Horizon', HORIZON_LABEL[item.horizon]],
-]
-
-function actionPoints(horizons: Horizon[] = ['immediate', 'intermediate', 'long'], pinned = false): EstatePoint[] {
-  return INTERVENTIONS.filter((item) => horizons.includes(item.horizon)).map((item) => ({
-    id: `action-${item.code}`,
-    at: item.at,
-    color: HORIZON_COLOR[item.horizon],
-    radius: 7,
-    group: 'actions',
-    tip: pinned ? undefined : { title: actionTitle(item), rows: actionRows(item) },
-  }))
-}
-
-/** One horizon's interventions, their tooltips held open over their points. */
-function actionTips(horizon: Horizon): EstateLabel[] {
-  return INTERVENTIONS.filter((item) => item.horizon === horizon).map((item) => ({
-    id: `action-tip-${item.code}`,
-    at: item.at,
-    heightM: 0,
-    color: HORIZON_COLOR[horizon],
-    title: actionTitle(item),
-    text: '',
-    rows: actionRows(item),
-    group: 'actions',
-  }))
-}
-
 /* —— Map Data —— */
 
-const parksLayer = (period = WEEK): MapDataLayer => ({
+/** `remaining` is the share of the complaints a solution leaves. */
+const parksLayer = (period = WEEK, remaining = 1): MapDataLayer => ({
   group: 'parks',
   title: `Parks · CRM odor complaints, ${period.span}`,
   mark: 'area',
-  color: { items: PARKS.map((park) => ({ label: park.name, color: PARK_GREEN, count: `${complaintsAt(park, period)}` })) },
+  color: {
+    items: PARKS.map((park) => ({ label: park.name, color: PARK_GREEN, count: `${Math.round(complaintsAt(park, period) * remaining)}` })),
+  },
 })
 
 const windLayer = (period: Period): MapDataLayer => ({
@@ -835,19 +775,13 @@ const LAYER = {
     mark: 'area',
     color: {
       items: [
-        { label: 'High exposure', color: PLUME_COLOR.high },
-        { label: 'Moderate', color: PLUME_COLOR.moderate },
-        { label: 'Low', color: PLUME_COLOR.low },
+        { label: 'Strong smell', color: PLUME_COLOR.high },
+        { label: 'Noticeable smell', color: PLUME_COLOR.moderate },
+        { label: 'Faint smell', color: PLUME_COLOR.low },
       ],
     },
   },
   homes: homesLayer(EXPOSED_HOMES),
-  actions: {
-    group: 'actions',
-    title: 'Where each intervention acts',
-    mark: 'point',
-    color: { items: (['immediate', 'intermediate', 'long'] as const).map((horizon) => ({ label: HORIZON_LABEL[horizon], color: HORIZON_COLOR[horizon], count: '3' })) },
-  },
 } satisfies Record<string, MapDataLayer>
 
 /* —— Scenes —— */
@@ -892,28 +826,6 @@ const QUALITY_SCENE = scene({
 })
 
 /* —— Simulate recommended actions: each horizon's what-if against the baseline —— */
-
-const LAB_LAYERS: MapDataLayer[] = [
-  { ...LAYER.zones, title: 'Affected irrigation zones', color: { items: [{ label: 'Today’s schedule', color: STATUS.critical }, { label: 'Retimed', color: HORIZON_COLOR.immediate }] } },
-  {
-    group: 'plume',
-    title: 'Baseline vs simulated dispersion',
-    mark: 'area',
-    color: { items: [{ label: 'Simulated plume', color: PLUME_COLOR.moderate }, { label: 'Baseline outline', color: 'rgba(255, 255, 255, 0.78)' }] },
-  },
-  {
-    group: 'homes',
-    title: 'Residential buildings',
-    mark: 'tower',
-    color: {
-      items: [
-        { label: 'Benefiting', color: HORIZON_COLOR.immediate },
-        { label: 'Still moderate', color: PALETTE.diverging[2] },
-        { label: 'Still high', color: STATUS.critical },
-      ],
-    },
-  },
-]
 
 /** The plume left by each horizon's best option. */
 const RESIDUAL: Record<Horizon, Bands> = {
@@ -1139,7 +1051,7 @@ export const ODOR_STORY: EstateStory = {
         {
           id: 'summary',
           kind: 'summary',
-          title: 'Summary',
+          title: 'Executive summary',
           parts: [
             'GIS tracing shows ',
             { em: ['all three parks'] },
@@ -1196,7 +1108,7 @@ export const ODOR_STORY: EstateStory = {
         {
           id: 'summary',
           kind: 'summary',
-          title: 'Summary',
+          title: 'Executive summary',
           parts: [
             'Water from ',
             { em: ['all 3 park tanks'] },
@@ -1270,136 +1182,95 @@ export const ODOR_PLACE: EstatePlace = {
   }),
 }
 
-const OVERVIEW: EstateAskView = {
-  camera: { center: [55.20647, 25.09149], zoom: 15.17, pitch: 62, bearing: -20 },
-  scene: scene({
-    towers: [SUSPECT_TANK, ...EXPOSED_HOMES, ...EXPOSED_PARK_HOMES],
-    areas: [...SOCIAL_BLOCKS, ...plumeAreas(BASELINE), ...parkAreas()],
-    wind: windField(),
-    labels: [parkLabels()[0], ...parkLabels(false).slice(1)],
-  }),
-  layers: [LAYER.source, LAYER.plume, homesLayer([...EXPOSED_HOMES, ...EXPOSED_PARK_HOMES]), LAYER.parks, LAYER.social],
+/** Modelled fall in negative odor posts and in CRM odor complaints once each horizon's actions land, in %. */
+export const ODOR_DECLINE: Record<Horizon, { posts: number; complaints: number }> = {
+  immediate: { posts: 42, complaints: 48 },
+  intermediate: { posts: 61, complaints: 67 },
+  long: { posts: 82, complaints: 88 },
 }
+
+/**
+ * The odor as a map reads it: the tank, the plume, the homes still exposed, and the share of today's posts
+ * and complaints. Today's map and every solution's draw the same layers, so the two compare directly.
+ */
+type OdorPicture = { tank: EstateTower; plume: Bands; homes: EstateTower[]; posts: number; complaints: number }
+
+const TODAY: OdorPicture = {
+  tank: SUSPECT_TANK,
+  plume: BASELINE,
+  homes: [...EXPOSED_HOMES, ...EXPOSED_PARK_HOMES],
+  posts: 1,
+  complaints: 1,
+}
+
+/** T-3 as each horizon leaves it: retiming leaves the tank as it is. */
+const TANK_AFTER: Record<Horizon, EstateTower> = {
+  immediate: SUSPECT_TANK,
+  intermediate: tankTower(HORIZON_COLOR.intermediate, 'Cleaned and rehabilitated', [
+    ['H₂S at outlet', 'under 0.05 mg/L'],
+    ['Water age', '1.6 days'],
+  ]),
+  long: tankTower(HORIZON_COLOR.long, 'Fed by polished TSE', [['H₂S at outlet', 'under 0.05 mg/L']]),
+}
+
+const pictureAfter = (horizon: Horizon): OdorPicture => ({
+  tank: TANK_AFTER[horizon],
+  plume: RESIDUAL[horizon],
+  homes: [...homesAfter(RESIDUAL[horizon]), ...parkHomesAfter(horizon)].filter((home) => !home.text.startsWith('Benefits')),
+  posts: 1 - ODOR_DECLINE[horizon].posts / 100,
+  complaints: 1 - ODOR_DECLINE[horizon].complaints / 100,
+})
+
+/** Each park's negative posts and CRM complaints, held open over it. */
+const parkTips = (picture: OdorPicture): EstateLabel[] =>
+  PARKS.map((park) => {
+    const { posts, complaints } = tally(park, WEEK)
+    return {
+      id: `label-${park.id}`,
+      at: centroid(park.ring),
+      heightM: 6,
+      color: PARK_GREEN,
+      title: park.name,
+      text: '',
+      rows: [
+        ['Negative posts', `${Math.round(posts * picture.posts)} in ${WEEK.span}`],
+        ['CRM complaints', `${Math.round(complaints * picture.complaints)} in ${WEEK.span}`],
+      ],
+      group: 'parks',
+    }
+  })
+
+function odorView(camera: EstateCamera, picture: OdorPicture, compare?: EstateAskView['compare']): EstateAskView {
+  return {
+    camera,
+    scene: scene({
+      towers: [{ ...picture.tank, label: false }, ...picture.homes],
+      areas: [...socialBlocks(WEEK, picture.posts), ...plumeAreas(picture.plume), ...parkAreas()],
+      wind: windField(),
+      labels: parkTips(picture),
+    }),
+    layers: [
+      { ...LAYER.source, color: { items: [{ label: 'Storage tank T-3', color: picture.tank.color, count: picture.tank.tip.rows?.[0]?.[1] }] } },
+      LAYER.plume,
+      homesLayer(picture.homes),
+      parksLayer(WEEK, picture.complaints),
+      LAYER.social,
+    ],
+    compare,
+  }
+}
+
+const OVERVIEW = odorView({ center: [55.20647, 25.09149], zoom: 15.17, pitch: 62, bearing: -20 }, TODAY)
 
 /** Each solution's comparison: all three parks, the problem above and the solution below. */
 const SOLUTION_CAMERA: EstateCamera = { center: [55.20343, 25.09479], zoom: 14.36, pitch: 62, bearing: 12 }
 
-const IMMEDIATE: EstateAskView = {
-  camera: SOLUTION_CAMERA,
-  scene: scene({
-    towers: [SUSPECT_TANK, ...homesAfter(RESIDUAL.immediate), ...parkHomesAfter('immediate')],
-    areas: [
-      zoneArea('z2', HORIZON_COLOR.immediate, 'Retimed to 00:30–03:00'),
-      zoneArea('z3', HORIZON_COLOR.immediate, 'Retimed to 00:30–03:00'),
-      ...parkAreas(),
-      ...plumeAreas(RESIDUAL.immediate),
-      BASELINE_OUTLINE,
-    ],
-    points: actionPoints(['immediate'], true),
-    labels: actionTips('immediate'),
-  }),
-  layers: [
-    { ...LAYER.actions, title: 'Immediate intervention', color: { items: INTERVENTIONS.filter((item) => item.horizon === 'immediate').map((item) => ({ label: actionTitle(item), color: HORIZON_COLOR.immediate })) } },
-    { group: 'zones', title: 'Zones retimed', mark: 'area', color: { items: [{ label: 'Z-2 and Z-3', color: HORIZON_COLOR.immediate }] } },
-    LAB_LAYERS[1],
-    LAB_LAYERS[2],
-    LAYER.parks,
-  ],
-  compare: { before: OVERVIEW, labels: ['Today', 'After the immediate actions'] },
-}
+const solutionView = (horizon: Horizon, after: string) =>
+  odorView(SOLUTION_CAMERA, pictureAfter(horizon), { before: OVERVIEW, labels: ['Today', after] })
 
-const INTERMEDIATE: EstateAskView = {
-  camera: SOLUTION_CAMERA,
-  scene: scene({
-    towers: [
-      /* The action's tooltip already stands over the tank. */
-      {
-        ...tankTower(HORIZON_COLOR.intermediate, 'Cleaned and rehabilitated', [
-          ['H₂S at outlet', 'under 0.05 mg/L'],
-          ['Water age', '1.6 days'],
-        ]),
-        label: false,
-      },
-      ...homesAfter(RESIDUAL.intermediate, HORIZON_COLOR.intermediate),
-      ...parkHomesAfter('intermediate'),
-    ],
-    areas: [...parkAreas(), ...plumeAreas(RESIDUAL.intermediate), BASELINE_OUTLINE],
-    points: actionPoints(['intermediate'], true),
-    labels: actionTips('intermediate'),
-  }),
-  layers: [
-    { ...LAYER.actions, title: 'Intermediate intervention', color: { items: INTERVENTIONS.filter((item) => item.horizon === 'intermediate').map((item) => ({ label: actionTitle(item), color: HORIZON_COLOR.intermediate })) } },
-    { group: 'source', title: 'Storage tank T-3', mark: 'tower', color: { items: [{ label: 'Rehabilitated', color: HORIZON_COLOR.intermediate }] } },
-    LAB_LAYERS[1],
-    { ...LAB_LAYERS[2], color: { items: [{ label: 'Benefiting', color: HORIZON_COLOR.intermediate }, { label: 'Still moderate', color: PALETTE.diverging[2] }, { label: 'Still high', color: STATUS.critical }] } },
-    LAYER.parks,
-  ],
-  compare: { before: OVERVIEW, labels: ['Today', 'After the intermediate actions'] },
-}
-
-/** L2's looped mains: the eastern dead-ends joined back into the ring. */
-const LOOPS: EstateLine[] = [
-  [
-    [55.2066, 25.1075],
-    [55.2085, 25.1075],
-    [55.2085, 25.1004],
-  ],
-  [
-    [55.2066, 25.0975],
-    [55.2112, 25.0975],
-    [55.2112, 25.1004],
-  ],
-  [
-    [55.2112, 25.1004],
-    [55.2085, 25.1004],
-  ],
-].map((path, index) => ({
-  id: `loop-${index}`,
-  path: path as LngLat[],
-  color: HORIZON_COLOR.long,
-  width: 3,
-  dashed: true,
-  group: 'loops',
-  tip: { title: 'Proposed looped main (L2)', rows: [['Removes', 'dead-end stagnation']] },
-}))
-
-const SENSORS: EstatePoint[] = Array.from({ length: 36 }, (_, index) => {
-  const col = index % 6
-  const row = Math.floor(index / 6)
-  const at = offsetKm([55.1905, 25.1072], col * 0.62 + (hash(index, 31) - 0.5) * 0.2, -row * 0.5 + (hash(index, 32) - 0.5) * 0.18)
-  return {
-    id: `sensor-${index}`,
-    at,
-    color: HORIZON_COLOR.long,
-    radius: 3.5,
-    group: 'sensors',
-    tip: { title: `Odor sensor OS-${String(index + 1).padStart(2, '0')}`, rows: [['Measures', 'H₂S, wind, humidity'], ['Forecast', '6 hours ahead']] },
-  }
-})
-
-const LONG_TERM: EstateAskView = {
-  camera: SOLUTION_CAMERA,
-  scene: scene({
-    towers: [
-      tankTower(HORIZON_COLOR.long, 'Fed by polished TSE (L1)', [['H₂S at outlet', 'under 0.05 mg/L']]),
-      ...homesAfter(RESIDUAL.long, HORIZON_COLOR.long),
-      ...parkHomesAfter('long'),
-    ],
-    areas: [...parkAreas(), ...plumeAreas(RESIDUAL.long), BASELINE_OUTLINE],
-    lines: [...networkLines(PIPE_BLUE, { supply: HORIZON_COLOR.long }), ...LOOPS],
-    points: [...SENSORS, ...actionPoints(['long'], true)],
-    labels: [...parkLabels(false), ...actionTips('long')],
-  }),
-  layers: [
-    { ...LAYER.actions, title: 'Long-term interventions', color: { items: INTERVENTIONS.filter((item) => item.horizon === 'long').map((item) => ({ label: `${item.code} ${item.action}`, color: HORIZON_COLOR.long })) } },
-    { group: 'loops', title: 'Redesigned distribution (L2)', mark: 'line', color: { items: [{ label: 'Proposed looped mains', color: HORIZON_COLOR.long }] } },
-    { group: 'sensors', title: 'Predictive odor sensors (L3)', mark: 'point', color: { items: [{ label: 'Sensor', color: HORIZON_COLOR.long, count: '36' }] } },
-    LAB_LAYERS[1],
-    { ...LAB_LAYERS[2], color: { items: [{ label: 'Benefiting', color: HORIZON_COLOR.long }, { label: 'Still moderate', color: PALETTE.diverging[2] }, { label: 'Still high', color: STATUS.critical }] } },
-    LAYER.parks,
-  ],
-  compare: { before: OVERVIEW, labels: ['Today', 'After the long-term actions'] },
-}
+const IMMEDIATE = solutionView('immediate', 'After the immediate action')
+const INTERMEDIATE = solutionView('intermediate', 'After the intermediate action')
+const LONG_TERM = solutionView('long', 'After the long-term actions')
 
 export const ODOR_ASK_VIEWS = {
   odor: OVERVIEW,
@@ -1422,13 +1293,6 @@ export const UNITS_CLEARED: Record<Horizon, number> = {
   immediate: HOMES_CLEARED.immediate + parkHomesAfter('immediate').filter((home) => home.text.startsWith('Benefits')).length,
   intermediate: HOMES_CLEARED.intermediate + parkHomesAfter('intermediate').filter((home) => home.text.startsWith('Benefits')).length,
   long: HOMES_CLEARED.long + parkHomesAfter('long').filter((home) => home.text.startsWith('Benefits')).length,
-}
-
-/** Modelled fall in negative odor posts and in CRM odor complaints once each horizon's actions land, in %. */
-export const ODOR_DECLINE: Record<Horizon, { posts: number; complaints: number }> = {
-  immediate: { posts: 42, complaints: 48 },
-  intermediate: { posts: 61, complaints: 67 },
-  long: { posts: 82, complaints: 88 },
 }
 
 /** The story's three findings in figures, for the Tell Me More briefing. */

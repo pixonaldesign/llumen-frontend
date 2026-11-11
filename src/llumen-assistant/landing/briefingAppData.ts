@@ -29,7 +29,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     storyId: 'dm-infrastructure',
     title: 'Spare Capacity — Dubai Creek Harbour',
     description:
-      'Sewerage at 61% and 58 ha of developable land leave room to direct 15,300 pipeline homes here without new trunk mains.',
+      'Sewerage at 61% and 58 ha of developable land leave room to direct 15,300 pipeline residential units here without new trunk mains.',
     image: `${APPS_BASE}/dm-creek.jpg`,
     focus: 'center',
   },
@@ -38,7 +38,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     storyId: 'dm-facilities',
     title: 'Growth Outpacing Facilities — JVC',
     description:
-      'JVC has 11,800 school seats for 22,400 children who need one, and two of the five health centres it needs, while 18,400 more homes are in the pipeline.',
+      'JVC has 11,800 school seats for 22,400 children who need one, and two of the five health centres it needs, while 18,400 more residential units are in the pipeline.',
     image: `${APPS_BASE}/dm-jvc.jpg`,
     focus: 'center',
   },

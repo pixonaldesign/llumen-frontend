@@ -5,6 +5,11 @@ const KM_PER_DEG_LAT = 110.8
 const kmPerDegLng = (lat: number) => 111.32 * Math.cos((lat * Math.PI) / 180)
 const rad = (deg: number) => (deg * Math.PI) / 180
 
+/** The ground distance between two nearby points. */
+export function kmBetween(a: LngLat, b: LngLat) {
+  return Math.hypot((b[0] - a[0]) * kmPerDegLng(a[1]), (b[1] - a[1]) * KM_PER_DEG_LAT)
+}
+
 /** A plume modelled downwind of a source: `bearing` is where the wind carries it, clockwise from north. */
 export type Plume = { source: LngLat; bearing: number; lengthKm: number; widthKm: number }
 

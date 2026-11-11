@@ -241,6 +241,11 @@ aside.grid > .section {
   gap: 8px;
 }
 
+/* A bar outside the page's filter: kept for comparison, set back. */
+.dimmed {
+  opacity: 0.3;
+}
+
 .hbarLabel {
   overflow: hidden;
   color: rgba(255, 255, 255, 0.72);
