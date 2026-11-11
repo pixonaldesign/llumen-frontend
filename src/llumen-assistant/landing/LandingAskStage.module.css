@@ -1,0 +1,303 @@
+/* The AI bar grown to full screen: a clip-path window opens from the bar, so the layout inside never reflows. */
+.stage {
+  --ask-header-h: 56px;
+  --ask-chat-w: 100%;
+  /* The chat column beside an open map: a third of the screen, never narrower than the rail. */
+  --ask-rail-w: max(var(--lc-rail-width), 33.333vw);
+  --ask-move: 760ms;
+  /* The landing's push (demoPageRailOpen), so the rail and the page move together. */
+  --ask-resize: var(--lc-rail-enter-duration, 320ms);
+
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  color: var(--lc-text-primary);
+  background: rgba(6, 9, 18, 0.9);
+  -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
+  transition:
+    inset var(--ask-resize) var(--lc-ease),
+    border-radius var(--ask-resize) var(--lc-ease),
+    box-shadow var(--ask-resize) var(--lc-ease);
+}
+
+/* Shrink: the chat docks as a full-height rail down the left, like the story chat's rail. */
+.stage[data-shrunk='true'] {
+  /* Already the rail's width, so the chat keeps its layout while the stage resizes around it. */
+  --ask-chat-w: var(--lc-rail-width);
+
+  inset: 0 calc(100% - var(--lc-rail-width)) 0 0;
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.stage[data-map='true'] {
+  --ask-chat-w: var(--ask-rail-w);
+}
+
+.stage[data-shrunk='true'][data-map='true'] {
+  --ask-chat-w: var(--lc-rail-width);
+}
+
+/* Viewport-sized like the map: the shader's canvas would otherwise be rebuilt every frame of a shrink. */
+.backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.backdropShader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 1200ms var(--lc-ease);
+}
+
+.backdropShaderActive {
+  opacity: 0.85;
+}
+
+.header,
+.body {
+  animation: stageContentIn 420ms var(--lc-ease) 300ms backwards;
+}
+
+.stage[data-closing='true'] .header,
+.stage[data-closing='true'] .body {
+  animation: stageContentOut 180ms ease forwards;
+}
+
+/* The rail slides away whole, content and all, in step with the landing's push back (demoPageRailOpen). */
+.stage[data-shrunk='true'][data-closing='true'] {
+  transform: translateX(-100%);
+  transition: transform var(--lc-rail-enter-duration, 320ms) var(--lc-ease);
+}
+
+.stage[data-shrunk='true'][data-closing='true'] .header,
+.stage[data-shrunk='true'][data-closing='true'] .body {
+  animation: none;
+}
+
+@keyframes stageContentIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stageContentOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Spans the chat column only, so the map can run to the top edge beside it. */
+.header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  width: var(--ask-chat-w);
+  height: var(--ask-header-h);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--lc-border-subtle);
+  transition: width var(--ask-move) var(--lc-ease);
+}
+
+.body {
+  position: absolute;
+  top: var(--ask-header-h);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.chat {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--ask-chat-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transition: width var(--ask-move) var(--lc-ease);
+}
+
+/*
+ * Full bleed beside the chat column, up through the header row to the top edge. Sized to the viewport,
+ * not the stage, so shrinking clips the map instead of resizing it every frame.
+ */
+.mapPane {
+  position: absolute;
+  top: calc(-1 * var(--ask-header-h));
+  left: var(--ask-rail-w);
+  width: calc(100vw - var(--ask-rail-w));
+  height: 100vh;
+  overflow: hidden;
+  background: #0e1014;
+  opacity: 0;
+  transform: translateX(100%);
+  pointer-events: none;
+  transition:
+    transform var(--ask-move) var(--lc-ease),
+    opacity 320ms ease;
+}
+
+.stage[data-map='true'] .mapPane {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.asset {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/*
+ * A finding's maps. A solution stacks below its problem: the split divides the stage under the asset header,
+ * and the upper map runs up beneath the header as the single map does.
+ */
+.mapStack {
+  --compare-top: calc(
+    var(--asset-header-h, 0px) + var(--compare-split, 0.5) * (100% - var(--asset-header-h, 0px))
+  );
+  position: absolute;
+  inset: 0;
+  container-type: size;
+}
+
+.mapSingle {
+  position: absolute;
+  inset: 0;
+}
+
+.comparePane {
+  position: absolute;
+  right: 0;
+  left: 0;
+  overflow: hidden;
+}
+
+.compareBefore {
+  top: 0;
+  height: var(--compare-top);
+}
+
+.compareAfter {
+  top: var(--compare-top);
+  bottom: 0;
+}
+
+/* Each map stays the stage's full height and its pane clips it, so dragging the split never resizes a canvas. */
+.comparePane .compareMap {
+  height: 100cqh;
+}
+
+.compareBefore .compareMap {
+  top: 0;
+  bottom: auto;
+}
+
+.compareAfter .compareMap {
+  top: auto;
+  bottom: 0;
+}
+
+.mapStack .compareHandle {
+  top: var(--compare-top);
+}
+
+/* Always in its hover colours, so the split reads at a glance. */
+.mapStack .compareHandle::before {
+  background: #70aeff;
+}
+
+.mapStack .compareHandle > span {
+  border-color: #70aeff;
+  color: #fff;
+}
+
+.compareTag {
+  position: absolute;
+  top: 16px;
+  left: 32px;
+  z-index: 4;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(26, 26, 26, 0.6);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  pointer-events: none;
+}
+
+.compareBefore .compareTag {
+  top: calc(var(--asset-header-h, 0px) + 16px);
+}
+
+/* A finding map's legend, where the story keeps its Map Data. */
+.mapData {
+  position: absolute;
+  right: 32px;
+  bottom: 32px;
+  z-index: 5;
+  width: 300px;
+}
+
+/*
+ * At the open map's size, so background thumbnails frame the same view. Transparent rather than off
+ * screen: Mapbox stops rendering a map outside the viewport.
+ */
+.captureStage {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: -1;
+  width: calc(100vw - var(--ask-rail-w));
+  height: 100vh;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Below the asset header's tabs (--asset-header-h is measured to their bottom edge). */
+.mapPane .mapControls {
+  top: calc(var(--asset-header-h, 0px) + 16px);
+  right: 32px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header,
+  .body {
+    animation: none;
+  }
+
+  .stage,
+  .header,
+  .chat,
+  .mapPane {
+    transition: none;
+  }
+}

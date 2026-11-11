@@ -1,5 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Broadcast, CaretLeft, CaretRight, ChatText, Link, ThumbsDown, ThumbsUp, X } from '@phosphor-icons/react'
+import {
+  ArrowUpRight,
+  Broadcast,
+  CaretLeft,
+  CaretRight,
+  ChatText,
+  ThumbsDown,
+  ThumbsUp,
+  X,
+} from '@phosphor-icons/react'
 import { Aurora } from './Aurora'
 import {
   DEFAULT_FINDING_AURORA,
@@ -9,6 +18,11 @@ import {
 } from './findingAuroraSettings'
 import { relatedStoryId, type FindingToastInstance } from './findingDemoData'
 import styles from './FindingReveal.module.css'
+
+/** Top of the Briefing findings section, under the top bar; keep in step with FindingReveal.module.css. */
+const CENTRE_TOP_PX = 64
+/** Centre mode: the line draws and the aurora grows before the copy comes in. */
+const CENTRE_COPY_DELAY_MS = 900
 
 function pageColumnInset(): number {
   if (typeof window === 'undefined') return 24
@@ -161,6 +175,13 @@ export type FindingRevealProps = {
   pageColumnAnchor?: boolean
   /** Story ribbon sits above the viewport edge. Pad the finding to meet it. */
   storyMode?: boolean
+  /**
+   * Briefing findings style 5, on the findings section: the aurora grows up and down from a line across
+   * the middle of the section, and the copy takes the place of the composer and findings there.
+   */
+  centre?: boolean
+  /** With centre: wait, aurora unmounted, while the composer's border cue plays. */
+  held?: boolean
   /** Increment to play the exit, then call onClose. */
   dismissSignal?: number
   /** Shortcut: show a little of the aurora, hold, then open the mask fully. */
@@ -185,6 +206,8 @@ export function FindingReveal({
   railOpen = false,
   pageColumnAnchor = false,
   storyMode = false,
+  centre = false,
+  held = false,
   dismissSignal = 0,
   stagedReveal = false,
   revealNonce = 0,
@@ -201,21 +224,28 @@ export function FindingReveal({
   const seenDismiss = useRef(dismissSignal)
   const [votes, setVotes] = useState<Record<string, 'up' | 'down' | null>>({})
 
+  const [viewportH, setViewportH] = useState(() => (typeof window === 'undefined' ? 1000 : window.innerHeight))
+
   const safeIndex = items.length === 0 ? 0 : Math.min(Math.max(activeIndex, 0), items.length - 1)
   const active = items[safeIndex]
+  const waiting = centre && held
 
   useEffect(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     setReduceMotion(reduce)
+    if (waiting) {
+      setCopyVisible(false)
+      return
+    }
     if (reduce) {
       setCopyVisible(true)
       return
     }
     setCopyVisible(false)
-    const copyDelay = stagedReveal ? STAGED_AURORA_PHASE1_MS : settings.copyDelayMs
+    const copyDelay = centre ? CENTRE_COPY_DELAY_MS : stagedReveal ? STAGED_AURORA_PHASE1_MS : settings.copyDelayMs
     const copyTimer = window.setTimeout(() => setCopyVisible(true), copyDelay)
     return () => window.clearTimeout(copyTimer)
-  }, [settings.copyDelayMs, stagedReveal, revealNonce])
+  }, [settings.copyDelayMs, stagedReveal, revealNonce, centre, waiting])
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -233,6 +263,7 @@ export function FindingReveal({
       setBlurGeom((prev) =>
         prev.hold === next.hold && prev.fade === next.fade && prev.anchor === next.anchor ? prev : next,
       )
+      setViewportH(viewport)
     }
     measure()
     setGeomSettled(true)
@@ -288,15 +319,30 @@ export function FindingReveal({
     ['--aurora-blur-fade' as string]: `${blurGeom.fade}px`,
     ['--aurora-anchor' as string]: `${blurGeom.anchor}px`,
   }
+  /** From the centre line to the top bar or the viewport base. */
+  const halfSection = Math.max(120, (viewportH - CENTRE_TOP_PX) / 2)
 
   return (
     <>
+      {centre && !waiting ? (
+        <div
+          className={styles.centreLine}
+          data-exiting={exiting ? 'true' : 'false'}
+          style={{
+            ['--line-1' as string]: settings.colorStop1,
+            ['--line-2' as string]: settings.colorStop2,
+            ['--line-3' as string]: settings.colorStop3,
+          }}
+          aria-hidden
+        />
+      ) : null}
       <div
         ref={veilRef}
         className={styles.veil}
         data-exiting={exiting ? 'true' : 'false'}
         data-ready={auroraReady ? 'true' : 'false'}
         data-staged={stagedReveal ? 'true' : 'false'}
+        data-centre={centre ? 'true' : 'false'}
         style={veilStyle}
       >
         <div className={styles.veilBlur} data-level="1" />
@@ -310,10 +356,11 @@ export function FindingReveal({
         data-exiting={exiting ? 'true' : 'false'}
         data-ready={auroraReady ? 'true' : 'false'}
         data-staged={stagedReveal ? 'true' : 'false'}
+        data-centre={centre ? 'true' : 'false'}
         style={veilStyle}
         aria-hidden
       >
-        {geomSettled ? (
+        {geomSettled && !waiting ? (
           <Aurora
             colorStops={[settings.colorStop1, settings.colorStop2, settings.colorStop3]}
             amplitude={settings.amplitude}
@@ -321,8 +368,9 @@ export function FindingReveal({
             speed={settings.speed}
             streaks={settings.streaks ?? 0.24}
             highlights={settings.highlights ?? 0.04}
-            fadeHold={blurGeom.hold}
-            fadeSpan={blurGeom.fade}
+            fadeHold={centre ? halfSection * 0.3 : blurGeom.hold}
+            fadeSpan={centre ? halfSection * 0.28 : blurGeom.fade}
+            mirror={centre}
             onReady={() => setAuroraReady(true)}
           />
         ) : null}
@@ -332,6 +380,7 @@ export function FindingReveal({
           className={styles.copy}
           data-rail={railOpen ? 'true' : 'false'}
           data-story={storyMode ? 'true' : 'false'}
+          data-centre={centre ? 'true' : 'false'}
           data-exiting={exiting ? 'true' : 'false'}
           style={veilStyle}
         >
@@ -423,12 +472,12 @@ export function FindingReveal({
               </div>
               <button
                 type="button"
-                className={styles.actionBtn}
+                className={`${styles.actionBtn} ${styles.viewBtn}`}
                 onClick={() => onOpenRelated(active)}
                 disabled={!relatedStoryId(active)}
               >
-                <Link size={16} weight="regular" aria-hidden />
-                View slides
+                <ArrowUpRight size={20} weight="regular" aria-hidden />
+                View
               </button>
             </div>
           </div>

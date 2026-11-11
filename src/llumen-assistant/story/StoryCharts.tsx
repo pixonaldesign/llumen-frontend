@@ -100,6 +100,11 @@ export function TrendChart({
     <div className={styles.chart}>
       <div className={styles.chartMain}>
         <div className={styles.yAxis}>
+          {yLabels.map((label) => (
+            <i key={label} className={styles.yAxisSizer} aria-hidden>
+              {label}
+            </i>
+          ))}
           {yLabels.map((label, index) => (
             <span key={label} style={{ top: `${ticks[index]}%` }}>
               {label}
@@ -155,11 +160,11 @@ export function TrendChart({
             vectorEffect="non-scaling-stroke"
           />
         </svg>
-      </div>
-      <div className={styles.chartX}>
-        {xLabels.map((label, index) => (
-          <span key={`${label}-${index}`}>{label}</span>
-        ))}
+        <div className={styles.chartX}>
+          {xLabels.map((label, index) => (
+            <span key={`${label}-${index}`}>{label}</span>
+          ))}
+        </div>
       </div>
     </div>
   )

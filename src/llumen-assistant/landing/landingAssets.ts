@@ -3,6 +3,10 @@ const b = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/landing`
 
 export const landingAssets = {
   logoMark: `${b}/llumen-logo.png`,
+  /** Dubai Municipality's logo, in white, for the top bar beside the Llumen mark. */
+  dmLogo: `${b}/dm-logo.png`,
+  /** The DM Mind event mark, teal and orange on transparent, for the introduction. */
+  dmMindLogo: `${b}/dm-mind-logo.png`,
   wordmark: `${b}/llumen-wordmark.svg`,
   userBtn: `${b}/user-btn.png`,
   slideMap: `${b}/slide-map.png`,
@@ -28,9 +32,11 @@ export const landingAssets = {
   storyThumbMask: `${b}/story-mask.svg`,
   storyThumbChartBase: `${b}/story-thumb-chart-base.png`,
   storyThumbChartBars: `${b}/story-thumb-chart-bars.png`,
+  storyThumbBars: `${b}/story-thumb-bars.jpg`,
   assetLayerPermit: `${b}/asset-layer-permit.png`,
   assetLayerTerrain: `${b}/asset-layer-terrain.png`,
   assetLayerPins: `${b}/asset-layer-pins.png`,
+  assetLayerHeat: `${b}/asset-layer-heat.png`,
   mapStyleAimsunTeal: `${b}/map-style-aimsun-teal.jpg`,
   mapStyleAimsunBase: `${b}/map-style-aimsun-base.png`,
   mapStyleAimsunDefault: `${b}/map-style-aimsun-default.png`,
@@ -40,7 +46,7 @@ export const landingAssets = {
 } as const
 
 /** Thumbnail variants from the Figma Stories grid — keep story copy separate. */
-export type StoryThumbVariant = 'map' | 'chart' | 'satellite'
+export type StoryThumbVariant = 'map' | 'chart' | 'satellite' | 'bars'
 
 export function storyThumbLayers(variant: StoryThumbVariant): {
   image: string
@@ -59,5 +65,7 @@ export function storyThumbLayers(variant: StoryThumbVariant): {
       }
     case 'satellite':
       return { image: landingAssets.storyThumbChartBase }
+    case 'bars':
+      return { image: landingAssets.storyThumbBars }
   }
 }

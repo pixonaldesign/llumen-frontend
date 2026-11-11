@@ -162,8 +162,13 @@ function shiftDate(date: Date, unit: DateUnit, steps: number) {
   return next
 }
 
-export function timelineFrameDate(granularity: TimelineGranularity, frameCount: number, frame: number) {
-  return shiftDate(TIMELINE_END, granularity.unit, (frame - (frameCount - 1)) * granularity.step)
+/** `yearOffset` moves the whole timeline by whole years, e.g. -1 for a compared map on the prior period. */
+export function timelineFrameDate(granularity: TimelineGranularity, frameCount: number, frame: number, yearOffset = 0) {
+  return shiftDate(
+    shiftDate(TIMELINE_END, 'year', yearOffset),
+    granularity.unit,
+    (frame - (frameCount - 1)) * granularity.step,
+  )
 }
 
 function formatTime(date: Date) {
@@ -182,12 +187,13 @@ function formatDay(date: Date) {
 }
 
 /** "23 Mar 2022 – 23 Dec 2023 · Every quarter" */
-export function describeTimelineRange(range: TimelineRange, granularity: TimelineGranularity) {
+export function describeTimelineRange(range: TimelineRange, granularity: TimelineGranularity, yearOffset = 0) {
   const count = timelineFrameCount(range, granularity)
-  const first = timelineFrameDate(granularity, count, 0)
+  const first = timelineFrameDate(granularity, count, 0, yearOffset)
+  const last = timelineFrameDate(granularity, count, count - 1, yearOffset)
   const withTime = range.unit === 'minute' || range.unit === 'hour'
   const from = withTime ? formatTime(first) : formatDay(first)
-  const to = withTime ? formatTime(TIMELINE_END) : formatDay(TIMELINE_END)
+  const to = withTime ? formatTime(last) : formatDay(last)
   return `${from} – ${to} · Every ${granularity.label.toLowerCase()}`
 }
 

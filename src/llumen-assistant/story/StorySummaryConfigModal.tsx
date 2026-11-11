@@ -58,7 +58,7 @@ export function StorySummaryConfigModal({
           <div className={styles.headerIdentity}>
             <div className={styles.headerCopy}>
               <h2 id="summary-config-modal-title" className={styles.title}>
-                Configure Executive Summary
+                Configure Llumen AI Summary
               </h2>
             </div>
           </div>
@@ -125,7 +125,7 @@ export function StorySummaryConfigModal({
                 ))}
               </div>
               <p className={styles.settingHelp}>
-                These colors drive the animated executive summary border only.
+                These colors drive the animated summary border only.
               </p>
             </div>
 

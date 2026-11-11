@@ -174,6 +174,16 @@ export type AgentResponseBlock =
       content: string
     }
   | {
+      type: 'bullets'
+      items: string[]
+    }
+  | {
+      type: 'solutions'
+      /** The map card the stage returns to when a solution is closed. */
+      overviewId: string | null
+      solutions: ReplySolution[]
+    }
+  | {
       type: 'visual'
       componentId: string
       visualType: VisualType
@@ -204,13 +214,34 @@ export type AgentResponseBlock =
       options: { id: string; label: string }[]
     }
 
+/** One solution in a `solutions` block: a tab fronted by its map's thumbnail that opens into its detail. */
+export type ReplySolution = {
+  /** Its map card (a `story-map-state` component): the tab's thumbnail, and the view the map switches to. */
+  componentId: string
+  /** The tab's short name, e.g. "Immediate". */
+  label: string
+  /** When it pays back, e.g. "days to weeks". */
+  span: string
+  color: string
+  title: string
+  summary: string
+  stats: { label: string; value: string }[]
+  chart?: StoryReplyChartData
+  /** What the map shows for it. */
+  mapNote: string
+  /** Heads the list below, "Actions" unless set. */
+  actionsHeading?: string
+  actions: { code?: string; title: string; subtitle?: string; detail?: string; metrics?: string[] }[]
+}
+
 /** A clause the agent cites back to the user's request. Order is citation order, not step order. */
 export type WorkflowClause = {
   id: string
   label: string
 }
 
-export type WorkflowStepTone = 'trigger' | 'step' | 'asset' | 'agent' | 'delivery'
+/** `source` reads or checks the data the workflow runs on. */
+export type WorkflowStepTone = 'trigger' | 'source' | 'step' | 'asset' | 'agent' | 'delivery'
 
 /** Where the step sits in the labeled graph. */
 export type WorkflowStepLane = 'spine' | 'left' | 'right' | 'join'

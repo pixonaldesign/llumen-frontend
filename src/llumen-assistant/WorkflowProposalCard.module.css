@@ -67,6 +67,94 @@
   border-color: var(--color-primary-500);
 }
 
+/* Toast size: same width, type, and control heights as the finding toasts over the AI bar. */
+.wrap[data-size='compact'] {
+  width: min(520px, 100%);
+  margin: 0 auto;
+}
+
+.wrap[data-size='compact'] .body {
+  gap: 6px;
+  padding: 10px 14px;
+}
+
+.wrap[data-size='compact'] .titleRow {
+  align-items: center;
+  gap: 8px;
+}
+
+.wrap[data-size='compact'] .title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.wrap[data-size='compact'] .titleMeta {
+  gap: 4px;
+}
+
+.wrap[data-size='compact'] .titleMeta > .expandBtn + .expandBtn {
+  margin-left: 0;
+}
+
+.wrap[data-size='compact'] .pill {
+  height: 20px;
+  margin-right: 4px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.wrap[data-size='compact'] .expandBtn {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.wrap[data-size='compact'] .expandBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.wrap[data-size='compact'] .expandBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.wrap[data-size='compact'] .summary {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.wrap[data-size='compact'] .stepsToggle {
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+.wrap[data-size='compact'] .footer {
+  margin-top: 2px;
+}
+
+.wrap[data-size='compact'] .action {
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  font-size: 12px;
+}
+
+.wrap[data-size='compact'] .action svg {
+  width: 12px;
+  height: 12px;
+}
+
 .body {
   display: flex;
   flex-direction: column;
@@ -80,6 +168,10 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.titleMeta > .expandBtn + .expandBtn {
+  margin-left: -6px;
 }
 
 .expandBtn {
@@ -510,6 +602,11 @@
   background: #3c4454;
 }
 
+.graphNode[data-tone='source'] {
+  background: #3b7ddd;
+  border-color: transparent;
+}
+
 .graphNode[data-tone='asset'] {
   background: #8a6244;
   border-color: transparent;
@@ -547,14 +644,18 @@
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
   background: #3c4454;
 }
 
 .stepDot[data-tone='trigger'] {
   background: #5dcaa5;
+}
+
+.stepDot[data-tone='source'] {
+  background: #3b7ddd;
 }
 
 .stepDot[data-tone='asset'] {
@@ -567,6 +668,130 @@
 
 .stepDot[data-tone='delivery'] {
   background: #7c6cf0;
+}
+
+/*
+ * Show steps: the AI bar's glass, sized to the card. Element-qualified so it outranks the thinking
+ * panel it is built on, whatever order the two stylesheets load in.
+ */
+div.stepsPopover {
+  max-height: min(460px, 60vh);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(14, 16, 20, 0.52);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* A blurred header inside the blurred panel would double the blur, so it shares the panel's. */
+div.stepsHeader {
+  padding: 14px 16px 12px;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+button.stepsClose {
+  border-radius: var(--radius-full);
+}
+
+ol.stepsList {
+  padding-block: 14px 16px;
+  padding-inline-start: 16px;
+}
+
+.stepsItem {
+  position: relative;
+  padding: 0 16px 14px 0;
+}
+
+.stepsItem:last-child {
+  padding-bottom: 0;
+}
+
+.stepsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 18px;
+}
+
+.stepsLabel {
+  min-width: 0;
+  color: rgba(241, 245, 249, 0.96);
+  font-size: var(--lc-text-caption);
+  font-weight: var(--lc-weight-semibold);
+  line-height: var(--lc-leading-caption);
+}
+
+/* The spine: from one step's dot down to whatever follows it. */
+.stepsItem:not(:last-child, .stepsBranches)::after,
+.stepsBranchItem:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  bottom: 2px;
+  left: 7.5px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+
+/* Branches indent to the step labels. */
+.stepsBranches {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 28px;
+}
+
+/* One unbroken spine past every branch, from the step before them into the step after. */
+.stepsBranches::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 7.5px;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+
+.stepsBranchLabel {
+  margin: 0 0 8px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  font-weight: var(--lc-weight-medium);
+  line-height: 16px;
+}
+
+.stepsBranchList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stepsBranchItem {
+  position: relative;
+  padding-bottom: 12px;
+}
+
+.stepsBranchItem:last-child {
+  padding-bottom: 0;
+}
+
+/* Smaller than the spine's, in the same 16px slot so the line and the labels stay put. */
+.stepsBranchItem .stepDot {
+  width: 10px;
+  height: 10px;
+  margin: 0 3px;
 }
 
 .detailStage {

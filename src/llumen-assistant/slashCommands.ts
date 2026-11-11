@@ -1,14 +1,21 @@
-import { Broadcast, PlusCircle, TreeStructure } from '@phosphor-icons/react'
+import { Broadcast, ChartBar, ChatText, Gauge, MapTrifold, PlusCircle, TreeStructure } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import type { AssistantReplyPayload } from './assistantReplyTypes'
 
 export type SlashCommandId = 'monitor' | 'workflow' | 'create'
 
+export type FirstResponseKind = 'workflow' | 'text' | 'chart' | 'kpi' | 'map'
+
+/** Demo commands that answer with one kind of first response container. */
+export type FirstResponseCommandId = `response-${FirstResponseKind}`
+
 export type SlashCommand = {
-  id: SlashCommandId
+  id: SlashCommandId | FirstResponseCommandId
   label: string
   description: string
   Icon: Icon
+  /** Menu section; the plain commands come first. */
+  group: 'Commands' | 'First response demos'
 }
 
 export type ParsedSlashCommand = {
@@ -31,22 +38,42 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: 'monitor',
     description: 'Monitor any context you mention for changes',
     Icon: Broadcast,
+    group: 'Commands',
   },
   {
     id: 'workflow',
     label: 'workflow',
     description: 'Design a node-based workflow that runs on intervals and produces output',
     Icon: TreeStructure,
+    group: 'Commands',
   },
   {
     id: 'create',
     label: 'create',
     description: 'Create an asset or a dashboard to view later',
     Icon: PlusCircle,
+    group: 'Commands',
   },
+  ...(
+    [
+      ['workflow', 'Answer with a workflow container', TreeStructure],
+      ['text', 'Answer with a text container', ChatText],
+      ['chart', 'Answer with a chart asset container', ChartBar],
+      ['kpi', 'Answer with a KPI asset container', Gauge],
+      ['map', 'Answer with a map asset container', MapTrifold],
+    ] as const
+  ).map(
+    ([kind, description, Icon]): SlashCommand => ({
+      id: `response-${kind}`,
+      label: `response-${kind}`,
+      description,
+      Icon,
+      group: 'First response demos',
+    }),
+  ),
 ]
 
-const COMMAND_IDS = new Set<string>(SLASH_COMMANDS.map((item) => item.id))
+const COMMAND_IDS = new Set<string>(['monitor', 'workflow', 'create'] satisfies SlashCommandId[])
 
 export function filterSlashCommands(query: string): SlashCommand[] {
   const q = query.trim().toLowerCase()
@@ -67,6 +94,13 @@ export function parseSlashCommand(text: string): ParsedSlashCommand | null {
     userText: trimmed,
     rest: (match[2] ?? '').trim(),
   }
+}
+
+/** `/response-chart …` and the like: the container kind and any prompt typed after it. */
+export function parseFirstResponseCommand(text: string): { kind: FirstResponseKind; rest: string } | null {
+  const match = text.trim().match(/^\/response-(workflow|text|chart|kpi|map)(?:\s+([\s\S]*))?$/i)
+  if (!match) return null
+  return { kind: match[1]!.toLowerCase() as FirstResponseKind, rest: (match[2] ?? '').trim() }
 }
 
 export function underwayMessage(parsed: ParsedSlashCommand): string {
@@ -172,7 +206,7 @@ function deleteTextBeforeCaret(triggerLength: number): Range | null {
 
 export function insertSlashCommand(
   editor: HTMLElement,
-  commandId: SlashCommandId,
+  commandId: SlashCommand['id'],
   triggerLength: number,
 ): boolean {
   editor.focus()

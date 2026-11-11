@@ -319,7 +319,7 @@
 .wordReveal {
   display: inline-block;
   opacity: 0;
-  animation: wordRevealIn 0.44s var(--lc-ease) forwards;
+  animation: wordRevealIn 0.3s var(--lc-ease) forwards;
 }
 
 @keyframes wordRevealIn {
@@ -636,7 +636,7 @@
 }
 
 .answerBlockEnter {
-  animation: answerBlockIn 0.52s var(--lc-ease) both;
+  animation: answerBlockIn 0.36s var(--lc-ease) both;
   overflow: visible;
 }
 
@@ -678,6 +678,20 @@
   color: rgba(241, 245, 249, 0.95);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.finalReplyBullets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0 0 28px;
+  padding-left: 20px;
+  font: var(--lc-font-body-lg);
+  color: rgba(241, 245, 249, 0.95);
+}
+
+.finalReplyBullets li::marker {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .finalReplyHeading {

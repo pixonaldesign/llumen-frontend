@@ -1,0 +1,187 @@
+/* Over everything on the page, the top bar included: the page waits while the tour is up. */
+.tour {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.catch {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+/* The dim is the spotlight's own spread shadow; each step's spotlight fades in where its target is. */
+.spot {
+  position: absolute;
+  box-shadow:
+    0 0 0 1.5px rgba(255, 255, 255, 0.9),
+    0 0 0 200vmax rgba(2, 6, 14, 0.56);
+  animation: ringIn 360ms ease both;
+}
+
+.spot[data-first='true'] {
+  animation: spotIn 360ms ease both;
+}
+
+@keyframes spotIn {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Between steps the dim holds; only the ring fades in round the next target. */
+@keyframes ringIn {
+  from {
+    box-shadow:
+      0 0 0 1.5px rgba(255, 255, 255, 0),
+      0 0 0 200vmax rgba(2, 6, 14, 0.56);
+  }
+}
+
+/* My Board's liquid glass, in a smaller sheet. */
+.tip {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 18px 20px 16px;
+  border-radius: 18px;
+  color: #fff;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05) 40%, rgba(255, 255, 255, 0.08)),
+    rgba(15, 34, 48, 0.62);
+  -webkit-backdrop-filter: blur(24px) saturate(185%) brightness(1.06);
+  backdrop-filter: blur(24px) saturate(185%) brightness(1.06);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.42),
+    0 2px 8px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  pointer-events: auto;
+}
+
+.tip[data-side='bottom'] {
+  animation: tipInBottom 520ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+}
+
+.tip[data-side='left'] {
+  transform: translateY(-50%);
+  animation: tipInLeft 520ms cubic-bezier(0.16, 1, 0.3, 1) 220ms both;
+}
+
+@keyframes tipInBottom {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes tipInLeft {
+  from {
+    opacity: 0;
+    transform: translate(-10px, -50%);
+  }
+}
+
+.arrow {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: rgba(36, 54, 68, 0.96);
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.tip[data-side='bottom'] .arrow {
+  top: 0;
+  left: var(--tip-arrow-x, 50%);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.tip[data-side='left'] .arrow {
+  top: var(--tip-arrow-y, 50%);
+  left: 100%;
+  transform: translate(-50%, -50%) rotate(135deg);
+}
+
+.count {
+  margin: 0 0 6px;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.body {
+  margin: 0 0 16px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 14px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.skip,
+.next {
+  height: 34px;
+  margin: 0;
+  padding: 0 16px;
+  border-radius: 17px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.skip {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.skip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.next {
+  border: 0;
+  background: #fff;
+  color: #07131c;
+}
+
+.next:hover {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.skip:focus-visible,
+.next:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spot,
+  .spot[data-first='true'],
+  .tip[data-side='bottom'],
+  .tip[data-side='left'] {
+    animation: none;
+  }
+}
