@@ -243,64 +243,64 @@ const outputAgent = make('outputAgents', 'output', IN, OUT)
 const action = make('actions', 'action', IN, OUT)
 
 export const NODE_TYPES: readonly NodeType[] = [
-  trigger('manualTrigger', 'Manual Trigger', 'Start the workflow manually from the library or the editor.', CursorClick, { singleton: true }),
-  trigger('scheduleTrigger', 'Schedule Trigger', 'Run on a repeating schedule once the workflow is published.', Clock, {
+  trigger('manualTrigger', 'Manual Trigger', 'Start the workflow manually from the library or the editor', CursorClick, { singleton: true }),
+  trigger('scheduleTrigger', 'Schedule Trigger', 'Run on a repeating schedule once the workflow is published', Clock, {
     defaults: { name: 'Scheduled' },
   }),
-  trigger('chatInput', 'Chat Input', 'Start from a chat conversation.', ChatCircle, { singleton: true }),
-  trigger('webhook', 'Webhook', 'Start from an inbound HTTP request once the workflow is published.', PlugsConnected),
+  trigger('chatInput', 'Chat Input', 'Start from a chat conversation', ChatCircle, { singleton: true }),
+  trigger('webhook', 'Webhook', 'Start from an inbound HTTP request once the workflow is published', PlugsConnected),
 
-  dataStep('asset', 'View Asset', 'Show a saved chart, table, or map on the canvas to explore.', SquaresFour, { width: 420 }),
-  dataStep('source', 'Source', 'Query a configured source.', Database),
-  dataStep('mlModel', 'ML Model', 'Run batch predictions through a registered ML model.', Cpu),
-  dataStep('forecast', 'Forecast', 'Project a time series forward, with a confidence interval.', Graph),
-  dataStep('createAsset', 'Create Asset', 'Register upstream data as a saved chart, table, or map layer.', CubeFocus, { tone: 'create', width: 420 }),
-  dataStep('noOperation', 'No Operation', 'Continues the flow without passing any rows on.', Empty),
-  dataStep('filter', 'Filter', 'Keep only the rows that match.', Funnel, { outputs: [{ id: 'kept', label: 'Kept' }] }),
-  dataStep('ifElse', 'If / Else', 'Send matching rows down If and the rest down Else.', GitBranch, {
+  dataStep('asset', 'View Asset', 'Show a saved chart, table, or map on the canvas to explore', SquaresFour, { width: 420 }),
+  dataStep('source', 'Source', 'Query a configured source', Database),
+  dataStep('mlModel', 'ML Model', 'Run batch predictions through a registered ML model', Cpu),
+  dataStep('forecast', 'Forecast', 'Project a time series forward, with a confidence interval', Graph),
+  dataStep('createAsset', 'Create Asset', 'Register upstream data as a saved chart, table, or map layer', CubeFocus, { tone: 'create', width: 420 }),
+  dataStep('noOperation', 'No Operation', 'Continues the flow without passing any rows on', Empty),
+  dataStep('filter', 'Filter', 'Keep only the rows that match', Funnel, { outputs: [{ id: 'kept', label: 'Kept' }] }),
+  dataStep('ifElse', 'If / Else', 'Send matching rows down True and the rest down False', GitBranch, {
     outputs: [
-      { id: 'true', label: 'If', tone: 'positive' },
-      { id: 'false', label: 'Else', tone: 'negative' },
+      { id: 'true', label: 'True', tone: 'positive' },
+      { id: 'false', label: 'False', tone: 'negative' },
     ],
   }),
-  dataStep('switchCases', 'Switch Cases', 'Route rows into case outputs, with a Default for the rest.', GitBranch, {
+  dataStep('switchCases', 'Switch Cases', 'Route rows into case outputs, with a Default for the rest', GitBranch, {
     extensibleOutputs: true,
   }),
-  dataStep('editFields', 'Edit Fields', 'Create, update, or remove fields on incoming rows.', PencilSimple),
-  dataStep('aggregate', 'Aggregate', 'Summarise rows, optionally per group.', Database),
-  dataStep('merge', 'Merge', 'Append inputs into one table, in input order.', ArrowsMerge, {
+  dataStep('editFields', 'Edit Fields', 'Create, update, or remove fields on incoming rows', PencilSimple),
+  dataStep('aggregate', 'Aggregate', 'Summarise rows, optionally per group', Database),
+  dataStep('merge', 'Merge', 'Append inputs into one table, in input order', ArrowsMerge, {
     /** Where a new Merge starts; the node's params set how many it has, up to 10. */
     inputs: [
       { id: 'input1', label: 'Input 1' },
       { id: 'input2', label: 'Input 2' },
     ],
   }),
-  dataStep('wait', 'Wait', 'Pause the workflow for a set time, then pass the rows on.', Clock),
-  dataStep('stopAndError', 'Stop and Error', 'End the workflow with a controlled failure.', WarningCircle, { outputs: NONE }),
+  dataStep('wait', 'Wait', 'Pause the workflow for a set time, then pass the rows on', Clock),
+  dataStep('stopAndError', 'Stop and Error', 'End the workflow with a controlled failure', WarningCircle, { outputs: NONE }),
 
-  analysisAgent('generalAgent', 'General Agent', 'Perform a wide range of tasks over the upstream data.', MagicWand),
-  analysisAgent('dataClassificationAgent', 'Data Classification Agent', 'Route rows into the categories you define.', TreeStructure, {
+  analysisAgent('generalAgent', 'General Agent', 'Perform a wide range of tasks over the upstream data', MagicWand),
+  analysisAgent('dataClassificationAgent', 'Data Classification Agent', 'Route rows into the categories you define', TreeStructure, {
     extensibleOutputs: true,
   }),
-  analysisAgent('insightGenerator', 'Insight Generator', 'Write a structured insight with the fields you name.', StarFour),
-  analysisAgent('dataAnalyst', 'Data Analyst', 'Statistical diagnosis of upstream data: baselines, trends, and outliers.', ListMagnifyingGlass),
-  analysisAgent('gisCorrelationAgent', 'GIS Correlation Agent', 'Compares a map layer with the land layer underneath.', StackSimple),
+  analysisAgent('insightGenerator', 'Insight Generator', 'Write a structured insight with the fields you name', StarFour),
+  analysisAgent('dataAnalyst', 'Data Analyst', 'Statistical diagnosis of upstream data: baselines, trends, and outliers', ListMagnifyingGlass),
+  analysisAgent('gisCorrelationAgent', 'GIS Correlation Agent', 'Compares a map layer with the land layer underneath', StackSimple),
 
-  outputAgent('createApp', 'Create App', 'Generate and save an app from workflow context.', AppWindow),
-  outputAgent('aiFindings', 'AI Findings', 'Opt the published Flow into AI-written findings about its runs.', Lightbulb, {
+  outputAgent('createApp', 'Create App', 'Generate and save an app from workflow context', AppWindow),
+  outputAgent('aiFindings', 'AI Findings', 'Opt the published Flow into AI-written findings about its runs', Lightbulb, {
     singleton: true,
     outputs: NONE,
   }),
 
-  action('sendChatMessage', 'Send Chat Message', 'Post a message to the workflow’s chat, or wait for a reply.', PaperPlaneTilt, { sideEffect: true }),
-  action('sendEmail', 'Send Email', 'Send an email as a workflow action.', Envelope, { sideEffect: true }),
-  action('sendApiRequest', 'Send API Request', 'Call an external API as a workflow action.', PlugsConnected, { sideEffect: true }),
+  action('sendChatMessage', 'Send Chat Message', 'Post a message to the workflow’s chat, or wait for a reply', PaperPlaneTilt, { sideEffect: true }),
+  action('sendEmail', 'Send Email', 'Send an email as a workflow action', Envelope, { sideEffect: true }),
+  action('sendApiRequest', 'Send API Request', 'Call an external API as a workflow action', PlugsConnected, { sideEffect: true }),
 
   {
     id: 'stickyNote',
     category: 'annotations',
     title: 'Sticky Note',
-    description: 'Editor annotation only; not compiled to runtime.',
+    description: 'Editor annotation only; not compiled to runtime',
     icon: Note,
     tone: 'note',
     inputs: NONE,

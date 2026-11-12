@@ -219,7 +219,7 @@ button.edgeAdd:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-xxs);
+  gap: var(--space-xs);
   min-width: 0;
 }
 
@@ -231,37 +231,82 @@ button.edgeAdd:focus-visible {
   max-width: 100%;
 }
 
-.titleInput {
-  width: 240px;
+.badgeRow {
+  display: flex;
+  gap: var(--space-xs);
   min-width: 0;
-  margin: -2px -6px;
-  padding: 1px 5px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  max-width: 100%;
+}
+
+.titleHeading {
+  min-width: 0;
+  overflow: visible;
+}
+
+/* The name and its rename input share one box, so clicking to rename doesn't move the text; pulled left by its inset so the text lines up at rest. */
+.titleField {
+  box-sizing: border-box;
+  display: block;
+  max-width: 350px;
+  height: 28px;
+  margin: 0 0 0 -7px;
+  padding: 0 6px;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  outline: none;
-  background: rgba(0, 0, 0, 0.3);
   color: #fff;
   font: inherit;
   font-size: 18px;
   font-weight: 600;
-  line-height: 24px;
+  line-height: 26px;
 }
 
-.titleInput:focus {
-  border-color: rgba(255, 255, 255, 0.5);
+.titleButton {
+  overflow: hidden;
+  background: transparent;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background var(--lc-duration) var(--lc-ease);
 }
 
-.draftBadge {
+.titleButton:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.titleButton:focus-visible {
+  border-color: var(--canvas-accent, #73adf5);
+  outline: none;
+}
+
+.titleButton:disabled {
+  cursor: default;
+}
+
+.titleInput {
+  min-width: 80px;
+  border-color: var(--canvas-accent, #73adf5);
+  outline: none;
+  background: rgba(0, 0, 0, 0.3);
+  field-sizing: content;
+}
+
+.badge {
   flex-shrink: 0;
+  max-width: 160px;
+  overflow: hidden;
   padding: var(--space-xxs) var(--space-md);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 40px;
   background: rgba(255, 255, 255, 0.1);
   font-size: 12px;
   line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
 }
 
-.draftBadge[data-published] {
+.badge[data-published] {
   border-color: rgb(34 197 94 / 0.3);
   color: #4ade80;
   background: rgb(34 197 94 / 0.14);

@@ -71,7 +71,7 @@ export const DEFAULT_CANVAS_CARDS: CanvasCards = {
   blur: 40,
 }
 export const DEFAULT_CANVAS_PORTS: CanvasPorts = {
-  fill: { color: WHITE, opacity: 0.2 },
+  fill: { color: WHITE, opacity: 0.3 },
   border: { color: WHITE, opacity: 0.4 },
   borderWidth: 0,
   size: 10,

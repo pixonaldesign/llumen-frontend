@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react'
 import {
   CaretLeft,
   CaretRight,
@@ -118,6 +118,39 @@ type NodeConfigWindowProps = {
 
 type ConfigTab = 'configuration' | 'settings'
 
+/** Narrowest each column can be dragged to, left to right; triggers have no Input column. */
+const COLUMN_MIN = { input: [260, 420, 260], noInput: [440, 280] } as const
+type ColumnLayout = keyof typeof COLUMN_MIN
+const COLUMNS_KEY = 'llumen.configColumns.v1'
+const KEY_STEP = 16
+
+function readColumns(layout: ColumnLayout): number[] | null {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(COLUMNS_KEY) ?? '{}')[layout]
+    return Array.isArray(saved) && saved.length === COLUMN_MIN[layout].length && saved.every((width) => typeof width === 'number' && width > 0) ? saved : null
+  } catch {
+    return null
+  }
+}
+
+function saveColumns(layout: ColumnLayout, widths: readonly number[] | null) {
+  try {
+    const all = JSON.parse(localStorage.getItem(COLUMNS_KEY) ?? '{}')
+    if (widths) all[layout] = widths
+    else delete all[layout]
+    localStorage.setItem(COLUMNS_KEY, JSON.stringify(all))
+  } catch {
+    return
+  }
+}
+
+/** Moves the border left of column `index` by `dx`, trading width with its left neighbour within both minimums. */
+function dragColumns(start: readonly number[], index: number, dx: number, min: readonly number[]) {
+  const pair = start[index - 1] + start[index]
+  const left = Math.min(Math.max(start[index - 1] + dx, min[index - 1]), pair - min[index])
+  return start.map((width, i) => (i === index - 1 ? left : i === index ? pair - left : width))
+}
+
 const mergeRecords = (sources: readonly UpstreamNode[]) =>
   sources.some((source) => source.records) ? sources.flatMap((source) => source.records ?? []) : null
 
@@ -178,6 +211,24 @@ export function NodeConfigWindow(props: NodeConfigWindowProps) {
 
   const connected = fixture ?? mergeRecords(upstream.filter((source) => source.direct))
 
+  const layout: ColumnLayout = hasInput ? 'input' : 'noInput'
+  const columnMin = COLUMN_MIN[layout]
+  const [columnWidths, setColumnWidths] = useState(() => ({ input: readColumns('input'), noInput: readColumns('noInput') }))
+  const widths = columnWidths[layout]
+  const setWidths = (next: number[] | null, save: boolean) => {
+    setColumnWidths((current) => ({ ...current, [layout]: next }))
+    if (save) saveColumns(layout, next)
+  }
+  const columnsRef = useRef<HTMLDivElement>(null)
+  const columnDragRef = useRef<{ pointerId: number; index: number; startX: number; start: number[]; widths: number[] } | null>(null)
+  const measureColumns = () => [...(columnsRef.current?.querySelectorAll<HTMLElement>(':scope > section') ?? [])].map((column) => column.offsetWidth)
+  const endColumnDrag = (event: ReactPointerEvent) => {
+    const drag = columnDragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    columnDragRef.current = null
+    setWidths(drag.widths, true)
+  }
+
   return (
     <div className={styles.overlay} data-native-scroll onPointerDown={(event) => event.target === event.currentTarget && onClose()}>
       <div
@@ -213,7 +264,45 @@ export function NodeConfigWindow(props: NodeConfigWindowProps) {
             </div>
           </header>
 
-          <div key={node.id} className={hasInput ? styles.columns : `${styles.columns} ${styles.columnsNoInput}`}>
+          <div
+            key={node.id}
+            ref={columnsRef}
+            className={hasInput ? styles.columns : `${styles.columns} ${styles.columnsNoInput}`}
+            style={widths ? { gridTemplateColumns: widths.map((width, i) => `minmax(${columnMin[i]}px, ${width}fr)`).join(' ') } : undefined}
+          >
+            {columnMin.slice(1).map((_, i) => (
+              <div
+                key={i}
+                className={styles.columnResizer}
+                style={{ gridColumn: i + 2 }}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize columns"
+                tabIndex={0}
+                data-tooltip="Drag to resize, double-click to reset"
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return
+                  event.preventDefault()
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  const start = measureColumns()
+                  columnDragRef.current = { pointerId: event.pointerId, index: i + 1, startX: event.clientX, start, widths: start }
+                }}
+                onPointerMove={(event) => {
+                  const drag = columnDragRef.current
+                  if (!drag || drag.pointerId !== event.pointerId) return
+                  drag.widths = dragColumns(drag.start, drag.index, event.clientX - drag.startX, columnMin)
+                  setWidths(drag.widths, false)
+                }}
+                onPointerUp={endColumnDrag}
+                onPointerCancel={endColumnDrag}
+                onDoubleClick={() => setWidths(null, true)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+                  event.preventDefault()
+                  setWidths(dragColumns(measureColumns(), i + 1, event.key === 'ArrowLeft' ? -KEY_STEP : KEY_STEP, columnMin), true)
+                }}
+              />
+            ))}
             {hasInput ? (
               <InputColumn
                 upstream={upstream}

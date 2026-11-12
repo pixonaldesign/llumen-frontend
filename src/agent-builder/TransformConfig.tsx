@@ -44,7 +44,7 @@ function MatchCount({ group, fields: { records, scope }, yes, no }: { group: Con
 export function FilterConfig({ params, set, ctx }: EditorProps<FilterParams>) {
   const fields = conditionFields(ctx)
   return (
-    <Card icon={<Funnel size={16} aria-hidden />} title="Keep rows where" description="Only the rows that pass go on; the rest are dropped.">
+    <Card icon={<Funnel size={16} aria-hidden />} title="Keep rows where" description="Only the rows that pass go on; the rest are dropped">
       <ConditionEditor label="Filter conditions" group={params.where} fields={fields} onChange={(where, key) => set({ where }, `where:${key}`)} />
       <MatchCount group={params.where} fields={fields} yes="kept" no="dropped" />
     </Card>
@@ -54,9 +54,9 @@ export function FilterConfig({ params, set, ctx }: EditorProps<FilterParams>) {
 export function IfElseConfig({ params, set, ctx }: EditorProps<IfElseParams>) {
   const fields = conditionFields(ctx)
   return (
-    <Card icon={<GitFork size={16} aria-hidden />} title="If" description="Rows that match go down If; the rest go down Else. Only branches that get rows run.">
+    <Card icon={<GitFork size={16} aria-hidden />} title="If" description="Rows that match go down True; the rest go down False. Only branches that get rows run">
       <ConditionEditor label="If conditions" group={params.when} fields={fields} onChange={(when, key) => set({ when }, `when:${key}`)} />
-      <MatchCount group={params.when} fields={fields} yes="go down If" no="go down Else" />
+      <MatchCount group={params.when} fields={fields} yes="go down True" no="go down False" />
     </Card>
   )
 }
@@ -98,7 +98,7 @@ export function SwitchConfig({ params, set, ctx }: EditorProps<SwitchParams>) {
       <Card
         icon={<GitFork size={16} aria-hidden />}
         title="Routing"
-        description="Rows no case matches go to Default."
+        description="Rows no case matches go to Default"
         action={
           <div className={styles.headSelect}>
             <Select
@@ -110,7 +110,7 @@ export function SwitchConfig({ params, set, ctx }: EditorProps<SwitchParams>) {
           </div>
         }
       />
-      <Card icon={<Rows size={16} aria-hidden />} title="Cases" description="Each case is its own output. Removing one also removes its edges.">
+      <Card icon={<Rows size={16} aria-hidden />} title="Cases" description="Each case is its own output. Removing one also removes its edges">
         <div className={styles.list}>
           {params.cases.map((item, index) => (
             <div key={item.id} className={styles.sortItem} {...sortable.itemProps(item.id)}>
@@ -186,7 +186,7 @@ export function EditFieldsConfig({ params, set, ctx }: EditorProps<EditFieldsPar
   const showMissing = useContext(ShowMissing)
   return (
     <>
-      <Card icon={<PencilSimple size={16} aria-hidden />} title="Set fields" description="Adds or overwrites a column on every row. Values take {{field}} from the same row.">
+      <Card icon={<PencilSimple size={16} aria-hidden />} title="Set fields" description="Adds or overwrites a column on every row. Values take {{field}} from the same row">
         <div className={styles.list}>
           {params.assignments.map((item) => (
             <div key={item.id} className={styles.tripleRow}>
@@ -206,7 +206,7 @@ export function EditFieldsConfig({ params, set, ctx }: EditorProps<EditFieldsPar
         </div>
         <SwitchRow
           label="Keep the other fields"
-          description={params.keepOthers ? 'Rows keep every incoming column.' : 'Rows keep only the fields set here.'}
+          description={params.keepOthers ? 'Rows keep every incoming column' : 'Rows keep only the fields set here'}
           checked={params.keepOthers}
           onChange={(keepOthers) => set({ keepOthers }, 'keepOthers')}
         />
@@ -229,7 +229,7 @@ export function AggregateConfig({ params, set, ctx }: EditorProps<AggregateParam
   )
   return (
     <>
-      <Card icon={<Rows size={16} aria-hidden />} title="Group by" description="One output row per combination. With no group, everything is one row.">
+      <Card icon={<Rows size={16} aria-hidden />} title="Group by" description="One output row per combination. With no group, everything is one row">
         <ColumnChips label="Group by" value={params.groupBy} columns={ctx.columns} onChange={(groupBy) => set({ groupBy }, 'groupBy')} />
       </Card>
       <Card icon={<Sigma size={16} aria-hidden />} title="Metrics">
@@ -258,7 +258,7 @@ export function AggregateConfig({ params, set, ctx }: EditorProps<AggregateParam
           </Notice>
         ) : null}
       </Card>
-      <Card icon={<Code size={16} aria-hidden />} title="SQL" description="What runs against the input rows.">
+      <Card icon={<Code size={16} aria-hidden />} title="SQL" description="What runs against the input rows">
         <pre className={styles.sql}>{aggregateSql(params)}</pre>
       </Card>
     </>
@@ -268,7 +268,7 @@ export function AggregateConfig({ params, set, ctx }: EditorProps<AggregateParam
 export function MergeConfig({ params, set, ctx }: EditorProps<MergeParams>) {
   const inputs = ctx.upstream.filter((step) => step.direct)
   return (
-    <Card icon={<ArrowsMerge size={16} aria-hidden />} title="Merge" description="Appends each input’s rows in order: Input 1, then Input 2, and so on, up to 10 inputs. It waits for all of them; if any sends nothing, Merge is skipped.">
+    <Card icon={<ArrowsMerge size={16} aria-hidden />} title="Merge" description="Appends each input’s rows in order: Input 1, then Input 2, and so on, up to 10 inputs. It waits for all of them; if any sends nothing, Merge is skipped">
       {inputs.length ? (
         <dl className={styles.readout}>
           {inputs.map((step) => (
@@ -281,7 +281,7 @@ export function MergeConfig({ params, set, ctx }: EditorProps<MergeParams>) {
       ) : null}
       <SwitchRow
         label="Drop duplicate rows"
-        description="Rows whose every column matches an earlier row are left out."
+        description="Rows whose every column matches an earlier row are left out"
         checked={params.dedupe}
         onChange={(dedupe) => set({ dedupe }, 'dedupe')}
       />
@@ -294,7 +294,7 @@ const WAIT_OPTIONS: readonly SelectOption<WaitUnit>[] = (Object.keys(WAIT_UNIT_W
 export function WaitConfig({ params, set }: EditorProps<WaitParams>) {
   const id = useId()
   return (
-    <Card icon={<Clock size={16} aria-hidden />} title="Wait" description="Pauses this branch, then passes its rows on unchanged.">
+    <Card icon={<Clock size={16} aria-hidden />} title="Wait" description="Pauses this branch, then passes its rows on unchanged">
       <div className={windowStyles.fieldRow}>
         <Field label="Wait for" htmlFor={id} required>
           <NumberInput id={id} value={params.waitFor} min={1} max={10_000} onChange={(waitFor) => set({ waitFor: waitFor ?? 1 }, 'waitFor')} />
@@ -310,7 +310,7 @@ export function WaitConfig({ params, set }: EditorProps<WaitParams>) {
 
 export function StopAndErrorConfig({ params, set }: EditorProps<StopParams>) {
   return (
-    <Card icon={<SignOut size={16} aria-hidden />} title="Stop and error" description="Fails the run here with code WF_STOP_ERROR and stops the flow: every step that hasn’t run yet is skipped, on any branch.">
+    <Card icon={<SignOut size={16} aria-hidden />} title="Stop and error" description="Fails the run here with code WF_STOP_ERROR and stops the flow: every step that hasn’t run yet is skipped, on any branch">
       <TextAreaField
         label="Error message"
         rows={3}
@@ -326,7 +326,7 @@ export function StopAndErrorConfig({ params, set }: EditorProps<StopParams>) {
 
 export function NoOperationConfig() {
   return (
-    <Card icon={<Hand size={16} aria-hidden />} title="No operation" description="Does nothing and outputs no rows.">
+    <Card icon={<Hand size={16} aria-hidden />} title="No operation" description="Does nothing and outputs no rows">
       <Notice>Use it as a placeholder while you build, or to end a branch on purpose.</Notice>
     </Card>
   )

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
-import { ChatCircleDots, CheckCircle, CircleNotch, Prohibit, WarningCircle } from '@phosphor-icons/react'
-import { buttonClass } from './configStyles'
+import { ArrowClockwise, ChatCircleDots, CheckCircle, CircleNotch, Code, Copy, Prohibit, WarningCircle } from '@phosphor-icons/react'
 import { formatDuration, type NodeRun } from './nodeCatalog'
 import styles from './ExecutionsList.module.css'
 
@@ -56,16 +55,16 @@ export function ExecutionsList({ executions, published, running, canRetry, onRet
           : null
 
   const actions = (execution: Execution) => {
-    const small = buttonClass(undefined, 'small')
     if (execution.status === 'running' || execution.status === 'waiting') return null
     const retry = (
       <button
         type="button"
-        className={small}
+        className={styles.action}
         disabled={retryBlock(execution) !== null}
         data-tooltip={retryBlock(execution) ?? undefined}
         onClick={() => onRetry(execution)}
       >
+        <ArrowClockwise size={14} aria-hidden />
         Retry
       </button>
     )
@@ -73,7 +72,8 @@ export function ExecutionsList({ executions, published, running, canRetry, onRet
       return (
         <>
           {retry}
-          <button type="button" className={small} onClick={() => onDebug(execution)}>
+          <button type="button" className={styles.action} onClick={() => onDebug(execution)}>
+            <Code size={14} aria-hidden />
             Debug in Builder
           </button>
         </>
@@ -82,7 +82,8 @@ export function ExecutionsList({ executions, published, running, canRetry, onRet
     return (
       <>
         {execution.status === 'canceled' ? retry : null}
-        <button type="button" className={small} onClick={() => onCopy(execution)}>
+        <button type="button" className={styles.action} onClick={() => onCopy(execution)}>
+          <Copy size={14} aria-hidden />
           Copy to Builder
         </button>
       </>

@@ -7,12 +7,12 @@ import styles from './NodeConfigWindow.module.css'
 const TIMEOUT_MAX_SECONDS = 86_400
 
 const ON_ERROR: readonly SelectOption<OnErrorMode>[] = [
-  { id: 'stop', label: 'Stop workflow', description: 'Mark this step failed and skip everything after it.' },
-  { id: 'continue', label: 'Continue', description: 'Mark this step failed but let the next steps run.' },
+  { id: 'stop', label: 'Stop workflow', description: 'Mark this step failed and skip everything after it' },
+  { id: 'continue', label: 'Continue', description: 'Mark this step failed but let the next steps run' },
   {
     id: 'errorOutput',
     label: 'Continue using error output',
-    description: 'Let the next steps run and pass them the error as this step’s output.',
+    description: 'Let the next steps run and pass them the error as this step’s output',
   },
 ]
 
@@ -27,7 +27,7 @@ type NodeSettingsPanelProps = {
 export function NodeSettingsPanel({ settings, branching, onChange }: NodeSettingsPanelProps) {
   return (
     <>
-      <Card icon={<Timer size={16} aria-hidden />} title="Timeout" description="Stop the step if it runs longer than this.">
+      <Card icon={<Timer size={16} aria-hidden />} title="Timeout" description="Stop the step if it runs longer than this">
         <Field label="Timeout (seconds)" htmlFor="node-timeout" hint="Leave empty for no limit. Up to 86,400 (one day).">
           <NumberInput
             id="node-timeout"
@@ -45,7 +45,7 @@ export function NodeSettingsPanel({ settings, branching, onChange }: NodeSetting
       <Card
         icon={<ArrowClockwise size={16} aria-hidden />}
         title="Retry on fail"
-        description="Retries run first; On Error applies once they are used up."
+        description="Retries run first; On Error applies once they are used up"
         action={<SwitchToggle checked={settings.retryOnFail} label="Retry on fail" onChange={(retryOnFail) => onChange({ retryOnFail })} />}
       >
         {settings.retryOnFail ? (
@@ -82,8 +82,8 @@ export function NodeSettingsPanel({ settings, branching, onChange }: NodeSetting
           label="Always output data"
           description={
             branching
-              ? 'Sends an empty output when no rows match, so every branch runs, not only the one that matched.'
-              : 'Sends an empty output when there are no rows, so the next steps still run.'
+              ? 'Sends an empty output when no rows match, so every branch runs, not only the one that matched'
+              : 'Sends an empty output when there are no rows, so the next steps still run'
           }
           checked={settings.alwaysOutputData}
           onChange={(alwaysOutputData) => onChange({ alwaysOutputData })}

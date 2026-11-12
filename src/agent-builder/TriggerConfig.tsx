@@ -30,7 +30,7 @@ export function ManualTriggerConfig() {
     <Card
       icon={<CursorClick size={16} aria-hidden />}
       title="Manual trigger"
-      description="Starts the flow when you click Test or Execute here, or Run on the published Flow. A flow has one manual trigger."
+      description="Starts the flow when you click Test or Execute here, or Run on the published Flow. A flow has one manual trigger"
     >
       <Notice>
         Its output is one row with the run id and who started it, so the steps after it run once. A manual run has no chat session, so Send chat
@@ -82,7 +82,7 @@ export function ScheduleConfig({ params, set }: EditorProps<ScheduleParams>) {
     <Card
       icon={<CalendarBlank size={16} aria-hidden />}
       title="Schedule"
-      description={`${scheduleCadence(params)}, ${params.timezone.replace(/_/g, ' ')} time${end ? `, ${end}` : ''}.`}
+      description={`${scheduleCadence(params)}, ${params.timezone.replace(/_/g, ' ')} time${end ? `, ${end}` : ''}`}
     >
       <div className={windowStyles.fieldRow}>
         <Field label="Run every" htmlFor={everyId} required>
@@ -170,7 +170,7 @@ export function ChatInputConfig({ params, set }: EditorProps<ChatInputParams>) {
     <Card
       icon={<ChatCircleText size={16} aria-hidden />}
       title="Chat trigger"
-      description="Starts the flow from a message in the Flow’s chat. A flow has one chat trigger; Send and wait replies need it."
+      description="Starts the flow from a message in the Flow’s chat. A flow has one chat trigger; Send and wait replies need it"
     >
       <TextAreaField
         label="Test message"
@@ -191,10 +191,10 @@ const AUTH_OPTIONS: readonly SelectOption<WebhookAuth>[] = (Object.keys(WEBHOOK_
   label: WEBHOOK_AUTH_LABEL[id],
   description:
     id === 'none'
-      ? 'Anyone with the URL can start the flow.'
+      ? 'Anyone with the URL can start the flow'
       : id === 'oauth2'
-        ? 'Validates a JWT from your identity provider.'
-        : 'The secret is generated on publish and shown once.',
+        ? 'Validates a JWT from your identity provider'
+        : 'The secret is generated on publish and shown once',
 }))
 
 function bodyError(text: string) {
@@ -211,7 +211,7 @@ export function WebhookConfig({ params, set }: EditorProps<WebhookParams>) {
   const oauth = params.authMode === 'oauth2'
   return (
     <>
-      <Card icon={<LinkSimple size={16} aria-hidden />} title="Webhook" description="Starts the flow when a request arrives at its URL.">
+      <Card icon={<LinkSimple size={16} aria-hidden />} title="Webhook" description="Starts the flow when a request arrives at its URL">
         <dl className={styles.readout}>
           <div>
             <dt>URL</dt>
@@ -261,7 +261,7 @@ export function WebhookConfig({ params, set }: EditorProps<WebhookParams>) {
           </Notice>
         ) : null}
       </Card>
-      <Card icon={<PaperPlaneTilt size={16} aria-hidden />} title="Test request" description="What Send Test Webhook posts here. Each top-level key becomes a column.">
+      <Card icon={<PaperPlaneTilt size={16} aria-hidden />} title="Test request" description="What Send Test Webhook posts here. Each top-level key becomes a column">
         <TextAreaField
           label="Body"
           mono

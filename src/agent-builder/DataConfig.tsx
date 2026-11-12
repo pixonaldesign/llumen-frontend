@@ -31,7 +31,7 @@ export function AssetConfig({ params, set }: EditorProps<AssetParams>) {
   const asset = params.assetId ? ASSETS_BY_ID[params.assetId] : undefined
   const columns = asset ? columnsOf(asset.rows).map((column) => column.name) : []
   return (
-    <Card icon={<ChartLineUp size={16} aria-hidden />} title="Asset" description="The saved chart, table, or map to show on the canvas.">
+    <Card icon={<ChartLineUp size={16} aria-hidden />} title="Asset" description="The saved chart, table, or map to show on the canvas">
       <div data-field="Asset">
         {asset ? (
           <figure className={dialogStyles.app}>
@@ -98,11 +98,11 @@ const MODES: readonly { id: SourceMode; label: string; description: string; icon
 ]
 
 const MODE_HINT: Record<SourceMode, string> = {
-  query: 'Runs a read-only SQL query. {{alias.field}} inserts an earlier step’s values as quoted literals.',
-  api_request: 'Calls one of the connection’s endpoints. Query-string keys filter the matching columns; limit caps the rows.',
-  file: 'Reads one sheet of an uploaded file.',
-  dataflow: 'Reads the latest output of an ETL Flow.',
-  marketplace: 'Calls a marketplace operation with the parameters below.',
+  query: 'Runs a read-only SQL query. {{alias.field}} inserts an earlier step’s values as quoted literals',
+  api_request: 'Calls one of the connection’s endpoints. Query-string keys filter the matching columns; limit caps the rows',
+  file: 'Reads one sheet of an uploaded file',
+  dataflow: 'Reads the latest output of an ETL Flow',
+  marketplace: 'Calls a marketplace operation with the parameters below',
 }
 
 export function SourceConfig({ params, set, ctx }: EditorProps<SourceParams>) {
@@ -305,7 +305,7 @@ export function MlModelConfig({ params, set, ctx }: EditorProps<MlModelParams>) 
   const columns = params.rowSource ? stepColumns(ctx.upstream, params.rowSource) : ctx.columns
   return (
     <>
-      <Card icon={<Brain size={16} aria-hidden />} title="Model" description="Scores every row with a registered model and adds prediction and probability columns.">
+      <Card icon={<Brain size={16} aria-hidden />} title="Model" description="Scores every row with a registered model and adds prediction and probability columns">
         <Field label="Model" required>
           <Select
             label="Model"
@@ -320,7 +320,7 @@ export function MlModelConfig({ params, set, ctx }: EditorProps<MlModelParams>) 
         <Notice>Batch prediction takes up to 50,000 rows; more fails the step.</Notice>
       </Card>
       {model ? (
-        <Card icon={<Table size={16} aria-hidden />} title="Feature mapping" description="Each feature reads the column of the same name unless you map another.">
+        <Card icon={<Table size={16} aria-hidden />} title="Feature mapping" description="Each feature reads the column of the same name unless you map another">
           {model.features.map((feature) => {
             const mapped = params.featureMapping[feature]
             const column = mapped || feature
@@ -348,9 +348,9 @@ export function MlModelConfig({ params, set, ctx }: EditorProps<MlModelParams>) 
 
 const GRAIN_OPTIONS = (Object.keys(GRAIN_LABEL) as ForecastGrain[]).map((id) => ({ id, label: GRAIN_LABEL[id] }))
 const REFUSAL_OPTIONS: readonly SelectOption<ForecastRefusal>[] = [
-  { id: 'fail', label: REFUSAL_LABEL.fail, description: 'Any refused series fails the step.' },
-  { id: 'pass_through_empty', label: REFUSAL_LABEL.pass_through_empty, description: 'Refused series are left out; the step fails only when none is forecast.' },
-  { id: 'shorten_to_supported', label: REFUSAL_LABEL.shorten_to_supported, description: 'A series asked too far ahead is forecast as far as its history allows.' },
+  { id: 'fail', label: REFUSAL_LABEL.fail, description: 'Any refused series fails the step' },
+  { id: 'pass_through_empty', label: REFUSAL_LABEL.pass_through_empty, description: 'Refused series are left out; the step fails only when none is forecast' },
+  { id: 'shorten_to_supported', label: REFUSAL_LABEL.shorten_to_supported, description: 'A series asked too far ahead is forecast as far as its history allows' },
 ]
 
 export function ForecastConfig({ params, set, ctx }: EditorProps<ForecastParams>) {
@@ -386,7 +386,7 @@ export function ForecastConfig({ params, set, ctx }: EditorProps<ForecastParams>
           />
         </Field>
       </Card>
-      <Card icon={<TrendUp size={16} aria-hidden />} title="Forecast" description="Values in the same period are summed. Rows with no time or value are dropped.">
+      <Card icon={<TrendUp size={16} aria-hidden />} title="Forecast" description="Values in the same period are summed. Rows with no time or value are dropped">
         <Field label="Period">
           <Segmented label="Period" value={params.grain} options={GRAIN_OPTIONS} onChange={(grain) => set({ grain }, 'grain')} />
         </Field>

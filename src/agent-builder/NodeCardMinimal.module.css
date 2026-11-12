@@ -37,6 +37,12 @@
   cursor: grabbing;
 }
 
+/* Nothing inside reacts while the node moves: no hovers, selection, or the map taking the pointer. */
+.dragging * {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
 .name {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -377,7 +383,13 @@ button.badgeButton:focus-visible {
   transform: translateY(-50%) scale(1.8);
 }
 
-.port[data-port-side='out']:hover svg {
+/* An output dot is a blue + that adds the next node. */
+.port[data-port-side='out'] {
+  border-color: var(--canvas-accent);
+  background: var(--canvas-accent);
+}
+
+.port[data-port-side='out'] svg {
   opacity: 1;
 }
 

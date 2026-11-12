@@ -319,10 +319,13 @@ const areaSize = (area: ScreenArea) => Math.max(0, area.right - area.left) * Mat
 
 const overlaps = (a: ScreenArea, b: ScreenArea) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
 
-/** Where the `[data-covers-canvas]` panels sit over the canvas, in the canvas's own pixels. */
-function coveringPanels(root: HTMLElement): ScreenArea[] {
+/**
+ * Where the `[data-covers-canvas]` panels sit over the canvas, in the canvas's own pixels. `lasting` leaves out
+ * `picker` panels, which close once something is picked from them.
+ */
+function coveringPanels(root: HTMLElement, lasting = false): ScreenArea[] {
   const bounds = root.getBoundingClientRect()
-  return [...document.querySelectorAll('[data-covers-canvas]')].map((panel) => {
+  return [...document.querySelectorAll(lasting ? '[data-covers-canvas]:not([data-covers-canvas="picker"])' : '[data-covers-canvas]')].map((panel) => {
     const rect = panel.getBoundingClientRect()
     return { left: rect.left - bounds.left, top: rect.top - bounds.top, right: rect.right - bounds.left, bottom: rect.bottom - bounds.top }
   })
@@ -461,6 +464,8 @@ const SPLIT_GAP = NODE_GAP * 2
 const EDGE_DRAG_THRESHOLD = 4
 /** How far the line from a clicked output dot reaches before the insert panel. */
 const PORT_CLICK_REACH = 80
+/** A line's grey; a selected line takes the white-to-blue gradient instead. */
+const EDGE_STROKE = 'rgba(255, 255, 255, 0.3)'
 /** World gap between an edge's end and its port dot. */
 const EDGE_PORT_GAP = 4
 
@@ -1192,9 +1197,29 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
     animateTo({ zoom, x: root.clientWidth / 2 - (box.x + box.w / 2) * zoom, y: root.clientHeight / 2 - (box.y + box.h / 2) * zoom })
   }
 
+  /** Whether `box` (world coordinates) is wholly on the canvas, clear of the panels that stay over it. */
+  const inView = (box: Point & Size) => {
+    const root = rootRef.current
+    if (!root) return true
+    const view = viewRef.current
+    const area: ScreenArea = {
+      left: box.x * view.zoom + view.x,
+      top: box.y * view.zoom + view.y,
+      right: (box.x + box.w) * view.zoom + view.x,
+      bottom: (box.y + box.h) * view.zoom + view.y,
+    }
+    const onCanvas = area.left >= 0 && area.top >= 0 && area.right <= root.clientWidth && area.bottom <= root.clientHeight
+    return onCanvas && !coveringPanels(root, true).some((panel) => overlaps(area, panel))
+  }
+
+  /** New nodes stay where they are on screen; the canvas pans only to bring one into view. */
+  const revealNew = (box: Point & Size) => {
+    if (!inView(box)) centreOn(box)
+  }
+
   /**
    * Adds a node, centred on `at` (world coordinates), where the pointer put it, or at `newSpot`, which the canvas pans
-   * to; `height`, when the card's already been measured, makes `at` exact.
+   * to when it's out of view; `height`, when the card's already been measured, makes `at` exact.
    */
   const addNode = (typeId: string, at?: Point, config?: NodeConfig, height = DEFAULT_NODE_SIZE.h) => {
     const type = NODE_TYPES_BY_ID[typeId]
@@ -1206,7 +1231,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
     if (!spot) return
     commit({ ...doc, nodes: [...doc.nodes, createNode(type, id, config)], positions: { ...doc.positions, [id]: spot.position } })
     setSelection({ kind: 'node', id })
-    if (spot.reveal) animateTo(spot.reveal)
+    if (spot.reveal && !inView({ ...spot.position, ...size })) animateTo(spot.reveal)
     return id
   }
 
@@ -1319,7 +1344,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
         edges.map((edge) => edge.id),
       ),
     )
-    if (spot.reveal) animateTo(spot.reveal)
+    if (!inView({ ...spot.position, w: right - left, h: bottom - top })) animateTo(spot.reveal)
   }
 
   const clipboardKeysRef = useRef({ copy: copySelection, cut: cutSelection, paste: pasteClipboard })
@@ -1970,17 +1995,15 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
       setLayouts(next)
       const align = alignRef.current
       const offset = align && next[align.port.nodeId]?.ports[layoutPortKey(align.port.side, align.port.portId)]
+      const aligned = (current: CanvasDoc) => {
+        const id = align?.port.nodeId
+        if (!align || !offset || !id || !current.positions[id]) return current
+        const at = { x: align.levelOnly ? current.positions[id].x : align.at.x - offset.x, y: align.at.y - offset.y }
+        return { ...current, positions: { ...current.positions, [id]: at } }
+      }
       if (align && offset) {
         alignRef.current = null
-        const id = align.port.nodeId
-        setDoc((current) =>
-          current.positions[id]
-            ? {
-                ...current,
-                positions: { ...current.positions, [id]: { x: align.levelOnly ? current.positions[id].x : align.at.x - offset.x, y: align.at.y - offset.y } },
-              }
-            : current,
-        )
+        setDoc(aligned)
       }
       if (!laying) {
         const ids = Object.keys(next)
@@ -1988,7 +2011,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
         const grown = new Set(ids.filter((id) => previous[id] && (next[id].w > previous[id].w || next[id].h > previous[id].h)))
         const dropped = added.filter((id) => droppedRef.current.delete(id))
         if (dropped.length > 0) {
-          const current = docRef.current
+          const current = aligned(docRef.current)
           const free = added.filter((id) => !dropped.includes(id))
           glideTo(current, settleNodes(current, next, free, new Set([...grown, ...dropped])))
         } else if (added.length > 0 || grown.size > 0) setDoc((current) => settleNodes(current, next, added, grown))
@@ -2820,11 +2843,12 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
       ? doc.edges.map((edge) => (edge.id === pending.edgeId ? { ...edge, ...wired } : edge))
       : [...doc.edges, { id: createId('edge'), ...wired }]
     commit({ ...doc, nodes: [...doc.nodes, node], positions: { ...doc.positions, [id]: { x: box.x, y: box.y } }, edges: next })
+    droppedRef.current.add(id)
     const side: PortSide = pending.from.side === 'out' ? 'in' : 'out'
     const clearance = side === 'in' ? portClearance : -portClearance
     alignRef.current = { port: { nodeId: id, portId: port.id, side }, at: { x: pending.point.x + clearance, y: pending.point.y } }
     setSelection({ kind: 'node', id })
-    centreOn(box)
+    revealNew(box)
   }
 
   /**
@@ -2896,7 +2920,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
     commit(shifted.size ? makeRoom(placed, shifted, layouts) : placed)
     alignRef.current = { port: { nodeId: id, portId: input.id, side: 'in' }, at: { x, y: level }, levelOnly: true }
     setSelection({ kind: 'node', id })
-    centreOn({ x, y: level - DEFAULT_NODE_SIZE.h / 2, w: width, h: DEFAULT_NODE_SIZE.h })
+    revealNew({ x, y: level - DEFAULT_NODE_SIZE.h / 2, w: width, h: DEFAULT_NODE_SIZE.h })
   }
 
   const onLibraryDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
@@ -3095,7 +3119,10 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
         hasChatTrigger={doc.nodes.some((node) => node.type === 'chatInput')}
         onSettings={(patch) => setNodeSettings(id, patch)}
         onFixture={(records) => setFixture(id, records)}
-        onExecute={() => runNodes(id, nodeType(configuring).category === 'triggers' ? 'downstream' : 'node')}
+        onExecute={() => {
+          if (configuring.type === 'chatInput') return
+          runNodes(id, nodeType(configuring).category === 'triggers' ? 'downstream' : 'node')
+        }}
         onExecutePrevious={() => runNodes(id, 'upstream')}
         onReply={(reply) => replyTo(id, reply)}
         focus={configFocus}
@@ -3115,6 +3142,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
   })
   const triggerFor = (id: string | null) => triggers.find((option) => option.id === id) ?? triggers[0]
   const testTrigger = triggerFor(testTriggerId)
+  const hasChatTrigger = doc.nodes.some((node) => node.type === 'chatInput')
   const flowState: FlowState = { published, publishedAt: publishedAt ?? undefined, defaultTriggerId: defaultTriggerId(doc.nodes) }
 
   const running = activeRuns > 0
@@ -3401,7 +3429,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
 
           <svg className={styles.edges} width="1" height="1" aria-hidden>
             <defs>
-              {edges.map((edge) => (
+              {edges.filter((edge) => selectedEdges.has(edge.id)).map((edge) => (
                 <linearGradient
                   key={edge.id}
                   id={`edge-${edge.id}`}
@@ -3422,7 +3450,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
                 className={selectedEdges.has(edge.id) ? `${styles.edge} ${styles.edgeSelected}` : styles.edge}
                 data-moving={edge.id === drawing?.edgeId || undefined}
               >
-                <path className={styles.edgeLine} d={edge.d} stroke={`url(#edge-${edge.id})`} />
+                <path className={styles.edgeLine} d={edge.d} stroke={selectedEdges.has(edge.id) ? `url(#edge-${edge.id})` : EDGE_STROKE} />
                 <path
                   className={styles.edgeHit}
                   d={edge.d}
@@ -3679,7 +3707,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
           annotation={false}
           canDuplicate={!nodeType(hoveredNode).singleton}
           running={runs[hoveredNode.id]?.status === 'running'}
-          onRun={(scope) => runNodes(hoveredNode.id, scope)}
+          onRun={(scope) => hoveredNode.type !== 'chatInput' && runNodes(hoveredNode.id, scope)}
           onConfigure={() => openConfig(hoveredNode.id)}
           onDuplicate={() => duplicateNode(hoveredNode.id)}
           onDelete={() => deleteNode(hoveredNode.id)}
@@ -3750,11 +3778,10 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
           </button>
         )}
         <div className={styles.titleGroup}>
-          {workspace ? <p className={controls.eyebrow}>{workspace}</p> : null}
           <div className={styles.titleRow}>
             {renamingAgent ? (
               <input
-                className={`${controls.title} ${styles.titleInput}`}
+                className={`${controls.title} ${styles.titleField} ${styles.titleInput}`}
                 defaultValue={name}
                 aria-label="Agent name"
                 autoFocus
@@ -3770,14 +3797,25 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
                 }}
               />
             ) : (
-              <h1 className={controls.title} onDoubleClick={versionsOpen ? undefined : () => setRenamingAgent(true)}>
-                {name}
+              <h1 className={`${controls.title} ${styles.titleHeading}`}>
+                <button
+                  type="button"
+                  className={`${styles.titleField} ${styles.titleButton}`}
+                  title={name}
+                  disabled={versionsOpen}
+                  onClick={() => setRenamingAgent(true)}
+                >
+                  {name}
+                </button>
               </h1>
             )}
-            <span className={styles.draftBadge} data-published={published || undefined}>
+            {versionsOpen ? null : <AgentMenu name={name} onRename={() => setRenamingAgent(true)} onDelete={onClose} />}
+          </div>
+          <div className={styles.badgeRow}>
+            {workspace ? <span className={styles.badge}>{workspace}</span> : null}
+            <span className={styles.badge} data-published={published || undefined}>
               {published ? 'Published' : 'Draft'}
             </span>
-            {versionsOpen ? null : <AgentMenu name={name} onRename={() => setRenamingAgent(true)} onDelete={onClose} />}
           </div>
         </div>
       </header>
@@ -3812,9 +3850,14 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
           <div className={styles.topRight} data-covers-canvas>
             {running ? (
               <div className={SCOPE_CLASS} data-theme="dark" style={{ display: 'contents' }}>
-                <button type="button" className={`pg-btn pg-btn--outline pg-btn--negative ${styles.topButton}`} onClick={stopRun}>
+                <button
+                  type="button"
+                  className={`pg-btn pg-btn--outline pg-btn--negative ${styles.topButton}`}
+                  aria-label={runKind === 'execute' ? 'Stop execution' : 'Stop testing'}
+                  onClick={stopRun}
+                >
                   <Stop size={16} weight="fill" aria-hidden />
-                  {runKind === 'execute' ? 'Stop execution' : 'Stop testing'}
+                  Stop
                 </button>
                 <span
                   className={`${runKind === 'execute' ? 'pg-btn pg-btn--primary' : styles.publishButton} ${styles.topButton} ${styles.executing}`}
@@ -3822,6 +3865,13 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
                 >
                   <CircleNotch size={16} weight="bold" className={styles.spinner} aria-hidden />
                   {runKind === 'execute' ? 'Executing…' : 'Testing…'}
+                </span>
+              </div>
+            ) : publishing ? (
+              <div className={SCOPE_CLASS} data-theme="dark" style={{ display: 'contents' }}>
+                <span className={`pg-btn pg-btn--outline pg-btn--primary ${styles.topButton} ${styles.busy}`} role="status">
+                  <CircleNotch size={16} weight="bold" className={styles.spinner} aria-hidden />
+                  Publishing…
                 </span>
               </div>
             ) : (
@@ -3881,16 +3931,24 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
                   <Export size={20} weight="regular" aria-hidden />
                 </button>
                 <div className={SCOPE_CLASS} data-theme="dark" style={{ display: 'contents' }}>
-                  <RunAgentButton
-                    label="Test"
-                    icon={Flask}
-                    variant="secondary"
-                    tooltip={(title) => `Test from ${title}`}
-                    triggers={triggers}
-                    trigger={testTrigger}
-                    onTrigger={setTestTriggerId}
-                    onRun={(triggerId) => runNodes(triggerId, 'downstream')}
-                  />
+                  {hasChatTrigger ? (
+                    <button type="button" className={`${styles.publishButton} ${styles.topButton}`}>
+                      <ChatCircle size={16} weight="regular" aria-hidden />
+                      Test chat
+                    </button>
+                  ) : null}
+                  {triggers.length ? (
+                    <RunAgentButton
+                      label="Test"
+                      icon={Flask}
+                      variant="secondary"
+                      tooltip={(title) => `Test from ${title}`}
+                      triggers={triggers}
+                      trigger={testTrigger}
+                      onTrigger={setTestTriggerId}
+                      onRun={(triggerId) => runNodes(triggerId, 'downstream')}
+                    />
+                  ) : null}
                   {published ? (
                     <RunAgentButton
                       label="Execute"
@@ -3905,20 +3963,10 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
                   ) : null}
                   <button
                     type="button"
-                    className={`pg-btn pg-btn--outline ${published ? 'pg-btn--warning' : 'pg-btn--primary'} ${styles.topButton}${publishing ? ` ${styles.busy}` : ''}`}
-                    aria-busy={publishing || undefined}
-                    onClick={publishing ? undefined : togglePublished}
+                    className={`pg-btn pg-btn--outline ${published ? 'pg-btn--warning' : 'pg-btn--primary'} ${styles.topButton}`}
+                    onClick={togglePublished}
                   >
-                    {publishing ? (
-                      <>
-                        <CircleNotch size={16} weight="bold" className={styles.spinner} aria-hidden />
-                        Publishing…
-                      </>
-                    ) : published ? (
-                      'Unpublish'
-                    ) : (
-                      'Publish'
-                    )}
+                    {published ? 'Unpublish' : 'Publish'}
                   </button>
                 </div>
               </>
@@ -3982,7 +4030,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
                   className={`${controls.bar} ${styles.footerBar} ${styles.barFlyout}`}
                   style={insertBarX === null ? undefined : { left: insertBarX }}
                   role="toolbar"
-                  aria-label="Insert"
+                  aria-label="Tools"
                 >
                   {toolButtons(CONTENT_TOOLS, true)}
                 </div>
@@ -3998,7 +4046,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
                   onClick={() => setBarFlyout((current) => (current === 'nodes' ? null : 'nodes'))}
                 >
                   <Plus size={20} weight={barFlyout === 'nodes' ? 'bold' : 'regular'} aria-hidden />
-                  Add node
+                  Nodes
                 </button>
                 <button
                   ref={insertButtonRef}
@@ -4008,7 +4056,7 @@ export function AgentCanvas({ name: initialName, workspace, onClose }: AgentCanv
                   onClick={() => setBarFlyout((current) => (current === 'insert' ? null : 'insert'))}
                 >
                   <Shapes size={20} weight={barFlyout === 'insert' || inserting ? 'fill' : 'regular'} aria-hidden />
-                  Insert
+                  Tools
                 </button>
                 <span className={controls.barDivider} aria-hidden />
                 {canvasControls}
@@ -4263,7 +4311,7 @@ function DevMenu(props: DevMenuProps) {
             <DevItem
               icon={Columns}
               label="Split toolbars"
-              hint="Insert, nodes and canvas controls apart"
+              hint="Tools, nodes and canvas controls apart"
               checked={props.toolbarStyle === 'split'}
               onSelect={() => props.onToolbarStyle('split')}
             />

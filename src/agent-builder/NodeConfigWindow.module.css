@@ -217,6 +217,53 @@ button.close:hover {
   grid-template-columns: minmax(440px, 1.4fr) minmax(280px, 1fr);
 }
 
+/* Placed explicitly, so the resize handles can share their cells without pushing them onto a new row. */
+.columns > section {
+  grid-row: 1;
+}
+
+.columns > section:nth-of-type(1) {
+  grid-column: 1;
+}
+
+.columns > section:nth-of-type(2) {
+  grid-column: 2;
+}
+
+.columns > section:nth-of-type(3) {
+  grid-column: 3;
+}
+
+/* Sits on the border at its column's left edge, reaching only 1px back so the scrollbar beside it stays grabbable. */
+.columnResizer {
+  position: relative;
+  z-index: 2;
+  grid-row: 1;
+  justify-self: start;
+  width: 8px;
+  margin-left: -1px;
+  outline: none;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.columnResizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: transparent;
+  transition: background var(--lc-duration) var(--lc-ease);
+}
+
+.columnResizer:hover::after,
+.columnResizer:active::after,
+.columnResizer:focus-visible::after {
+  background: var(--canvas-accent, #73adf5);
+}
+
 .column {
   display: flex;
   flex-direction: column;

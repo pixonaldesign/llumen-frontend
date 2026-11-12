@@ -31,7 +31,7 @@ function TemplateHint() {
 export function ChatMessageConfig({ params, set, ctx }: EditorProps<ChatMessageParams>) {
   const waits = params.mode === 'send_and_wait'
   return (
-    <Card icon={<ChatCircleDots size={16} aria-hidden />} title="Chat message" description="Posts one message per run in the Flow’s chat session, not one per row.">
+    <Card icon={<ChatCircleDots size={16} aria-hidden />} title="Chat message" description="Posts one message per run in the Flow’s chat session, not one per row">
       <Field label="Mode">
         <Segmented label="Mode" value={params.mode} options={CHAT_MODES} onChange={(mode) => set({ mode }, 'mode')} />
       </Field>
@@ -75,7 +75,7 @@ const addressError = (text: string) => {
 
 export function EmailConfig({ params, set, ctx }: EditorProps<EmailParams>) {
   return (
-    <Card icon={<Envelope size={16} aria-hidden />} title="Email" description="Sends one email per run, not one per row. Separate addresses with commas.">
+    <Card icon={<Envelope size={16} aria-hidden />} title="Email" description="Sends one email per run, not one per row. Separate addresses with commas">
       <TemplateField
         label="To"
         required
@@ -122,7 +122,7 @@ export function ApiRequestConfig({ params, set, ctx }: EditorProps<ApiRequestPar
   const { source, endpoint } = apiConnection(params)
   return (
     <>
-      <Card icon={<Globe size={16} aria-hidden />} title="Request" description="Sends one request per run, not one per row. A body over 1 MiB fails the step; a longer reply is cut short.">
+      <Card icon={<Globe size={16} aria-hidden />} title="Request" description="Sends one request per run, not one per row. A body over 1 MiB fails the step; a longer reply is cut short">
         <Segmented label="Request mode" value={params.mode} options={API_MODES} onChange={(mode) => set({ mode }, 'mode')} />
         {params.mode === 'source' ? (
           <>
@@ -167,7 +167,7 @@ export function ApiRequestConfig({ params, set, ctx }: EditorProps<ApiRequestPar
           <Card
             icon={<ListBullets size={16} aria-hidden />}
             title="Headers"
-            description="Values can use references. Keys and tokens, such as Authorization, are hidden here and in the run’s output."
+            description="Values can use references. Keys and tokens, such as Authorization, are hidden here and in the run’s output"
           >
             <div className={styles.list}>
               {params.headers.map((header, index) => (

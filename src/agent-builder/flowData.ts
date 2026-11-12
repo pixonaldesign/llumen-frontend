@@ -218,7 +218,7 @@ export const SOURCES: readonly DataSource[] = [
     mode: 'query',
     detail: 'PostgreSQL',
     description:
-      'Traffic management data for the road network: road sections, sensors, incidents and events, response plans, and AI and simulation predictions.',
+      'Traffic management data for the road network: road sections, sensors, incidents and events, response plans, and AI and simulation predictions',
     tables: { road_sections: ROAD_SECTIONS, incidents: TRAFFIC_INCIDENTS },
   },
   {

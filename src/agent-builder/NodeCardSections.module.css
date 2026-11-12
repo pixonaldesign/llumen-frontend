@@ -189,9 +189,13 @@
   opacity: 1;
 }
 
+/* The name steps back so the count reads like every other output's. */
+.edgeOutputName {
+  color: rgb(var(--ink-rgb) / 0.55);
+}
+
 .edgeOutputCount {
   margin-left: var(--space-sm);
-  color: rgb(var(--ink-rgb) / 0.55);
 }
 
 /* A branch row's count, beside the row's own dot; `top` is measured, since the rows sit wherever the card's content puts them. */
@@ -273,6 +277,14 @@
   gap: var(--space-sm);
   aspect-ratio: 16 / 9;
   text-align: center;
+}
+
+/* Waiting on a run, so nothing to click. */
+.content .placeholder[data-static],
+.content .placeholder[data-static]:hover {
+  background: transparent;
+  color: rgb(var(--ink-rgb) / 0.45);
+  cursor: inherit;
 }
 
 /* The asset a Create Asset step made: a chart or map keeps the placeholder's 16:9, a table hugs its rows. */

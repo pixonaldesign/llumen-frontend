@@ -1,7 +1,7 @@
 import type { Icon } from '@phosphor-icons/react'
 import type { SavedAsset } from './flowData'
 import type { ChatExchange } from './chatMessage'
-import { createAssetIssue, type CreateAssetSettings } from './createAsset'
+import { chartName, createAssetIssue, type CreateAssetSettings } from './createAsset'
 import type { ApiExchange } from './apiExchange'
 import type { EmailMessage } from './emailMessage'
 import type { Finding } from './findings'
@@ -34,8 +34,8 @@ const KIND_PROMPT_COPY: Readonly<Record<string, { label: string; placeholder: st
   aiFindings: { label: 'Focus', placeholder: 'Optional: what the findings should look at first' },
 }
 
-/** Branching kinds whose outputs sit as labelled dots on the card's edge instead of rows in the content. */
-const EDGE_OUTPUTS: ReadonlySet<string> = new Set(['ifElse'])
+/** Kinds whose outputs sit as labelled dots on the card's edge instead of rows in the content, even a single one. */
+const EDGE_OUTPUTS: ReadonlySet<string> = new Set(['ifElse', 'filter'])
 
 export const cardEdgeOutputs = (type: NodeType) => EDGE_OUTPUTS.has(type.id)
 
@@ -43,19 +43,19 @@ export const cardEdgeOutputs = (type: NodeType) => EDGE_OUTPUTS.has(type.id)
 export const cardValues = (node: CanvasNode, type: NodeType, flow: FlowState): readonly NodeField[] =>
   hasSummary(type.id) ? [] : cardDetails(node, type.category === 'triggers', flow).fields.filter((field) => !field.muted && field.value.trim())
 
-/** Holds an asset's place on the card until there's one to show; it opens the settings, in place of the warning about what's missing. */
-export type CardPlaceholder = { label: string }
+/**
+ * Holds an asset's place on the card until there's one to show. One that `opensSettings` stands in for the warning about
+ * what's missing; the rest just wait for a run.
+ */
+export type CardPlaceholder = { label: string; opensSettings: boolean }
 
 /** What a card that shows an asset holds before it has one; it takes the asset's room, so the card keeps its size once it arrives. */
-export function cardPlaceholder(node: CanvasNode): CardPlaceholder | undefined {
-  if (node.type === 'asset' && !nodeAsset(node)) return { label: 'Choose an asset to view' }
-  return undefined
-}
-
-/** The one warning a card shows, instead of its values, until the step is set up; the settings say what's missing. */
-export function cardSetup(node: CanvasNode): string | undefined {
-  if (node.type === 'createAsset' && createAssetIssue(paramsFor('createAsset', node.config.params))) return 'Set up the asset'
-  return undefined
+export function cardPlaceholder(node: CanvasNode, blocks: readonly ContentBlock[]): CardPlaceholder | undefined {
+  if (node.type === 'asset') return nodeAsset(node) ? undefined : { label: 'Choose an asset to view', opensSettings: true }
+  if (node.type !== 'createAsset' || blocks.some((block) => block.kind === 'made')) return undefined
+  const settings = paramsFor('createAsset', node.config.params)
+  if (createAssetIssue(settings)) return { label: 'Set up the asset and run to preview', opensSettings: true }
+  return { label: `Run to preview the ${chartName(settings.chartType).toLowerCase()}`, opensSettings: false }
 }
 
 /** The card's blocks; a Create Asset step that ran shows the asset it made, drawn from `rows`. */

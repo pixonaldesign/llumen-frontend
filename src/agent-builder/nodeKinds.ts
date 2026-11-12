@@ -767,7 +767,7 @@ export function kindIssues(typeId: string, stored: unknown): KindIssue[] {
     case 'filter':
       return groupIssues(paramsFor(typeId, stored).where, 'the filter', 'Filter conditions')
     case 'ifElse':
-      return groupIssues(paramsFor(typeId, stored).when, 'the If branch', 'If conditions')
+      return groupIssues(paramsFor(typeId, stored).when, 'the If check', 'If conditions')
     case 'switchCases':
       return switchIssues(paramsFor(typeId, stored))
     case 'editFields':

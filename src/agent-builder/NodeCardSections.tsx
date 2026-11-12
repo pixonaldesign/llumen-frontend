@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { BracketsAngle, CircleNotch, Minus, PencilSimple, Plus, Warning } from '@phosphor-icons/react'
+import { BracketsAngle, CircleNotch, GearSix, Minus, PencilSimple, Plus, Warning } from '@phosphor-icons/react'
 import { ContentBlockView } from './CardSectionViews'
-import { cardAssetName, cardContent, cardEdgeOutputs, cardPlaceholder, cardSetup, cardValues, type HeaderAction } from './cardSections'
+import { cardAssetName, cardContent, cardEdgeOutputs, cardPlaceholder, cardValues, type HeaderAction } from './cardSections'
 import { NodeDataCard } from './NodeDataCard'
 import { appearanceVars, inkRgb } from './nodeAppearance'
 import { DetailBadges, NodeFill, Port, ResizeHandles, type NodeCardProps } from './nodeParts'
@@ -164,15 +164,14 @@ export function NodeCardSections({
   // Only a chart, table or map has no natural size; every other card hugs its content.
   const resizable = blocks.some((block) => block.kind === 'asset' || block.kind === 'made')
   const frame = resizable ? node.frame : undefined
-  const placeholder = cardPlaceholder(node)
-  const setup = cardSetup(node)
+  const placeholder = cardPlaceholder(node, blocks)
   // Until it's set up, a default setting isn't something the user chose.
-  const values = placeholder || setup ? [] : cardValues(node, type, flow)
+  const values = placeholder?.opensSettings ? [] : cardValues(node, type, flow)
   // A failed run's badge lists the problems, so the card doesn't repeat one of them.
-  const issue = run.status === 'error' ? undefined : ((placeholder ? undefined : (setup ?? nodeIssue(node))) ?? wiringIssue ?? nodeNotice(node))
+  const issue = run.status === 'error' ? undefined : ((placeholder?.opensSettings ? undefined : nodeIssue(node)) ?? wiringIssue ?? nodeNotice(node))
   const outputs = nodeOutputs(node, type)
   const addLabel = branchAddLabel(type.id)
-  const edgeOutputs = outputs.length > 1 && cardEdgeOutputs(type)
+  const edgeOutputs = cardEdgeOutputs(type)
   const branchOutputs = outputs.length > 1 && !edgeOutputs
   const inputs = nodeInputs(node, type)
   const branchInputs = inputs.length > 1
@@ -304,7 +303,7 @@ export function NodeCardSections({
               <li key={value.id} className={styles.edgeOutput}>
                 {port(value, 'out', minimal.portOut)}
                 <span className={styles.edgeOutputLabel} data-counted={count ? true : undefined}>
-                  {value.label}
+                  <span className={styles.edgeOutputName}>{value.label}</span>
                   {count ? <span className={styles.edgeOutputCount}>{count}</span> : null}
                 </span>
               </li>
@@ -342,7 +341,7 @@ export function NodeCardSections({
       >
         <NodeFill paint={node.appearance} />
         {inputs.length === 1 ? port(inputs[0], 'in', minimal.portIn) : null}
-        {outputs.length === 1 ? port(outputs[0], 'out', minimal.portOut) : null}
+        {outputs.length === 1 && !edgeOutputs ? port(outputs[0], 'out', minimal.portOut) : null}
 
         <div className={styles.content}>
           <div className={styles.titleBlock}>
@@ -370,11 +369,15 @@ export function NodeCardSections({
           ) : null}
 
           {run.status === 'running' && run.countdown ? <WaitCountdown {...run.countdown} /> : null}
-          {placeholder ? (
+          {placeholder?.opensSettings ? (
             <button type="button" className={`${styles.branch} ${styles.addBranch} ${styles.placeholder}`} onClick={() => onOpenConfig?.()}>
-              <Plus size={16} weight="bold" aria-hidden />
+              {node.type === 'createAsset' ? <GearSix size={16} aria-hidden /> : <Plus size={16} weight="bold" aria-hidden />}
               {placeholder.label}
             </button>
+          ) : placeholder ? (
+            <div className={`${styles.branch} ${styles.addBranch} ${styles.placeholder}`} data-static>
+              {placeholder.label}
+            </div>
           ) : null}
           {blocks.map((block) => (
             <ContentBlockView key={block.kind} block={block} context={{ selected, onParamsChange }} />

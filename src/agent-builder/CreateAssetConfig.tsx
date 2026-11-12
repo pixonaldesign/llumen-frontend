@@ -70,9 +70,9 @@ const REFRESH_OPTIONS: readonly SelectOption<AssetRefresh>[] = [
   {
     id: 'update',
     label: 'Create it once, then keep it updated',
-    description: 'Later runs refresh the same asset and keep edits made to it in the asset editor.',
+    description: 'Later runs refresh the same asset and keep edits made to it in the asset editor',
   },
-  { id: 'new', label: 'Create a new asset every run', description: 'Each run saves a separate asset.' },
+  { id: 'new', label: 'Create a new asset every run', description: 'Each run saves a separate asset' },
 ]
 
 /** An ancestor this node can read its rows from instead of the wired input. */
@@ -120,13 +120,13 @@ export function CreateAssetConfig({ settings, onChange, records, connectedName, 
         icon={<CubeFocus size={16} aria-hidden />}
         title="Produced asset"
         description={
-          run.status === 'success' && !run.assetRows ? 'Preview of this run’s rows — a test run saves no asset. Run the workflow to produce one.' : undefined
+          run.status === 'success' && !run.assetRows ? 'Preview of this run’s rows — a test run saves no asset. Run the workflow to produce one' : undefined
         }
       >
         <ProducedAsset settings={settings} records={records} run={run} />
       </Card>
 
-      <Card icon={<Database size={16} aria-hidden />} title="Data from" description="The rows the asset is built from.">
+      <Card icon={<Database size={16} aria-hidden />} title="Data from" description="The rows the asset is built from">
         <Select
           label="Data from"
           value={settings.rowSource ?? CONNECTED_INPUT}

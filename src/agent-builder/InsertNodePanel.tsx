@@ -107,7 +107,7 @@ export function InsertNodePanel({ x, top, connectsOn, usedTypes, anchorRef, onPi
       style={docked ? undefined : { left: x, top }}
       role="dialog"
       aria-label="Add node"
-      data-covers-canvas
+      data-covers-canvas="picker"
     >
       <header className={styles.head}>
         <h3 className={styles.title}>Add node</h3>

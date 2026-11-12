@@ -37,12 +37,12 @@ import styles from './KindConfig.module.css'
 import windowStyles from './NodeConfigWindow.module.css'
 
 const ABOUT: Record<string, string> = {
-  generalAgent: 'Answers in a text document, grounded in the rows it receives.',
-  dataClassificationAgent: 'Sorts each row into one category; each category is its own output.',
-  insightGenerator: 'Writes one insight with the fields you name, from the rows it receives.',
-  dataAnalyst: 'Returns a verdict document. If the data can’t answer the question, the step fails with WF_AGENT_CANNOT_PERFORM.',
-  gisCorrelationAgent: 'Overlays the wired layer on a land layer and says how they relate.',
-  createApp: 'Builds an app from its input and the assets upstream. Every run saves a new app, test runs included.',
+  generalAgent: 'Answers in a text document, grounded in the rows it receives',
+  dataClassificationAgent: 'Sorts each row into one category; each category is its own output',
+  insightGenerator: 'Writes one insight with the fields you name, from the rows it receives',
+  dataAnalyst: 'Returns a verdict document. If the data can’t answer the question, the step fails with WF_AGENT_CANNOT_PERFORM',
+  gisCorrelationAgent: 'Overlays the wired layer on a land layer and says how they relate',
+  createApp: 'Builds an app from its input and the assets upstream. Every run saves a new app, test runs included',
 }
 
 function InstructionsCard({ params, set, ctx, placeholder }: EditorProps<InstructionsParams> & { placeholder?: string }) {
@@ -79,7 +79,7 @@ export function AppConfig({ params, set, ctx }: EditorProps<AppParams>) {
       <Card
         icon={<Browsers size={16} aria-hidden />}
         title="Pages"
-        description={params.navigation === 'tabs' ? 'Readers switch pages with tabs along the top.' : 'Readers go through the pages in order, with Next and Back.'}
+        description={params.navigation === 'tabs' ? 'Readers switch pages with tabs along the top' : 'Readers go through the pages in order, with Next and Back'}
       >
         <Field label="Navigation">
           <Segmented label="Page navigation" value={params.navigation} options={NAVIGATION_OPTIONS} onChange={(navigation) => set({ navigation }, 'navigation')} />
@@ -102,7 +102,7 @@ export function ClassificationConfig({ params, set, ctx }: EditorProps<Classific
   return (
     <>
       <InstructionsCard params={params} set={set} ctx={ctx} placeholder="e.g. Classify each site by the land use around it." />
-      <Card icon={<Tag size={16} aria-hidden />} title="Categories" description="Rows that fit none go to Unclassified. Up to 2,000 rows a run, in batches of 20.">
+      <Card icon={<Tag size={16} aria-hidden />} title="Categories" description="Rows that fit none go to Unclassified. Up to 2,000 rows a run, in batches of 20">
         <div className={styles.list}>
           {params.categories.map((item, index) => {
             const name = item.name.trim().toLowerCase()
@@ -156,10 +156,10 @@ export function ClassificationConfig({ params, set, ctx }: EditorProps<Classific
 /* ---------- Insight ---------- */
 
 const INSIGHT_TYPES: readonly SelectOption<InsightType>[] = [
-  { id: 'summary', label: INSIGHT_TYPE_LABEL.summary, description: 'What the data says, in brief.' },
-  { id: 'trend', label: INSIGHT_TYPE_LABEL.trend, description: 'What is rising or falling, and how fast.' },
-  { id: 'anomaly', label: INSIGHT_TYPE_LABEL.anomaly, description: 'What stands out from the rest.' },
-  { id: 'recommendation', label: INSIGHT_TYPE_LABEL.recommendation, description: 'What to do next, and why.' },
+  { id: 'summary', label: INSIGHT_TYPE_LABEL.summary, description: 'What the data says, in brief' },
+  { id: 'trend', label: INSIGHT_TYPE_LABEL.trend, description: 'What is rising or falling, and how fast' },
+  { id: 'anomaly', label: INSIGHT_TYPE_LABEL.anomaly, description: 'What stands out from the rest' },
+  { id: 'recommendation', label: INSIGHT_TYPE_LABEL.recommendation, description: 'What to do next, and why' },
 ]
 
 export function InsightConfig({ params, set, ctx }: EditorProps<InsightParams>) {
@@ -167,7 +167,7 @@ export function InsightConfig({ params, set, ctx }: EditorProps<InsightParams>) 
   return (
     <>
       <InstructionsCard params={params} set={set} ctx={ctx} />
-      <Card icon={<Lightbulb size={16} aria-hidden />} title="Insight" description="The output is one row with these fields; later steps read them as {{alias.field}}.">
+      <Card icon={<Lightbulb size={16} aria-hidden />} title="Insight" description="The output is one row with these fields; later steps read them as {{alias.field}}">
         <Field label="Type">
           <Select label="Insight type" value={params.insightType} options={INSIGHT_TYPES} onChange={(insightType) => set({ insightType }, 'insightType')} />
         </Field>
@@ -211,7 +211,7 @@ export function GisConfig({ params, set, ctx }: EditorProps<GisParams>) {
   return (
     <>
       <InstructionsCard params={params} set={set} ctx={ctx} />
-      <Card icon={<Stack size={16} aria-hidden />} title="Upper layer" description={upper ? `From ${upper.name}, wired in.` : 'The Asset node wired into this one.'}>
+      <Card icon={<Stack size={16} aria-hidden />} title="Upper layer" description={upper ? `From ${upper.name}, wired in` : 'The Asset node wired into this one'}>
         {upperError ? <Notice tone="error">{upperError}</Notice> : null}
         <Field label="It shows">
           <Segmented label="Upper layer kind" value={params.upper.kind} options={UPPER_OPTIONS} onChange={(kind) => set({ upper: { kind } }, 'upper:kind')} />
@@ -236,7 +236,7 @@ export function GisConfig({ params, set, ctx }: EditorProps<GisParams>) {
           </div>
         ) : null}
       </Card>
-      <Card icon={<MapTrifold size={16} aria-hidden />} title="Land layer" description="A whole-output reference to another Asset node upstream.">
+      <Card icon={<MapTrifold size={16} aria-hidden />} title="Land layer" description="A whole-output reference to another Asset node upstream">
         <Field label="Land layer" required error={params.bottomRef && !bottom ? 'That step is no longer upstream.' : undefined}>
           <Select
             label="Land layer"
@@ -298,7 +298,7 @@ export function AiFindingsConfig({ params, set, ctx }: EditorProps<AiFindingsPar
 
   return (
     <>
-      <Card icon={<Lightbulb size={16} aria-hidden />} title="Findings" description="Writes findings from the whole run after it succeeds. It ends the flow and passes nothing on.">
+      <Card icon={<Lightbulb size={16} aria-hidden />} title="Findings" description="Writes findings from the whole run after it succeeds. It ends the flow and passes nothing on">
         <TextAreaField
           label="What to focus on"
           rows={4}
@@ -312,7 +312,7 @@ export function AiFindingsConfig({ params, set, ctx }: EditorProps<AiFindingsPar
       <Card icon={<Bell size={16} aria-hidden />} title="Alerts">
         <SwitchRow
           label="This Flow can raise alerts"
-          description="Rules decide the level; the findings agent can confirm or lower it, never raise it."
+          description="Rules decide the level; the findings agent can confirm or lower it, never raise it"
           checked={alerts.enabled}
           onChange={(enabled) => setAlerts({ enabled }, 'enabled')}
         />
