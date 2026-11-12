@@ -1,0 +1,178 @@
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  margin: 0;
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.kind {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(96, 165, 250, 0.14);
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.kind[data-kind='alert'] {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fcd34d;
+}
+
+.kind[data-kind='critical_alert'] {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+}
+
+.preview {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.headline {
+  margin: 0;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  text-wrap: balance;
+}
+
+.lead,
+.text {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.muted {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.label,
+.sectionHeading {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+}
+
+.sectionHeading {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* Why the finding is an alert, tinted with its level. */
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.rules[data-kind='critical_alert'] {
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.rule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.ruleName {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.ruleLevel {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.conditions,
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding-left: 18px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.actions {
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.observed {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.asset {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.assetFrame {
+  display: flex;
+  height: 120px;
+}
+
+.assetFrame > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.assetCaption {
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  line-height: 18px;
+}

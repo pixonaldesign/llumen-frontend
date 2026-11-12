@@ -1,0 +1,78 @@
+.email {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.status {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sheet[data-muted] {
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: transparent;
+}
+
+.recipients {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.recipient {
+  display: flex;
+  gap: var(--space-sm);
+  min-width: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.recipient dt {
+  flex-shrink: 0;
+  width: 28px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.recipient dd {
+  min-width: 0;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  overflow-wrap: anywhere;
+}
+
+.subject {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md) 0;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.body {
+  margin: 0;
+  padding: var(--space-xs) var(--space-md) var(--space-md);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

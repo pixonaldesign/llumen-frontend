@@ -110,6 +110,7 @@ import {
 import type { SendVisualState } from './SendButton'
 import { useRevealScrollbarOnScroll } from './useRevealScrollbarOnScroll'
 import { useStickToBottomScroll } from './useStickToBottomScroll'
+import { usePageCovered } from './pageCover'
 
 type ChatMessage =
   | { id: string; role: 'user'; text: string }
@@ -1655,6 +1656,7 @@ export function CompactAssistantDemo() {
   }, [])
 
   const storyActive = activeStoryId != null
+  const pageCovered = usePageCovered()
   const showLauncher = !isHub && !open
   const hubSessionsRail = isHub && open && hubRailMode === 'sessions'
   const hubThreadRail = isHub && open && hubRailMode === 'thread'
@@ -1803,11 +1805,11 @@ export function CompactAssistantDemo() {
     <div
       className={`${styles.demoPage}${open ? ` ${styles.demoPageRailOpen}` : ''}${
         storyActive ? ` ${styles.demoPageStory}` : ''
-      }`}
+      }${pageCovered ? ` ${styles.demoPageCovered}` : ''}`}
     >
       <div className={styles.demoPageShader} aria-hidden>
         <MeshGradient
-          speed={open || storyActive ? 0 : 0.4}
+          speed={open || storyActive || pageCovered ? 0 : 0.4}
           scale={1}
           distortion={0.09}
           swirl={0}

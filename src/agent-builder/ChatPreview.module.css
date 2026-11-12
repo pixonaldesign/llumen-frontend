@@ -1,0 +1,69 @@
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.status {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* The Flow's bubble, on the left the way the chat lays out workflow messages. */
+.bubble {
+  align-self: flex-start;
+  max-width: 88%;
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 12px 12px 12px 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bubble[data-muted] {
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* The user's answer, on the right. */
+.reply {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-end;
+  gap: 6px;
+  max-width: 88%;
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 12px 12px 4px 12px;
+  background: color-mix(in srgb, var(--canvas-accent, #4f7cff) 70%, transparent);
+  color: #fff;
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.reply[data-approved='false'] {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.offer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.composer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin: 0;
+}

@@ -1,0 +1,91 @@
+.root,
+.layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Run look: each edge fades in over --edge on an eased curve, so only a band along the screen edges shows. */
+.layer[data-edge] {
+  --edge-fade:
+    #000,
+    rgb(0 0 0 / 0.9) calc(var(--edge) * 0.25),
+    rgb(0 0 0 / 0.5) calc(var(--edge) * 0.5),
+    rgb(0 0 0 / 0.1) calc(var(--edge) * 0.75),
+    transparent var(--edge);
+  mask-image:
+    linear-gradient(to bottom, var(--edge-fade)),
+    linear-gradient(to top, var(--edge-fade)),
+    linear-gradient(to right, var(--edge-fade)),
+    linear-gradient(to left, var(--edge-fade));
+}
+
+.content {
+  position: absolute;
+  inset: calc(var(--ambient-pad, 0px) * -1);
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.blob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1000px;
+  height: 1000px;
+  border-radius: 50%;
+  opacity: 0;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+/* A blob whose colour sits out the run band crossfades to a lit stop as `--run` goes from 0 to 1. */
+.blobIdle,
+.blobRun {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.blobIdle {
+  opacity: calc(1 - var(--run, 0));
+}
+
+.blobRun {
+  opacity: var(--run, 0);
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 42%, transparent 35%, rgb(0 0 0 / calc(var(--ambient-vignette, 0) * 0.75)) 100%);
+}
+
+/* Visible film grain; overlay keeps it on the colour and mostly off the dark backdrop. */
+.grain {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='3' intercept='-1'/%3E%3CfeFuncG type='linear' slope='3' intercept='-1'/%3E%3CfeFuncB type='linear' slope='3' intercept='-1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: calc(var(--ambient-grain, 0) * 0.6);
+  mix-blend-mode: overlay;
+}
+
+/*
+ * Fine, low-contrast noise breaks the 8-bit steps in faint gradients. It sits outside the masked
+ * layer: a mask isolates its contents, and overlay noise over an empty isolated group shows as grey grain.
+ */
+.dither {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+  opacity: calc(var(--ambient-dither, 0) * 0.35);
+  mix-blend-mode: overlay;
+}

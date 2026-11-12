@@ -1,0 +1,304 @@
+/* Right-hand sheet listing saved copies of the canvas, docked to the edge in place of the top-right actions. */
+
+.sheet {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  overflow: hidden;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(30, 31, 36, 0.82);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  color: rgba(255, 255, 255, 0.92);
+  animation: sheetIn 240ms var(--lc-ease);
+}
+
+@keyframes sheetIn {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: none;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-md) var(--space-md) var(--space-xl);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.iconAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+
+.iconAction:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+/* Scroller is full-bleed so the overlay thumb sits on the sheet edge; rows carry the inset. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-sm) 0 var(--space-md);
+  overflow: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+}
+
+.scroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+/* Current version and each group's toggle share one column for their markers; a group's records hang off a line from it. */
+.current,
+.groupToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: calc(100% - 2 * var(--space-sm));
+  min-height: 36px;
+  margin: 0 var(--space-sm);
+  padding: var(--space-sm) var(--space-sm) var(--space-sm) var(--space-xs);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.current {
+  color: var(--lc-text-brand);
+  font-weight: 500;
+}
+
+.current:hover,
+.groupToggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.current[aria-current='true'] {
+  background: color-mix(in srgb, var(--lc-text-brand) 12%, transparent);
+}
+
+.currentIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0 2px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--lc-text-brand) 0 3.5px, transparent 4px), color-mix(in srgb, var(--lc-text-brand) 20%, transparent);
+  box-shadow: inset 0 0 0 1.5px var(--lc-text-brand);
+}
+
+.group {
+  margin-top: var(--space-md);
+}
+
+.groupToggle {
+  color: #fff;
+  font-weight: 600;
+}
+
+.caretBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0 2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.caret {
+  transition: transform 160ms var(--lc-ease);
+}
+
+.groupToggle[aria-expanded='true'] .caret {
+  transform: rotate(90deg);
+}
+
+.records {
+  --line-left: calc(var(--space-sm) + var(--space-xs) + 12px);
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--space-xs) var(--space-sm) 0 var(--line-left);
+  padding: 0 0 0 var(--space-sm);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  list-style: none;
+}
+
+.record {
+  position: relative;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: var(--space-sm) 36px var(--space-sm) 11px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.row[aria-current='true'] {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.rowTitle {
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.authors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.author {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 16px;
+}
+
+.avatar.avatar {
+  width: 16px;
+  height: 16px;
+  font-size: 8px;
+}
+
+.rowTime {
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 16px;
+}
+
+.rowAction {
+  position: absolute;
+  top: 6px;
+  right: var(--space-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.record:hover > .rowAction,
+.rowAction:focus-visible {
+  opacity: 1;
+}
+
+.rowAction:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.renameInput {
+  display: block;
+  width: 100%;
+  height: 32px;
+  margin: 2px 0;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--radius-md);
+  outline: none;
+  background: rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font: inherit;
+}
+
+.renameInput:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.foot {
+  display: flex;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.restore {
+  flex: 1;
+}
+
+/* The canvas root resets button fonts at equal specificity, so sheet sizes are scoped. */
+.sheet .current,
+.sheet .groupToggle,
+.sheet .row,
+.sheet .renameInput {
+  font-size: 13px;
+}
+
+.sheet .author,
+.sheet .rowTime {
+  font-size: 12px;
+}

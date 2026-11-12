@@ -1,0 +1,704 @@
+/* Floating inspector for one node's look; sits under the top-right actions. */
+
+.panel {
+  --panel-pad: var(--space-xl);
+  --panel-top: calc(var(--space-2xl) + 36px + var(--space-lg));
+
+  position: absolute;
+  top: var(--panel-top);
+  right: var(--space-2xl);
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-height: calc(100% - var(--panel-top) - 88px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(30, 31, 36, 0.82);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+  animation: panelIn 180ms var(--lc-ease);
+}
+
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-md) var(--space-md) var(--panel-pad);
+}
+
+.headText {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.subtitle {
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.iconAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+}
+
+.iconAction:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+/* Scroller is full-bleed so the overlay thumb sits on the panel edge; sections carry the inset. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 0 var(--space-md);
+  overflow: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+}
+
+.scroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg) var(--panel-pad);
+}
+
+.section + .section {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+/* ---------- Apply to other nodes ---------- */
+
+.rowTools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.applyTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--lc-duration) var(--lc-ease), color var(--lc-duration) var(--lc-ease);
+}
+
+.applyTrigger:hover:not(:disabled),
+.applyTrigger[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.applyTrigger:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.applyTrigger[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.applyChoices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  animation: applyIn 140ms var(--lc-ease);
+}
+
+@keyframes applyIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .applyChoices {
+    animation: none;
+  }
+}
+
+.applyChoice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-width: 0;
+  height: 30px;
+  padding: 0 var(--space-md);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.9);
+  font: inherit;
+  cursor: pointer;
+}
+
+.applyChoice:hover:not(:disabled) {
+  border-color: var(--canvas-accent);
+  background: color-mix(in srgb, var(--canvas-accent) 14%, transparent);
+}
+
+.applyChoice:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.applyChoiceLabel {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.applyCount {
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.applied {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #4ade80;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* ---------- Presets ---------- */
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md) var(--space-sm);
+}
+
+.preset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  cursor: pointer;
+}
+
+.presetSwatch {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  aspect-ratio: 4 / 3;
+  padding: 6px 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  background: #1d1e23;
+  isolation: isolate;
+  transition: border-color var(--lc-duration) var(--lc-ease), box-shadow var(--lc-duration) var(--lc-ease);
+}
+
+.preset:hover .presetSwatch {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.preset[aria-pressed='true'] .presetSwatch {
+  border-color: var(--canvas-accent);
+  box-shadow: 0 0 0 1px var(--canvas-accent);
+}
+
+.presetInk {
+  color: rgb(var(--ink-rgb) / 0.9);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.presetName {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.preset[aria-pressed='true'] .presetName {
+  color: #fff;
+}
+
+/* ---------- Background ---------- */
+
+.segmented4 {
+  composes: segmented from '../llumen-assistant/FloatingControls.module.css';
+}
+
+.segmentedAuto {
+  composes: segmented from '../llumen-assistant/FloatingControls.module.css';
+}
+
+.segmented2,
+.segmented3 {
+  composes: segmented from '../llumen-assistant/FloatingControls.module.css';
+}
+
+.panel .segmented3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.segmentTight {
+  composes: segment from '../llumen-assistant/FloatingControls.module.css';
+}
+
+.panel .segmented2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* Scoped so they win over the shared segmented styles regardless of stylesheet order. */
+.panel .segmented4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* One equal column per option, however many there are. */
+.panel .segmentedAuto {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.panel .segmentTight {
+  min-width: 0;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.colorsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.rowHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.textAction {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px;
+  height: 24px;
+  margin-right: -6px;
+  padding: 0 6px;
+  white-space: nowrap;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  cursor: pointer;
+}
+
+.textAction:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.textAction:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---------- Colour stops ---------- */
+
+.stops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.stops .colorText {
+  flex: 1;
+}
+
+.percentInput {
+  flex-shrink: 0;
+  width: 44px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+  text-align: right;
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.percentInput:focus {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.stopRemove {
+  width: 24px;
+  height: 24px;
+}
+
+.stopRemove:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.stopRemove:disabled:hover {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.colors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.color {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.color:focus-within {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.colorChip {
+  position: relative;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+}
+
+/* The native picker stays clickable over the chip but invisible. */
+.colorInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.colorText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.colorLabel {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.hexInput {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  line-height: 16px;
+  text-transform: uppercase;
+  outline: none;
+}
+
+/* ---------- Dots ---------- */
+
+.dotSwatches {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.dotSwatch {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+.dotSwatch[aria-checked='true'] {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    0 0 0 2px #1e1f24,
+    0 0 0 3px var(--canvas-accent);
+}
+
+/* ---------- Sliders ---------- */
+
+.slider {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sliderValue {
+  min-width: 36px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: right;
+  font-family: var(--lc-font-data);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.range {
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(to right, var(--canvas-accent) var(--range-fill), rgba(255, 255, 255, 0.14) var(--range-fill));
+}
+
+.range::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  appearance: none;
+}
+
+.range::-moz-range-track {
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.range::-moz-range-progress {
+  height: 4px;
+  border-radius: 99px;
+  background: var(--canvas-accent);
+}
+
+.range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.range:focus-visible {
+  outline: none;
+}
+
+.range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(115, 173, 245, 0.45);
+}
+
+/* ---------- Text ---------- */
+
+.inkDotLight,
+.inkDotDark {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.inkDotLight {
+  background: #fff;
+}
+
+.inkDotDark {
+  background: #14161c;
+}
+
+/* ---------- Footer ---------- */
+
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--panel-pad) var(--space-lg);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.footRow {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.footButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font: inherit;
+  cursor: pointer;
+}
+
+.footButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.footButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.footButtonPrimary {
+  flex: 1;
+  white-space: nowrap;
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.footButtonPrimary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* The canvas root resets button fonts at equal specificity, so panel button sizes are scoped. */
+.panel .applyTrigger {
+  font-size: 11px;
+}
+
+.panel .textAction,
+.panel .applyChoice,
+.panel .preset {
+  font-size: 12px;
+}
+
+.panel .footButton {
+  font-size: 13px;
+}

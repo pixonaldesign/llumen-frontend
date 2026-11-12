@@ -1,0 +1,279 @@
+/* Same glass as the node toolbar's panel; sits where the dropped line's new node will go. */
+.panel {
+  position: absolute;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  max-height: min(480px, calc(100% - 24px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: rgba(30, 31, 36, 0.82);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Above a toolbar: its wrapper places and sizes it, and the window bounds its height. */
+.docked {
+  position: relative;
+  width: 100%;
+  max-height: min(480px, calc(100dvh - 260px));
+}
+
+.panel .row[draggable='true']:active {
+  cursor: grabbing;
+}
+
+/* Only the list gives way when the panel runs out of height. */
+.panel > :not(.scroll) {
+  flex-shrink: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl) var(--space-xl) var(--space-lg);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.panel .close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+
+.panel .close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  height: 40px;
+  margin: 0 var(--space-xl);
+  padding: 0 var(--space-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.search:focus-within {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-lg) var(--space-xl) var(--space-md);
+}
+
+.panel .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 30px;
+  padding: 0 var(--space-lg) 0 var(--space-md);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.panel .tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.tabIcon {
+  color: var(--node-accent);
+}
+
+.panel .back {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin: var(--space-md) var(--space-xl) 0;
+  padding: var(--space-md) var(--space-sm) var(--space-lg);
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel .back:hover {
+  color: #fff;
+}
+
+/* Full-bleed scroller; the rows carry the side padding so the thumb hugs the panel edge. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 0 var(--space-md);
+  overflow: auto;
+  overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+}
+
+.scroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+.section {
+  padding: 0 var(--space-md);
+}
+
+.sectionLabel {
+  margin: 0;
+  padding: var(--space-lg) var(--space-md) var(--space-sm);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.panel .row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  width: 100%;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel .row[data-active] {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.panel .row:disabled {
+  cursor: default;
+}
+
+/* Faded, all but the warning saying why. */
+.panel .row:disabled > .rowIcon,
+.panel .row:disabled .rowTitle,
+.panel .row:disabled .rowDescription {
+  opacity: 0.45;
+}
+
+/* The node toolbar panel's card icon. */
+.rowIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--node-accent) 18%, transparent);
+  color: var(--node-accent);
+}
+
+.rowCopy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.rowDescription {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowWarning {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  height: 20px;
+  margin-top: var(--space-xs);
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  background: rgba(251, 191, 36, 0.14);
+  color: #fcd34d;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.rowWarning > svg {
+  flex-shrink: 0;
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-lg) var(--space-xl);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  line-height: 18px;
+}
