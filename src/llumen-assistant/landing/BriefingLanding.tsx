@@ -80,7 +80,7 @@ const ASSETS_STATEMENT: SummaryPart[] = [
 const ASSETS_DETAIL: SummaryPart[] = [
   { text: 'Dubai residents filed ' },
   { text: '1,284 municipal reports today', highlight: true },
-  { text: ', 18% above average, and odor is the largest share at 24%. Al Barsha logged ' },
+  { text: ', 14% above average, and odor is the largest share at 24%. Al Barsha logged ' },
   { text: '20 odor complaints this week', highlight: true },
   {
     text: ' as hydrogen sulphide at tank T-3 climbed to 420 µg/L. In the growth areas, JVC already runs its sewerage at ',
@@ -94,7 +94,7 @@ const ASSETS_INSIGHTS: SummaryPart[][] = [
   [
     { text: 'Dubai residents filed ' },
     { text: '1,284 municipal reports today', highlight: true },
-    { text: ', 18% above average; odor is the largest share.' },
+    { text: ', 14% above average; odor is the largest share.' },
   ],
   [
     { text: 'Al Barsha logged ' },

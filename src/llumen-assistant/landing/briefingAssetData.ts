@@ -160,8 +160,8 @@ export const BRIEFING_ASSETS: BriefingAsset[] = [
     value: 1284,
     unit: 'reports so far',
     tipUnit: 'reports',
-    delta: '+18% vs average',
-    threshold: { value: 1090, label: '30-day average' },
+    delta: '+14% vs average',
+    threshold: { value: 1126, label: '7-day average' },
     points: [
       0, 4, 6, 8, 9, 13, 25, 59, 122, 202, 298, 391, 479, 550, 626, 710, 802, 890, 978, 1067, 1147, 1201, 1243, 1268, 1284,
     ],
