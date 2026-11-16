@@ -72,7 +72,7 @@ type SummaryPart = { text: string; highlight?: boolean }
 /** What is happening now, in two lines at most. */
 const ASSETS_STATEMENT: SummaryPart[] = [
   { text: 'Odor complaints around Al Barsha’s parks rose ' },
-  { text: '18% in 7 days', highlight: true },
+  { text: '14% in 7 days', highlight: true },
   { text: ', and JVC, Arjan and Motor City are outgrowing their facilities and infrastructure.' },
 ]
 
@@ -86,7 +86,7 @@ const ASSETS_DETAIL: SummaryPart[] = [
     text: ' as hydrogen sulphide at tank T-3 climbed to 420 µg/L. In the growth areas, JVC already runs its sewerage at ',
   },
   { text: '94% of capacity', highlight: true },
-  { text: ', and JVC, Arjan and Motor City are 18,200 school seats short.' },
+  { text: ', and JVC, Arjan and Motor City are 32 public sports courts short.' },
 ]
 
 /** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
@@ -105,7 +105,7 @@ const ASSETS_INSIGHTS: SummaryPart[][] = [
   [
     { text: 'JVC runs its sewerage at ' },
     { text: '94% of capacity', highlight: true },
-    { text: ', and with Arjan and Motor City is 18,200 school seats short.' },
+    { text: ', and with Arjan and Motor City is 32 public sports courts short.' },
   ],
 ]
 
@@ -176,6 +176,12 @@ const TOUR_STEPS: readonly TourStep[] = [
     target: '[data-tour="simulate"]',
     title: 'Simulate recommended actions',
     body: 'Try the actions DM Mind recommends and see their effect on the map before committing crews or budget.',
+    side: 'bottom',
+  },
+  {
+    target: '[data-tour="vote"]',
+    title: 'Like or dislike a finding',
+    body: 'Like a finding and DM Mind brings up more stories like it in your briefings. Dislike it and you will see fewer like it.',
     side: 'bottom',
   },
   {
@@ -1806,7 +1812,7 @@ function FindingBody({
             View
           </button>
         ) : null}
-        <div className={home.voteGroup}>
+        <div className={home.voteGroup} data-tour="vote">
           <VoteButton
             label="Show more like this"
             pressed={vote === 'up'}

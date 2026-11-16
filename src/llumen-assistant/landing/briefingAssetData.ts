@@ -267,13 +267,13 @@ export const BOARD_ASSETS: BriefingAsset[] = [
     visualTypeId: 'horizontal-bar',
     size: 'medium',
     category: 'Urban planning',
-    title: 'School seats short',
+    title: 'Public sports courts short',
     accent: '#9673e8',
-    unit: 'seats',
+    unit: 'courts',
     bars: [
-      { label: 'JVC', value: 10600, display: '10,600' },
-      { label: 'Arjan', value: 4500, display: '4,500' },
-      { label: 'Motor City', value: 3100, display: '3,100' },
+      { label: 'JVC', value: 18, display: '18' },
+      { label: 'Arjan', value: 8, display: '8' },
+      { label: 'Motor City', value: 6, display: '6' },
     ],
   },
   {

@@ -1,6 +1,6 @@
 /**
  * Urban Planning use case 1, community facilities: JVC, Arjan and Motor City have grown fast, mostly with
- * families and workers, and their schools, health centres, nurseries and parks have not kept pace. Three
+ * families and workers, and their parks, public courts and recreational facilities have not kept pace. Three
  * findings (growth, who the new residents are, the shortage confirmed); the horizon maps and solutions serve
  * Simulate recommended actions. Every value is an illustrative example.
  */
@@ -47,7 +47,7 @@ type Households = {
   /** Share of households, %: families with children, and workers in shared housing. */
   families: number
   workers: number
-  /** School-age children, and workers living in shared accommodation. */
+  /** Children under 18, and workers living in shared accommodation. */
   children: number
   workerResidents: number
 }
@@ -58,23 +58,21 @@ const HOUSEHOLDS: Record<AreaId, Households> = {
   'motor-city': { families: 52, workers: 10, children: 9700, workerResidents: 5100 },
 }
 
-type Provision = { seats: number; seatsNeeded: number; clinics: number; clinicsNeeded: number; nurseries: number; nurseriesNeeded: number; parkAccess: number }
+/** DM-run public sports courts and community halls, against what each area's residents need. */
+type Provision = { courts: number; courtsNeeded: number; halls: number; hallsNeeded: number; parkAccess: number }
 
 const PROVISION: Record<AreaId, Provision> = {
-  jvc: { seats: 11800, seatsNeeded: 22400, clinics: 2, clinicsNeeded: 5, nurseries: 9, nurseriesNeeded: 18, parkAccess: 48 },
-  arjan: { seats: 4300, seatsNeeded: 8800, clinics: 1, clinicsNeeded: 3, nurseries: 4, nurseriesNeeded: 8, parkAccess: 41 },
-  'motor-city': { seats: 5200, seatsNeeded: 8300, clinics: 1, clinicsNeeded: 2, nurseries: 5, nurseriesNeeded: 8, parkAccess: 55 },
+  jvc: { courts: 14, courtsNeeded: 32, halls: 1, hallsNeeded: 4, parkAccess: 48 },
+  arjan: { courts: 4, courtsNeeded: 12, halls: 1, hallsNeeded: 2, parkAccess: 41 },
+  'motor-city': { courts: 8, courtsNeeded: 14, halls: 1, hallsNeeded: 2, parkAccess: 55 },
 }
 
 const total = (of: (id: AreaId) => number) => AREA_LIST.reduce((sum, area) => sum + of(area.id), 0)
 
-const SEATS = total((id) => PROVISION[id].seats)
-const SEATS_NEEDED = total((id) => PROVISION[id].seatsNeeded)
-const SEAT_GAP = SEATS_NEEDED - SEATS
-const CLINICS = total((id) => PROVISION[id].clinics)
-const CLINICS_NEEDED = total((id) => PROVISION[id].clinicsNeeded)
-const NURSERIES = total((id) => PROVISION[id].nurseries)
-const NURSERIES_NEEDED = total((id) => PROVISION[id].nurseriesNeeded)
+const COURTS = total((id) => PROVISION[id].courts)
+const COURTS_NEEDED = total((id) => PROVISION[id].courtsNeeded)
+const HALLS = total((id) => PROVISION[id].halls)
+const HALLS_NEEDED = total((id) => PROVISION[id].hallsNeeded)
 const CHILDREN = total((id) => HOUSEHOLDS[id].children)
 const WORKERS = total((id) => HOUSEHOLDS[id].workerResidents)
 const PARK_TARGET = 80
@@ -84,9 +82,6 @@ const PARK_ACCESS = Math.round(total((id) => PROVISION[id].parkAccess * AREAS[id
 
 const FAMILY = PALETTE.purple[3]
 const WORKER = PALETTE.categorical[5]
-const SCHOOL = PALETTE.blue[3]
-const CLINIC = PALETTE.teal[2]
-const PARK = PALETTE.categorical[3]
 
 const growthColor = (pct: number) => (pct >= 60 ? STATUS.critical : pct >= 45 ? LEVEL.high : LEVEL.watch)
 
@@ -141,27 +136,6 @@ const GROUP_HEAT = byArea((area, index): EstateHeatPoint[] => {
   })
 })
 
-const SCHOOLS: Site[] = [
-  { id: 's1', area: 'jvc', name: 'School · JVC district 12', at: [55.197, 25.052], rows: [['Seats', '2,400'], ['Enrolled', '104%']] },
-  { id: 's2', area: 'jvc', name: 'School · JVC district 15', at: [55.206, 25.061], rows: [['Seats', '2,100'], ['Enrolled', '101%']] },
-  { id: 's3', area: 'jvc', name: 'School · JVC district 18', at: [55.188, 25.0455], rows: [['Seats', '1,800'], ['Enrolled', '106%']] },
-  { id: 's4', area: 'jvc', name: 'School · JVC district 10', at: [55.212, 25.0545], rows: [['Seats', '2,000'], ['Enrolled', '99%']] },
-  { id: 's5', area: 'jvc', name: 'School · JVC district 14', at: [55.203, 25.0655], rows: [['Seats', '1,900'], ['Enrolled', '103%']] },
-  { id: 's6', area: 'jvc', name: 'School · JVC district 16', at: [55.215, 25.061], rows: [['Seats', '1,600'], ['Enrolled', '100%']] },
-  { id: 's7', area: 'arjan', name: 'School · Arjan', at: [55.2295, 25.059], rows: [['Seats', '2,300'], ['Enrolled', '108%']] },
-  { id: 's8', area: 'arjan', name: 'School · Arjan north', at: [55.2425, 25.063], rows: [['Seats', '2,000'], ['Enrolled', '105%']] },
-  { id: 's9', area: 'motor-city', name: 'School · Motor City', at: [55.233, 25.0505], rows: [['Seats', '1,900'], ['Enrolled', '102%']] },
-  { id: 's10', area: 'motor-city', name: 'School · Motor City east', at: [55.2415, 25.0515], rows: [['Seats', '1,800'], ['Enrolled', '100%']] },
-  { id: 's11', area: 'motor-city', name: 'School · Motor City south', at: [55.2465, 25.0475], rows: [['Seats', '1,500'], ['Enrolled', '97%']] },
-]
-
-const CLINICS_SITES: Site[] = [
-  { id: 'c1', area: 'jvc', name: 'Primary health centre · JVC north', at: [55.2115, 25.0605], rows: [['Registered', '38,000'], ['Wait for a GP', '9 days']] },
-  { id: 'c2', area: 'jvc', name: 'Primary health centre · JVC south', at: [55.193, 25.048], rows: [['Registered', '34,000'], ['Wait for a GP', '8 days']] },
-  { id: 'c3', area: 'arjan', name: 'Primary health centre · Arjan', at: [55.236, 25.0605], rows: [['Registered', '29,000'], ['Wait for a GP', '11 days']] },
-  { id: 'c4', area: 'motor-city', name: 'Primary health centre · Motor City', at: [55.239, 25.049], rows: [['Registered', '24,000'], ['Wait for a GP', '6 days']] },
-]
-
 /* —— Parks and public facilities: peak use against capacity —— */
 
 const loadOf = (peak: number, capacity: number) => Math.round((peak / capacity) * 100)
@@ -206,6 +180,7 @@ const NONE: FacilityUse = [0, 0, 0]
 /** The other DM-managed public facilities in each area. Beaches have none: the nearest is 8 km away. */
 const FACILITY_USE: { name: string; kind: 'recreation' | 'amenity'; unit?: 'km'; by: Record<AreaId, FacilityUse> }[] = [
   { name: 'Playgrounds', kind: 'recreation', by: { jvc: [6, 1200, 1740], arjan: [2, 400, 620], 'motor-city': [4, 900, 930] } },
+  { name: 'Public sports courts', kind: 'recreation', by: { jvc: [14, 700, 960], arjan: [4, 200, 280], 'motor-city': [8, 400, 460] } },
   { name: 'Sports and recreation', kind: 'recreation', by: { jvc: [3, 1500, 2100], arjan: [1, 500, 760], 'motor-city': [2, 1100, 1150] } },
   { name: 'Walking and cycling paths', kind: 'recreation', unit: 'km', by: { jvc: [12, 3000, 3900], arjan: [3, 800, 1120], 'motor-city': [9, 2400, 2050] } },
   { name: 'Squares and open spaces', kind: 'recreation', by: { jvc: [4, 2000, 2380], arjan: [1, 500, 640], 'motor-city': [2, 1200, 1050] } },
@@ -354,24 +329,10 @@ const transitLayer = (areas: GrowthArea[]): MapDataLayer => ({
 
 const shortageLayers = (areas: GrowthArea[]): MapDataLayer[] => [parkUseLayer(areas), parksLayer(areas), transitLayer(areas), LAYER.access]
 
-const facilitiesLayer = (areas: GrowthArea[]): MapDataLayer => ({
-  group: 'schools',
-  title: 'Existing facilities',
-  mark: 'point',
-  color: {
-    items: [
-      { label: 'Schools', color: SCHOOL, count: `${SCHOOLS.filter(within(areas)).length}` },
-      { label: 'Primary health centres', color: CLINIC, count: `${CLINICS_SITES.filter(within(areas)).length}` },
-      { label: 'Parks', color: PARK, count: `${PARKS.filter(within(areas)).length}` },
-    ],
-  },
-})
-
 const LAYER = {
   population: { group: 'population', title: 'Where residents live', mark: 'heat', color: { ramp: HEAT_RAMP, low: 'Fewer', high: 'More' } },
   familyHeat: { group: 'family-heat', title: 'Where families live', mark: 'heat', color: { ramp: HEAT_RAMP, low: 'Fewer', high: 'More' } },
   workerHeat: { group: 'worker-heat', title: 'Where workers live', mark: 'heat', color: { ramp: WORKER_RAMP, low: 'Fewer', high: 'More' } },
-  facilities: facilitiesLayer(AREA_LIST),
   access: { group: 'access', title: 'Walking distance to public transport', mark: 'heat', color: { ramp: ACCESS_RAMP, low: '0–400 m', high: '800 m+' } },
 } satisfies Record<string, MapDataLayer>
 
@@ -531,7 +492,7 @@ const demographicView = areaView((area, areas, dimmed) => {
           text: `Families ${HOUSEHOLDS[item.id].families}% · ${thousands(HOUSEHOLDS[item.id].workerResidents)} workers`,
           rows: [
             ['Families with children', `${HOUSEHOLDS[item.id].families}% of households`],
-            ['School-age children', fmt(HOUSEHOLDS[item.id].children)],
+            ['Children under 18', fmt(HOUSEHOLDS[item.id].children)],
             ['Workers in shared housing', fmt(HOUSEHOLDS[item.id].workerResidents)],
           ],
         }),
@@ -553,7 +514,7 @@ const demographicView = areaView((area, areas, dimmed) => {
             : `: households with children are ${HOUSEHOLDS.jvc.families}% of JVC and ${HOUSEHOLDS['motor-city'].families}% of Motor City.`,
         ],
       },
-      { id: 'children', kind: 'cell', title: 'School-age children', value: thousands(children), note: area ? shareOfAll(children, CHILDREN) : '+64% since 2021' },
+      { id: 'children', kind: 'cell', title: 'Children under 18', value: thousands(children), note: area ? shareOfAll(children, CHILDREN) : '+64% since 2021' },
       { id: 'workers', kind: 'cell', title: 'Workers', value: thousands(workers), note: area ? shareOfAll(workers, WORKERS) : `${thousands(HOUSEHOLDS.arjan.workerResidents)} in Arjan` },
       {
         id: 'mix',
@@ -570,8 +531,8 @@ const demographicView = areaView((area, areas, dimmed) => {
         columns: ['Group', 'Residents', 'Needs'],
         dotColumn: 0,
         rows: [
-          { cells: ['Families with children', thousands(families), 'Public parks, public libraries'], color: FAMILY },
-          { cells: ['Workers', thousands(workers), 'Transport, public markets'], color: WORKER },
+          { cells: ['Families with children', thousands(families), 'Public parks, playgrounds, public courts'], color: FAMILY },
+          { cells: ['Workers', thousands(workers), 'Recreational facilities, transport, public markets'], color: WORKER },
         ],
       },
       {
@@ -743,7 +704,7 @@ export const FACILITIES_STORY: EstateStory = {
   id: 'dm-facilities',
   title: 'Community Facilities Use Case',
   description:
-    'How LLUMEN links fast population growth in JVC, Arjan and Motor City to the families and workers moving there, and confirms the schools, health centres, nurseries and parks they need are in short supply.',
+    'How LLUMEN links fast population growth in JVC, Arjan and Motor City to the families and workers moving there, and confirms the parks, public courts and recreational facilities they need are in short supply.',
   place: 'facilities',
   pages: [
     {
@@ -760,7 +721,7 @@ export const FACILITIES_STORY: EstateStory = {
       id: 'dm-facilities-demographics',
       title: 'Demographic profile',
       finding:
-        'Tenancy and residency records show most new residents are families with children and workers in shared accommodation, the two groups that rely most on local schools, health care, nurseries, parks and transport.',
+        'Tenancy and residency records show most new residents are families with children and workers in shared accommodation, the two groups that rely most on local parks, public courts, recreational facilities and transport.',
       ...demographicView({}),
       filters: FILTERS,
       pickers: [AREA_PICKER],
@@ -770,7 +731,7 @@ export const FACILITIES_STORY: EstateStory = {
       id: 'dm-facilities-shortage',
       title: 'Facility Shortage Confirmed',
       finding:
-        'Comparing peak use with capacity confirms public parks are the most stretched facility, with playgrounds, sports facilities and public amenities close behind, and many residential units beyond a short walk of public transport.',
+        'Comparing peak use with capacity confirms public parks are the most stretched facility, with playgrounds, public courts and recreational facilities close behind, and many residential units beyond a short walk of public transport.',
       ...shortageView({}),
       filters: FILTERS,
       pickers: [AREA_PICKER],
@@ -789,14 +750,14 @@ export const FACILITIES_PLACE: EstatePlace = {
 
 const HORIZONS: Horizon[] = ['immediate', 'intermediate', 'long']
 
-/** Each horizon is assessed against the baseline for its date: today, in 2 years and in 5. */
-const ASSESSED: Record<Horizon, string> = { immediate: 'Today', intermediate: 'In 2 years', long: 'In 5 years' }
+/** Each horizon is assessed against the baseline for its date: today, in 6 months and in a year. */
+const ASSESSED: Record<Horizon, string> = { immediate: 'Today', intermediate: 'In 6 months', long: 'In 1 year' }
 
 /** Share of the pipeline's new residents moved in by each assessment date. */
-const MOVED_IN: Record<Horizon, number> = { immediate: 0, intermediate: 0.4, long: 1 }
+const MOVED_IN: Record<Horizon, number> = { immediate: 0, intermediate: 0.12, long: 0.25 }
 
 /** Average time to reach a park or community facility without action, minutes, as more residents compete for it. */
-const ACCESS_MIN: Record<Horizon, number> = { immediate: 12, intermediate: 15, long: 19 }
+const ACCESS_MIN: Record<Horizon, number> = { immediate: 12, intermediate: 13, long: 14 }
 
 /** Residents the facilities serve: what the 2019 plans sized them for, unchanged until capacity is added. */
 const CAPACITY = PLANNED_FOR_ALL * 1000
@@ -818,9 +779,9 @@ type FacilityOption = {
   action: string
   asset: string
   benefit: string
-  /** Effective capacity it adds, %; months to deliver; cost, AED millions. */
+  /** Effective capacity it adds, %; weeks to deliver; cost, AED millions. */
   gain: number
-  months: number
+  weeks: number
   cost: number
 }
 
@@ -837,7 +798,8 @@ type FacilityDecision = {
   mapNote: string
 }
 
-const duration = (months: number) => (months >= 24 ? `${months / 12} years` : `${months} month${months === 1 ? '' : 's'}`)
+const duration = (weeks: number) =>
+  weeks >= 52 ? '1 year' : weeks >= 12 ? `${Math.round(weeks / 4.33)} months` : `${weeks} week${weeks === 1 ? '' : 's'}`
 const aed = (millions: number) => (millions < 1 ? `AED ${millions * 1000}k` : `AED ${millions}M`)
 const valueFor = (option: FacilityOption) => {
   const per = option.gain / option.cost
@@ -853,16 +815,16 @@ const DECISIONS: Record<Horizon, FacilityDecision> = {
         asset: 'Parks, sports halls and community centres',
         benefit: 'Opens earlier and later, spreading the evening peak over more hours',
         gain: 8,
-        months: 1,
+        weeks: 1,
         cost: 1,
       },
       {
         code: 'B',
         action: 'Optimize appointment scheduling',
-        asset: 'Online booking for courts, halls and park zones',
+        asset: 'Online booking for public courts, halls and park zones',
         benefit: 'Time slots fill the quiet hours and end overbooking at peak',
         gain: 12,
-        months: 2,
+        weeks: 3,
         cost: 0.8,
       },
       {
@@ -871,14 +833,14 @@ const DECISIONS: Record<Horizon, FacilityDecision> = {
         asset: 'Live occupancy signs and nearby-park alerts',
         benefit: 'Steers visitors from full parks to ones with room',
         gain: 10,
-        months: 3,
+        weeks: 5,
         cost: 1,
       },
     ],
     preferred: 'B',
     title: 'Optimize scheduling',
     summary: (option) =>
-      `Open online booking for courts, halls and park zones so visits move into the quiet hours. Of the three immediate options it adds the most effective capacity, +${option('B').gain}%, at the best value, within ${duration(option('B').months)}.`,
+      `Open online booking for public courts, halls and park zones so visits move into the quiet hours. Of the three immediate options it adds the most effective capacity, +${option('B').gain}%, at the best value, within ${duration(option('B').weeks)}.`,
     sites: [
       { name: 'Community centre · JVC', at: [55.2045, 25.0595], becomes: 'Halls and courts on booking' },
       { name: 'Sports hall · Arjan', at: [55.2345, 25.061], becomes: 'Courts on booking' },
@@ -894,18 +856,18 @@ const DECISIONS: Record<Horizon, FacilityDecision> = {
         code: 'A',
         action: 'Expand existing facilities',
         asset: 'Community parks in JVC and Motor City',
-        benefit: 'Adds courts, play areas and shade on spare land inside today’s parks',
+        benefit: 'Adds public courts, play areas and shade on spare land inside today’s parks',
         gain: 20,
-        months: 12,
+        weeks: 26,
         cost: 11.8,
       },
       {
         code: 'B',
         action: 'Repurpose municipal assets',
         asset: '3 vacant DM plots and buildings',
-        benefit: 'Turns unused municipal land into pocket parks, courts and a community hall',
+        benefit: 'Turns unused municipal land into pocket parks, public courts and a community hall',
         gain: 15,
-        months: 8,
+        weeks: 13,
         cost: 6,
       },
       {
@@ -914,42 +876,42 @@ const DECISIONS: Record<Horizon, FacilityDecision> = {
         asset: 'Arjan Park and the pocket parks',
         benefit: 'Lighting, shade and surfaces that lift how many visitors each park can take',
         gain: 18,
-        months: 10,
+        weeks: 22,
         cost: 9,
       },
     ],
     preferred: 'B',
     title: 'Repurpose municipal assets',
     summary: (option) =>
-      `Turn three vacant DM plots and buildings into pocket parks, courts and a community hall. It adds less than expanding today’s facilities, +${option('B').gain}% against +${option('A').gain}%, but at the best value of the three and in ${duration(option('B').months)} rather than ${duration(option('A').months)}.`,
+      `Turn three vacant DM plots and buildings into pocket parks, public courts and a community hall. It adds less than expanding today’s facilities, +${option('B').gain}% against +${option('A').gain}%, but at the best value of the three and in ${duration(option('B').weeks)} rather than ${duration(option('A').weeks)}.`,
     sites: [
-      { name: 'Vacant DM plot · JVC north', at: [55.205, 25.0635], becomes: 'Pocket park and courts' },
+      { name: 'Vacant DM plot · JVC north', at: [55.205, 25.0635], becomes: 'Pocket park and public courts' },
       { name: 'DM building · Arjan', at: [55.24, 25.0605], becomes: 'Community hall' },
       { name: 'Vacant DM plot · JVC south', at: [55.2015, 25.0475], becomes: 'Pocket park and playground' },
     ],
-    access: 13,
-    labels: ['In 2 years, no action', 'In 2 years, assets repurposed'],
-    mapNote: 'The upper map shows park use in 2 years with no action, the lower with the three municipal assets repurposed. The heat marks where park demand runs furthest past capacity.',
+    access: 11,
+    labels: ['In 6 months, no action', 'In 6 months, assets repurposed'],
+    mapNote: 'The upper map shows park use in 6 months with no action, the lower with the three municipal assets repurposed. The heat marks where park demand runs furthest past capacity.',
   },
   long: {
     options: [
       {
         code: 'A',
         action: 'Construct new facilities',
-        asset: '2 community parks, a sports centre and a library',
+        asset: '2 pocket parks, a public court complex and a recreation centre',
         benefit: 'Permanent capacity where demand runs furthest past it',
         gain: 35,
-        months: 36,
-        cost: 29,
+        weeks: 40,
+        cost: 24,
       },
       {
         code: 'B',
         action: 'Develop integrated community hubs',
-        asset: 'Park, sports, library and services on shared sites',
-        benefit: 'The largest gain, but the longest to deliver',
+        asset: 'Park, courts, recreation and services on shared sites',
+        benefit: 'The largest gain, but the longest and costliest to deliver',
         gain: 40,
-        months: 60,
-        cost: 40,
+        weeks: 52,
+        cost: 38,
       },
       {
         code: 'C',
@@ -957,23 +919,23 @@ const DECISIONS: Record<Horizon, FacilityDecision> = {
         asset: 'Community facility standards for new permits',
         benefit: 'New developments provide facilities in step with their residents',
         gain: 30,
-        months: 48,
+        weeks: 30,
         cost: 20,
       },
     ],
     preferred: 'A',
     title: 'Construct new facilities',
     summary: (option) =>
-      `Build two community parks, a sports centre and a library where demand runs furthest past capacity: +${option('A').gain}% in ${duration(option('A').months)}. Community hubs add more, +${option('B').gain}%, but take ${duration(option('B').months)}, and revised planning rules only help as new permits complete.`,
+      `Build two pocket parks, a public court complex and a recreation centre where demand runs furthest past capacity: +${option('A').gain}% in ${duration(option('A').weeks)}. Community hubs add more, +${option('B').gain}%, but take a full ${duration(option('B').weeks)} at a higher cost, and revised planning rules only help as new permits complete.`,
     sites: [
-      { name: 'Community park · JVC south-west', at: [55.186, 25.0405], becomes: 'New 3 ha park' },
-      { name: 'Sports centre · JVC east', at: [55.218, 25.0625], becomes: 'Courts, pool and pitches' },
-      { name: 'Community park · Arjan east', at: [55.2475, 25.0605], becomes: 'New 2 ha park' },
-      { name: 'Library · Motor City west', at: [55.2325, 25.0485], becomes: 'Library and community centre' },
+      { name: 'Pocket park · JVC south-west', at: [55.186, 25.0405], becomes: 'New 1.5 ha park' },
+      { name: 'Public court complex · JVC east', at: [55.218, 25.0625], becomes: 'Courts and pitches' },
+      { name: 'Pocket park · Arjan east', at: [55.2475, 25.0605], becomes: 'New 1 ha park' },
+      { name: 'Recreation centre · Motor City west', at: [55.2325, 25.0485], becomes: 'Recreation and community centre' },
     ],
-    access: 14,
-    labels: ['In 5 years, no action', 'In 5 years, new facilities built'],
-    mapNote: 'The upper map shows park use in 5 years with no action, the lower with the four new facilities built. The heat marks where park demand runs furthest past capacity.',
+    access: 11,
+    labels: ['In 1 year, no action', 'In 1 year, new facilities built'],
+    mapNote: 'The upper map shows park use in a year with no action, the lower with the four new facilities built. The heat marks where park demand runs furthest past capacity.',
   },
 }
 
@@ -1051,7 +1013,7 @@ function simulateView(horizon: Horizon, decision?: FacilityDecision, compare?: E
             text: '',
             rows: [
               ['Capacity', `+${pick.gain}%`],
-              ['Delivered in', duration(pick.months)],
+              ['Delivered in', duration(pick.weeks)],
             ],
             group: 'actions',
           },
@@ -1112,7 +1074,7 @@ function facilitySolution(horizon: Horizon): PlanningSolution {
       title: item.action,
       subtitle: item.asset,
       detail: item.benefit,
-      metrics: [...(item === pick ? ['Preferred'] : []), `+${item.gain}% capacity`, duration(item.months), valueFor(item)],
+      metrics: [...(item === pick ? ['Preferred'] : []), `+${item.gain}% capacity`, duration(item.weeks), valueFor(item)],
     })),
   }
 }
@@ -1148,21 +1110,17 @@ export const FACILITIES_BRIEFING = {
   workers: WORKERS,
   familiesJvc: HOUSEHOLDS.jvc.families,
   familiesMotorCity: HOUSEHOLDS['motor-city'].families,
-  seatGap: SEAT_GAP,
-  clinics: CLINICS,
-  clinicsNeeded: CLINICS_NEEDED,
+  courtGap: COURTS_NEEDED - COURTS,
   parkAccess: PARK_ACCESS,
   plannedFor: PLANNED_FOR_ALL,
-  /** The baseline forecast today, in 2 years and in 5, with no action taken. */
+  /** The baseline forecast today, in 6 months and in a year, with no action taken. */
   baseline: HORIZONS.map((horizon) => ({ label: ASSESSED[horizon], ...baseline(horizon) })),
   parkUse: parkUse(AREA_LIST).pct,
   farFromTransport: accessShare(AREA_LIST)[2],
   /** Share of need met, %, for the reply's chart. */
   met: [
-    { label: 'School seats', value: Math.round((SEATS / SEATS_NEEDED) * 100) },
-    { label: 'Health centres', value: Math.round((CLINICS / CLINICS_NEEDED) * 100) },
-    { label: 'Nurseries', value: Math.round((NURSERIES / NURSERIES_NEEDED) * 100) },
+    { label: 'Public sports courts', value: Math.round((COURTS / COURTS_NEEDED) * 100) },
+    { label: 'Community halls', value: Math.round((HALLS / HALLS_NEEDED) * 100) },
     { label: 'Park access', value: Math.round((PARK_ACCESS / PARK_TARGET) * 100) },
-    { label: 'Worker clinics', value: 33 },
   ],
 }

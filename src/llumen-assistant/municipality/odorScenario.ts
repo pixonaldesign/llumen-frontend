@@ -352,11 +352,6 @@ function plumeAreas(plume: Bands, group = 'plume'): EstateArea[] {
   ]
 }
 
-/** The evening wind as streamlines over the park, the source and the homes it reaches. */
-function windField(bearing = WIND_TOWARD): EstateWind {
-  return { center: toward(PUMP_HOUSE, WIND_TOWARD, 0.35), radiusKm: 2.2, bearing, color: WIND_WHITE, group: 'wind' }
-}
-
 /** Al Barsha's winds: `toward` is where each blows, clockwise from north. */
 const WINDS = {
   sea: { name: 'Sea breeze', from: 'WNW', toward: WIND_TOWARD },
@@ -1246,7 +1241,7 @@ function odorView(camera: EstateCamera, picture: OdorPicture, compare?: EstateAs
     scene: scene({
       towers: [{ ...picture.tank, label: false }, ...picture.homes],
       areas: [...socialBlocks(WEEK, picture.posts), ...plumeAreas(picture.plume), ...parkAreas()],
-      wind: windField(),
+      wind: periodWind(WEEK),
       labels: parkTips(picture),
     }),
     layers: [
@@ -1255,6 +1250,7 @@ function odorView(camera: EstateCamera, picture: OdorPicture, compare?: EstateAs
       homesLayer(picture.homes),
       parksLayer(WEEK, picture.complaints),
       LAYER.social,
+      windLayer(WEEK),
     ],
     compare,
   }

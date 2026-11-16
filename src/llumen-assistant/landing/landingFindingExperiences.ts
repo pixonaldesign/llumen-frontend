@@ -220,9 +220,6 @@ function odorSolution(
   }
 }
 
-/** When each planning horizon lands; capital works take longer than the odor fixes. */
-const PLANNING_SPAN: Record<Horizon, string> = { immediate: 'next 12 months', intermediate: '1–3 years', long: '3–10 years' }
-
 const HORIZONS: Horizon[] = ['immediate', 'intermediate', 'long']
 
 /** A planning story's three horizons as solutions, each on its own map view of the three areas. */
@@ -232,7 +229,7 @@ function planningSolutions(solutions: Record<Horizon, PlanningSolution>, place: 
     return {
       ...solution,
       label: HORIZON_TAB[horizon],
-      span: span ?? PLANNING_SPAN[horizon],
+      span: span ?? HORIZON_SPAN[horizon],
       color: HORIZON_COLOR[horizon],
       map: {
         place: place(horizon),
@@ -249,7 +246,7 @@ const fmt = (value: number) => value.toLocaleString('en-US')
 const odorShare = Math.round((ODOR_BRIEFING.inWindow / ODOR_BRIEFING.complaints) * 100)
 
 const roundK = (value: number) => Math.round(value / 1000) * 1000
-const [today, twoYears, fiveYears] = FACILITIES_BRIEFING.baseline
+const [today, sixMonths, oneYear] = FACILITIES_BRIEFING.baseline
 
 const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) => FindingExperience> = {
   odor: (stateId) =>
@@ -327,19 +324,19 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
         id: 'finding-facilities',
         prompt: 'Why are families and workers in JVC, Arjan and Motor City short of facilities, and what should we do?',
         read: 'Reading population, tenancy and residency records for JVC, Arjan and Motor City…',
-        search: 'Comparing parks, playgrounds, community centres and transport access with what each household group needs…',
-        reason: 'Forecasting the baseline at 2 and 5 years, and weighing three options in each impact horizon against it…',
-        headline: `Community facilities in JVC, Arjan and Motor City serve ${today.coverage}% of their residents today, falling to ${fiveYears.coverage}% in five years without action.`,
+        search: 'Comparing parks, playgrounds, public courts, recreational facilities and transport access with what each household group needs…',
+        reason: 'Forecasting the baseline at 6 months and a year, and weighing three options in each impact horizon against it…',
+        headline: `Community facilities in JVC, Arjan and Motor City serve ${today.coverage}% of their residents today, falling to ${oneYear.coverage}% in a year without action.`,
         headlineDetail: 'Three solutions follow, one per impact horizon, each compared on the map with the baseline it is measured against.',
         problem: [
           `The three areas grew from ${fmt(FACILITIES_BRIEFING.population2021)} to ${fmt(FACILITIES_BRIEFING.population)} residents in five years, +${FACILITIES_BRIEFING.growth}%.`,
           `Their facilities serve ${fmt(today.capacity)} residents, ${fmt(roundK(today.gap))} short today, and public parks run at ${FACILITIES_BRIEFING.parkUse}% of capacity at peak.`,
-          `With ${fmt(FACILITIES_BRIEFING.pipeline)} residential units committed, the gap reaches ${fmt(roundK(twoYears.gap))} in two years and ${fmt(roundK(fiveYears.gap))} in five, and the average trip to a facility grows from ${today.access} to ${fiveYears.access} minutes.`,
+          `With ${fmt(FACILITIES_BRIEFING.pipeline)} residential units committed, the gap reaches ${fmt(roundK(sixMonths.gap))} in six months and ${fmt(roundK(oneYear.gap))} in a year, and the average trip to a facility grows from ${today.access} to ${oneYear.access} minutes.`,
         ],
         cause: [
           `Facilities follow the 2019 community plans, sized for ${FACILITIES_BRIEFING.plannedFor}k residents.`,
           `Most new residents are families with children (${FACILITIES_BRIEFING.familiesJvc}% of JVC households, ${FACILITIES_BRIEFING.familiesMotorCity}% of Motor City) and ${fmt(FACILITIES_BRIEFING.workers)} workers in shared housing.`,
-          `Those two groups rely most on local parks, playgrounds, community centres and buses, and ${FACILITIES_BRIEFING.farFromTransport}% of residential units are 800 m or more from a stop.`,
+          `Those two groups rely most on local parks, playgrounds, public courts, recreational facilities and buses, and ${FACILITIES_BRIEFING.farFromTransport}% of residential units are 800 m or more from a stop.`,
         ],
         chart: chartComponent(
           'finding-facilities-baseline',
@@ -370,7 +367,7 @@ const EXPERIENCES: Record<string, (stateId: (place: FindingStageId) => string) =
         search: 'Tracing each network to its pumping stations, mains, low points and junctions, and modelling the pipeline…',
         reason: 'Weighing nine actions across three impact horizons, and mapping each one…',
         headline: `${INFRASTRUCTURE_BRIEFING.over} of ${INFRASTRUCTURE_BRIEFING.networks} networks in JVC, Arjan and Motor City are past their planning limit, and the pipeline arrives before the upgrades.`,
-        headlineDetail: 'Three solutions follow, each with its own map. Open one to see its detail and switch the map.',
+        headlineDetail: 'Three solutions follow, one per impact horizon, each compared on the map with the network today.',
         problem: [
           `${INFRASTRUCTURE_BRIEFING.over} of the ${INFRASTRUCTURE_BRIEFING.networks} sewerage, drainage, power and road networks run past the ${INFRASTRUCTURE_BRIEFING.limit}% planning limit; JVC sewerage is at ${INFRASTRUCTURE_BRIEFING.jvcSewer}%.`,
           `${INFRASTRUCTURE_BRIEFING.floodSpots} low points drew ${INFRASTRUCTURE_BRIEFING.floodReports} flooding reports after 38 mm of rain, and peak delays reach ${INFRASTRUCTURE_BRIEFING.worstDelay} minutes at the JVC entrance.`,

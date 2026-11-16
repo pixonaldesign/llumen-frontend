@@ -38,7 +38,7 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     storyId: 'dm-facilities',
     title: 'Growth Outpacing Facilities — JVC',
     description:
-      'JVC has 11,800 school seats for 22,400 children who need one, and two of the five health centres it needs, while 18,400 more residential units are in the pipeline.',
+      'JVC’s public parks run at 155% of capacity at peak and it has 14 of the 32 public sports courts it needs, while 18,400 more residential units are in the pipeline.',
     image: `${APPS_BASE}/dm-jvc.jpg`,
     focus: 'center',
   },

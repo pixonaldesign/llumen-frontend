@@ -7,17 +7,17 @@ const DM_VISION_URL = 'https://www.dm.gov.ae/mission-vision-values/'
 
 const CAPABILITIES = [
   {
-    icon: <Pulse size={20} weight="regular" aria-hidden />,
+    icon: <Pulse size={24} weight="regular" aria-hidden />,
     title: 'Spot problems early',
     body: 'Daily briefings flag what changed across Dubai, from odor complaints around Al Barsha’s parks to strained networks in JVC.',
   },
   {
-    icon: <Path size={20} weight="regular" aria-hidden />,
+    icon: <Path size={24} weight="regular" aria-hidden />,
     title: 'See the cause',
     body: 'Each finding links CRM complaints, social posts, sensor readings and planning records to explain why it is happening.',
   },
   {
-    icon: <Sparkle size={20} weight="regular" aria-hidden />,
+    icon: <Sparkle size={24} weight="regular" aria-hidden />,
     title: 'Act with confidence',
     body: 'Simulate the recommended actions on the map and see their effect before committing crews or budget.',
   },

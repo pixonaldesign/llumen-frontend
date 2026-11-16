@@ -28,7 +28,6 @@ import {
   actionMarks,
   areaOutlines,
   fmt,
-  horizonOutlines,
   labelAt,
   planningSolution,
   scene,
@@ -145,24 +144,29 @@ const LOAD_HEAT: EstateHeatPoint[] = AREA_LIST.flatMap((area, index) =>
   })),
 )
 
-const trunkLine = (dashed = false): EstateLine => ({
+/** Peak flow in the TM-2 trunk sewer today, % of capacity. */
+const TRUNK_FLOW = 96
+
+/** Each station's peak load today, % of design, by code. */
+const STATION_LOADS: Record<string, number> = Object.fromEntries(STATIONS.map((station) => [station.code, station.load]))
+
+const trunkLine = (flow = TRUNK_FLOW): EstateLine => ({
   id: 'trunk-tm2',
   path: TRUNK,
   color: SEWER,
   width: 4,
-  dashed,
   group: 'sewer',
-  tip: { title: 'TM-2 trunk sewer', rows: [['Flow', '96% of capacity at peak'], ['Upgrade', '2030']] },
+  tip: { title: 'TM-2 trunk sewer', rows: [['Flow', `${flow}% of capacity at peak`], ['Upgrade', '2030']] },
 })
 
-const stationPoints = (): EstatePoint[] =>
+const stationPoints = (loads = STATION_LOADS): EstatePoint[] =>
   STATIONS.map((station) => ({
     id: `station-${station.code}`,
     at: station.at,
-    color: loadColor(station.load),
+    color: loadColor(loads[station.code]),
     radius: 7.5,
     group: 'sewer',
-    tip: { title: `${station.code} · ${station.name}`, rows: [['Peak load', `${station.load}% of design`], ['Upgrade', station.upgrade]] },
+    tip: { title: `${station.code} · ${station.name}`, rows: [['Peak load', `${loads[station.code]}% of design`], ['Upgrade', station.upgrade]] },
   }))
 
 const stationTips = (): EstateLabel[] =>
@@ -191,14 +195,15 @@ const floodAreas = (): EstateArea[] =>
     tip: { title: 'Ponding after 38 mm of rain', rows: [['Reports', `${spot.reports}`], ['Deepest', spot.depth]] },
   }))
 
-const junctionPoints = (): EstatePoint[] =>
+/** Minutes cut from every junction's peak delay. */
+const junctionPoints = (cut = 0): EstatePoint[] =>
   JUNCTIONS.map((junction) => ({
     id: `junction-${junction.code}`,
     at: junction.at,
     color: ROAD,
     radius: 6.5,
     group: 'roads',
-    tip: { title: `${junction.code} · ${junction.name}`, rows: [['Peak delay', `${junction.delay} min`], ['Volume / capacity', junction.ratio.toFixed(2)]] },
+    tip: { title: `${junction.code} · ${junction.name}`, rows: [['Peak delay', `${junction.delay - cut} min`], ['Volume / capacity', junction.ratio.toFixed(2)]] },
   }))
 
 const pipelinePoints = (): EstatePoint[] =>
@@ -224,6 +229,27 @@ const quietOutlines = () =>
 
 /* —— Map Data —— */
 
+const sewerLayer = (loads = STATION_LOADS): MapDataLayer => ({
+  group: 'sewer',
+  title: 'Sewerage network',
+  mark: 'point',
+  color: { items: STATIONS.map((station) => ({ label: station.code, color: loadColor(loads[station.code]), count: `${loads[station.code]}%` })) },
+})
+
+const floodingLayer = (reports = FLOOD_REPORTS): MapDataLayer => ({
+  group: 'flooding',
+  title: 'Flooding after 38 mm of rain',
+  mark: 'area',
+  color: { items: [{ label: 'Ponding reported', color: FLOOD, count: `${reports}` }] },
+})
+
+const roadsLayer = (cut = 0): MapDataLayer => ({
+  group: 'roads',
+  title: 'Congested junctions',
+  mark: 'point',
+  color: { items: JUNCTIONS.map((junction) => ({ label: junction.code, color: ROAD, count: `${junction.delay - cut} min` })) },
+})
+
 const LAYER = {
   load: {
     group: 'communities',
@@ -232,19 +258,9 @@ const LAYER = {
     color: { items: AREA_LIST.map((area) => ({ label: area.name, color: loadColor(worst(area.id)), count: `${worst(area.id)}%` })) },
   },
   demand: { group: 'load', title: 'Sewage flow by residential unit', mark: 'heat', color: { ramp: GAP_RAMP, low: 'Lower', high: 'Higher' } },
-  sewer: {
-    group: 'sewer',
-    title: 'Sewerage network',
-    mark: 'point',
-    color: { items: STATIONS.map((station) => ({ label: station.code, color: loadColor(station.load), count: `${station.load}%` })) },
-  },
-  flooding: { group: 'flooding', title: 'Flooding after 38 mm of rain', mark: 'area', color: { items: [{ label: 'Ponding reported', color: FLOOD, count: `${FLOOD_REPORTS}` }] } },
-  roads: {
-    group: 'roads',
-    title: 'Congested junctions',
-    mark: 'point',
-    color: { items: JUNCTIONS.map((junction) => ({ label: junction.code, color: ROAD, count: `${junction.delay} min` })) },
-  },
+  sewer: sewerLayer(),
+  flooding: floodingLayer(),
+  roads: roadsLayer(),
   pipeline: {
     group: 'pipeline',
     title: 'Pipeline residential units, by completion',
@@ -342,7 +358,7 @@ export const INFRASTRUCTURE_STORY: EstateStory = {
         {
           id: 'residents',
           kind: 'hbars',
-          title: 'Residents added since 2021',
+          title: 'Residents, gross increase since 2021',
           bars: AREA_LIST.map((area) => ({ label: area.short, value: area.population - area.population2021, display: `+${thousands(area.population - area.population2021)}` })),
         },
       ]),
@@ -378,7 +394,7 @@ export const INFRASTRUCTURE_STORY: EstateStory = {
           dotColumn: 0,
           rows: [
             ...STATIONS.map((station) => ({ cells: [station.code, `${station.load}%`, station.upgrade], color: loadColor(station.load) })),
-            { cells: ['TM-2 trunk sewer', '96%', '2030'], color: loadColor(96) },
+            { cells: ['TM-2 trunk sewer', `${TRUNK_FLOW}%`, '2030'], color: loadColor(TRUNK_FLOW) },
             { cells: ['Drainage, 5 low points', 'Floods at 38 mm', '2031'], color: FLOOD },
           ],
         },
@@ -598,7 +614,7 @@ export const INFRASTRUCTURE_SOLUTIONS: Record<Horizon, PlanningSolution> = {
     ...SOLUTION_CHART,
     title: 'Phase approvals and manage the peaks',
     summary: `Phase approvals on the ${EARLY.length} sites completing before ${UPGRADES_ARRIVE} to the capacity each network has, manage peak flow at PS-1 to stop overflows, and retime signals at the three access junctions.`,
-    mapNote: 'The map shows the phased pipeline sites, PS-1 and the three retimed junctions.',
+    mapNote: 'The upper map shows the network today, the lower with peak flow managed at PS-1 and the three junctions retimed.',
     stats: [
       { label: 'Residential units phased', value: '6,800' },
       { label: 'Overflows', value: 'Stopped' },
@@ -609,7 +625,7 @@ export const INFRASTRUCTURE_SOLUTIONS: Record<Horizon, PlanningSolution> = {
     ...SOLUTION_CHART,
     title: 'Bring the upgrades forward',
     summary: 'Upgrade PS-1 two years early, duplicate the TM-2 trunk sewer between PS-1 and PS-2, and rebuild drainage at the five low points that flood.',
-    mapNote: 'The map shows the upgraded PS-1, the second TM-2 main and the five drainage schemes.',
+    mapNote: 'The upper map shows the network today, the lower with the upgraded PS-1, the second TM-2 main and the five drainage schemes.',
     stats: [
       { label: 'Sewerage capacity', value: '+45%' },
       { label: 'Shortfall', value: 'Closed by 2028' },
@@ -620,7 +636,7 @@ export const INFRASTRUCTURE_SOLUTIONS: Record<Horizon, PlanningSolution> = {
     ...SOLUTION_CHART,
     title: 'Plan infrastructure ahead of growth',
     summary: 'Make every new phase wait for funded infrastructure, add a sewer connection from PS-3 to the Jebel Ali treatment plant, and link the three areas to the metro by bus rapid transit.',
-    mapNote: 'The map shows the new trunk to Jebel Ali and the bus rapid transit route through the three areas.',
+    mapNote: 'The upper map shows the network today, the lower with the new trunk to Jebel Ali and the bus rapid transit route through the three areas.',
     stats: [
       { label: 'Sewerage capacity', value: '+40 ML/day' },
       { label: 'Peak car trips', value: '−30%' },
@@ -646,21 +662,6 @@ const proposed = (horizon: Horizon, id: string, path: LngLat[], title: string): 
   tip: { title, rows: [['Status', 'Proposed']] },
 })
 
-const horizonView = (horizon: Horizon, title: string, note: string, extra: { lines?: EstateLine[]; areas?: EstateArea[] } = {}): EstateAskView => {
-  const marks = actionMarks(ACTIONS, horizon)
-  const outlines = horizonOutlines(horizon, () => note)
-  return {
-    camera: AREAS_ASK_CAMERA,
-    scene: scene({
-      areas: [...outlines.areas, ...(extra.areas ?? [])],
-      lines: [trunkLine(), ...(extra.lines ?? [])],
-      points: [...stationPoints(), ...marks.points],
-      labels: marks.labels,
-    }),
-    layers: [actionsLayer(horizon, title), LAYER.sewer],
-  }
-}
-
 const drainageSchemes = (): EstateArea[] =>
   FLOODING.map((spot) => ({
     id: `drainage-${spot.id}`,
@@ -672,18 +673,63 @@ const drainageSchemes = (): EstateArea[] =>
     tip: { title: 'Drainage scheme', rows: [['Clears', '50 mm storm']] },
   }))
 
+/** The network as a map reads it: station loads, trunk flow, the low points that still flood and junction delays. */
+type NetworkState = { loads: Record<string, number>; trunk: number; drained: boolean; delayCut: number }
+
+const NETWORK_TODAY: NetworkState = { loads: STATION_LOADS, trunk: TRUNK_FLOW, drained: false, delayCut: 0 }
+
+/** What each horizon's actions leave on the network, against today. */
+const NETWORK_AFTER: Record<Horizon, NetworkState> = {
+  immediate: { ...NETWORK_TODAY, loads: { ...STATION_LOADS, 'PS-1': 96 }, delayCut: 4 },
+  intermediate: { ...NETWORK_TODAY, loads: { ...STATION_LOADS, 'PS-1': 72 }, trunk: 48, drained: true },
+  long: { ...NETWORK_TODAY, loads: { ...STATION_LOADS, 'PS-3': 62 }, trunk: 70, delayCut: 3 },
+}
+
+/**
+ * The network today, or after a horizon's actions with those actions marked on it. Both draw the same
+ * layers, so the two halves of the comparison read directly.
+ */
+function networkView(
+  state: NetworkState,
+  actions?: { horizon: Horizon; title: string; lines?: EstateLine[]; areas?: EstateArea[] },
+  compare?: EstateAskView['compare'],
+): EstateAskView {
+  const marks = actions ? actionMarks(ACTIONS, actions.horizon) : { points: [], labels: [] }
+  return {
+    camera: AREAS_ASK_CAMERA,
+    scene: scene({
+      areas: [...quietOutlines().areas, ...(state.drained ? [] : floodAreas()), ...(actions?.areas ?? [])],
+      lines: [trunkLine(state.trunk), ...(actions?.lines ?? [])],
+      points: [...stationPoints(state.loads), ...junctionPoints(state.delayCut), ...marks.points],
+      labels: marks.labels,
+    }),
+    layers: [
+      ...(actions ? [actionsLayer(actions.horizon, actions.title)] : []),
+      sewerLayer(state.loads),
+      floodingLayer(state.drained ? 0 : FLOOD_REPORTS),
+      roadsLayer(state.delayCut),
+    ],
+    compare,
+  }
+}
+
+const NETWORK_VIEW = networkView(NETWORK_TODAY)
+
+const solutionView = (horizon: Horizon, title: string, after: string, extra: { lines?: EstateLine[]; areas?: EstateArea[] } = {}) =>
+  networkView(NETWORK_AFTER[horizon], { horizon, title, ...extra }, { before: NETWORK_VIEW, labels: ['Today', after] })
+
 export const INFRASTRUCTURE_ASK_VIEWS = {
   infrastructure: {
     camera: AREAS_ASK_CAMERA,
     scene: SHORTFALL_SCENE,
     layers: [LAYER.pipeline, LAYER.sewer],
   },
-  'infrastructure-immediate': horizonView('immediate', 'Immediate actions', 'Approvals phased'),
-  'infrastructure-intermediate': horizonView('intermediate', 'Intermediate actions', 'Upgrades brought forward', {
+  'infrastructure-immediate': solutionView('immediate', 'Immediate actions', 'After the immediate actions'),
+  'infrastructure-intermediate': solutionView('intermediate', 'Intermediate actions', 'After the intermediate actions', {
     lines: [proposed('intermediate', 'tm2-duplicate', TRUNK.slice(1, 4).map(([lng, lat]) => [lng, lat - 0.0012] as LngLat), 'TM-2 second main')],
     areas: drainageSchemes(),
   }),
-  'infrastructure-long': horizonView('long', 'Long-term actions', 'Infrastructure-led plan', {
+  'infrastructure-long': solutionView('long', 'Long-term actions', 'After the long-term actions', {
     lines: [
       proposed('long', 'jebel-ali', [STATIONS[2].at, [55.2385, 25.0395], [55.222, 25.032], [55.2, 25.026]], 'Sewer connection to Jebel Ali'),
       proposed('long', 'brt', [[55.19, 25.0665], [55.2095, 25.0705], [55.2225, 25.0605], [55.2295, 25.0555], [55.2455, 25.0485]], 'Bus rapid transit link'),

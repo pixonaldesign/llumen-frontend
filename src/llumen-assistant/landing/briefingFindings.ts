@@ -60,7 +60,7 @@ export const FEED_STOPS: FeedStop[] = [
     title: 'Families and workers are short of facilities in JVC, Arjan and Motor City',
     before: 'JVC, Arjan and Motor City grew ',
     highlight: `${TOTAL_GROWTH}% in five years`,
-    after: `, but their schools, clinics and parks were planned for ${fmt(FACILITIES_BRIEFING.plannedFor * 1000)} residents, not the ${fmt(FACILITIES_BRIEFING.population)} living there today.`,
+    after: `, but their parks, public courts and recreational facilities were planned for ${fmt(FACILITIES_BRIEFING.plannedFor * 1000)} residents, not the ${fmt(FACILITIES_BRIEFING.population)} living there today, based on CRM complaints from these communities.`,
     storyId: 'dm-facilities',
   },
   {
