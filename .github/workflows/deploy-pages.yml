@@ -1,12 +1,13 @@
 name: Deploy to GitHub Pages
 
-# main is published at the site root. Each open pull request from this repo gets
-# a preview at preview/<branch>/, updated on every push and removed when it closes.
+# main is published at the site root. Every other branch is published at
+# preview/<branch>/ on push, so the preview is that branch itself and does not
+# need a clean merge with main. An open pull request still updates the same
+# folder and removes it when the pull request closes.
 # GitHub Pages serves the gh-pages branch (Settings → Pages → Deploy from a branch).
 
 on:
   push:
-    branches: [main]
   pull_request:
     types: [opened, synchronize, reopened, closed]
   workflow_dispatch:
@@ -23,7 +24,7 @@ jobs:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     concurrency:
-      group: build-${{ github.head_ref || github.ref }}
+      group: build-${{ github.head_ref || github.ref_name }}
       cancel-in-progress: true
     outputs:
       slug: ${{ steps.target.outputs.slug }}
@@ -33,9 +34,9 @@ jobs:
 
       - name: Pick site path
         id: target
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'
         env:
-          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
         run: |
           slug="$(bash .github/scripts/publish-pages.sh slug "$HEAD_REF")"
           echo "slug=$slug" >> "$GITHUB_OUTPUT"
@@ -63,8 +64,9 @@ jobs:
   publish:
     needs: build
     if: >-
-      (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -77,13 +79,13 @@ jobs:
           path: site
 
       - name: Publish main
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash .github/scripts/publish-pages.sh main site
 
       - name: Publish preview
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash .github/scripts/publish-pages.sh preview site "${{ needs.build.outputs.slug }}"
