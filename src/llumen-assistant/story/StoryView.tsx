@@ -303,6 +303,8 @@ const VIEW_LAYOUTS: { id: StoryViewLayout; label: string; icon: ComponentType<Ic
 const LAYOUT_MENU_WIDTH = 200
 const LAYOUT_MENU_HEIGHT = 132
 
+const AUTOPLAY_MS = 5000
+
 const INSIGHT_CARD_IDS = ['summary', 'emissions', 'groundwater', 'biodiversity', 'sites'] as const
 
 /** Edit-mode grid: one row per visual plus 3 empty rows; each row holds 2 cells. */
@@ -362,7 +364,7 @@ function makePresentationSettings(): StoryPresentationSettings {
     darkLogoName: '',
     lightLogoName: '',
     textDirection: 'ltr',
-    autoplay: false,
+    autoplay: true,
     multiSlide: true,
     pagesMode: false,
   }
@@ -1272,26 +1274,24 @@ export function StoryView({
       </nav>
     ) : null
 
+  const autoplayEnabled =
+    presentationSettings.autoplay &&
+    presentationSettings.multiSlide &&
+    !presentationSettings.pagesMode &&
+    slides.length > 1
+
+  const toggleAutoplay = () => {
+    if (!autoplayEnabled) return
+    setAutoplaying((playing) => !playing)
+  }
+
   useEffect(() => {
-    if (
-      !autoplaying ||
-      !presentationSettings.autoplay ||
-      !presentationSettings.multiSlide ||
-      presentationSettings.pagesMode
-    )
-      return
-    const timer = window.setInterval(
-      () => setSlideIndex((index) => (index + 1) % slides.length),
-      4000,
-    )
-    return () => window.clearInterval(timer)
-  }, [
-    autoplaying,
-    presentationSettings.autoplay,
-    presentationSettings.multiSlide,
-    presentationSettings.pagesMode,
-    slides.length,
-  ])
+    if (!autoplaying || !autoplayEnabled) return
+    const timer = window.setTimeout(() => {
+      setSlideIndex((index) => (index + 1) % slides.length)
+    }, AUTOPLAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [autoplaying, autoplayEnabled, activeSlideIndex, slides.length])
 
   const backgroundButton = (
     <button
@@ -2380,21 +2380,6 @@ export function StoryView({
 
           {presentationSettings.multiSlide && !presentationSettings.pagesMode ? (
             <div className={styles.navCluster}>
-              {presentationSettings.autoplay ? (
-                <button
-                  type="button"
-                  className={styles.navArrow}
-                  aria-label={autoplaying ? 'Pause autoplay' : 'Start autoplay'}
-                  aria-pressed={autoplaying}
-                  onClick={() => setAutoplaying((playing) => !playing)}
-                >
-                  {autoplaying ? (
-                    <Pause size={18} weight="fill" aria-hidden />
-                  ) : (
-                    <Play size={18} weight="fill" aria-hidden />
-                  )}
-                </button>
-              ) : null}
               <button
                 type="button"
                 className={styles.navArrow}
@@ -2438,6 +2423,38 @@ export function StoryView({
               >
                 <ArrowRight size={20} weight="regular" aria-hidden />
               </button>
+              {presentationSettings.autoplay ? (
+                <button
+                  type="button"
+                  className={`${styles.navArrow} ${styles.navPlay}${autoplaying ? ` ${styles.navPlayActive}` : ''}`}
+                  aria-label={autoplaying ? 'Pause autoplay' : 'Play slides'}
+                  aria-pressed={autoplaying}
+                  disabled={!autoplayEnabled}
+                  onClick={toggleAutoplay}
+                >
+                  {autoplaying ? (
+                    <svg
+                      key={activeSlideIndex}
+                      className={styles.playRing}
+                      viewBox="0 0 36 36"
+                      aria-hidden
+                    >
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="16.75"
+                        transform="rotate(-90 18 18)"
+                        style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
+                      />
+                    </svg>
+                  ) : null}
+                  {autoplaying ? (
+                    <Pause size={18} weight="fill" aria-hidden />
+                  ) : (
+                    <Play size={18} weight="regular" aria-hidden />
+                  )}
+                </button>
+              ) : null}
             </div>
           ) : null}
 
