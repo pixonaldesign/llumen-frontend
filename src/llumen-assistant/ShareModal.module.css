@@ -1,147 +1,47 @@
-.root {
-  position: fixed;
-  inset: 0;
-  z-index: 11000;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: var(--space-7xl) var(--space-3xl) var(--space-3xl);
-  box-sizing: border-box;
+/* The one-line title sits level with the close button. */
+.header {
+  align-items: center;
 }
 
-.backdrop {
-  position: absolute;
-  inset: 0;
-  border: none;
-  padding: 0;
-  margin: 0;
-  background: var(--lc-surface-0);
-  opacity: 0.72;
-  cursor: default;
-}
-
-.modal {
-  position: relative;
-  z-index: 1;
-  width: min(560px, 100%);
+.body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3xl);
-  padding: var(--space-3xl);
-  border-radius: var(--radius-2xl);
-  border: 1px solid var(--lc-border-default);
-  background: var(--lc-surface-1);
-  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
-  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
-  box-shadow: var(--lc-shadow-4);
-  box-sizing: border-box;
+  gap: var(--space-2xl);
+  padding: var(--space-2xl);
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-xl);
-  min-width: 0;
-  margin: calc(-1 * var(--space-3xl)) calc(-1 * var(--space-3xl)) 0;
-  padding: var(--space-lg) var(--space-3xl);
-  border-bottom: 1px solid var(--lc-border-subtle);
-  box-sizing: border-box;
-}
-
-.title {
-  margin: 0;
-  min-width: 0;
-  font-size: var(--lc-text-heading-sm);
-  font-weight: var(--lc-weight-semibold);
-  line-height: var(--lc-leading-heading);
-  color: var(--lc-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.headerActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  flex-shrink: 0;
-}
-
-.copyLink {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin: 0;
-  padding: var(--space-sm) var(--space-md);
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-primary-500);
-  font-family: inherit;
-  font-size: var(--lc-text-body);
-  font-weight: var(--lc-weight-medium);
-  line-height: var(--lc-leading-body);
-  cursor: pointer;
-}
-
-.copyLink:hover {
-  opacity: 0.84;
-}
-
-.closeBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--lc-header-icon-btn-size);
-  height: var(--lc-header-icon-btn-size);
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--lc-text-primary);
-  cursor: pointer;
-}
-
-.closeBtn:hover {
-  opacity: 0.72;
-}
-
-.inviteRow {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-md);
-}
-
+/* Reads as the panel's text input; invitees sit in it as chips ahead of the cursor. */
 .field {
   position: relative;
-  flex: 1;
-  min-width: 0;
+  box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-sm);
-  min-height: 44px;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-lg);
+  gap: var(--space-xs);
+  min-height: 36px;
+  padding: 3px var(--space-md);
   border: 1px solid var(--lc-border-control);
-  background: color-mix(in srgb, var(--lc-surface-0) 55%, transparent);
-  box-sizing: border-box;
+  border-radius: var(--lc-ui-radius);
+  background: var(--lc-bg-control);
+  transition:
+    border-color 0.14s,
+    box-shadow 0.14s;
 }
 
 .field:focus-within {
-  border-color: var(--color-primary-500);
+  border-color: var(--lc-border-control-focus);
+  box-shadow: var(--lc-shadow-control-focus);
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
   max-width: 100%;
-  padding: var(--space-xs) var(--space-sm) var(--space-xs) var(--space-xs);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--lc-border-subtle);
-  background: color-mix(in srgb, var(--lc-surface-3) 70%, transparent);
+  padding: 2px 4px 2px 2px;
+  border: 1px solid var(--lc-border-default);
+  border-radius: var(--radius-full);
+  background: var(--lc-bg-default);
 }
 
 .chipAvatar,
@@ -149,22 +49,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  color: #111;
-  font-size: var(--lc-text-micro);
-  font-weight: var(--lc-weight-semibold);
   flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  color: #111;
+  font: var(--lc-font-micro);
+  font-weight: var(--lc-weight-semibold);
 }
 
 .chipLabel {
   min-width: 0;
-  font-size: var(--lc-text-caption);
-  color: var(--lc-text-primary);
-  white-space: nowrap;
   overflow: hidden;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-small);
+  font-weight: var(--lc-weight-medium);
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chipRemove {
@@ -173,66 +74,80 @@
   justify-content: center;
   width: 18px;
   height: 18px;
+  margin: 0;
   padding: 0;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--lc-text-tertiary);
   cursor: pointer;
 }
 
 .chipRemove:hover {
+  background: var(--lc-bg-default);
   color: var(--lc-text-primary);
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .input {
   flex: 1 1 8rem;
   min-width: 8rem;
   margin: 0;
-  padding: var(--space-sm) 0;
+  padding: 4px 0;
   border: none;
   background: transparent;
   color: var(--lc-text-primary);
-  font-family: inherit;
-  font-size: var(--lc-text-body);
-  line-height: var(--lc-leading-body);
+  font: var(--lc-font-body);
   outline: none;
 }
 
 .input::placeholder {
-  color: var(--lc-text-placeholder);
+  color: var(--lc-text-tertiary);
 }
 
+/* Opaque: it can hang past the panel, where the panel's blur doesn't reach. */
 .suggestions {
   position: absolute;
-  top: calc(100% + var(--space-sm));
-  left: 0;
-  right: 0;
+  top: calc(100% + 6px);
+  right: -1px;
+  left: -1px;
   z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 2px;
   max-height: 240px;
-  overflow: auto;
-  padding: var(--space-sm);
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--lc-border-dropdown);
-  background: var(--lc-surface-3);
-  -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
-  backdrop-filter: blur(var(--lc-backdrop-blur-ui));
-  box-shadow: var(--lc-shadow-3);
+  overflow-y: auto;
+  overflow-y: overlay;
+  padding: var(--space-xs) 0 var(--space-xs) var(--space-xs);
+  border: 1px solid var(--lc-border-default);
+  border-radius: 14px;
+  background: #2b2b2bf5;
+  box-shadow:
+    0 12px 16px -4px rgba(10, 13, 18, 0.24),
+    0 4px 6px -2px rgba(10, 13, 18, 0.16);
+}
+
+.suggestions::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size);
+}
+
+.suggestions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.suggestions::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-full);
+  background: var(--lc-scrollbar-thumb);
 }
 
 .suggestion {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: var(--space-md);
-  width: 100%;
-  margin: 0;
-  padding: var(--space-md);
+  margin: 0 var(--space-xs) 0 0;
+  padding: var(--space-sm) var(--space-md);
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   background: transparent;
   color: inherit;
   text-align: left;
@@ -241,59 +156,31 @@
 
 .suggestion:hover,
 .suggestionActive {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--lc-bg-default);
 }
 
 .suggestionAvatar {
-  width: 32px;
-  height: 32px;
-  font-size: var(--lc-text-caption);
+  width: 28px;
+  height: 28px;
+  font: var(--lc-font-small);
+  font-weight: var(--lc-weight-semibold);
 }
 
 .suggestionText {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
 }
 
 .suggestionName {
-  font-size: var(--lc-text-body);
-  font-weight: var(--lc-weight-medium);
   color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+  font-weight: var(--lc-weight-medium);
 }
 
 .suggestionEmail {
-  font-size: var(--lc-text-caption);
   color: var(--lc-text-tertiary);
-}
-
-.inviteBtn {
-  flex-shrink: 0;
-  height: 44px;
-  padding: 0 var(--space-3xl);
-  border: none;
-  border-radius: var(--radius-lg);
-  background: var(--lc-bg-control);
-  color: var(--lc-text-primary);
-  font-family: inherit;
-  font-size: var(--lc-text-body);
-  font-weight: var(--lc-weight-medium);
-  cursor: pointer;
-}
-
-.inviteBtn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.inviteBtn:not(:disabled) {
-  background: var(--color-primary-500);
-  color: #111;
-}
-
-.inviteBtn:not(:disabled):hover {
-  background: var(--color-primary-300);
+  font: var(--lc-font-small);
 }
 
 .frequent {
@@ -304,39 +191,57 @@
 
 .frequentLabel {
   margin: 0;
-  font-size: var(--lc-text-caption);
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
   font-weight: var(--lc-weight-medium);
-  color: var(--lc-text-tertiary);
 }
 
 .frequentRow {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
 .frequentChip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
+  height: 32px;
   margin: 0;
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--lc-border-subtle);
-  background: color-mix(in srgb, var(--lc-surface-2) 70%, transparent);
-  color: var(--lc-text-primary);
-  font-family: inherit;
-  font-size: var(--lc-text-caption);
+  padding: 0 var(--space-lg) 0 var(--space-md);
+  border: 1px solid var(--lc-border-default);
+  border-radius: var(--radius-full);
+  background: var(--lc-bg-default);
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
+  font-weight: var(--lc-weight-medium);
   cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
 }
 
 .frequentChip:hover {
-  background: color-mix(in srgb, var(--lc-surface-3) 80%, transparent);
+  border-color: var(--lc-border-hover);
+  background: var(--lc-bg-default-hover);
+  color: var(--lc-text-primary);
+}
+
+.chipRemove:focus-visible,
+.suggestion:focus-visible,
+.frequentChip:focus-visible {
+  outline: 2px solid var(--lc-text-brand);
+  outline-offset: 2px;
 }
 
 .footnote {
   margin: 0;
-  font-size: var(--lc-text-caption);
   color: var(--lc-text-tertiary);
-  line-height: 1.45;
+  font: var(--lc-font-small);
+}
+
+/* Copy link leads the footer; Cancel and Share keep to the end. */
+.copyLink {
+  margin-inline-end: auto;
 }

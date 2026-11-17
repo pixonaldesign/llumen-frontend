@@ -27,6 +27,20 @@ export type ComparisonMapOption = {
 }
 
 const ALL_LAYERS: StoryMapLayerVisibility = { junctions: true, distribution: true }
+const NO_LAYERS: StoryMapLayerVisibility = { junctions: false, distribution: false }
+
+/** The slide's own map with nothing drawn on it, for whatever the user turns on to compare. */
+export function basemapComparison(activeSlideIndex: number): ComparisonMapOption {
+  return {
+    id: 'basemap',
+    source: 'slides',
+    sceneIndex: activeSlideIndex,
+    phaseOffset: 0,
+    layers: NO_LAYERS,
+    eyebrow: 'Comparison',
+    title: 'Basemap',
+  }
+}
 
 const OTHER_STORY_MAPS = [
   {

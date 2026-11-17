@@ -163,18 +163,31 @@ export type PaletteCardinalityEdgeCase =
   | null;
 const PaletteEdgeCaseContext =
   createContext<PaletteCardinalityEdgeCase>(null);
+/**
+ * Which palette types the full palette offers (For Dev only). `all` is the 2×2 grid of four; the
+ * other two sit in one row: `no-category` drops Per Category, `category-steps` keeps only those two.
+ */
+export type PaletteTypeSet = "all" | "no-category" | "category-steps";
+const PALETTE_TYPE_SETS: Record<PaletteTypeSet, PaletteStyle[]> = {
+  all: ["Single", "Per Category", "Gradient", "Steps"],
+  "no-category": ["Single", "Gradient", "Steps"],
+  "category-steps": ["Per Category", "Steps"],
+};
+const PaletteTypeSetContext = createContext<PaletteTypeSet>("all");
 
 export function ColorPaletteProvider({
   children,
   dataRange,
   categoryLabels = [],
   edgeCase = null,
+  typeSet = "all",
   valueOpacity,
 }: {
   children: ReactNode;
   dataRange?: DataRange | null;
   categoryLabels?: string[];
   edgeCase?: PaletteCardinalityEdgeCase;
+  typeSet?: PaletteTypeSet;
   /** Value-driven stop opacity for full palettes. Undefined: not offered. Null: switched off. */
   valueOpacity?: ValueOpacity | null;
 }) {
@@ -184,11 +197,13 @@ export function ColorPaletteProvider({
     <PaletteContext.Provider value={value}>
       <DataRangeContext.Provider value={dataRange ?? null}>
         <PaletteEdgeCaseContext.Provider value={edgeCase}>
-          <PaletteCategoriesContext.Provider value={categoryLabels}>
-            <ValueOpacityContext.Provider value={valueOpacity}>
-              {children}
-            </ValueOpacityContext.Provider>
-          </PaletteCategoriesContext.Provider>
+          <PaletteTypeSetContext.Provider value={typeSet}>
+            <PaletteCategoriesContext.Provider value={categoryLabels}>
+              <ValueOpacityContext.Provider value={valueOpacity}>
+                {children}
+              </ValueOpacityContext.Provider>
+            </PaletteCategoriesContext.Provider>
+          </PaletteTypeSetContext.Provider>
         </PaletteEdgeCaseContext.Provider>
       </DataRangeContext.Provider>
     </PaletteContext.Provider>
@@ -1766,8 +1781,12 @@ export default function ColorPalette({
   const categoryLabels = previewCategoryLabels.length
     ? Array.from(new Set(previewCategoryLabels.filter(Boolean)))
     : Array.from({ length: 6 }, (_, i) => `Category ${i + 1}`);
-  const allowedStyles =
+  const typeSet = useContext(PaletteTypeSetContext);
+  const offeredStyles =
     styles ?? (["Single", "Per Category", "Gradient", "Steps"] as PaletteStyle[]);
+  const typeSetStyles = offeredStyles.filter((s) => PALETTE_TYPE_SETS[typeSet].includes(s));
+  const allowedStyles = typeSetStyles.length ? typeSetStyles : offeredStyles;
+  const typesInRow = typeSet !== "all" && typeSetStyles.length > 0;
   const style = isStepsOnly
     ? "Steps"
     : allowedStyles.includes(config.style)
@@ -1961,6 +1980,14 @@ export default function ColorPalette({
     });
   };
 
+  // A dev type set can hide the chosen type: the palette falls back to the set's first, so the asset follows.
+  const hiddenStyle = isFull && typesInRow && config.style !== style;
+  useEffect(() => {
+    if (hiddenStyle) setStyle(style);
+    // Only when the set hides the current type.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenStyle, style]);
+
   return (
     <div className={"cp" + (isSimple || isSwatch ? " cp--simple" : "") + (isSwatch ? " cp--swatch" : "")}>
       {!isSwatch && (
@@ -1990,7 +2017,7 @@ export default function ColorPalette({
 
       {isFull && (
         <Field label="Palette type">
-          <div className="cp-type">
+          <div className={"cp-type" + (typesInRow ? " cp-type--row" : "")}>
             {(allowedStyles).map((s) => {
               const Icon =
                 s === "Single"

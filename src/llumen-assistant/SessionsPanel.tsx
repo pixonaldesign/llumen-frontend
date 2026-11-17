@@ -8,6 +8,7 @@ import {
   User,
   X,
 } from '@phosphor-icons/react'
+import { FINDING_TOAST_POOL, type FindingToastItem } from './landing/findingDemoData'
 import styles from './SessionsPanel.module.css'
 
 export type SessionSummary = {
@@ -84,12 +85,24 @@ export const DEMO_SESSIONS: SessionSummary[] = [
   },
 ]
 
+export type SessionsPanelTab = 'conversations' | 'findings'
+
 export type SessionsPanelProps = {
+  sessions?: SessionSummary[]
+  activeSessionId?: string | null
   onOpenSession: (id: string) => void
   onShareSession?: (id: string) => void
+  onDeleteSession?: (id: string) => void
+  findings?: FindingToastItem[]
+  onOpenFinding?: (finding: FindingToastItem) => void
   variant?: 'dropdown' | 'fullscreen'
   onClose?: () => void
 }
+
+const PANEL_TABS: { id: SessionsPanelTab; label: string }[] = [
+  { id: 'conversations', label: 'Conversations' },
+  { id: 'findings', label: 'Findings' },
+]
 
 const SESSION_MENU_ITEMS = [
   { id: 'rename', label: 'Rename', Icon: PencilSimple },
@@ -104,12 +117,16 @@ const SETTINGS_MENU_ITEMS = [
 
 function SessionRowItem({
   session,
+  active,
   onOpen,
   onShare,
+  onDelete,
 }: {
   session: SessionSummary
+  active: boolean
   onOpen: (id: string) => void
   onShare?: (id: string) => void
+  onDelete?: (id: string) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [titleScrolling, setTitleScrolling] = useState(false)
@@ -156,7 +173,7 @@ function SessionRowItem({
 
   return (
     <li>
-      <div className={styles.sessionRow}>
+      <div className={`${styles.sessionRow}${active ? ` ${styles.sessionRowActive}` : ''}`}>
         <button
           type="button"
           className={styles.sessionOpenBtn}
@@ -214,6 +231,7 @@ function SessionRowItem({
                   onClick={() => {
                     setMenuOpen(false)
                     if (item.id === 'share') onShare?.(session.id)
+                    if (item.id === 'delete') onDelete?.(session.id)
                   }}
                 >
                   <item.Icon size={16} weight="regular" aria-hidden />
@@ -228,13 +246,42 @@ function SessionRowItem({
   )
 }
 
-/** Conversation history — compact dropdown, or full-height sidebar in fullscreen. */
+function FindingRowItem({ finding, onOpen }: { finding: FindingToastItem; onOpen?: (finding: FindingToastItem) => void }) {
+  return (
+    <li>
+      <button type="button" className={`${styles.sessionRow} ${styles.findingRow}`} onClick={() => onOpen?.(finding)}>
+        <span
+          className={styles.findingThumb}
+          style={finding.image ? { backgroundImage: `url(${finding.image})` } : { background: finding.gradient }}
+          aria-hidden
+        />
+        <span className={styles.sessionBody}>
+          <span className={styles.findingDomain}>{finding.domain}</span>
+          <span className={styles.findingTitle}>{finding.title}</span>
+          <span className={styles.findingText}>
+            {finding.before}
+            <span className={styles.findingHighlight}>{finding.highlight}</span>
+            {finding.after}
+          </span>
+        </span>
+      </button>
+    </li>
+  )
+}
+
+/** Conversation history and findings — compact dropdown, or full-height sidebar in fullscreen. */
 export function SessionsPanel({
+  sessions = [],
+  activeSessionId = null,
   onOpenSession,
   onShareSession,
+  onDeleteSession,
+  findings = FINDING_TOAST_POOL,
+  onOpenFinding,
   variant = 'dropdown',
   onClose,
 }: SessionsPanelProps) {
+  const [tab, setTab] = useState<SessionsPanelTab>('conversations')
   const [searchQuery, setSearchQuery] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -247,13 +294,30 @@ export function SessionsPanel({
     [onOpenSession],
   )
 
-  const filteredSessions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return DEMO_SESSIONS
-    return DEMO_SESSIONS.filter(
-      (s) => s.title.toLowerCase().includes(q) || s.preview.toLowerCase().includes(q),
-    )
-  }, [searchQuery])
+  const query = searchQuery.trim().toLowerCase()
+  const filteredSessions = useMemo(
+    () =>
+      query
+        ? sessions.filter((s) => s.title.toLowerCase().includes(query) || s.preview.toLowerCase().includes(query))
+        : sessions,
+    [sessions, query],
+  )
+  const filteredFindings = useMemo(
+    () =>
+      query
+        ? findings.filter((f) =>
+            [f.title, f.domain, f.before, f.highlight, f.after].some((text) => text.toLowerCase().includes(query)),
+          )
+        : findings,
+    [findings, query],
+  )
+  const emptyLabel =
+    tab === 'conversations'
+      ? query
+        ? 'No conversations match your search.'
+        : 'No conversations yet. Ask Llumen about a story to start one.'
+      : 'No findings match your search.'
+  const listEmpty = tab === 'conversations' ? filteredSessions.length === 0 : filteredFindings.length === 0
 
   useLayoutEffect(() => {
     searchInputRef.current?.focus()
@@ -281,7 +345,20 @@ export function SessionsPanel({
       className={`${styles.dropdownRoot}${variant === 'fullscreen' ? ` ${styles.fullscreenRoot}` : ''}`}
     >
       <div className={styles.panelHeader}>
-        <p className={styles.panelTitle}>Conversations</p>
+        <div className={styles.panelTabs} role="tablist" aria-label="History">
+          {PANEL_TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.id}
+              className={`${styles.panelTab}${tab === item.id ? ` ${styles.panelTabActive}` : ''}`}
+              onClick={() => setTab(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
         <div className={styles.headerActions}>
           <div className={styles.settingsWrap} ref={settingsWrapRef}>
             <button
@@ -329,10 +406,10 @@ export function SessionsPanel({
           ref={searchInputRef}
           type="search"
           className={styles.searchInput}
-          placeholder="Search conversations..."
+          placeholder={tab === 'conversations' ? 'Search conversations...' : 'Search findings...'}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          aria-label="Search conversations"
+          aria-label={tab === 'conversations' ? 'Search conversations' : 'Search findings'}
           onKeyDown={(e) => {
             if (e.key === 'Escape' && searchQuery) {
               e.preventDefault()
@@ -343,11 +420,24 @@ export function SessionsPanel({
         />
       </div>
 
-      <ul className={styles.list}>
-        {filteredSessions.map((s) => (
-          <SessionRowItem key={s.id} session={s} onOpen={open} onShare={onShareSession} />
-        ))}
-      </ul>
+      {listEmpty ? (
+        <p className={styles.emptyState}>{emptyLabel}</p>
+      ) : (
+        <ul key={tab} className={`${styles.list} ${styles.listEnter}`} role="tabpanel">
+          {tab === 'conversations'
+            ? filteredSessions.map((s) => (
+                <SessionRowItem
+                  key={s.id}
+                  session={s}
+                  active={s.id === activeSessionId}
+                  onOpen={open}
+                  onShare={onShareSession}
+                  onDelete={onDeleteSession}
+                />
+              ))
+            : filteredFindings.map((f) => <FindingRowItem key={f.id} finding={f} onOpen={onOpenFinding} />)}
+        </ul>
+      )}
     </div>
   )
 }

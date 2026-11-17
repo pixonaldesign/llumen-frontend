@@ -31,6 +31,7 @@ export type NotionVisualType =
   | "Range"
   | "Availability"
   | "Sankey"
+  | "Funnel"
   | "KPI Card"
   | "KPI Grid"
   | "Data Table"
@@ -59,6 +60,7 @@ export const NOTION_TYPE_BY_VISUAL_ID: Record<string, NotionVisualType> = {
   range: "Range",
   availability: "Availability",
   "sankey-chart": "Sankey",
+  "funnel-chart": "Funnel",
   "kpi-card": "KPI Card",
   "kpi-grid": "KPI Grid",
   "legacy-kpi": "KPI Card",
@@ -88,6 +90,7 @@ const ALL_CHARTS_KPIS: NotionVisualType[] = [
   "Range",
   "Availability",
   "Sankey",
+  "Funnel",
   "KPI Card",
   "KPI Grid",
 ];
@@ -116,6 +119,7 @@ const STORY_KPI: NotionVisualType[] = [
   "Score Indicator",
   "Range",
   "Sankey",
+  "Funnel",
 ];
 const COLOR_MODE: NotionVisualType[] = [
   "Vertical Bar",
@@ -129,6 +133,7 @@ const COLOR_MODE: NotionVisualType[] = [
   "Polar",
   "Availability",
   "Sankey",
+  "Funnel",
 ];
 const LEGEND: NotionVisualType[] = [
   "Vertical Bar",
@@ -140,6 +145,7 @@ const LEGEND: NotionVisualType[] = [
   "Range",
   "Availability",
   "Sankey",
+  "Funnel",
 ];
 const BADGE: NotionVisualType[] = [
   "Vertical Bar",
@@ -155,6 +161,7 @@ const BADGE: NotionVisualType[] = [
   "Range",
   "Availability",
   "Sankey",
+  "Funnel",
   "KPI Card",
 ];
 const TOOLTIPS: NotionVisualType[] = [
@@ -169,6 +176,7 @@ const TOOLTIPS: NotionVisualType[] = [
   "Polar",
   "Range",
   "Sankey",
+  "Funnel",
 ];
 const BARS: NotionVisualType[] = ["Vertical Bar", "Horizontal Bar"];
 const LINE_AREA: NotionVisualType[] = ["Line", "Area"];
@@ -184,6 +192,7 @@ export const SUBCATEGORY_ORDER = [
   "Legend",
   "Status badge",
   "Sankey",
+  "Funnel",
   "Bar",
   "Line",
   "Scatter",
@@ -321,6 +330,14 @@ const FIELDS: FieldDef[] = [
   }),
   f("Target", "field", "Mapping", ["Sankey"], { required: true }),
   f("Value", "field", "Mapping", ["Sankey"], { required: true }),
+  f("Stage", "field", "Mapping", ["Funnel"], {
+    desc: "Categorical column. Each value becomes one funnel stage.",
+    required: true,
+  }),
+  f("Value", "field", "Mapping", ["Funnel"], {
+    desc: "Numeric column sized per stage. Aggregation None sums each stage.",
+    required: true,
+  }),
   f("Unit", "field", "Mapping", ["Gauge", "KPI Card", "KPI Grid"]),
   f("Status", "field", "Mapping", ["Gauge", "KPI Grid"]),
   f("Min field", "field", "Mapping", ["Gauge"], {
@@ -556,6 +573,70 @@ const FIELDS: FieldDef[] = [
   }),
   f("Show node labels", "toggle", "Sankey", ["Sankey"]),
 
+  /* ---- Funnel ---- */
+  f("Orientation", "segmented", "Funnel", ["Funnel"], {
+    desc: "Vertical stacks stages top to bottom. Horizontal runs them left to right.",
+    values: ["Vertical", "Horizontal"],
+    defaultValue: "Vertical",
+  }),
+  f("Shape", "segmented", "Funnel", ["Funnel"], {
+    desc: "Tapered joins each stage to the next. Stepped draws each stage as its own bar.",
+    values: ["Tapered", "Stepped"],
+    defaultValue: "Tapered",
+  }),
+  f("Stage order", "segmented", "Funnel", ["Funnel"], {
+    desc: "Largest first sorts stages by value. Data order keeps the column's order.",
+    values: ["Largest first", "Data order"],
+    defaultValue: "Largest first",
+  }),
+  f("Width from value", "toggle", "Funnel", ["Funnel"], {
+    desc: "Size each stage by its value. Off narrows every stage by the same step.",
+  }),
+  f("Show stage labels", "toggle", "Funnel", ["Funnel"]),
+  f("Label position", "segmented", "Funnel", ["Funnel"], {
+    desc: "Where stage names and data labels sit.",
+    values: ["Inside", "Outside"],
+    defaultValue: "Inside",
+  }),
+  f("Show conversion rate", "toggle", "Funnel", ["Funnel"], {
+    desc: "Percentage of the basis stage that reaches each stage.",
+  }),
+  f("Conversion basis", "segmented", "Funnel", ["Funnel"], {
+    values: ["Previous stage", "First stage"],
+    defaultValue: "Previous stage",
+    visibleWhen: { group: "Funnel", name: "Show conversion rate", is: "true" },
+  }),
+  f("Stage gap", "slider", "Funnel", ["Funnel"], {
+    desc: "0–16 px. Default 4.",
+    advanced: true,
+  }),
+  f("Neck width", "slider", "Funnel", ["Funnel"], {
+    desc: "Narrowest stage as a share of the widest. 0–60%. Default 20.",
+    advanced: true,
+  }),
+  f("Corner radius", "slider", "Funnel", ["Funnel"], {
+    desc: "0–12 px. Default 3.",
+    advanced: true,
+  }),
+  f("Fill opacity", "slider", "Funnel", ["Funnel"], {
+    desc: "0–100%. Default 90.",
+    advanced: true,
+  }),
+  f("Max stages", "slider", "Funnel", ["Funnel"], {
+    desc: "2–12. Default 8. Stages past the limit are dropped.",
+    advanced: true,
+  }),
+  f("Show drop-off", "toggle", "Funnel", ["Funnel"], {
+    desc: "Ghost of the previous stage behind each stage, so the loss reads at a glance.",
+    advanced: true,
+    def: false,
+  }),
+  f("Label color", "color", "Funnel", ["Funnel"], {
+    desc: "Color of stage names and values drawn inside the funnel.",
+    advanced: true,
+    defaultValue: "#ffffff",
+  }),
+
   /* ---- Bar ---- */
   f("Show values on bars", "toggle", "Bar", BARS, { def: false }),
   f("Sort by value", "toggle", "Bar", BARS, { def: false }),
@@ -666,7 +747,7 @@ const FIELDS: FieldDef[] = [
 
   /* ---- Tooltips / Annotations ---- */
   f("Show tooltips", "toggle", "Tooltips", TOOLTIPS.concat(MAP_TOOLTIPS)),
-  f("Tooltip format", "text", "Tooltips", ["Vertical Bar", "Horizontal Bar", "Line", "Area", "Scatter", "Pie/Donut"], {
+  f("Tooltip format", "text", "Tooltips", ["Vertical Bar", "Horizontal Bar", "Line", "Area", "Scatter", "Pie/Donut", "Funnel"], {
     desc: "D3 number format for the value (e.g. .0f), or a template with {value}, {category}, {timestamp}, {unit}, {status}.",
     defaultValue: ".0f",
     visibleWhen: { group: "Tooltips", name: "Show tooltips", is: "true" },
@@ -1449,12 +1530,12 @@ const FIELDS: FieldDef[] = [
     advanced: true,
     def: false,
   }),
-  f("Enable hover effects", "toggle", "Tooltips", ["Scatter", "Pie/Donut"], {
-    desc: "Reveal Highlight on hover. Only Scatter and Pie/Donut honor this.",
+  f("Enable hover effects", "toggle", "Tooltips", ["Scatter", "Pie/Donut", "Funnel"], {
+    desc: "Reveal Highlight on hover. Only Scatter, Pie/Donut and Funnel honor this.",
     advanced: true,
     def: false,
   }),
-  f("Highlight on hover", "toggle", "Tooltips", ["Scatter", "Pie/Donut"], {
+  f("Highlight on hover", "toggle", "Tooltips", ["Scatter", "Pie/Donut", "Funnel"], {
     advanced: true,
     def: false,
     visibleWhen: { group: "Tooltips", name: "Enable hover effects", is: "true" },
@@ -1774,6 +1855,12 @@ const COLOR_PICKER_PROFILES: Record<string, VisualColorPickerProfile> = {
     autoValueFields: ["Value"],
     categoryFallback: "district",
   },
+  "funnel-chart": {
+    modes: ALL_PICKER_MODES,
+    autoCategoryFields: ["Stage"],
+    autoValueFields: ["Value"],
+    categoryFallback: "district",
+  },
   "progress-bar": {
     modes: VALUE_PICKER_MODES,
     autoCategoryFields: ["Y category"],
@@ -1883,6 +1970,7 @@ export const SETTINGS_NAV_CORE = [
   "Mapping",
   "KPI Display",
   "Sankey",
+  "Funnel",
   "Bar",
   "Line",
   "Scatter",

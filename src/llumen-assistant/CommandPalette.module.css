@@ -63,6 +63,42 @@
   line-height: 16px;
 }
 
+.tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab {
+  flex: none;
+  margin: 0;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.tab:hover {
+  color: #fff;
+}
+
+.tab[aria-selected='true'] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 .list {
   flex: 1 1 auto;
   min-height: 0;

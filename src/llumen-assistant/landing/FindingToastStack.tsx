@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowUpRight,
   Broadcast,
   CaretLeft,
   CaretRight,
   ChatText,
-  Link,
   ThumbsDown,
   ThumbsUp,
   X,
@@ -233,8 +233,8 @@ export function FindingToastStack({
                           onClick={() => onOpenRelated?.(item)}
                           disabled={!relatedStoryId(item)}
                         >
-                          <Link size={16} weight="regular" aria-hidden />
-                          View slides
+                          <ArrowUpRight size={16} weight="regular" aria-hidden />
+                          View
                         </button>
                       </div>
                     </div>

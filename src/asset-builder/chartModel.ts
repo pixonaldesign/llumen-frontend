@@ -66,6 +66,7 @@ export const charts: Record<string, Chart> = {
   range: { name: "Range", preview: "bar" },
   availability: { name: "Availability", preview: "bar" },
   sankey: { name: "Sankey", preview: "sankey" },
+  funnel: { name: "Funnel", preview: "funnel" },
   kpi: { name: "KPI Card", preview: "kpi" },
   kpiGrid: { name: "KPI Grid", preview: "table" },
   table: { name: "Data Table", preview: "table" },

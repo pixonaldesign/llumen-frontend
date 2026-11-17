@@ -1,4 +1,4 @@
-import { ArrowSquareOut, CaretDown, ChatTeardropText, Check, FloppyDisk, Play, SidebarSimple, WarningCircle, X } from '@phosphor-icons/react'
+import { ArrowSquareOut, ArrowsOutSimple, CaretDown, ChatTeardropText, Check, FloppyDisk, Play, SidebarSimple, WarningCircle, X } from '@phosphor-icons/react'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import type { WorkflowProposal, WorkflowStep } from './assistantReplyTypes'
@@ -82,6 +82,7 @@ const LANE_ORDER: Record<WorkflowStep['lane'], number> = {
 
 function nodeFill(step: WorkflowStep) {
   if (step.tone === 'trigger') return '#5dcaa5'
+  if (step.tone === 'source') return '#3b7ddd'
   if (step.tone === 'delivery') return '#7c6cf0'
   if (step.tone === 'asset') return '#8a6244'
   if (step.tone === 'agent') return '#3d5278'
@@ -565,28 +566,90 @@ function WorkflowHeaderSave({ id, disabled }: { id: string; disabled?: boolean }
   )
 }
 
+type StepOutline = { kind: 'step'; step: WorkflowStep } | { kind: 'branches'; id: string; branches: WorkflowStep[][] }
+
+/**
+ * The steps in run order. Where a step leads to several, each one starts a branch that runs until the
+ * paths meet again; steps the walk can't place are listed after it.
+ */
+function outlineSteps(proposal: WorkflowProposal): StepOutline[] {
+  const byId = new Map(proposal.steps.map((step) => [step.id, step]))
+  const next = new Map<string, string[]>()
+  const prev = new Map<string, string[]>()
+  for (const [from, to] of proposal.edges) {
+    next.set(from, [...(next.get(from) ?? []), to])
+    prev.set(to, [...(prev.get(to) ?? []), from])
+  }
+  const seen = new Set<string>()
+  const outline: StepOutline[] = []
+
+  let id: string | undefined = proposal.steps.find((step) => !prev.has(step.id))?.id
+  while (id && !seen.has(id)) {
+    const step = byId.get(id)
+    if (!step) break
+    seen.add(id)
+    outline.push({ kind: 'step', step })
+    const children: string[] = next.get(id) ?? []
+    if (children.length <= 1) {
+      id = children[0]
+      continue
+    }
+    let meet: string | undefined
+    const branches = children.map((start) => {
+      const branch: WorkflowStep[] = []
+      let cursor: string | undefined = start
+      while (cursor && !seen.has(cursor) && (prev.get(cursor)?.length ?? 0) <= 1) {
+        const item = byId.get(cursor)
+        if (!item) break
+        seen.add(cursor)
+        branch.push(item)
+        const after: string[] = next.get(cursor) ?? []
+        cursor = after.length === 1 ? after[0] : undefined
+      }
+      meet ??= cursor
+      return branch
+    })
+    outline.push({ kind: 'branches', id: `${id}-branches`, branches: branches.filter((branch) => branch.length) })
+    id = meet
+  }
+  for (const step of proposal.steps) if (!seen.has(step.id)) outline.push({ kind: 'step', step })
+  return outline
+}
+
+function StepRow({ step }: { step: WorkflowStep }) {
+  return (
+    <div className={styles.stepsRow}>
+      <span className={styles.stepDot} data-tone={step.tone} aria-hidden />
+      <span className={styles.stepsLabel}>{step.label}</span>
+    </div>
+  )
+}
+
+const STEPS_POPOVER_WIDTH = 380
+
 function StepsPopover({
   open,
   anchorRef,
   panelRef,
-  steps,
+  proposal,
   onClose,
 }: {
   open: boolean
   anchorRef: RefObject<HTMLButtonElement | null>
   panelRef?: RefObject<HTMLElement | null>
-  steps: WorkflowStep[]
+  proposal: WorkflowProposal
   onClose: () => void
 }) {
   const popoverRef = useRef<HTMLDivElement>(null)
-  const [layout, setLayout] = useState({ top: 0, left: 0, width: 360, placeAbove: false })
+  const [layout, setLayout] = useState({ top: 0, left: 0, width: STEPS_POPOVER_WIDTH, maxHeight: 0 })
+  const outline = useMemo(() => outlineSteps(proposal), [proposal])
 
   const updatePosition = useMemo(() => {
     return () => {
       const trigger = anchorRef.current
       if (!trigger) return
       const triggerRect = trigger.getBoundingClientRect()
-      const replyRoot = trigger.closest('[data-lc-reply-root]') as HTMLElement | null
+      const cardRect = (trigger.closest('article') ?? trigger).getBoundingClientRect()
       const panel = panelRef?.current
       const panelRect = panel?.getBoundingClientRect() ?? {
         left: 24,
@@ -596,22 +659,15 @@ function StepsPopover({
         right: window.innerWidth - 24,
         bottom: window.innerHeight - 24,
       }
-      const alignRect = (replyRoot ?? panel)?.getBoundingClientRect() ?? panelRect
-      const composer = panel?.querySelector('[data-lc-composer]')
-      const composerTop = composer?.getBoundingClientRect().top ?? panelRect.bottom
       const edgePad = 12
-      const gap = 4
-      const left = alignRect.left
-      const width = Math.max(220, Math.min(panelRect.width * 0.75, panelRect.right - left - edgePad))
-      const popoverHeight = popoverRef.current?.offsetHeight ?? 0
-      const spaceBelow = composerTop - triggerRect.bottom - gap - edgePad
-      const spaceAbove = triggerRect.top - panelRect.top - gap - edgePad
-      const placeAbove = popoverHeight > 0 && spaceBelow < popoverHeight && spaceAbove > spaceBelow
-      let top = placeAbove ? triggerRect.top - popoverHeight - gap : triggerRect.bottom + gap
-      const minTop = panelRect.top + edgePad
-      const maxTop = Math.max(minTop, composerTop - popoverHeight - edgePad)
-      top = Math.min(Math.max(top, minTop), maxTop)
-      setLayout({ top, left, width, placeAbove })
+      const gap = 6
+      const width = Math.min(STEPS_POPOVER_WIDTH, cardRect.width, window.innerWidth - edgePad * 2)
+      const left = Math.min(Math.max(edgePad, cardRect.left), window.innerWidth - width - edgePad)
+      // Always above the toggle: when the steps don't fit there, the list scrolls rather than the panel flipping.
+      const minTop = Math.max(edgePad, panelRect.top + edgePad)
+      const maxHeight = Math.max(0, triggerRect.top - gap - minTop)
+      const popoverHeight = Math.min(popoverRef.current?.offsetHeight ?? 0, maxHeight)
+      setLayout({ top: triggerRect.top - gap - popoverHeight, left, width, maxHeight })
     }
   }, [anchorRef, panelRef])
 
@@ -619,7 +675,7 @@ function StepsPopover({
     if (!open) return
     updatePosition()
     requestAnimationFrame(updatePosition)
-  }, [open, steps.length, updatePosition])
+  }, [open, outline, updatePosition])
 
   useEffect(() => {
     if (!open) return
@@ -652,26 +708,52 @@ function StepsPopover({
   return createPortal(
     <div
       ref={popoverRef}
-      className={`${thinkingStyles.thinkingPopover}${layout.placeAbove ? ` ${thinkingStyles.thinkingPopoverAbove}` : ''}`}
-      style={{ top: layout.top, left: layout.left, width: layout.width }}
+      className={`${thinkingStyles.thinkingPopover} ${thinkingStyles.thinkingPopoverAbove} ${styles.stepsPopover}`}
+      style={{
+        top: layout.top,
+        left: layout.left,
+        width: layout.width,
+        maxHeight: layout.maxHeight ? `min(460px, 60vh, ${layout.maxHeight}px)` : undefined,
+      }}
       role="dialog"
       aria-label="Workflow steps"
     >
-      <div className={thinkingStyles.thinkingPanelHeader}>
+      <div className={`${thinkingStyles.thinkingPanelHeader} ${styles.stepsHeader}`}>
         <p className={thinkingStyles.thinkingPanelTitle}>Steps</p>
-        <button type="button" className={thinkingStyles.thinkingPanelClose} aria-label="Close steps" onClick={onClose}>
+        <button
+          type="button"
+          className={`${thinkingStyles.thinkingPanelClose} ${styles.stepsClose}`}
+          aria-label="Close steps"
+          onClick={onClose}
+        >
           <X size={16} weight="bold" aria-hidden />
         </button>
       </div>
-      <ol className={thinkingStyles.thinkingStepList}>
-        {steps.map((step) => (
-          <li key={step.id} className={thinkingStyles.thinkingStepItem}>
-            <span className={styles.stepDot} data-tone={step.tone} aria-hidden />
-            <div className={thinkingStyles.thinkingStepText}>
-              <span className={thinkingStyles.thinkingStepTitle}>{step.label}</span>
-            </div>
-          </li>
-        ))}
+      <ol className={`${thinkingStyles.thinkingStepList} ${styles.stepsList}`}>
+        {outline.map((entry) =>
+          entry.kind === 'step' ? (
+            <li key={entry.step.id} className={styles.stepsItem}>
+              <StepRow step={entry.step} />
+            </li>
+          ) : (
+            <li key={entry.id} className={`${styles.stepsItem} ${styles.stepsBranches}`}>
+              {entry.branches.map((branch, index) => (
+                <section key={branch[0].id} className={styles.stepsBranch} aria-label={`Branch ${index + 1}`}>
+                  <p className={styles.stepsBranchLabel} aria-hidden>
+                    Branch {index + 1}
+                  </p>
+                  <ol className={styles.stepsBranchList}>
+                    {branch.map((step) => (
+                      <li key={step.id} className={styles.stepsBranchItem}>
+                        <StepRow step={step} />
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              ))}
+            </li>
+          ),
+        )}
       </ol>
     </div>,
     document.body,
@@ -775,12 +857,20 @@ export function WorkflowProposalCard({
   panelRef,
   onRunFailed,
   onExpand,
+  onOpenConversation,
+  onClose,
+  compact = false,
 }: {
   proposal: WorkflowProposal
   active?: boolean
   panelRef?: RefObject<HTMLElement | null>
   onRunFailed?: (proposal: WorkflowProposal) => void
   onExpand?: (proposal: WorkflowProposal) => void
+  /** The card moves into a full-screen conversation as the reply to its request. */
+  onOpenConversation?: (proposal: WorkflowProposal) => void
+  onClose?: () => void
+  /** Toast size, for the card that floats over the AI bar. */
+  compact?: boolean
 }) {
   const runState = useWorkflowRun(proposal.id)
   const [stepsOpen, setStepsOpen] = useState(false)
@@ -793,7 +883,12 @@ export function WorkflowProposalCard({
   }, [runState.error])
 
   return (
-    <div className={styles.wrap} data-workflow-id={proposal.id} data-active={active ? 'true' : 'false'}>
+    <div
+      className={styles.wrap}
+      data-workflow-id={proposal.id}
+      data-active={active ? 'true' : 'false'}
+      data-size={compact ? 'compact' : undefined}
+    >
       <article className={styles.card} aria-label={proposal.title}>
         <div className={styles.body}>
           <div className={styles.titleRow}>
@@ -812,6 +907,26 @@ export function WorkflowProposalCard({
               >
                 <ArrowSquareOut size={20} weight="regular" aria-hidden />
               </button>
+              {onOpenConversation ? (
+                <button
+                  type="button"
+                  className={styles.expandBtn}
+                  aria-label="Expand conversation"
+                  onClick={() => onOpenConversation(proposal)}
+                >
+                  <ArrowsOutSimple size={20} weight="regular" aria-hidden />
+                </button>
+              ) : null}
+              {onClose ? (
+                <button
+                  type="button"
+                  className={styles.expandBtn}
+                  aria-label={`Dismiss ${proposal.title}`}
+                  onClick={onClose}
+                >
+                  <X size={20} weight="regular" aria-hidden />
+                </button>
+              ) : null}
             </div>
           </div>
           <p className={styles.summary}>{proposal.summary}</p>
@@ -853,7 +968,7 @@ export function WorkflowProposalCard({
         open={stepsOpen}
         anchorRef={stepsRef}
         panelRef={panelRef}
-        steps={proposal.steps}
+        proposal={proposal}
         onClose={() => setStepsOpen(false)}
       />
     </div>

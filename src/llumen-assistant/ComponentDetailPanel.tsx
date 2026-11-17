@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useRef, useState, type Ref, type RefObject } from 'react'
 import { useRevealScrollbarOnScroll } from './useRevealScrollbarOnScroll'
 import { ChatTeardropText, Check, FloppyDisk, Info, SidebarSimple } from '@phosphor-icons/react'
 import { AiGeneratedBadge } from './AiGeneratedBadge'
@@ -17,7 +17,7 @@ export type ComponentDetailPanelProps = {
   onShowInConversation?: () => void
 }
 
-type DetailTab = 'component' | 'query-results' | 'data-source'
+export type DetailTab = 'component' | 'query-results' | 'data-source'
 type DataSubTab = 'results' | 'profile'
 
 const DETAIL_TABS: { id: DetailTab; label: string }[] = [
@@ -38,9 +38,11 @@ function isMapDetailComponent(component: CreatedComponent) {
 function SaveToAssetsButton({
   saved,
   onSave,
+  disabled = false,
 }: {
   saved: boolean
   onSave: () => void
+  disabled?: boolean
 }) {
   return (
     <button
@@ -49,6 +51,7 @@ function SaveToAssetsButton({
       onClick={() => {
         if (!saved) onSave()
       }}
+      disabled={disabled}
       aria-pressed={saved}
       aria-label={saved ? 'In asset library' : 'Save to Assets'}
     >
@@ -272,6 +275,111 @@ function MapDescriptionPopover({
   )
 }
 
+/** Title, insight actions and the Asset / Data / Source tabs, floating over a full-bleed map. */
+export function MapBleedHeader({
+  headerRef,
+  title,
+  aiGenerated,
+  caption,
+  analysis,
+  onShowInConversation,
+  onClose,
+  activeTab,
+  onTabChange,
+  saveDisabled = false,
+}: {
+  headerRef?: Ref<HTMLDivElement>
+  title: string
+  aiGenerated?: boolean
+  caption?: string
+  analysis?: string
+  onShowInConversation?: () => void
+  onClose: () => void
+  activeTab: DetailTab
+  onTabChange: (tab: DetailTab) => void
+  /** Shows Save to Assets as a plain label rather than an action. */
+  saveDisabled?: boolean
+}) {
+  const [descOpen, setDescOpen] = useState(false)
+  const [savedToAssets, setSavedToAssets] = useState(false)
+  const descBtnRef = useRef<HTMLButtonElement>(null)
+
+  return (
+    <div ref={headerRef} className={styles.mapBleedHeader}>
+      <div className={styles.mapBleedBlur} aria-hidden />
+      <div className={`${styles.mapBleedHeaderInner}${descOpen ? ` ${styles.mapBleedHeaderInnerRaised}` : ''}`}>
+        <div className={styles.mapBleedHeaderText}>
+          <div className={styles.detailTitleRow}>
+            <h2 className={styles.mapBleedTitle}>{title}</h2>
+            {aiGenerated ? <AiGeneratedBadge /> : null}
+          </div>
+          <div className={styles.headerInsightRow}>
+            <div className={styles.mapBleedDescWrap}>
+              <button
+                ref={descBtnRef}
+                type="button"
+                className={styles.mapBleedDescBtn}
+                aria-expanded={descOpen}
+                aria-controls="map-description-popover"
+                onClick={() => setDescOpen((v) => !v)}
+              >
+                <Info size={18} weight="regular" aria-hidden />
+                View Insight
+              </button>
+              <MapDescriptionPopover
+                open={descOpen}
+                title={title}
+                caption={caption}
+                analysis={analysis}
+                onClose={() => setDescOpen(false)}
+                anchorRef={descBtnRef}
+              />
+            </div>
+            {onShowInConversation ? (
+              <button type="button" className={styles.showInConversationBtn} onClick={onShowInConversation}>
+                <ChatTeardropText size={20} weight="regular" aria-hidden />
+                <span>Show in Conversation</span>
+              </button>
+            ) : null}
+            {aiGenerated ? (
+              <SaveToAssetsButton
+                saved={savedToAssets}
+                onSave={() => setSavedToAssets(true)}
+                disabled={saveDisabled}
+              />
+            ) : null}
+          </div>
+        </div>
+        <div className={styles.componentDetailHeaderActions}>
+          <button type="button" className={styles.componentDetailClose} onClick={onClose} aria-label="Collapse preview">
+            <SidebarSimple size={20} weight="regular" aria-hidden />
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.mapBleedTabs} role="tablist" aria-label="Component detail views">
+        {DETAIL_TABS.map((tab) => {
+          const selected = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              id={`component-detail-tab-${tab.id}`}
+              className={`${styles.componentDetailTab}${selected ? ` ${styles.componentDetailTabActive}` : ''}`}
+              aria-selected={selected}
+              aria-controls={`component-detail-panel-${tab.id}`}
+              onClick={() => onTabChange(tab.id)}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function ComponentDetailPanel({ component, onClose, onShowInConversation }: ComponentDetailPanelProps) {
   const { title, description, caption, analysis, aiGenerated } = component
   const [activeTab, setActiveTab] = useState<DetailTab>('component')
@@ -311,7 +419,7 @@ export function ComponentDetailPanel({ component, onClose, onShowInConversation 
     const observer = new ResizeObserver(measure)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [isMap, activeTab, descOpen])
+  }, [isMap, activeTab])
 
   if (isMap) {
     return (
@@ -325,86 +433,18 @@ export function ComponentDetailPanel({ component, onClose, onShowInConversation 
           />
         </div>
 
-          <div ref={headerRef} className={styles.mapBleedHeader}>
-          <div className={styles.mapBleedBlur} aria-hidden />
-          <div className={`${styles.mapBleedHeaderInner}${descOpen ? ` ${styles.mapBleedHeaderInnerRaised}` : ''}`}>
-            <div className={styles.mapBleedHeaderText}>
-              <div className={styles.detailTitleRow}>
-                <h2 className={styles.mapBleedTitle}>{title}</h2>
-                {aiGenerated ? <AiGeneratedBadge /> : null}
-              </div>
-              <div className={styles.headerInsightRow}>
-                <div className={styles.mapBleedDescWrap}>
-                  <button
-                    ref={descBtnRef}
-                    type="button"
-                    className={styles.mapBleedDescBtn}
-                    aria-expanded={descOpen}
-                    aria-controls="map-description-popover"
-                    onClick={() => setDescOpen((v) => !v)}
-                  >
-                    <Info size={18} weight="regular" aria-hidden />
-                    View Insight
-                  </button>
-                  <MapDescriptionPopover
-                    open={descOpen}
-                    title={title}
-                    caption={chartCaption}
-                    analysis={chartAnalysis}
-                    onClose={() => setDescOpen(false)}
-                    anchorRef={descBtnRef}
-                  />
-                </div>
-                {onShowInConversation ? (
-                  <button
-                    type="button"
-                    className={styles.showInConversationBtn}
-                    onClick={onShowInConversation}
-                  >
-                    <ChatTeardropText size={20} weight="regular" aria-hidden />
-                    <span>Show in Conversation</span>
-                  </button>
-                ) : null}
-                {aiGenerated ? (
-                  <SaveToAssetsButton
-                    saved={savedToAssets}
-                    onSave={() => setSavedToAssets(true)}
-                  />
-                ) : null}
-              </div>
-            </div>
-            <div className={styles.componentDetailHeaderActions}>
-              <button
-                type="button"
-                className={styles.componentDetailClose}
-                onClick={onClose}
-                aria-label="Collapse preview"
-              >
-                <SidebarSimple size={20} weight="regular" aria-hidden />
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.mapBleedTabs} role="tablist" aria-label="Component detail views">
-            {DETAIL_TABS.map((tab) => {
-              const selected = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  id={`component-detail-tab-${tab.id}`}
-                  className={`${styles.componentDetailTab}${selected ? ` ${styles.componentDetailTabActive}` : ''}`}
-                  aria-selected={selected}
-                  aria-controls={`component-detail-panel-${tab.id}`}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <MapBleedHeader
+          key={component.id}
+          headerRef={headerRef}
+          title={title}
+          aiGenerated={aiGenerated}
+          caption={chartCaption}
+          analysis={chartAnalysis}
+          onShowInConversation={onShowInConversation}
+          onClose={onClose}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
 
         {activeTab === 'component' ? (
           <MapControls

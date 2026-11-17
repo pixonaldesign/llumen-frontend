@@ -310,13 +310,31 @@
 }
 
 .toolBtn:hover {
-  background: rgba(132, 220, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
 
 .toolBtn:focus-visible {
   outline: 2px solid #70aeff;
   outline-offset: -2px;
+}
+
+.toolTip {
+  position: fixed;
+  z-index: 10050;
+  transform: translate(-50%, -100%);
+  width: max-content;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(26, 26, 26, 0.5);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .status {

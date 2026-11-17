@@ -210,7 +210,8 @@ export type WorkflowClause = {
   label: string
 }
 
-export type WorkflowStepTone = 'trigger' | 'step' | 'asset' | 'agent' | 'delivery'
+/** `source` reads or checks the data the workflow runs on. */
+export type WorkflowStepTone = 'trigger' | 'source' | 'step' | 'asset' | 'agent' | 'delivery'
 
 /** Where the step sits in the labeled graph. */
 export type WorkflowStepLane = 'spine' | 'left' | 'right' | 'join'

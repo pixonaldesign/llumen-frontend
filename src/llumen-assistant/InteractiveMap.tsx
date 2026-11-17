@@ -117,7 +117,7 @@ export const InteractiveMap = forwardRef<InteractiveMapHandle, InteractiveMapPro
 
   useEffect(() => {
     const el = containerRef.current
-    if (!el || mapRef.current) return
+    if (!el || mapRef.current || !MAPBOX_TOKEN) return
 
     mapboxgl.accessToken = MAPBOX_TOKEN
     const map = new mapboxgl.Map({

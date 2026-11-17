@@ -8,6 +8,17 @@ export const OCEAN_AURORA_STOPS = ['#3c78ff', '#2a4098', '#6beeff'] as const
 /** Tuned alert ramp: left, middle, and right stops from the aurora panel. */
 export const ALERT_AURORA_STOPS = ['#4110c6', '#ff2344', '#5e77b0'] as const
 
+/**
+ * The AI bar's border while an alert's aurora plays, as `stop1`–`stop4`: a soft red fills most of the
+ * ring and fades through a hint of blue and cyan into a white highlight.
+ */
+export const ALERT_BAR_CUE_STOPS = {
+  stop1: '#8f9cff',
+  stop2: '#f2667e',
+  stop3: '#f5fdff',
+  stop4: '#7fe6f5',
+} as const
+
 export type FindingAuroraSettings = {
   /** Left, middle, and right stops of the React Bits aurora ramp. */
   colorStop1: string
