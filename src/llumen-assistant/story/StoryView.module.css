@@ -1884,8 +1884,16 @@
   position: relative;
 }
 
+.navPlay:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .navPlayActive {
   background: rgba(255, 255, 255, 0.1);
+}
+
+.navPlayActive:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .playRing {
