@@ -36,7 +36,6 @@ import {
   type StudioAsset,
   type StudioPage,
 } from './studioData'
-import { STUDIO_ASSET_CHARTS } from './studioAssetCharts'
 import { pageRow, useDragScroll } from './dragScroll'
 import {
   ASSET_CATEGORIES,
@@ -50,7 +49,7 @@ import {
   type AssetStatus,
   type Go,
 } from './studioAssetMeta'
-import { StudioAssetChart } from './StudioAssetChart'
+import { AssetThumb, StudioAssetVisual } from './StudioAssetVisual'
 import { useDismiss } from './studioHooks'
 import { Button, Dropdown, SearchField, StatusChip, Tag } from './studioUi'
 import s from './StudioScenarios.module.css'
@@ -71,10 +70,9 @@ export function ChartFrame({
   delay?: number
   className?: string
 }) {
-  const chart = STUDIO_ASSET_CHARTS[asset.id]
   return (
     <div className={`${s.frame}${className ? ` ${className}` : ''}`}>
-      {chart ? <StudioAssetChart chart={chart} delay={delay} /> : <img src={asset.image} alt={asset.title} />}
+      <StudioAssetVisual asset={asset} delay={delay} />
     </div>
   )
 }
@@ -222,7 +220,7 @@ export function HomeHub({
           <ul className={s.reviewList}>
             {review.map((asset) => (
               <li key={asset.id} className={s.reviewRow}>
-                <img className={s.reviewThumb} src={asset.image} alt="" />
+                <AssetThumb asset={asset} className={s.reviewThumb} />
                 <span className={s.reviewText}>
                   <span className={s.reviewTitle}>{asset.title}</span>
                   <span className={s.reviewDetail}>
@@ -347,7 +345,7 @@ export function InspectorAssets({ onCreate }: { onCreate: () => void }) {
                   className={s.listRow}
                   onClick={() => setSelectedId(asset.id)}
                 >
-                  <img className={s.listThumb} src={asset.image} alt="" />
+                  <AssetThumb asset={asset} className={s.listThumb} />
                   <span className={s.listText}>
                     <span className={s.listName}>{asset.title}</span>
                     <span className={s.listDetail}>

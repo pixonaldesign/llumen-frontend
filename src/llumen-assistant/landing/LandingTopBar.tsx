@@ -15,6 +15,7 @@ import {
   User,
   Users,
 } from '@phosphor-icons/react'
+import { createPortal } from 'react-dom'
 import { landingAssets as a } from './landingAssets'
 import type { TopBarVariant } from '../prototypeChrome'
 import { SearchOverlay } from './SearchOverlay'
@@ -175,7 +176,7 @@ function CreateMenu({ triggerClassName }: { triggerClassName: string }) {
         onClick={() => setMenuOpen((value) => !value)}
       >
         <Plus size={20} weight="regular" aria-hidden />
-        Create
+        <span className={styles.createLabel}>Create</span>
       </button>
       {menuOpen ? (
         <div className={`${styles.menu} ${styles.createMenu}`} role="menu" aria-label="Create">
@@ -268,6 +269,7 @@ function StudioBar({
   const triggerLabel = committed ?? categoryOptions[0] ?? 'Finance'
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const searchButtonRef = useRef<HTMLButtonElement>(null)
   const [ownMode, setOwnMode] = useState<TopBarView>('briefing')
   const mode = view ?? ownMode
   const modes = TOP_BAR_VIEWS.filter((option) => myAssetsTab || option.view !== 'assets')
@@ -452,6 +454,7 @@ function StudioBar({
       <div className={styles.actions}>
         <CreateMenu triggerClassName={styles.create} />
         <button
+          ref={searchButtonRef}
           type="button"
           className={styles.icon}
           aria-label="Search"
@@ -461,14 +464,100 @@ function StudioBar({
         >
           <MagnifyingGlass size={20} weight="regular" />
         </button>
-        {searchOpen ? <SearchOverlay onClose={() => setSearchOpen(false)} /> : null}
-        <button type="button" className={styles.icon} aria-label="Notifications">
-          <Bell size={20} weight="regular" />
-        </button>
+        {searchOpen ? (
+          <SearchOverlay
+            onClose={() => {
+              setSearchOpen(false)
+              searchButtonRef.current?.focus()
+            }}
+          />
+        ) : null}
+        <NotificationsMenu triggerClassName={styles.icon} />
         <button type="button" className={styles.icon} aria-label="Account">
           <User size={20} weight="regular" />
         </button>
       </div>
     </div>
+  )
+}
+
+/**
+ * Portalled and fixed to the viewport: the top bar's own backdrop blur would otherwise become the panel's
+ * backdrop root, leaving its glass with nothing beneath to blur.
+ */
+function NotificationsMenu({ triggerClassName }: { triggerClassName: string }) {
+  const [open, setOpen] = useState(false)
+  const [anchor, setAnchor] = useState({ top: 0, right: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  const close = (refocus: boolean) => {
+    setOpen(false)
+    if (refocus) buttonRef.current?.focus()
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setOpen(false)
+      buttonRef.current?.focus()
+    }
+    const onResize = () => setOpen(false)
+    document.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('resize', onResize)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [open])
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        className={triggerClassName}
+        aria-label="Notifications"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => {
+          if (open) return close(false)
+          const rect = buttonRef.current?.getBoundingClientRect()
+          if (rect) setAnchor({ top: rect.bottom + 8, right: Math.max(12, window.innerWidth - rect.right) })
+          setOpen(true)
+        }}
+      >
+        <Bell size={20} weight="regular" />
+      </button>
+      {open
+        ? createPortal(
+            <div
+              ref={panelRef}
+              className={styles.notifications}
+              role="dialog"
+              aria-label="Notifications"
+              style={{ top: anchor.top, right: anchor.right }}
+            >
+              <div className={styles.notificationsHead}>Notifications</div>
+              <div className={styles.notificationsEmpty}>
+                <span className={styles.notificationsIcon} aria-hidden>
+                  <Bell size={20} weight="regular" />
+                </span>
+                <span className={styles.notificationsTitle}>No notifications</span>
+                <span className={styles.notificationsBody}>You're all caught up.</span>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   )
 }

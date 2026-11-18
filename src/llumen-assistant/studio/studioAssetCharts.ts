@@ -27,6 +27,13 @@ export type ChartPart = { name: string; value: number; share: number; color: str
 
 export type UptimeDay = { label: string; uptime: number }
 
+/** `[x, y, size]`; size is drawn as the dot's radius. */
+export type ScatterPoint = [number, number, number]
+
+export type ScatterSeries = { name: string; color: string; points: ScatterPoint[] }
+
+export type RangeBar = { min: number; mean: number; max: number }
+
 export type StudioChart = { title: string } & (
   | {
       kind: 'trend'
@@ -66,6 +73,44 @@ export type StudioChart = { title: string } & (
     }
   | { kind: 'uptime'; headline: ChartHeadline; pill: ChartPill; days: UptimeDay[]; alertBelow: number }
   | { kind: 'rows'; parts: ChartPart[] }
+  | {
+      kind: 'scatter'
+      xTicks: ChartTick[]
+      yTicks: ChartTick[]
+      /** Names for the x, y and size figures in the tooltip. */
+      axes: [string, string, string]
+      series: ScatterSeries[]
+      format: (value: number, axis: 0 | 1 | 2) => string
+    }
+  | {
+      kind: 'rose'
+      /** Clockwise from north. */
+      directions: string[]
+      bands: { name: string; color: string }[]
+      /** One row per direction, one value per band. */
+      values: number[][]
+      format: (value: number) => string
+    }
+  | {
+      kind: 'range'
+      ticks: ChartTick[]
+      labels: string[]
+      axisEvery: number
+      bars: RangeBar[]
+      /** Low to high, painted up the plot. */
+      stops: string[]
+      format: (value: number) => string
+    }
+  | {
+      kind: 'score'
+      headline: ChartHeadline
+      /** 0–100. */
+      value: number
+      target: number
+      pill: ChartPill
+      caption: string
+      stops: string[]
+    }
 )
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -86,6 +131,64 @@ const UPTIME_DAYS: UptimeDay[] = Array.from({ length: 47 }, (_, i) => {
     uptime: i === 35 ? 71.4 : 93 + ((i * 37) % 9) * 0.45,
   }
 })
+
+/** A repeatable sequence in [0, 1), so the generated series look the same on every load. */
+function seeded(seed: number) {
+  let state = seed
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296
+    return state / 4294967296
+  }
+}
+
+const ROAD_CLASSES = [
+  { name: 'Tertiary', color: '#7d8597', capacity: 900, jam: 140, count: 26 },
+  { name: 'Secondary', color: '#5fb3a5', capacity: 1500, jam: 200, count: 34 },
+  { name: 'Primary', color: '#e39b4c', capacity: 2600, jam: 150, count: 28 },
+  { name: 'Motorway', color: '#e2556f', capacity: 9500, jam: 110, count: 46 },
+]
+
+/** Flow rises with density up to capacity, then collapses towards the jam density. */
+const FUNDAMENTAL: ScatterSeries[] = (() => {
+  const random = seeded(7)
+  return ROAD_CLASSES.map((road) => ({
+    name: road.name,
+    color: road.color,
+    points: Array.from({ length: road.count }, (): ScatterPoint => {
+      const density = random() ** 1.6 * road.jam * 1.4
+      const peak = road.jam * 0.28
+      const shape = density < peak ? density / peak : Math.max(0, 1 - (density - peak) / (road.jam * 1.2))
+      const flow = road.capacity * shape * (0.55 + random() * 0.5)
+      const speed = Math.max(4, 120 * (1 - density / (road.jam * 1.5)) * (0.7 + random() * 0.3))
+      return [Math.round(density), Math.round(flow), Math.round(speed)]
+    }),
+  }))
+})()
+
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+
+/** Traffic heading shares (%) per speed band, weighted to the corridor's NE–SW and S axes. */
+const ROSE_VALUES = COMPASS.map((_, i) => {
+  const axis = [0.6, 1.1, 3.4, 1.4, 1.2, 0.8, 1.4, 2.4, 2.1, 0.9, 2.6, 1.1, 0.7, 0.5, 1.3, 0.8][i]
+  return [0.35, 0.3, 0.2, 0.45].map((band) => Math.round(axis * band * 10) / 10)
+})
+
+const INTERVALS = Array.from({ length: 72 }, (_, i) => {
+  const minutes = i * 20
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+})
+
+const SECTION_SPEEDS: RangeBar[] = (() => {
+  const random = seeded(19)
+  return INTERVALS.map((_, i) => {
+    const hour = i / 3
+    const rush = Math.exp(-((hour - 8) ** 2) / 3) + Math.exp(-((hour - 17.5) ** 2) / 4)
+    const max = 104 + random() * 12 - rush * 6
+    const min = Math.max(3, 34 - rush * 26 + (random() - 0.6) * 26)
+    const mean = min + (max - min) * (0.62 - rush * 0.12 + random() * 0.06)
+    return { min: Math.round(min), mean: Math.round(mean), max: Math.round(max) }
+  })
+})()
 
 /** The Assets page's visuals, drawn live; keyed by `StudioAsset` id. */
 export const STUDIO_ASSET_CHARTS: Record<string, StudioChart> = {
@@ -298,5 +401,62 @@ export const STUDIO_ASSET_CHARTS: Record<string, StudioChart> = {
       },
     ],
     format: (value) => `${value.toLocaleString('en-US')}K L`,
+  },
+  'fundamental-diagram': {
+    kind: 'scatter',
+    title: 'Fundamental diagram · flow vs density, size = speed',
+    xTicks: [
+      { value: 0, label: '0' },
+      { value: 100, label: '100' },
+      { value: 200, label: '200' },
+      { value: 300, label: '300' },
+    ],
+    yTicks: [
+      { value: 0, label: '0' },
+      { value: 5000, label: '5K' },
+      { value: 10000, label: '10K' },
+    ],
+    axes: ['Density', 'Exit flow', 'Speed'],
+    series: FUNDAMENTAL,
+    format: (value, axis) =>
+      axis === 0 ? `${value} veh/km/lane` : axis === 1 ? `${value.toLocaleString('en-US')} veh/h` : `${value} km/h`,
+  },
+  'traffic-rose': {
+    kind: 'rose',
+    title: 'Traffic rose · heading and speed band',
+    directions: COMPASS,
+    bands: [
+      { name: '< 20 km/h', color: '#4a8fd8' },
+      { name: '20–40', color: '#7fbf8a' },
+      { name: '40–60', color: '#e6cf7a' },
+      { name: '60+', color: '#b9566f' },
+    ],
+    values: ROSE_VALUES,
+    format: (value) => `${value.toFixed(1)}%`,
+  },
+  'section-speed-range': {
+    kind: 'range',
+    title: 'Slowest to fastest section per interval, mean as reference',
+    ticks: [
+      { value: 0, label: '0' },
+      { value: 40, label: '40' },
+      { value: 80, label: '80' },
+      { value: 120, label: '120' },
+    ],
+    labels: INTERVALS,
+    axisEvery: 18,
+    bars: SECTION_SPEEDS,
+    stops: ['#3d6fe0', '#5cc0b4', '#e8d277', '#e3683f'],
+    format: (value) => `${value} km/h`,
+  },
+  'sla-compliance': {
+    kind: 'score',
+    title: 'SLA Compliance Score',
+    headline: { value: 87, unit: '/100', sans: true, tight: true },
+    value: 87,
+    target: 95,
+    pill: { label: 'Below target', color: '#e39b4c' },
+    caption: '8 points short of the 95 target',
+    stops: ['#e43a63', '#e39b4c', '#e0c27a', '#50af8b'],
   },
 }

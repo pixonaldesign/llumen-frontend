@@ -1,0 +1,392 @@
+.visual {
+  --d: 0ms;
+  position: absolute;
+  inset: 0;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.stage {
+  width: 380px;
+  height: 184px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.thumb {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+/* ── Shared ── */
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px 0;
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  flex: none;
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+}
+
+.caption {
+  margin: 0;
+  padding: 0 12px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--lc-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Table ── */
+
+.tableLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+}
+
+/* Full-bleed scroller so the thumb hugs the card edge; cells carry the inset. */
+.tableScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.tableScroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.tableScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tableGrid {
+  display: grid;
+}
+
+.tableRow {
+  display: contents;
+}
+
+.th,
+.td {
+  min-width: 0;
+  padding: 5px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.th:first-child,
+.td:first-child {
+  padding-left: 12px;
+}
+
+.th:last-child,
+.td:last-child {
+  padding-right: 12px;
+}
+
+.th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #11151c;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.th[data-align='end'],
+.td[data-align='end'] {
+  text-align: right;
+}
+
+/* ── KPI grid ── */
+
+.kpiLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding-bottom: 12px;
+}
+
+.tiles {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.tile {
+  --tone: rgba(255, 255, 255, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tile[data-tone='positive'] {
+  --tone: #51c87d;
+}
+
+.tile[data-tone='warning'] {
+  --tone: #f2b84b;
+}
+
+.tile[data-tone='negative'] {
+  --tone: #fd7b76;
+}
+
+.tileLabel {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.6);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tileValue {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--lc-font-mono);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 28px;
+  letter-spacing: -0.02em;
+}
+
+.tileUnit {
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--lc-font-sans, inherit);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.tileStatus {
+  margin-top: auto;
+  padding: 1px 8px;
+  border: 1px solid color-mix(in srgb, var(--tone) 60%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  color: var(--tone);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+/* ── Analytics ── */
+
+.analyticsLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
+
+.source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: -6px 0 0;
+  padding: 0 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.model {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: rgba(132, 177, 245, 0.14);
+  color: #9fc2f7;
+  font-family: var(--lc-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.layer {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 4px 12px 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.statValue {
+  font-family: var(--lc-font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+  letter-spacing: -0.02em;
+}
+
+.statLabel {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+}
+
+.statTrack {
+  height: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.statFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #e39b4c, #e2556f);
+}
+
+.summary {
+  display: -webkit-box;
+  margin-top: auto;
+  padding-bottom: 12px;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* ── Map: the assistant's inline map card (InlineVisualCard .mapImageStage) ── */
+
+.map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: rgba(8, 16, 18, 0.85);
+}
+
+.mapImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.map::before {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 64px;
+  background: linear-gradient(rgba(5, 8, 12, 0.55), transparent);
+  pointer-events: none;
+  content: '';
+}
+
+.mapTitle {
+  position: absolute;
+  top: 10px;
+  right: 40px;
+  left: 12px;
+  z-index: 2;
+  margin: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+}
+/* ── Entrance ── */
+
+.visual:not([data-play='true']) .fadeIn {
+  opacity: 0;
+}
+
+.visual[data-play='true'] .fadeIn {
+  animation: fade-in 500ms ease backwards;
+  animation-delay: calc(var(--d) + 200ms + var(--i, 0ms));
+}
+
+.visual[data-play='true'] .tableRow.fadeIn > * {
+  animation: fade-in 400ms ease backwards;
+  animation-delay: calc(var(--d) + 150ms + var(--i, 0ms));
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .visual * {
+    animation: none !important;
+  }
+}

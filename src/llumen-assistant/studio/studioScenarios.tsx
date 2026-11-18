@@ -905,6 +905,15 @@ function OverviewRibbon({
   onWorkspaceChange: (workspace: string) => void
   onSettings: () => void
 }) {
+  const pillsRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const pills = pillsRef.current
+    const active = pills?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!pills || !active) return
+    const start = active.offsetLeft - pills.scrollLeft
+    if (start >= 0 && start + active.offsetWidth <= pills.clientWidth) return
+    pills.scrollTo({ left: active.offsetLeft - (pills.clientWidth - active.offsetWidth) / 2 })
+  }, [nav.page])
   const pill = (page: ShellPage, label: string) => (
     <button
       key={page}
@@ -919,7 +928,7 @@ function OverviewRibbon({
   return (
     <div className={s.pillBar}>
       <span aria-hidden />
-      <nav className={s.pills} aria-label="Studio">
+      <nav ref={pillsRef} className={s.pills} aria-label="Studio">
         <WorkspaceMenu workspace={workspace} onWorkspaceChange={onWorkspaceChange} side="below" look="pill" mark={false} />
         <span className={s.pillRule} aria-hidden />
         {pill('home', 'Overview')}

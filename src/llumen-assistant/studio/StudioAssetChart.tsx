@@ -2,6 +2,7 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -64,9 +65,7 @@ export function StudioAssetChart({ chart, delay = 0 }: { chart: StudioChart; del
       }}
     >
       <svg ref={svgRef} className={styles.svg} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={chart.title}>
-        <text className={styles.title} x={PAD} y={21}>
-          {chart.title}
-        </text>
+        <ChartTitle title={chart.title} />
         <ChartBody chart={chart} ctx={ctx} />
       </svg>
       {tip ? <ChartTip tip={tip} /> : null}
@@ -90,6 +89,14 @@ function ChartBody({ chart, ctx }: { chart: StudioChart; ctx: Ctx }) {
       return <Uptime chart={chart} ctx={ctx} />
     case 'rows':
       return <Rows chart={chart} ctx={ctx} />
+    case 'scatter':
+      return <Scatter chart={chart} ctx={ctx} />
+    case 'rose':
+      return <Rose chart={chart} ctx={ctx} />
+    case 'range':
+      return <Range chart={chart} ctx={ctx} />
+    case 'score':
+      return <Score chart={chart} ctx={ctx} />
   }
 }
 
@@ -515,7 +522,322 @@ function Rows({ chart, ctx }: { chart: Of<'rows'>; ctx: Ctx }) {
   )
 }
 
+function Scatter({ chart, ctx }: { chart: Of<'scatter'>; ctx: Ctx }) {
+  const top = 62
+  const left = plotLeft(chart.yTicks)
+  const xMax = chart.xTicks[chart.xTicks.length - 1].value
+  const yMax = chart.yTicks[chart.yTicks.length - 1].value
+  const sx = (v: number) => left + (Math.min(v, xMax) / xMax) * (RIGHT - left)
+  const sy = (v: number) => PLOT_BOTTOM - (Math.min(v, yMax) / yMax) * (PLOT_BOTTOM - top)
+  const sizes = chart.series.flatMap((series) => series.points.map((point) => point[2]))
+  const biggest = Math.max(...sizes)
+  const radius = (size: number) => 1.6 + (size / biggest) * 3.6
+  const dots = chart.series.flatMap((series, s) =>
+    series.points.map((point) => ({ s, point, x: sx(point[0]), y: sy(point[1]) })),
+  )
+  const hovered = ctx.hover != null ? dots[ctx.hover] : null
+  return (
+    <>
+      <SeriesLegend series={chart.series} />
+      <YAxis ticks={chart.yTicks} left={left} y={sy} />
+      {chart.xTicks.map((tick) => (
+        <text key={tick.label} className={styles.tick} x={sx(tick.value)} y={AXIS_Y} textAnchor="middle">
+          {tick.label}
+        </text>
+      ))}
+      <g className={styles.fadeIn}>
+        {dots.map((dot, i) => (
+          <circle
+            key={i}
+            className={`${styles.point} ${hovered && hovered.s !== dot.s ? styles.dim : styles.lit}`}
+            cx={dot.x}
+            cy={dot.y}
+            r={radius(dot.point[2])}
+            fill={chart.series[dot.s].color}
+          />
+        ))}
+      </g>
+      {hovered ? (
+        <circle
+          className={styles.hoverDot}
+          cx={hovered.x}
+          cy={hovered.y}
+          r={radius(hovered.point[2]) + 2}
+          stroke={chart.series[hovered.s].color}
+        />
+      ) : null}
+      <rect
+        className={styles.hit}
+        x={left - 6}
+        y={top - 8}
+        width={RIGHT - left + 12}
+        height={PLOT_BOTTOM - top + 16}
+        onPointerMove={(event) => {
+          const { x, y } = ctx.toSvg(event)
+          let nearest = 0
+          let best = Infinity
+          dots.forEach((dot, i) => {
+            const distance = (dot.x - x) ** 2 + (dot.y - y) ** 2
+            if (distance < best) {
+              best = distance
+              nearest = i
+            }
+          })
+          const dot = dots[nearest]
+          ctx.setHover(nearest)
+          ctx.showTip({
+            x: dot.x,
+            y: dot.y,
+            label: chart.series[dot.s].name,
+            rows: chart.axes.map((name, axis) => ({ name, value: chart.format(dot.point[axis], axis as 0 | 1 | 2) })),
+          })
+        }}
+      />
+    </>
+  )
+}
+
+const ROSE = { cx: 262, cy: 104, inner: 7, outer: 66 }
+
+function Rose({ chart, ctx }: { chart: Of<'rose'>; ctx: Ctx }) {
+  const n = chart.directions.length
+  const step = (Math.PI * 2) / n
+  const totals = chart.values.map((row) => row.reduce((sum, value) => sum + value, 0))
+  const most = Math.max(...totals)
+  const r = (value: number) => ROSE.inner + (value / most) * (ROSE.outer - ROSE.inner)
+  const show = (i: number) => {
+    const mid = i * step
+    ctx.setHover(i)
+    ctx.showTip({
+      x: ROSE.cx + Math.sin(mid) * r(totals[i]),
+      y: ROSE.cy - Math.cos(mid) * r(totals[i]),
+      label: `Heading ${chart.directions[i]}`,
+      rows: chart.bands.map((band, b) => ({ name: band.name, color: band.color, value: chart.format(chart.values[i][b]) })),
+    })
+  }
+  return (
+    <>
+      {chart.bands.map((band, i) => (
+        <g key={band.name} className={styles.fadeIn} style={stagger(i, 70)}>
+          <circle cx={PAD + 4} cy={49 + i * 22} r={4} fill={band.color} />
+          <text className={styles.legendLabel} x={PAD + 15} y={53.5 + i * 22}>
+            {band.name}
+          </text>
+        </g>
+      ))}
+      {[0.25, 0.5, 0.75, 1].map((share) => (
+        <circle
+          key={share}
+          className={styles.ring}
+          cx={ROSE.cx}
+          cy={ROSE.cy}
+          r={ROSE.inner + share * (ROSE.outer - ROSE.inner)}
+        />
+      ))}
+      {['N', 'E', 'S', 'W'].map((label, i) => (
+        <text
+          key={label}
+          className={styles.tick}
+          x={ROSE.cx + Math.sin(i * (Math.PI / 2)) * (ROSE.outer + 9)}
+          y={ROSE.cy - Math.cos(i * (Math.PI / 2)) * (ROSE.outer + 9) + 3.5}
+          textAnchor="middle"
+        >
+          {label}
+        </text>
+      ))}
+      {chart.values.map((row, i) => {
+        const from = i * step - step * 0.4
+        const to = i * step + step * 0.4
+        let base = 0
+        return (
+          <g
+            key={chart.directions[i]}
+            className={`${styles.slice} ${dimClass(ctx.hover, i)}`}
+            style={{ ...stagger(i, 40), transformOrigin: `${ROSE.cx}px ${ROSE.cy}px` }}
+            onPointerEnter={() => show(i)}
+          >
+            {row.map((value, b) => {
+              const inner = r(base)
+              base += value
+              return <path key={b} d={wedgePath(ROSE.cx, ROSE.cy, inner, r(base), from, to)} fill={chart.bands[b].color} />
+            })}
+            <path className={styles.hit} d={wedgePath(ROSE.cx, ROSE.cy, ROSE.inner, ROSE.outer, from, to)} />
+          </g>
+        )
+      })}
+    </>
+  )
+}
+
+function Range({ chart, ctx }: { chart: Of<'range'>; ctx: Ctx }) {
+  const id = useSvgId()
+  const top = 44
+  const left = plotLeft(chart.ticks)
+  const min = chart.ticks[0].value
+  const max = chart.ticks[chart.ticks.length - 1].value
+  const n = chart.bars.length
+  const slot = (RIGHT - left) / n
+  const width = Math.max(1.4, slot * 0.55)
+  const cx = (i: number) => left + i * slot + slot / 2
+  const sy = (v: number) => PLOT_BOTTOM - ((v - min) / (max - min)) * (PLOT_BOTTOM - top)
+  const mean = smoothPath(chart.bars.map((bar, i): [number, number] => [cx(i), sy(bar.mean)]))
+  return (
+    <>
+      <YAxis ticks={chart.ticks} left={left} y={sy} />
+      {chart.labels.map((label, i) =>
+        i % chart.axisEvery === 0 ? (
+          <text key={label} className={styles.tick} x={cx(i)} y={AXIS_Y} textAnchor={i === 0 ? 'start' : 'middle'}>
+            {label}
+          </text>
+        ) : null,
+      )}
+      <defs>
+        <linearGradient id={`${id}span`} gradientUnits="userSpaceOnUse" x1="0" y1={PLOT_BOTTOM} x2="0" y2={top}>
+          {chart.stops.map((color, i) => (
+            <stop key={color} offset={i / (chart.stops.length - 1)} stopColor={color} />
+          ))}
+        </linearGradient>
+        <clipPath id={`${id}reveal`}>
+          <rect className={styles.reveal} x={left - 6} y={0} width={RIGHT - left + 12} height={H} />
+        </clipPath>
+      </defs>
+      {chart.bars.map((bar, i) => (
+        <rect
+          key={i}
+          className={`${styles.growY} ${dimClass(ctx.hover, i)}`}
+          style={stagger(i, 6)}
+          x={cx(i) - width / 2}
+          y={sy(bar.max)}
+          width={width}
+          height={Math.max(1, sy(bar.min) - sy(bar.max))}
+          rx={width / 2}
+          fill={`url(#${id}span)`}
+        />
+      ))}
+      <path className={styles.meanLine} d={mean} clipPath={`url(#${id}reveal)`} />
+      {ctx.hover != null ? (
+        <line className={styles.guide} x1={cx(ctx.hover)} x2={cx(ctx.hover)} y1={top} y2={PLOT_BOTTOM} />
+      ) : null}
+      <rect
+        className={styles.hit}
+        x={left}
+        y={top - 8}
+        width={RIGHT - left}
+        height={PLOT_BOTTOM - top + 26}
+        onPointerMove={(event) => {
+          const { x } = ctx.toSvg(event)
+          const index = Math.max(0, Math.min(n - 1, Math.floor((x - left) / slot)))
+          const bar = chart.bars[index]
+          ctx.setHover(index)
+          ctx.showTip({
+            x: cx(index),
+            y: sy(bar.max),
+            label: `${chart.labels[index]}–${chart.labels[index + 1] ?? '24:00'}`,
+            rows: [
+              { name: 'Fastest', color: chart.stops[chart.stops.length - 1], value: chart.format(bar.max) },
+              { name: 'Mean', color: '#ffffff', value: chart.format(bar.mean) },
+              { name: 'Slowest', color: chart.stops[0], value: chart.format(bar.min) },
+            ],
+          })
+        }}
+      />
+    </>
+  )
+}
+
+const DIAL = { cx: 302, cy: 140, r: 60, width: 12 }
+
+function Score({ chart, ctx }: { chart: Of<'score'>; ctx: Ctx }) {
+  const id = useSvgId()
+  const angle = (value: number) => Math.PI * (value / 100 - 1)
+  const point = (value: number, radius: number) => ({
+    x: DIAL.cx + Math.cos(angle(value)) * radius,
+    y: DIAL.cy + Math.sin(angle(value)) * radius,
+  })
+  const arc = (to: number) => {
+    const start = point(0, DIAL.r)
+    const end = point(to, DIAL.r)
+    return `M${start.x},${start.y} A${DIAL.r},${DIAL.r} 0 0 1 ${end.x},${end.y}`
+  }
+  const length = (Math.PI * DIAL.r * chart.value) / 100
+  const targetIn = point(chart.target, DIAL.r - DIAL.width / 2 - 3)
+  const targetOut = point(chart.target, DIAL.r + DIAL.width / 2 + 3)
+  const show = () => {
+    ctx.setHover(0)
+    ctx.showTip({
+      x: point(chart.value, DIAL.r).x,
+      y: point(chart.value, DIAL.r).y,
+      label: chart.title,
+      rows: [
+        { name: 'Score', value: `${chart.value}` },
+        { name: 'Target', value: `${chart.target}` },
+      ],
+    })
+  }
+  return (
+    <>
+      <Headline headline={chart.headline} ctx={ctx} />
+      <Pill pill={chart.pill} y={80} />
+      <text className={`${styles.caption} ${styles.fadeIn}`} x={PAD} y={126}>
+        {chart.caption}
+      </text>
+      <defs>
+        <linearGradient id={`${id}dial`} gradientUnits="userSpaceOnUse" x1={DIAL.cx - DIAL.r} y1="0" x2={DIAL.cx + DIAL.r} y2="0">
+          {chart.stops.map((color, i) => (
+            <stop key={color} offset={i / (chart.stops.length - 1)} stopColor={color} />
+          ))}
+        </linearGradient>
+      </defs>
+      <g onPointerEnter={show}>
+        <path className={styles.dialTrack} d={arc(100)} strokeWidth={DIAL.width} />
+        <path
+          className={styles.sweep}
+          d={arc(chart.value)}
+          stroke={`url(#${id}dial)`}
+          strokeWidth={DIAL.width}
+          style={{ ['--len' as string]: `${length}` } as CSSProperties}
+          strokeDasharray={length}
+        />
+        <line className={styles.target} x1={targetIn.x} y1={targetIn.y} x2={targetOut.x} y2={targetOut.y} />
+        <path className={styles.hit} d={arc(100)} strokeWidth={DIAL.width + 16} stroke="transparent" fill="none" />
+      </g>
+      <text className={styles.tick} x={DIAL.cx - DIAL.r} y={DIAL.cy + 18} textAnchor="middle">
+        0
+      </text>
+      <text className={styles.tick} x={DIAL.cx + DIAL.r} y={DIAL.cy + 18} textAnchor="middle">
+        100
+      </text>
+    </>
+  )
+}
+
 /* ── Shared pieces ─────────────────────────────────────────────────────── */
+
+/** SVG text can't ellipsize, so a title wider than the card is trimmed to fit and keeps the full text as a tooltip. */
+function ChartTitle({ title }: { title: string }) {
+  const shown = useMemo(() => fitTitle(title), [title])
+  return (
+    <text className={styles.title} x={PAD} y={21}>
+      {shown !== title ? <title>{title}</title> : null}
+      {shown}
+    </text>
+  )
+}
+
+let titleContext: CanvasRenderingContext2D | null = null
+
+/** Measured in the title's 14px face, which is also its width in chart units. */
+function fitTitle(title: string) {
+  titleContext ??= document.createElement('canvas').getContext('2d')
+  if (!titleContext) return title
+  const family = getComputedStyle(document.documentElement).getPropertyValue('--lc-font-sans').trim() || 'sans-serif'
+  titleContext.font = `14px ${family}`
+  let fitted = title
+  while (fitted.length > 1 && titleContext.measureText(fitted).width > RIGHT - PAD * 2) {
+    fitted = `${fitted.slice(0, -2).trimEnd()}…`
+  }
+  return fitted
+}
 
 function Headline({ headline, ctx }: { headline: ChartHeadline; ctx: Ctx }) {
   return (
@@ -534,7 +856,7 @@ function Headline({ headline, ctx }: { headline: ChartHeadline; ctx: Ctx }) {
   )
 }
 
-function SeriesLegend({ series }: { series: Of<'trend'>['series'] }) {
+function SeriesLegend({ series }: { series: { name: string; color: string; dashed?: boolean }[] }) {
   const itemWidth = (name: string) => 15 + name.length * 6.5 + 14
   return (
     <>
@@ -660,6 +982,19 @@ function sectorPath(from: number, to: number) {
     `A${ro},${ro} 0 ${large} 1 ${point(ro, a1o)}`,
     `L${point(ri, a1i)}`,
     `A${ri},${ri} 0 ${large} 0 ${point(ri, a0i)}`,
+    'Z',
+  ].join(' ')
+}
+
+/** A ring segment between two radii, for one band of a rose petal. */
+function wedgePath(cx: number, cy: number, inner: number, outer: number, from: number, to: number) {
+  const point = (r: number, a: number) => `${(cx + Math.sin(a) * r).toFixed(2)},${(cy - Math.cos(a) * r).toFixed(2)}`
+  return [
+    `M${point(inner, from)}`,
+    `L${point(outer, from)}`,
+    `A${outer},${outer} 0 0 1 ${point(outer, to)}`,
+    `L${point(inner, to)}`,
+    `A${inner},${inner} 0 0 0 ${point(inner, from)}`,
     'Z',
   ].join(' ')
 }

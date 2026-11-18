@@ -69,8 +69,7 @@ import {
 } from './studioUi'
 import { useRefine } from './studioHooks'
 import { PageHeadSlot } from './studioPageHeadSlot'
-import { STUDIO_ASSET_CHARTS } from './studioAssetCharts'
-import { StudioAssetChart } from './StudioAssetChart'
+import { AssetThumb, StudioAssetVisual } from './StudioAssetVisual'
 import styles from './StudioView.module.css'
 
 type Column = { label: string; width?: number }
@@ -195,11 +194,7 @@ export function AssetCard({ item, index = 0, onOpen }: { item: StudioAsset; inde
   return (
     <article className={styles.assetCard} aria-label={item.title} onClick={onOpen}>
       <div className={styles.assetImage}>
-        {STUDIO_ASSET_CHARTS[item.id] ? (
-          <StudioAssetChart chart={STUDIO_ASSET_CHARTS[item.id]} delay={Math.min(index, 8) * 60} />
-        ) : (
-          <img src={item.image} alt={item.title} loading="lazy" />
-        )}
+        <StudioAssetVisual asset={item} delay={Math.min(index, 8) * 60} />
         <AssetActions title={item.title} />
       </div>
       <div className={styles.assetMeta}>
@@ -257,7 +252,7 @@ export function AssetsPage({ onCreate }: { onCreate: () => void }) {
             <Row key={item.id} columns={ASSET_COLUMNS}>
               <span className={styles.lead}>
                 <span className={styles.preview}>
-                  <img src={item.image} alt="" loading="lazy" />
+                  <AssetThumb asset={item} className={styles.previewFill} />
                 </span>
                 <NameBlock name={item.title} detail={item.description} />
               </span>

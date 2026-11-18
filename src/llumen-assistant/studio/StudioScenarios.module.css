@@ -1951,11 +1951,53 @@
   color: var(--st-text) !important;
 }
 
+/*
+ * Narrow windows: the ribbon scrolls sideways inside its capsule. The blur pseudo-element scrolls away with the
+ * content, so the capsule carries its own tint, and an open workspace menu lifts the clip so it isn't cut off.
+ */
+@media (max-width: 1024px) {
+  .pillBar {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px 16px;
+  }
+
+  .pillBar > span[aria-hidden] {
+    display: none;
+  }
+
+  .pillBar > .pills {
+    justify-self: center;
+    max-width: 100%;
+    overflow-x: auto;
+    background: rgba(14, 18, 26, 0.72);
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+
+  .pillBar > .pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pillBar > .pills:has([aria-expanded='true']) {
+    overflow: visible;
+  }
+
+  .pill {
+    flex: none;
+  }
+}
+
 /* ── 10 · Overview ribbon ── */
 
 /* Pages keep the overview's 40px inset (--inset in StudioOverview.module.css); StudioView's rows read --st-gutter. */
 .ribbonShell {
   --st-gutter: 40px;
+}
+
+@media (max-width: 640px) {
+  .ribbonShell {
+    --st-gutter: 16px;
+  }
 }
 
 /* The page's head (.head in StudioView.module.css) sits here, bare, above the page's scroller. */

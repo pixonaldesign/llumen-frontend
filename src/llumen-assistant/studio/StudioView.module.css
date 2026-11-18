@@ -482,6 +482,11 @@
   object-fit: contain;
 }
 
+.previewFill {
+  width: 100%;
+  height: 100%;
+}
+
 .previewPortrait {
   width: 64px;
   height: 114px;
@@ -1869,6 +1874,44 @@
 
 .toggle[aria-checked='true'] .toggleKnob {
   transform: translateX(16px);
+}
+
+/* Tablet: two card columns instead of one oversized card per row. */
+@media (max-width: 1024px) {
+  .assetGrid,
+  .storyGrid {
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  }
+
+  .roomGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Phones: the title bar and toolbar wrap, search takes the remaining width and cards go single column. */
+@media (max-width: 640px) {
+  .titleBar,
+  .toolbar {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+
+  .titleBar > .controls {
+    flex: 1 1 100%;
+  }
+
+  .controls .search {
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .toolbar > .toolGroup:first-child {
+    flex-wrap: wrap;
+  }
+
+  .briefingGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

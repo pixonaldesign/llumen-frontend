@@ -17,6 +17,12 @@ export const CATEGORY_COLOR: Record<string, string> = {
   Monitoring: '#70aeff',
   'Water Quality': '#e0c27a',
   Energy: '#c3a6ff',
+  Traffic: '#e2556f',
+  Mobility: '#5fb3a5',
+  Operations: '#f2b84b',
+  Analytics: '#84b1f5',
+  Environment: '#d39a6a',
+  'Real Estate': '#b58cf0',
 }
 
 export const STATUS_COLOR: Record<string, string> = {
