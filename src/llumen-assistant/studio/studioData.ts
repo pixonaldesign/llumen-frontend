@@ -26,6 +26,7 @@ export type StudioPage =
   | 'workflows'
   | 'members'
   | 'apps'
+  | 'context'
 
 export type StatusTone = 'positive' | 'warning' | 'negative' | 'neutral' | 'brand' | 'muted'
 

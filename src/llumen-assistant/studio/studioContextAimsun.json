@@ -1,0 +1,3495 @@
+{
+ "captured_at": "2026-11-18T10:49:10.371Z",
+ "workspace": {
+  "id": "13de9b6d-b327-436a-8b7c-ecbdc7e661c7",
+  "name": "Aimsun"
+ },
+ "assets": [
+  {
+   "id": "0876af61-b410-511e-aeb8-a7bc47966f6f",
+   "title": "Baseline · Take No Action",
+   "type": "map-style",
+   "subtype": null,
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T11:09:43.625912+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "0ad8f1b2-7ee0-5b36-9529-87f2c64da7dc",
+   "title": "Plan B speed",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "TeesValley",
+    "Map Layers"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-09-21T12:45:34.080721+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "0e5d2656-2497-5390-9fe1-ff610bf6300b",
+   "title": "RMSE by model and horizon · 13 days",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:06:29.963427+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "12850165-42bf-5151-9690-801224852b08",
+   "title": "Measured, forecast and typical flow · last 3 h",
+   "type": "Data_chart",
+   "subtype": "line",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T09:55:50.765505+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "1948bd60-5f89-5a49-b887-2fd938f92fb1",
+   "title": "Network at the selected time",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T09:55:23.101754+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "1c15d02d-32f3-5239-8410-8ee08281db1f",
+   "title": "Network flow · measured vs typical · selected day",
+   "type": "Data_chart",
+   "subtype": "line",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:00:06.098592+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "2bc12ee4-689f-505b-ac8e-fca2fe1ee2a9",
+   "title": "Incidents by hour of day",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:03:21.029122+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "2f607c98-daf9-59c8-a9a9-d9d35f24a6da",
+   "title": "Flow at this sensor · measured vs typical · selected day",
+   "type": "Data_chart",
+   "subtype": "line",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T09:55:06.535188+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "2f8b78d5-d99a-54b1-b7f0-8309f0350b2e",
+   "title": "Speed and density change vs baseline by plan",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:03:37.221003+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "42746671-dc73-559e-b23f-ce898acb480a",
+   "title": "Trips per day by pattern and vehicle type",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:01:13.033533+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "4e979a27-6f72-5a67-813b-400191023551",
+   "title": "Plan C",
+   "type": "map-style",
+   "subtype": null,
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T11:09:42.978254+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "51575d8a-ab6a-52e0-a663-40f2d6245ace",
+   "title": "Network",
+   "type": "map-style",
+   "subtype": null,
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T11:09:43.65693+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "55f4a01c-ac7a-5fb2-8620-1d34385068a8",
+   "title": "Incidents",
+   "type": "map-style",
+   "subtype": null,
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T11:09:43.49359+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "5be8e1bc-b44a-53d0-a1bd-59c93a9a197d",
+   "title": "Every five minutes of the selected day",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:01:21.012874+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "671425f8-9d56-5d55-ad42-af3ebb38dde7",
+   "title": "Hotspots",
+   "type": "map-layer",
+   "subtype": "area",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-07T09:55:17.974917+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "6a405929-4f16-54c9-bd2a-1f1a43c5e808",
+   "title": "Every plan scored",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:01:40.897263+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "6f775fae-4a20-568d-8b55-a3f57ee7ed29",
+   "title": "Baseline speed",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "TeesValley",
+    "Map Layers"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-09-21T12:39:40.689677+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "761da6f2-bb65-5cec-b40f-8ead2af2df23",
+   "title": "Demand",
+   "type": "map-style",
+   "subtype": null,
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T11:09:43.287133+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "7cec9ed8-b97f-5045-b30d-75e01b5cf81d",
+   "title": "Section facts",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:02:49.671193+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "81477205-ebf2-561c-9f96-6d0579988287",
+   "title": "Incidents within 1.5 km · ±6 h",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:02:33.539226+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "860796c4-7d0e-561a-8f9a-ad9fb5329edd",
+   "title": "Incidents by road class and hotspot cover",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:02:13.268979+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "873eb70b-9544-5317-95b7-3febc766c695",
+   "title": "Executive summary",
+   "type": "base_asset",
+   "subtype": "executive_summary",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T10:48:33.975285+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": "page",
+   "workspace_member": true
+  },
+  {
+   "id": "89e28208-c0cd-586f-ad3c-7cffe88bcca9",
+   "title": "Incidents over the selected days",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:03:29.058655+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "9321e8bb-21af-53ad-98af-c01b8ff7fc80",
+   "title": "Plan A speed",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "TeesValley",
+    "Map Layers"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-09-21T12:43:52.423104+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "b625d2da-cfbe-5d2f-977e-dd2f69765962",
+   "title": "Sensors · measured vs typical",
+   "type": "map-layer",
+   "subtype": "discs",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T09:58:48.142751+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "b739cdc2-0959-591e-a486-560e37472f20",
+   "title": "Executive summary",
+   "type": "base_asset",
+   "subtype": "executive_summary",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T10:48:33.975285+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": "page",
+   "workspace_member": true
+  },
+  {
+   "id": "b9f3f758-c2cd-5217-88c6-ea44080fc01b",
+   "title": "Every section · APM speed vs free-flow",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T09:57:08.701911+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "c2228ee3-8d5a-5754-9f8f-443dfa190d72",
+   "title": "Worst twenty sensors",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:01:58.726406+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "e176edf6-56b0-5c88-84df-5f1f291e8a40",
+   "title": "Incidents · per day",
+   "type": "map-layer",
+   "subtype": "discs",
+   "tags": [
+    "TeesValley",
+    "Map Layers"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-09-22T19:24:45.562589+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "e5f0907d-fc9f-5c61-812b-d979ff6a2615",
+   "title": "Corridor journey-time change by plan (s)",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:03:51.20064+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "e9446811-f599-5ab9-b178-59fc5b96c12c",
+   "title": "Incidents at this sensor · selected day",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-09-22T12:43:28.778671+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "e97222c8-2a91-5f9f-9691-b57cbc34da71",
+   "title": "Selected pattern · typical flow with band",
+   "type": "Data_chart",
+   "subtype": "range",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:00:22.260484+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "ec5b3e7c-c51d-5676-8fdc-ffc240c2f92e",
+   "title": "Top 800 zone pairs",
+   "type": "map-layer",
+   "subtype": "arcs",
+   "tags": [
+    "TeesValley",
+    "Map Layers"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-09-21T13:04:28.857365+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "ef49a9ba-da50-52ce-9228-4ddf7cb0bb2e",
+   "title": "Plan B",
+   "type": "map-style",
+   "subtype": null,
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T11:09:43.214715+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "efc9ec50-a927-5bbd-bc7e-4077fae9ec65",
+   "title": "Plan C speed",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "TeesValley",
+    "Map Layers"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-09-21T12:50:04.390322+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "f49e9b7b-1bc8-5e61-9ae5-53a998aa3178",
+   "title": "Executive summary",
+   "type": "base_asset",
+   "subtype": "executive_summary",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T10:48:33.975285+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": "page",
+   "workspace_member": true
+  },
+  {
+   "id": "f4a547f4-1a9d-523c-867d-311f1e4fe238",
+   "title": "Executive summary",
+   "type": "base_asset",
+   "subtype": "executive_summary",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T10:48:33.975285+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": "page",
+   "workspace_member": true
+  },
+  {
+   "id": "f759b5b2-87f6-5642-ab09-6480517546a3",
+   "title": "Verdict · speed gain vs baseline, km/h",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:00:43.355542+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "f7be2f84-707a-5661-9668-ffa6ffc3f8f7",
+   "title": "Sensor facts",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:04:51.505673+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "f831f905-2030-53d5-b900-f05c8507d7aa",
+   "title": "Plan A",
+   "type": "map-style",
+   "subtype": null,
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": "2026-09-21T11:09:43.630689+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "fbe92032-5878-5d08-8333-255ed37121d3",
+   "title": "Area flow · measured, forecast and typical · selected day",
+   "type": "Data_chart",
+   "subtype": "line",
+   "tags": [
+    "TeesValley"
+   ],
+   "source_id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "is_global": false,
+   "updated_at": "2026-10-08T10:04:07.855977+00:00",
+   "created_by": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "context_scope": null,
+   "workspace_member": true
+  },
+  {
+   "id": "9a64aea5-6d50-4f3b-af0d-d61899691869",
+   "title": "Mapbox Dark",
+   "type": "map-style",
+   "subtype": "in-map",
+   "tags": [
+    "dark"
+   ],
+   "source_id": null,
+   "is_global": true,
+   "description": "Default Mapbox dark theme style",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "f7b963c8-7975-4b27-9715-86682a4b5627",
+   "title": "Strategic sections per delay band",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "d8351882-5aa3-4329-8d80-02ad57980c04",
+   "title": "Trajectory files and the run they belong to",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "eaaf63ad-9a79-4038-bb3c-c9e93c7c7657",
+   "title": "Strategic sections measured",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "cb85090d-7fad-4b60-98c7-2cfda6f047a0",
+   "title": "Total travel time",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "7d53ac4c-8c07-4941-bdc7-12bf2dbb9a30",
+   "title": "Network delay",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "e81c64d2-ff4d-4409-bacf-3fa972408ca2",
+   "title": "Network speed",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "33368f87-a5a2-40f4-b3ce-3e15446c8eea",
+   "title": "About this model",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "0ae93b34-9d1a-4349-a3cc-6037d38c20df",
+   "title": "Sections · height = flow, colour = delay",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "4f603b6d-9a29-4455-98d0-b4face1ecc6a",
+   "title": "Junctions · approach delay",
+   "type": "map-layer",
+   "subtype": "area",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "53399d3c-3be1-4238-88ca-f985f104b088",
+   "title": "Vehicles · colour = speed (red slow, green free-flow)",
+   "type": "map-layer",
+   "subtype": "points",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "09bda676-31e9-4c45-ac73-ca1eeddfd9eb",
+   "title": "Mean speed this second",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "a487a673-d83b-4ed9-91f8-f93355a61df4",
+   "title": "Title",
+   "type": "base_asset",
+   "subtype": "title",
+   "tags": [
+    "slides"
+   ],
+   "source_id": null,
+   "is_global": true,
+   "description": "Single-line section title with small, medium, or large typography",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "7d26f209-cfd2-4249-8938-a29ceab7b3af",
+   "title": "Share of vehicles stationary (under 2 km/h)",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "2765d487-2854-496e-9cf9-eb3c72f009e2",
+   "title": "Vehicles on the network this second",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "bcaa83ed-375c-4234-8ad5-6bfdaff9c8ad",
+   "title": "Executive Summary",
+   "type": "base_asset",
+   "subtype": "executive_summary",
+   "tags": [
+    "slides"
+   ],
+   "source_id": null,
+   "is_global": true,
+   "description": "AI-generated summary of other components in a defined scope (section, chapter, or entire slides)",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "0eae72d7-676c-42d0-bef5-bb7cf87fa4de",
+   "title": "Modal Button",
+   "type": "base_asset",
+   "subtype": "modal_button",
+   "tags": [
+    "slides"
+   ],
+   "source_id": null,
+   "is_global": true,
+   "description": "Button that opens a modal with custom HTML content",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "0383adef-a39c-4346-aa11-0c00c9e591bb",
+   "title": "Video",
+   "type": "base_asset",
+   "subtype": "video",
+   "tags": [
+    "slides"
+   ],
+   "source_id": null,
+   "is_global": true,
+   "description": "Video component for displaying videos with optional title and subtitle",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "a0ac8712-96d6-41c7-828d-7740d5012751",
+   "title": "Title · deck",
+   "type": "base_asset",
+   "subtype": "text",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "c8c78d7b-241e-421e-9973-a23c9bf803a8",
+   "title": "Subtitle · deck",
+   "type": "base_asset",
+   "subtype": "text",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "402e2d0c-4a52-4910-af82-22b37e570f11",
+   "title": "Aimsun Base",
+   "type": "map-style",
+   "subtype": "in-map",
+   "tags": [
+    "aimsun",
+    "base"
+   ],
+   "source_id": null,
+   "is_global": true,
+   "description": "Aimsun base map style",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "5376e763-3313-45be-8b64-5cc0d4e471eb",
+   "title": "KAFD_cmp_map_before",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Weekday baseline, cars",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "665c33a2-99f9-4c49-ae5f-55492c98223c",
+   "title": "KAFD_cmp_map_after",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Ramp closure",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "a2d9eab7-47fc-42cf-afd8-fbff58a1cdb5",
+   "title": "KAFD_cmp_delta_map",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Per-section change in delay, closure vs baseline",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "a74fd3b0-0bdc-49dd-a7cf-479ba1fa1617",
+   "title": "KAFD_cmp_movers",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Ten strategic links the closure hurts most",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "id": "e129cf48-bd49-4e9d-8b07-d2b51e2ca0a4",
+   "title": "KAFD_cmp_network_kpis",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Baseline vs closure on four network measures",
+   "updated_at": null,
+   "created_by": null,
+   "context_scope": null,
+   "workspace_member": false
+  },
+  {
+   "workspace_member": false,
+   "id": "aa9d904d-bea0-4a48-bc09-ea90195671b1",
+   "title": "Cumulative share of added delay by section rank",
+   "type": "Data_chart",
+   "subtype": "line",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "6c851b6d-dbe2-4ff2-b2e3-bf719d6f58b7",
+   "title": "Ten sections the scheme hurts most",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "4977706e-9d55-4a6a-8e91-98456863a361",
+   "title": "Ranked comparison",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "8bd044c9-85ee-4feb-8901-1e15b9705fd9",
+   "title": "Whole network · alternative vs baseline",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "0e9a2536-5e0b-4e90-8a33-03258337b248",
+   "title": "Baseline · colour = change vs alternative",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "b0dee8a9-7012-48ab-a260-3fc7e995fd0d",
+   "title": "Alternative · colour = change vs baseline",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "f54900fc-b71b-4d2c-8f9d-a72784818c67",
+   "title": "Bus stops and crossings",
+   "type": "map-layer",
+   "subtype": "points",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "149d443b-fcb3-49bc-b03a-1b293fae7609",
+   "title": "Turn delay inside the junction",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "766a7ab6-8896-4609-a40a-669de9423f44",
+   "title": "Signalised junctions",
+   "type": "map-layer",
+   "subtype": "points",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "ad1f4801-e309-4c68-933f-e2ade017f02e",
+   "title": "Missed turnings",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "44cdd0f6-7fc2-4ba4-940a-b8e6c7fd419c",
+   "title": "Approach delay (badge: severity)",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "6bde1542-4d55-4749-9cfc-65e1c5629fb8",
+   "title": "Vehicles lost at this junction",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "a0d0dfd0-f18e-4902-8c54-63a162bd4ff1",
+   "title": "Lanes feeding the junction",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "abb0f845-2e2d-491a-8d8e-b01571a438e6",
+   "title": "Turns · height = flow, colour = delay",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "966098d2-f6f6-4cf7-ad32-c65f8092349a",
+   "title": "Grid cells with a standing queue",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "e0b4bef1-27af-44fc-b64a-684cccaf715f",
+   "title": "Direction and speed of flow",
+   "type": "map-layer",
+   "subtype": "wind",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "673416ab-ec74-43c5-bef6-1df0410ca52e",
+   "title": "Trajectory samples in window",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "eec1e177-1b45-40da-9c88-c18412b44b43",
+   "title": "Harsh braking (indicative)",
+   "type": "map-layer",
+   "subtype": "heatmap",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "5d8889ae-8a83-4be4-943a-cd878a037cb3",
+   "title": "Where vehicles stand still",
+   "type": "map-layer",
+   "subtype": "heatmap",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "7b18d6a4-bc51-4c6d-8728-0df7d3e55f86",
+   "title": "Share of samples stationary",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "d9e5f24f-27ba-49dc-b8f1-d3e1908dd808",
+   "title": "Traffic rose · heading and speed band",
+   "type": "Data_chart",
+   "subtype": "polar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "e0594a8e-6bf7-4358-b7b8-ab727d44921d",
+   "title": "Bus dwell time by simulator (one line, 27 trips)",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "6ab5f222-3e36-47e4-a852-6f3257077c80",
+   "title": "Which runs finished? One segment per 10-minute interval",
+   "type": "Data_chart",
+   "subtype": "availability",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "9c7c80d9-ba37-4ff1-bbd1-857c865d4b39",
+   "title": "Mean delay by road class, three scenarios",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "b7870d7a-b88f-430a-a81d-9eae7c89e20d",
+   "title": "Pedestrians modelled (hybrid run)",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "7c0777fd-8921-41bb-b373-ab4b761bbbb4",
+   "title": "CO₂ per km · micro ramp-closure run, 07:20–07:30 (g/km per interval)",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "93788bb7-223b-4232-9ed8-1af164262b68",
+   "title": "Bus delay by simulator",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "ab7833df-b4dc-42f5-8b46-d307e220221b",
+   "title": "Fundamental diagram · flow vs density, size = speed",
+   "type": "Data_chart",
+   "subtype": "scatter",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "953f6bbf-a0ac-4041-a5f2-af35428fc4a8",
+   "title": "Walking speed",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "3b091537-37f2-4e41-a8d8-6b37ec7dcbb3",
+   "title": "The one bus line that runs · width = buses, tooltip = travel time",
+   "type": "map-layer",
+   "subtype": "arcs",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "c360c30c-81be-4e15-96e6-2a9b1040f607",
+   "title": "Emissions by pollutant and interval (kg)",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "de4fd6de-0791-4fc9-b6f2-3958d6c08c61",
+   "title": "Slowest 10-minute interval",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "a2b637f3-bc34-486c-adc8-6fed750fd6d6",
+   "title": "Slowest to fastest section per interval, mean as reference",
+   "type": "Data_chart",
+   "subtype": "range",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "20f33753-0304-471b-80f9-8d0f7872863c",
+   "title": "Mean network speed in window",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "17c70065-7e0f-4a2f-a000-dbc06bd16d25",
+   "title": "Vehicles exited in window",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "7496ba3c-a693-4921-899e-c30194c4e84c",
+   "title": "Sections over the full day · height = flow, colour = delay",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "7faa27ea-dae7-41c3-8298-53ec0f52cab1",
+   "title": "Exit flow through the day, by vehicle class",
+   "type": "Data_chart",
+   "subtype": "line",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "0048cad1-4a03-4f74-85e5-836f853b711b",
+   "title": "Busiest origin centroids in window (tabular only: the package has no centroid geometry)",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "96451350-fa8f-4613-9e4d-0c9ecc67fdc4",
+   "title": "Kafd_run3_section_map",
+   "type": "map-layer",
+   "subtype": "fences",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "48ada97b-45e3-4c42-9d8b-aa4a5d677ea5",
+   "title": "KAFD_run_network_kpis",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Six network headline figures over the scrub window",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "4beed97a-e4d9-4882-9c9b-8b4256c4e38c",
+   "title": "KAFD_run_worst_sections",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Eight strategic links losing the most vehicle-hours in the window",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "3fe25312-36fa-46b5-b313-e6cf17617c7e",
+   "title": "kafd_run_emissions_by_type",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "a93e38a5-de39-4213-bfb4-b6d7e819da9b",
+   "title": "kafd_run_junction_discs",
+   "type": "map-layer",
+   "subtype": "discs",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "973fd2c2-ee64-493d-b9d0-ff39c05f4d4c",
+   "title": "KAFD_run_junction_map",
+   "type": "map-layer",
+   "subtype": "area",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Junction polygons extruded and coloured by approach delay",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "6310be14-4328-4db1-b278-74b8e4a6b84a",
+   "title": "KAFD_run_worst_junctions",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Seven junctions with the highest approach delay",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "895156d9-dde6-4ac4-9571-7764053868ff",
+   "title": "KAFD_ppl_exposure_map",
+   "type": "map-layer",
+   "subtype": "discs",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Crossings and stops sized by the NOx emitted on their own link",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "1992878e-2eca-4780-bfa3-0ed9f55904ae",
+   "title": "KAFD_ppl_bus_route",
+   "type": "map-layer",
+   "subtype": "arcs",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "The one PT line that carries buses",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "51c6ed3a-1f52-4729-9c39-8abe4672f961",
+   "title": "kafd_pt_time_split",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Bus journey time split into moving",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "2e863b7a-854b-4079-ba9c-6992ba7ec98c",
+   "title": "kafd_pt_kpis",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Bus line performance headline",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "1748c72b-036d-424d-b604-12112a7548ec",
+   "title": "kafd_pt_segments",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Run time and variability per route segment",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "ee4d73d5-ee45-4a88-bffa-09d4a17c3a41",
+   "title": "kafd_pt_stop_roads",
+   "type": "map-layer",
+   "subtype": "discs",
+   "tags": [
+    "KAFD demo",
+    "Map Layers"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Traffic and achieved speed on the road at each served bus stop",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "7307f489-9112-43fd-98a1-1204308f8cb2",
+   "title": "KAFD_ppl_exposure_table",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Seven worst places to stand, by NOx on the link the receptor sits on",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "3d7a3864-bac6-4410-a121-d0f5025e6254",
+   "title": "KAFD_ppl_exposure_totals",
+   "type": "Data_chart",
+   "subtype": "kpi_grid",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Emissions on the links carrying crossings and bus stops, and their share of the network",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "a9582eb5-4a5d-4047-9a79-4aa51891f445",
+   "title": "KAFD_ppl_pt_fidelity",
+   "type": "Data_chart",
+   "subtype": "bar",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "is_global": true,
+   "description": "Dwell time for one bus line across five runs",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "30e9bd10-0d0d-478e-8d18-f9448865489e",
+   "title": "Saudi Arabia Regional Population Density Area Map",
+   "type": "map-layer",
+   "subtype": "area",
+   "tags": [
+    "Analytics",
+    "saudi",
+    "Map Layers"
+   ],
+   "source_id": "19cdf74e-a1db-4e6a-af63-6b603dc64a96",
+   "is_global": true,
+   "description": "Area map of Saudi regions showing population, density, and growth metrics to compare geographic distribution and identify high- and low-density regions.",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "c016b624-35bb-4564-8ed4-c2cf8ee297a3",
+   "title": "Block Quote",
+   "type": "base_asset",
+   "subtype": "blockquote",
+   "tags": [
+    "slides"
+   ],
+   "source_id": null,
+   "is_global": true,
+   "description": "Placeholder component that prevents other components from being placed on it",
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "2bf63ef5-33cd-4089-9e68-2cf7e3e50261",
+   "title": "Takeaway · baseline",
+   "type": "base_asset",
+   "subtype": "text",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "b899e128-6e84-410e-980f-1fd421d99e0e",
+   "title": "Takeaway · queue",
+   "type": "base_asset",
+   "subtype": "text",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "64a5e7ab-a3c8-4052-b7ee-056c11c8505e",
+   "title": "The critical links in the base run (over 60 s of delay)",
+   "type": "Data_chart",
+   "subtype": "table",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "25ed4aff-3cd9-4590-a451-08512948b78b",
+   "title": "Takeaway · intervention",
+   "type": "base_asset",
+   "subtype": "text",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "49c59bdb-67f8-4115-96e9-2c92271e07b0",
+   "title": "Takeaway · consequence",
+   "type": "base_asset",
+   "subtype": "text",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "192cdf1b-bde2-4390-b192-e033e81e043d",
+   "title": "Already severe, made worse",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "f40c71ff-754a-43cb-9236-1413333c75be",
+   "title": "Newly pushed up a band",
+   "type": "Data_chart",
+   "subtype": "kpi_card",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "is_global": true,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "6e3f478e-b1c7-48be-8328-796d1af7943d",
+   "title": "Takeaway · fidelity",
+   "type": "base_asset",
+   "subtype": "text",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "context_scope": null
+  },
+  {
+   "workspace_member": false,
+   "id": "6d53e5fc-a046-499f-8f99-e0a21b62fbbb",
+   "title": "Takeaway · day",
+   "type": "base_asset",
+   "subtype": "text",
+   "tags": [
+    "KAFD demo"
+   ],
+   "source_id": null,
+   "is_global": false,
+   "context_scope": null
+  }
+ ],
+ "sources": [
+  {
+   "id": "e03bb24c-eac3-4f62-a1c9-ab556ca61648",
+   "name": "Riyadh Daily Traffic Trend",
+   "type": "agentic_flow",
+   "database_type": "postgresql",
+   "description": "PostgreSQL Store table from Riyadh_Daily_Traffic_Trend.parquet",
+   "updated_at": "2026-10-07T10:11:54.558294+00:00",
+   "workspace_member": true
+  },
+  {
+   "id": "aeba7012-d2f9-4388-969e-6977179285c9",
+   "name": "Tees Valley (Store)",
+   "type": "database",
+   "database_type": "postgresql",
+   "description": "Local Store DB, schema tees_dm",
+   "updated_at": "2026-09-21T11:24:31.998438+00:00",
+   "workspace_member": false
+  },
+  {
+   "id": "1d6e8574-937d-490d-a50a-661b8dafecae",
+   "name": "Aimsun (KAFD)",
+   "type": "database",
+   "database_type": "postgresql",
+   "updated_at": "2026-10-13T16:17:19.101336+00:00",
+   "workspace_member": false
+  },
+  {
+   "id": "f3fa8e75-e75f-4a5c-8bb2-59b608245db7",
+   "name": "KAFD DM",
+   "type": "database",
+   "database_type": "postgresql",
+   "updated_at": "2026-10-19T09:46:02.261815+00:00",
+   "workspace_member": false
+  },
+  {
+   "id": "19cdf74e-a1db-4e6a-af63-6b603dc64a96",
+   "name": "saudi_regions_population",
+   "type": "files",
+   "database_type": "postgresql",
+   "description": "PostgreSQL Store table from saudi_regions_population.geojson",
+   "updated_at": "2026-10-14T14:26:16.284752+00:00",
+   "workspace_member": false
+  },
+  {
+   "id": "5dacf8b3-7e10-4aa7-94e5-9eafba5d2bdd",
+   "name": "systra",
+   "type": "database",
+   "database_type": "postgresql",
+   "updated_at": "2026-09-20T08:46:41.70906+00:00",
+   "workspace_member": false
+  }
+ ],
+ "apps": [
+  {
+   "id": "ad487caa-049f-43c4-9e4e-31b774ee0679",
+   "kind": "dashboard",
+   "title": "KAFD Appraisal Workbench",
+   "description": "Aimsun Next multi-scenario simulation of the King Abdullah Financial District, Riyadh. Eleven runs, three simulators, 58 million trajectory samples.",
+   "pages": [
+    {
+     "id": "afff3bbd-5e56-5b39-b004-b9359e5a31f5",
+     "title": "1 · Network health",
+     "assets": [
+      "9a64aea5-6d50-4f3b-af0d-d61899691869",
+      "f7b963c8-7975-4b27-9715-86682a4b5627",
+      "d8351882-5aa3-4329-8d80-02ad57980c04",
+      "eaaf63ad-9a79-4038-bb3c-c9e93c7c7657",
+      "cb85090d-7fad-4b60-98c7-2cfda6f047a0",
+      "7d53ac4c-8c07-4941-bdc7-12bf2dbb9a30",
+      "e81c64d2-ff4d-4409-bacf-3fa972408ca2",
+      "33368f87-a5a2-40f4-b3ce-3e15446c8eea",
+      "0ae93b34-9d1a-4349-a3cc-6037d38c20df",
+      "4f603b6d-9a29-4455-98d0-b4face1ecc6a"
+     ],
+     "filters": [
+      "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+      "1db98c11-50ab-4d9b-a205-60e477581bf1",
+      "60144326-c5f6-4fdb-984d-be767f5e4504"
+     ],
+     "sources": []
+    },
+    {
+     "id": "1eda3f8f-6de3-5f45-ae9b-6a2b7154f9e6",
+     "title": "2 · Scheme comparison",
+     "assets": [
+      "aa9d904d-bea0-4a48-bc09-ea90195671b1",
+      "6c851b6d-dbe2-4ff2-b2e3-bf719d6f58b7",
+      "9a64aea5-6d50-4f3b-af0d-d61899691869",
+      "4977706e-9d55-4a6a-8e91-98456863a361",
+      "8bd044c9-85ee-4feb-8901-1e15b9705fd9",
+      "0e9a2536-5e0b-4e90-8a33-03258337b248",
+      "b0dee8a9-7012-48ab-a260-3fc7e995fd0d"
+     ],
+     "filters": [
+      "b320f3d0-d2de-43d7-91ce-756320bacd6d",
+      "94b82bf4-6432-4f3a-9dd6-7c73b388ce7c",
+      "60144326-c5f6-4fdb-984d-be767f5e4504",
+      "94f638a1-b78d-411e-95e2-3aadeaa73a35"
+     ],
+     "sources": []
+    },
+    {
+     "id": "eccdc70c-e45d-512c-83b9-6b006e98266a",
+     "title": "3 · Inside the junction",
+     "assets": [
+      "f54900fc-b71b-4d2c-8f9d-a72784818c67",
+      "149d443b-fcb3-49bc-b03a-1b293fae7609",
+      "766a7ab6-8896-4609-a40a-669de9423f44",
+      "ad1f4801-e309-4c68-933f-e2ade017f02e",
+      "9a64aea5-6d50-4f3b-af0d-d61899691869",
+      "44cdd0f6-7fc2-4ba4-940a-b8e6c7fd419c",
+      "6bde1542-4d55-4749-9cfc-65e1c5629fb8",
+      "a0d0dfd0-f18e-4902-8c54-63a162bd4ff1",
+      "abb0f845-2e2d-491a-8d8e-b01571a438e6"
+     ],
+     "filters": [
+      "d82ef811-013e-478b-a3a3-8027803e0ec2",
+      "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+      "1db98c11-50ab-4d9b-a205-60e477581bf1"
+     ],
+     "sources": []
+    },
+    {
+     "id": "abd699db-f827-5851-a1f6-693b6894e7ba",
+     "title": "4 · Where the queue forms",
+     "assets": [
+      "966098d2-f6f6-4cf7-ad32-c65f8092349a",
+      "9a64aea5-6d50-4f3b-af0d-d61899691869",
+      "e0b4bef1-27af-44fc-b64a-684cccaf715f",
+      "673416ab-ec74-43c5-bef6-1df0410ca52e",
+      "eec1e177-1b45-40da-9c88-c18412b44b43",
+      "5d8889ae-8a83-4be4-943a-cd878a037cb3",
+      "7b18d6a4-bc51-4c6d-8728-0df7d3e55f86",
+      "d9e5f24f-27ba-49dc-b8f1-d3e1908dd808"
+     ],
+     "filters": [
+      "2a0d9d86-3af5-471c-9604-d4aefda44fae",
+      "883fce05-4612-4d45-9c39-ba90efb243f4"
+     ],
+     "sources": []
+    },
+    {
+     "id": "be144406-9630-5fb8-9fd7-905ae6df6926",
+     "title": "5 · Model fidelity and trust",
+     "assets": [
+      "e0594a8e-6bf7-4358-b7b8-ab727d44921d",
+      "6ab5f222-3e36-47e4-a852-6f3257077c80",
+      "9c7c80d9-ba37-4ff1-bbd1-857c865d4b39",
+      "b7870d7a-b88f-430a-a81d-9eae7c89e20d",
+      "7c0777fd-8921-41bb-b373-ab4b761bbbb4",
+      "93788bb7-223b-4232-9ed8-1af164262b68",
+      "ab7833df-b4dc-42f5-8b46-d307e220221b",
+      "9a64aea5-6d50-4f3b-af0d-d61899691869",
+      "953f6bbf-a0ac-4041-a5f2-af35428fc4a8",
+      "3b091537-37f2-4e41-a8d8-6b37ec7dcbb3",
+      "c360c30c-81be-4e15-96e6-2a9b1040f607"
+     ],
+     "filters": [
+      "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+      "1db98c11-50ab-4d9b-a205-60e477581bf1"
+     ],
+     "sources": []
+    },
+    {
+     "id": "184d7701-81d5-54d3-9a05-e7ac1a3393c4",
+     "title": "6 · A full day",
+     "assets": [
+      "de4fd6de-0791-4fc9-b6f2-3958d6c08c61",
+      "a2b637f3-bc34-486c-adc8-6fed750fd6d6",
+      "20f33753-0304-471b-80f9-8d0f7872863c",
+      "17c70065-7e0f-4a2f-a000-dbc06bd16d25",
+      "7496ba3c-a693-4921-899e-c30194c4e84c",
+      "7faa27ea-dae7-41c3-8298-53ec0f52cab1",
+      "9a64aea5-6d50-4f3b-af0d-d61899691869",
+      "0048cad1-4a03-4f74-85e5-836f853b711b"
+     ],
+     "filters": [
+      "e2973a85-44c2-4cbc-b333-1d35efbc7443"
+     ],
+     "sources": []
+    },
+    {
+     "id": "5c7a73a4-dcd6-40ca-937a-cc0477b405f0",
+     "title": "7 · Second by second",
+     "assets": [
+      "09bda676-31e9-4c45-ac73-ca1eeddfd9eb",
+      "7d26f209-cfd2-4249-8938-a29ceab7b3af",
+      "2765d487-2854-496e-9cf9-eb3c72f009e2",
+      "9a64aea5-6d50-4f3b-af0d-d61899691869",
+      "53399d3c-3be1-4238-88ca-f985f104b088"
+     ],
+     "filters": [
+      "8c28aaee-c2af-4669-b66a-6e8bfde8b8a9"
+     ],
+     "sources": []
+    }
+   ],
+   "updated_at": "2026-10-01T08:16:51.057979+00:00",
+   "author": "a469feec-da53-4862-b29a-4190bb179f9d"
+  },
+  {
+   "id": "ac074250-6ad9-4c82-8c01-bfa22b2dd823",
+   "kind": "slides",
+   "title": "KAFD Traffic",
+   "description": "A new slides",
+   "pages": [
+    {
+     "id": "1d2bd83e-bbf6-4ba6-a9f8-a27c297ca8f0",
+     "title": "Traffic Simulation by KAFD",
+     "assets": [
+      "53399d3c-3be1-4238-88ca-f985f104b088",
+      "09bda676-31e9-4c45-ac73-ca1eeddfd9eb",
+      "a487a673-d83b-4ed9-91f8-f93355a61df4",
+      "7d26f209-cfd2-4249-8938-a29ceab7b3af",
+      "2765d487-2854-496e-9cf9-eb3c72f009e2",
+      "bcaa83ed-375c-4234-8ad5-6bfdaff9c8ad"
+     ],
+     "filters": [
+      "8c28aaee-c2af-4669-b66a-6e8bfde8b8a9"
+     ],
+     "sources": [
+      "f3fa8e75-e75f-4a5c-8bb2-59b608245db7"
+     ]
+    },
+    {
+     "id": "aa803510-1d39-4526-976c-ffc5ed8d5efb",
+     "title": "Network Health",
+     "assets": [
+      "96451350-fa8f-4613-9e4d-0c9ecc67fdc4",
+      "48ada97b-45e3-4c42-9d8b-aa4a5d677ea5",
+      "4beed97a-e4d9-4882-9c9b-8b4256c4e38c",
+      "3fe25312-36fa-46b5-b313-e6cf17617c7e",
+      "a93e38a5-de39-4213-bfb4-b6d7e819da9b",
+      "973fd2c2-ee64-493d-b9d0-ff39c05f4d4c",
+      "6310be14-4328-4db1-b278-74b8e4a6b84a",
+      "bcaa83ed-375c-4234-8ad5-6bfdaff9c8ad"
+     ],
+     "filters": [
+      "f199acfd-d119-47c3-98bb-70d6da4d0fc2",
+      "c5434387-1341-4bfc-99ed-9bc35213d09e",
+      "71343cbf-5662-4859-8fec-814fcec3d737"
+     ],
+     "sources": [
+      "f3fa8e75-e75f-4a5c-8bb2-59b608245db7"
+     ]
+    },
+    {
+     "id": "febe4148-c1bf-4a42-9702-e1a9833cfbfc",
+     "title": "PT Performance",
+     "assets": [
+      "895156d9-dde6-4ac4-9571-7764053868ff",
+      "1992878e-2eca-4780-bfa3-0ed9f55904ae",
+      "51c6ed3a-1f52-4729-9c39-8abe4672f961",
+      "2e863b7a-854b-4079-ba9c-6992ba7ec98c",
+      "1748c72b-036d-424d-b604-12112a7548ec",
+      "ee4d73d5-ee45-4a88-bffa-09d4a17c3a41",
+      "bcaa83ed-375c-4234-8ad5-6bfdaff9c8ad"
+     ],
+     "filters": [],
+     "sources": [
+      "f3fa8e75-e75f-4a5c-8bb2-59b608245db7"
+     ]
+    },
+    {
+     "id": "749b1c66-ad0d-442f-bf4a-a98e4ad2b00a",
+     "title": "People Exposure",
+     "assets": [
+      "7307f489-9112-43fd-98a1-1204308f8cb2",
+      "3d7a3864-bac6-4410-a121-d0f5025e6254",
+      "a9582eb5-4a5d-4047-9a79-4aa51891f445",
+      "bcaa83ed-375c-4234-8ad5-6bfdaff9c8ad",
+      "30e9bd10-0d0d-478e-8d18-f9448865489e"
+     ],
+     "filters": [],
+     "sources": [
+      "19cdf74e-a1db-4e6a-af63-6b603dc64a96"
+     ]
+    }
+   ],
+   "updated_at": "2026-11-17T10:46:35.074677+00:00",
+   "author": "a469feec-da53-4862-b29a-4190bb179f9d"
+  },
+  {
+   "id": "66592e0f-e9f1-4969-a1db-203ee1adbc8c",
+   "kind": "slides",
+   "title": "Should we close the ramp?",
+   "description": "KAFD, Riyadh. Eleven Aimsun Next runs answer one planner's question.",
+   "pages": [
+    {
+     "id": "0558d7ee-1e40-526d-8782-2707c99530d9",
+     "title": "Should we close the ramp?",
+     "assets": [
+      "0eae72d7-676c-42d0-bef5-bb7cf87fa4de",
+      "0383adef-a39c-4346-aa11-0c00c9e591bb",
+      "a0ac8712-96d6-41c7-828d-7740d5012751",
+      "c8c78d7b-241e-421e-9973-a23c9bf803a8"
+     ],
+     "filters": [],
+     "sources": []
+    },
+    {
+     "id": "671101af-5e0e-5f2c-9091-6bc53189517a",
+     "title": "Now close the ramp.",
+     "assets": [
+      "8bd044c9-85ee-4feb-8901-1e15b9705fd9",
+      "b0dee8a9-7012-48ab-a260-3fc7e995fd0d",
+      "aa9d904d-bea0-4a48-bc09-ea90195671b1",
+      "25ed4aff-3cd9-4590-a451-08512948b78b"
+     ],
+     "filters": [
+      "b320f3d0-d2de-43d7-91ce-756320bacd6d",
+      "94f638a1-b78d-411e-95e2-3aadeaa73a35",
+      "94b82bf4-6432-4f3a-9dd6-7c73b388ce7c",
+      "60144326-c5f6-4fdb-984d-be767f5e4504"
+     ],
+     "sources": []
+    },
+    {
+     "id": "27c44392-143c-515c-a76a-53b153ca7888",
+     "title": "Which answer do you trust?",
+     "assets": [
+      "6ab5f222-3e36-47e4-a852-6f3257077c80",
+      "6e3f478e-b1c7-48be-8328-796d1af7943d",
+      "e0594a8e-6bf7-4358-b7b8-ab727d44921d",
+      "93788bb7-223b-4232-9ed8-1af164262b68"
+     ],
+     "filters": [],
+     "sources": []
+    },
+    {
+     "id": "9852f5a7-0b64-52c8-bf71-99969084ba80",
+     "title": "The district is fine. Isn't it?",
+     "assets": [
+      "c016b624-35bb-4564-8ed4-c2cf8ee297a3",
+      "7d53ac4c-8c07-4941-bdc7-12bf2dbb9a30",
+      "2bf63ef5-33cd-4089-9e68-2cf7e3e50261",
+      "0ae93b34-9d1a-4349-a3cc-6037d38c20df",
+      "eaaf63ad-9a79-4038-bb3c-c9e93c7c7657",
+      "f7b963c8-7975-4b27-9715-86682a4b5627",
+      "4f603b6d-9a29-4455-98d0-b4face1ecc6a",
+      "e81c64d2-ff4d-4409-bacf-3fa972408ca2",
+      "cb85090d-7fad-4b60-98c7-2cfda6f047a0"
+     ],
+     "filters": [
+      "1db98c11-50ab-4d9b-a205-60e477581bf1",
+      "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+      "60144326-c5f6-4fdb-984d-be767f5e4504"
+     ],
+     "sources": []
+    },
+    {
+     "id": "a605f801-6a4d-5810-8dd4-0841db19fc95",
+     "title": "It doesn't just add delay. It breaks new things.",
+     "assets": [
+      "49c59bdb-67f8-4115-96e9-2c92271e07b0",
+      "4977706e-9d55-4a6a-8e91-98456863a361",
+      "192cdf1b-bde2-4390-b192-e033e81e043d",
+      "f40c71ff-754a-43cb-9236-1413333c75be",
+      "6c851b6d-dbe2-4ff2-b2e3-bf719d6f58b7"
+     ],
+     "filters": [
+      "60144326-c5f6-4fdb-984d-be767f5e4504",
+      "94f638a1-b78d-411e-95e2-3aadeaa73a35",
+      "b320f3d0-d2de-43d7-91ce-756320bacd6d"
+     ],
+     "sources": []
+    },
+    {
+     "id": "4d15e836-2f66-58a0-9f59-fcb08544d4af",
+     "title": "What does the rest of the day look like?",
+     "assets": [
+      "7faa27ea-dae7-41c3-8298-53ec0f52cab1",
+      "a2b637f3-bc34-486c-adc8-6fed750fd6d6",
+      "6d53e5fc-a046-499f-8f99-e0a21b62fbbb"
+     ],
+     "filters": [
+      "e2973a85-44c2-4cbc-b333-1d35efbc7443"
+     ],
+     "sources": []
+    },
+    {
+     "id": "d1af1e85-34c4-5a81-88dc-e945bebaea3b",
+     "title": "So where is the queue?",
+     "assets": [
+      "a487a673-d83b-4ed9-91f8-f93355a61df4",
+      "5d8889ae-8a83-4be4-943a-cd878a037cb3",
+      "7b18d6a4-bc51-4c6d-8728-0df7d3e55f86",
+      "b899e128-6e84-410e-980f-1fd421d99e0e",
+      "e0b4bef1-27af-44fc-b64a-684cccaf715f",
+      "966098d2-f6f6-4cf7-ad32-c65f8092349a",
+      "64a5e7ab-a3c8-4052-b7ee-056c11c8505e"
+     ],
+     "filters": [
+      "883fce05-4612-4d45-9c39-ba90efb243f4",
+      "2a0d9d86-3af5-471c-9604-d4aefda44fae"
+     ],
+     "sources": [
+      "1d6e8574-937d-490d-a50a-661b8dafecae",
+      "f3fa8e75-e75f-4a5c-8bb2-59b608245db7"
+     ]
+    },
+    {
+     "id": "4fef1090-2642-59d4-a753-0f1c41d4a783",
+     "title": "Recommendation",
+     "assets": [],
+     "filters": [],
+     "sources": []
+    }
+   ],
+   "updated_at": "2026-11-11T05:29:08.034928+00:00",
+   "author": "a469feec-da53-4862-b29a-4190bb179f9d"
+  },
+  {
+   "id": "6042123c-6447-4d75-b7ee-d0f950c65c39",
+   "kind": "dashboard",
+   "title": "KAFD Network Review",
+   "description": "A new dashboard",
+   "pages": [
+    {
+     "title": "Replications Comparison",
+     "assets": [
+      "402e2d0c-4a52-4910-af82-22b37e570f11",
+      "5376e763-3313-45be-8b64-5cc0d4e471eb",
+      "402e2d0c-4a52-4910-af82-22b37e570f11",
+      "665c33a2-99f9-4c49-ae5f-55492c98223c",
+      "402e2d0c-4a52-4910-af82-22b37e570f11",
+      "a2d9eab7-47fc-42cf-afd8-fbff58a1cdb5",
+      "a74fd3b0-0bdc-49dd-a7cf-479ba1fa1617",
+      "e129cf48-bd49-4e9d-8b07-d2b51e2ca0a4"
+     ],
+     "filters": [],
+     "sources": []
+    }
+   ],
+   "updated_at": "2026-10-20T11:21:59.270139+00:00",
+   "author": "a469feec-da53-4862-b29a-4190bb179f9d"
+  },
+  {
+   "id": "c8b3233d-6cb8-52b4-8d34-a1affada07b5",
+   "kind": "dashboard",
+   "title": "Tees Valley · Incidents and Response",
+   "description": "The whole network animated at the forecast's own cadence, the day's incidents on their own map, every response plan an evaluation simulated side by side, and what the network was expected to do.",
+   "pages": [
+    {
+     "id": "29e0bf98-ae34-5f78-a079-9b8dc4d0906e",
+     "title": "Network",
+     "assets": [
+      "671425f8-9d56-5d55-ad42-af3ebb38dde7",
+      "5be8e1bc-b44a-53d0-a1bd-59c93a9a197d",
+      "b9f3f758-c2cd-5217-88c6-ea44080fc01b",
+      "b625d2da-cfbe-5d2f-977e-dd2f69765962",
+      "51575d8a-ab6a-52e0-a663-40f2d6245ace",
+      "1948bd60-5f89-5a49-b887-2fd938f92fb1",
+      "1c15d02d-32f3-5239-8410-8ee08281db1f"
+     ],
+     "filters": [
+      "13a5a360-60e5-5afb-ba79-cd460fc34100",
+      "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+      "41a158c5-a250-5381-b19e-b9dd62f3462c"
+     ],
+     "sources": []
+    },
+    {
+     "id": "bff0c8f7-8a3b-5ce9-a15c-9b1d44072408",
+     "title": "Incidents",
+     "assets": [
+      "2bc12ee4-689f-505b-ac8e-fca2fe1ee2a9",
+      "55f4a01c-ac7a-5fb2-8620-1d34385068a8",
+      "e176edf6-56b0-5c88-84df-5f1f291e8a40",
+      "860796c4-7d0e-561a-8f9a-ad9fb5329edd",
+      "89e28208-c0cd-586f-ad3c-7cffe88bcca9",
+      "671425f8-9d56-5d55-ad42-af3ebb38dde7",
+      "c2228ee3-8d5a-5754-9f8f-443dfa190d72"
+     ],
+     "filters": [
+      "13a5a360-60e5-5afb-ba79-cd460fc34100",
+      "6582773f-7161-4d97-ad52-c2dc4986b973",
+      "2b44efba-c06d-4dbd-a54b-72905f5e54ff",
+      "41a158c5-a250-5381-b19e-b9dd62f3462c",
+      "07be19be-b408-5750-af78-b5c4782aa3e4"
+     ],
+     "sources": []
+    },
+    {
+     "id": "b35dfd33-750e-5e78-991e-4e8a515884ac",
+     "title": "Hotspot Response",
+     "assets": [
+      "f831f905-2030-53d5-b900-f05c8507d7aa",
+      "0ad8f1b2-7ee0-5b36-9529-87f2c64da7dc",
+      "efc9ec50-a927-5bbd-bc7e-4077fae9ec65",
+      "ef49a9ba-da50-52ce-9228-4ddf7cb0bb2e",
+      "6a405929-4f16-54c9-bd2a-1f1a43c5e808",
+      "6f775fae-4a20-568d-8b55-a3f57ee7ed29",
+      "9321e8bb-21af-53ad-98af-c01b8ff7fc80",
+      "4e979a27-6f72-5a67-813b-400191023551",
+      "f759b5b2-87f6-5642-ab09-6480517546a3",
+      "e5f0907d-fc9f-5c61-812b-d979ff6a2615",
+      "0876af61-b410-511e-aeb8-a7bc47966f6f",
+      "2f8b78d5-d99a-54b1-b7f0-8309f0350b2e"
+     ],
+     "filters": [
+      "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+      "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+      "5d51a4cb-3b58-52ae-ba1e-3470818c8d12"
+     ],
+     "sources": []
+    },
+    {
+     "id": "ef235996-0ac9-5bcb-a71a-424675f32383",
+     "title": "What was expected",
+     "assets": [
+      "ec5b3e7c-c51d-5676-8fdc-ffc240c2f92e",
+      "12850165-42bf-5151-9690-801224852b08",
+      "fbe92032-5878-5d08-8333-255ed37121d3",
+      "e97222c8-2a91-5f9f-9691-b57cbc34da71",
+      "761da6f2-bb65-5cec-b40f-8ead2af2df23",
+      "42746671-dc73-559e-b23f-ce898acb480a",
+      "b739cdc2-0959-591e-a486-560e37472f20"
+     ],
+     "filters": [
+      "13a5a360-60e5-5afb-ba79-cd460fc34100",
+      "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+      "17a09c2a-a814-5c5b-8fba-d4dcdb1859a1",
+      "94219950-f956-56b3-9e09-59d2cd8be76f",
+      "55fc9839-97f2-55ca-abd2-839690299c94"
+     ],
+     "sources": []
+    }
+   ],
+   "updated_at": "2026-10-13T10:46:59.121951+00:00",
+   "author": "a469feec-da53-4862-b29a-4190bb179f9d"
+  },
+  {
+   "id": "41592471-1499-45bc-a0e4-3df7694812a4",
+   "kind": "slides",
+   "title": "Untitled Slides",
+   "description": "A new slides",
+   "pages": [
+    {
+     "id": "556dd459-049f-482b-9044-d1d0f12a8998",
+     "title": "Slide 1",
+     "assets": [
+      "6f775fae-4a20-568d-8b55-a3f57ee7ed29"
+     ],
+     "filters": [],
+     "sources": [
+      "aeba7012-d2f9-4388-969e-6977179285c9"
+     ]
+    },
+    {
+     "id": "90e6ddec-b79e-4ad0-bfc5-a04a0933dded",
+     "title": "Slide 2",
+     "assets": [
+      "b9f3f758-c2cd-5217-88c6-ea44080fc01b"
+     ],
+     "filters": [],
+     "sources": [
+      "aeba7012-d2f9-4388-969e-6977179285c9"
+     ]
+    },
+    {
+     "id": "e8172616-7f53-4522-b1be-bc835d7c989a",
+     "title": "Slide 3",
+     "assets": [
+      "671425f8-9d56-5d55-ad42-af3ebb38dde7"
+     ],
+     "filters": [],
+     "sources": [
+      "aeba7012-d2f9-4388-969e-6977179285c9"
+     ]
+    },
+    {
+     "id": "c3c3d503-0f5a-4717-9f44-51462d5a41cf",
+     "title": "Slide 4",
+     "assets": [
+      "e176edf6-56b0-5c88-84df-5f1f291e8a40"
+     ],
+     "filters": [],
+     "sources": [
+      "aeba7012-d2f9-4388-969e-6977179285c9"
+     ]
+    },
+    {
+     "id": "04465442-a3d8-48e6-b0c2-ac283b28bee1",
+     "title": "Slide 5",
+     "assets": [
+      "9321e8bb-21af-53ad-98af-c01b8ff7fc80"
+     ],
+     "filters": [],
+     "sources": [
+      "aeba7012-d2f9-4388-969e-6977179285c9"
+     ]
+    },
+    {
+     "id": "138f0ac4-1e68-4878-a28c-1ddfe82225e9",
+     "title": "Slide 6",
+     "assets": [
+      "0ad8f1b2-7ee0-5b36-9529-87f2c64da7dc"
+     ],
+     "filters": [],
+     "sources": [
+      "aeba7012-d2f9-4388-969e-6977179285c9"
+     ]
+    },
+    {
+     "id": "733a2c55-24bc-4e7b-b570-1fd63efdb3df",
+     "title": "Slide 7",
+     "assets": [
+      "efc9ec50-a927-5bbd-bc7e-4077fae9ec65"
+     ],
+     "filters": [],
+     "sources": [
+      "aeba7012-d2f9-4388-969e-6977179285c9"
+     ]
+    },
+    {
+     "id": "94d36b66-54d5-4bee-ba93-9bb6fcdb6c5e",
+     "title": "Slide 8",
+     "assets": [
+      "b625d2da-cfbe-5d2f-977e-dd2f69765962"
+     ],
+     "filters": [],
+     "sources": [
+      "aeba7012-d2f9-4388-969e-6977179285c9"
+     ]
+    },
+    {
+     "id": "1cf30de9-fe97-44bc-90d3-883ce986e660",
+     "title": "Slide 9",
+     "assets": [
+      "ec5b3e7c-c51d-5676-8fdc-ffc240c2f92e"
+     ],
+     "filters": [],
+     "sources": [
+      "aeba7012-d2f9-4388-969e-6977179285c9"
+     ]
+    }
+   ],
+   "updated_at": "2026-10-07T12:41:31.967126+00:00",
+   "author": "a469feec-da53-4862-b29a-4190bb179f9d"
+  },
+  {
+   "id": "8be8e9cc-c538-4c8e-9785-8d56497c75ae",
+   "kind": "dashboard",
+   "title": "Untitled Dashboard",
+   "description": "A new dashboard",
+   "pages": [
+    {
+     "title": "Page 1",
+     "assets": [],
+     "filters": [],
+     "sources": []
+    },
+    {
+     "title": "Page 2",
+     "assets": [],
+     "filters": [],
+     "sources": []
+    },
+    {
+     "title": "Page 3",
+     "assets": [],
+     "filters": [],
+     "sources": []
+    }
+   ],
+   "updated_at": "2026-10-05T10:05:56.94339+00:00",
+   "author": "a469feec-da53-4862-b29a-4190bb179f9d"
+  }
+ ],
+ "filters": [
+  {
+   "id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "title": "Run",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "title": "Period",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "title": "Vehicle class",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "b320f3d0-d2de-43d7-91ce-756320bacd6d",
+   "title": "Comparison",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "94b82bf4-6432-4f3a-9dd6-7c73b388ce7c",
+   "title": "Period",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "94f638a1-b78d-411e-95e2-3aadeaa73a35",
+   "title": "Metric",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "d82ef811-013e-478b-a3a3-8027803e0ec2",
+   "title": "Junction",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "2a0d9d86-3af5-471c-9604-d4aefda44fae",
+   "title": "Trajectory scenario",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "883fce05-4612-4d45-9c39-ba90efb243f4",
+   "title": "Time (AM peak)",
+   "category": "time_horizon",
+   "subtype": "range"
+  },
+  {
+   "id": "e2973a85-44c2-4cbc-b333-1d35efbc7443",
+   "title": "Time (24 hours)",
+   "category": "time_horizon",
+   "subtype": "range"
+  },
+  {
+   "id": "8c28aaee-c2af-4669-b66a-6e8bfde8b8a9",
+   "title": "Second (07:30 to 07:45)",
+   "category": "time_horizon",
+   "subtype": "range"
+  },
+  {
+   "id": "13a5a360-60e5-5afb-ba79-cd460fc34100",
+   "title": "Area",
+   "category": "location",
+   "subtype": "hierarchical"
+  },
+  {
+   "id": "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+   "title": "Time",
+   "category": "time_horizon",
+   "subtype": "calendar"
+  },
+  {
+   "id": "41a158c5-a250-5381-b19e-b9dd62f3462c",
+   "title": "Road class",
+   "category": "categorical",
+   "subtype": "multiselect"
+  },
+  {
+   "id": "6582773f-7161-4d97-ad52-c2dc4986b973",
+   "title": "Incidents",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "2b44efba-c06d-4dbd-a54b-72905f5e54ff",
+   "title": "Sensor scope",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "07be19be-b408-5750-af78-b5c4782aa3e4",
+   "title": "Day",
+   "category": "time_horizon",
+   "subtype": "calendar"
+  },
+  {
+   "id": "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+   "title": "Hotspot",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+   "title": "Evaluation time",
+   "category": "time_horizon",
+   "subtype": "calendar"
+  },
+  {
+   "id": "5d51a4cb-3b58-52ae-ba1e-3470818c8d12",
+   "title": "Horizon",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "17a09c2a-a814-5c5b-8fba-d4dcdb1859a1",
+   "title": "Pattern",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "94219950-f956-56b3-9e09-59d2cd8be76f",
+   "title": "Model",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "55fc9839-97f2-55ca-abd2-839690299c94",
+   "title": "Vehicle type",
+   "category": "categorical",
+   "subtype": "multiselect"
+  },
+  {
+   "id": "f199acfd-d119-47c3-98bb-70d6da4d0fc2",
+   "title": "KAFD_runs",
+   "category": "categorical",
+   "subtype": "dropdown"
+  },
+  {
+   "id": "c5434387-1341-4bfc-99ed-9bc35213d09e",
+   "title": "KAFD_V2_Scrubber",
+   "category": "time_horizon",
+   "subtype": "calendar"
+  },
+  {
+   "id": "71343cbf-5662-4859-8fec-814fcec3d737",
+   "title": "KAFD Junction severity",
+   "category": "categorical",
+   "subtype": "dropdown"
+  }
+ ],
+ "filter_bindings": [
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "f7b963c8-7975-4b27-9715-86682a4b5627"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "f7b963c8-7975-4b27-9715-86682a4b5627"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "f7b963c8-7975-4b27-9715-86682a4b5627"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "eaaf63ad-9a79-4038-bb3c-c9e93c7c7657"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "eaaf63ad-9a79-4038-bb3c-c9e93c7c7657"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "eaaf63ad-9a79-4038-bb3c-c9e93c7c7657"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "cb85090d-7fad-4b60-98c7-2cfda6f047a0"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "cb85090d-7fad-4b60-98c7-2cfda6f047a0"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "cb85090d-7fad-4b60-98c7-2cfda6f047a0"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "7d53ac4c-8c07-4941-bdc7-12bf2dbb9a30"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "7d53ac4c-8c07-4941-bdc7-12bf2dbb9a30"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "7d53ac4c-8c07-4941-bdc7-12bf2dbb9a30"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "e81c64d2-ff4d-4409-bacf-3fa972408ca2"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "e81c64d2-ff4d-4409-bacf-3fa972408ca2"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "e81c64d2-ff4d-4409-bacf-3fa972408ca2"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "0ae93b34-9d1a-4349-a3cc-6037d38c20df"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "0ae93b34-9d1a-4349-a3cc-6037d38c20df"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "0ae93b34-9d1a-4349-a3cc-6037d38c20df"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "4f603b6d-9a29-4455-98d0-b4face1ecc6a"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "4f603b6d-9a29-4455-98d0-b4face1ecc6a"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "4f603b6d-9a29-4455-98d0-b4face1ecc6a"
+  },
+  {
+   "filter_id": "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+   "asset_id": "5be8e1bc-b44a-53d0-a1bd-59c93a9a197d"
+  },
+  {
+   "filter_id": "13a5a360-60e5-5afb-ba79-cd460fc34100",
+   "asset_id": "b9f3f758-c2cd-5217-88c6-ea44080fc01b"
+  },
+  {
+   "filter_id": "41a158c5-a250-5381-b19e-b9dd62f3462c",
+   "asset_id": "b9f3f758-c2cd-5217-88c6-ea44080fc01b"
+  },
+  {
+   "filter_id": "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+   "asset_id": "b9f3f758-c2cd-5217-88c6-ea44080fc01b"
+  },
+  {
+   "filter_id": "13a5a360-60e5-5afb-ba79-cd460fc34100",
+   "asset_id": "b625d2da-cfbe-5d2f-977e-dd2f69765962"
+  },
+  {
+   "filter_id": "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+   "asset_id": "b625d2da-cfbe-5d2f-977e-dd2f69765962"
+  },
+  {
+   "filter_id": "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+   "asset_id": "1948bd60-5f89-5a49-b887-2fd938f92fb1"
+  },
+  {
+   "filter_id": "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+   "asset_id": "1c15d02d-32f3-5239-8410-8ee08281db1f"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "aa9d904d-bea0-4a48-bc09-ea90195671b1"
+  },
+  {
+   "filter_id": "94f638a1-b78d-411e-95e2-3aadeaa73a35",
+   "asset_id": "aa9d904d-bea0-4a48-bc09-ea90195671b1"
+  },
+  {
+   "filter_id": "b320f3d0-d2de-43d7-91ce-756320bacd6d",
+   "asset_id": "aa9d904d-bea0-4a48-bc09-ea90195671b1"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "6c851b6d-dbe2-4ff2-b2e3-bf719d6f58b7"
+  },
+  {
+   "filter_id": "94f638a1-b78d-411e-95e2-3aadeaa73a35",
+   "asset_id": "6c851b6d-dbe2-4ff2-b2e3-bf719d6f58b7"
+  },
+  {
+   "filter_id": "b320f3d0-d2de-43d7-91ce-756320bacd6d",
+   "asset_id": "6c851b6d-dbe2-4ff2-b2e3-bf719d6f58b7"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "4977706e-9d55-4a6a-8e91-98456863a361"
+  },
+  {
+   "filter_id": "94f638a1-b78d-411e-95e2-3aadeaa73a35",
+   "asset_id": "4977706e-9d55-4a6a-8e91-98456863a361"
+  },
+  {
+   "filter_id": "b320f3d0-d2de-43d7-91ce-756320bacd6d",
+   "asset_id": "4977706e-9d55-4a6a-8e91-98456863a361"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "b0dee8a9-7012-48ab-a260-3fc7e995fd0d"
+  },
+  {
+   "filter_id": "94b82bf4-6432-4f3a-9dd6-7c73b388ce7c",
+   "asset_id": "b0dee8a9-7012-48ab-a260-3fc7e995fd0d"
+  },
+  {
+   "filter_id": "94f638a1-b78d-411e-95e2-3aadeaa73a35",
+   "asset_id": "b0dee8a9-7012-48ab-a260-3fc7e995fd0d"
+  },
+  {
+   "filter_id": "b320f3d0-d2de-43d7-91ce-756320bacd6d",
+   "asset_id": "b0dee8a9-7012-48ab-a260-3fc7e995fd0d"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "0e9a2536-5e0b-4e90-8a33-03258337b248"
+  },
+  {
+   "filter_id": "94b82bf4-6432-4f3a-9dd6-7c73b388ce7c",
+   "asset_id": "0e9a2536-5e0b-4e90-8a33-03258337b248"
+  },
+  {
+   "filter_id": "94f638a1-b78d-411e-95e2-3aadeaa73a35",
+   "asset_id": "0e9a2536-5e0b-4e90-8a33-03258337b248"
+  },
+  {
+   "filter_id": "b320f3d0-d2de-43d7-91ce-756320bacd6d",
+   "asset_id": "0e9a2536-5e0b-4e90-8a33-03258337b248"
+  },
+  {
+   "filter_id": "60144326-c5f6-4fdb-984d-be767f5e4504",
+   "asset_id": "8bd044c9-85ee-4feb-8901-1e15b9705fd9"
+  },
+  {
+   "filter_id": "94b82bf4-6432-4f3a-9dd6-7c73b388ce7c",
+   "asset_id": "8bd044c9-85ee-4feb-8901-1e15b9705fd9"
+  },
+  {
+   "filter_id": "b320f3d0-d2de-43d7-91ce-756320bacd6d",
+   "asset_id": "8bd044c9-85ee-4feb-8901-1e15b9705fd9"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "6bde1542-4d55-4749-9cfc-65e1c5629fb8"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "6bde1542-4d55-4749-9cfc-65e1c5629fb8"
+  },
+  {
+   "filter_id": "d82ef811-013e-478b-a3a3-8027803e0ec2",
+   "asset_id": "6bde1542-4d55-4749-9cfc-65e1c5629fb8"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "a0d0dfd0-f18e-4902-8c54-63a162bd4ff1"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "a0d0dfd0-f18e-4902-8c54-63a162bd4ff1"
+  },
+  {
+   "filter_id": "d82ef811-013e-478b-a3a3-8027803e0ec2",
+   "asset_id": "a0d0dfd0-f18e-4902-8c54-63a162bd4ff1"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "766a7ab6-8896-4609-a40a-669de9423f44"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "766a7ab6-8896-4609-a40a-669de9423f44"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "44cdd0f6-7fc2-4ba4-940a-b8e6c7fd419c"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "44cdd0f6-7fc2-4ba4-940a-b8e6c7fd419c"
+  },
+  {
+   "filter_id": "d82ef811-013e-478b-a3a3-8027803e0ec2",
+   "asset_id": "44cdd0f6-7fc2-4ba4-940a-b8e6c7fd419c"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "149d443b-fcb3-49bc-b03a-1b293fae7609"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "149d443b-fcb3-49bc-b03a-1b293fae7609"
+  },
+  {
+   "filter_id": "d82ef811-013e-478b-a3a3-8027803e0ec2",
+   "asset_id": "149d443b-fcb3-49bc-b03a-1b293fae7609"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "abb0f845-2e2d-491a-8d8e-b01571a438e6"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "abb0f845-2e2d-491a-8d8e-b01571a438e6"
+  },
+  {
+   "filter_id": "d82ef811-013e-478b-a3a3-8027803e0ec2",
+   "asset_id": "abb0f845-2e2d-491a-8d8e-b01571a438e6"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "ad1f4801-e309-4c68-933f-e2ade017f02e"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "ad1f4801-e309-4c68-933f-e2ade017f02e"
+  },
+  {
+   "filter_id": "d82ef811-013e-478b-a3a3-8027803e0ec2",
+   "asset_id": "ad1f4801-e309-4c68-933f-e2ade017f02e"
+  },
+  {
+   "filter_id": "2a0d9d86-3af5-471c-9604-d4aefda44fae",
+   "asset_id": "e0b4bef1-27af-44fc-b64a-684cccaf715f"
+  },
+  {
+   "filter_id": "883fce05-4612-4d45-9c39-ba90efb243f4",
+   "asset_id": "e0b4bef1-27af-44fc-b64a-684cccaf715f"
+  },
+  {
+   "filter_id": "2a0d9d86-3af5-471c-9604-d4aefda44fae",
+   "asset_id": "966098d2-f6f6-4cf7-ad32-c65f8092349a"
+  },
+  {
+   "filter_id": "883fce05-4612-4d45-9c39-ba90efb243f4",
+   "asset_id": "966098d2-f6f6-4cf7-ad32-c65f8092349a"
+  },
+  {
+   "filter_id": "2a0d9d86-3af5-471c-9604-d4aefda44fae",
+   "asset_id": "eec1e177-1b45-40da-9c88-c18412b44b43"
+  },
+  {
+   "filter_id": "883fce05-4612-4d45-9c39-ba90efb243f4",
+   "asset_id": "eec1e177-1b45-40da-9c88-c18412b44b43"
+  },
+  {
+   "filter_id": "2a0d9d86-3af5-471c-9604-d4aefda44fae",
+   "asset_id": "d9e5f24f-27ba-49dc-b8f1-d3e1908dd808"
+  },
+  {
+   "filter_id": "883fce05-4612-4d45-9c39-ba90efb243f4",
+   "asset_id": "d9e5f24f-27ba-49dc-b8f1-d3e1908dd808"
+  },
+  {
+   "filter_id": "2a0d9d86-3af5-471c-9604-d4aefda44fae",
+   "asset_id": "673416ab-ec74-43c5-bef6-1df0410ca52e"
+  },
+  {
+   "filter_id": "883fce05-4612-4d45-9c39-ba90efb243f4",
+   "asset_id": "673416ab-ec74-43c5-bef6-1df0410ca52e"
+  },
+  {
+   "filter_id": "2a0d9d86-3af5-471c-9604-d4aefda44fae",
+   "asset_id": "7b18d6a4-bc51-4c6d-8728-0df7d3e55f86"
+  },
+  {
+   "filter_id": "883fce05-4612-4d45-9c39-ba90efb243f4",
+   "asset_id": "7b18d6a4-bc51-4c6d-8728-0df7d3e55f86"
+  },
+  {
+   "filter_id": "2a0d9d86-3af5-471c-9604-d4aefda44fae",
+   "asset_id": "5d8889ae-8a83-4be4-943a-cd878a037cb3"
+  },
+  {
+   "filter_id": "883fce05-4612-4d45-9c39-ba90efb243f4",
+   "asset_id": "5d8889ae-8a83-4be4-943a-cd878a037cb3"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "9c7c80d9-ba37-4ff1-bbd1-857c865d4b39"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "3b091537-37f2-4e41-a8d8-6b37ec7dcbb3"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "3b091537-37f2-4e41-a8d8-6b37ec7dcbb3"
+  },
+  {
+   "filter_id": "1db98c11-50ab-4d9b-a205-60e477581bf1",
+   "asset_id": "ab7833df-b4dc-42f5-8b46-d307e220221b"
+  },
+  {
+   "filter_id": "c66c386b-54fa-47b6-9b32-d58dff96ca0d",
+   "asset_id": "ab7833df-b4dc-42f5-8b46-d307e220221b"
+  },
+  {
+   "filter_id": "e2973a85-44c2-4cbc-b333-1d35efbc7443",
+   "asset_id": "7faa27ea-dae7-41c3-8298-53ec0f52cab1"
+  },
+  {
+   "filter_id": "e2973a85-44c2-4cbc-b333-1d35efbc7443",
+   "asset_id": "20f33753-0304-471b-80f9-8d0f7872863c"
+  },
+  {
+   "filter_id": "e2973a85-44c2-4cbc-b333-1d35efbc7443",
+   "asset_id": "0048cad1-4a03-4f74-85e5-836f853b711b"
+  },
+  {
+   "filter_id": "e2973a85-44c2-4cbc-b333-1d35efbc7443",
+   "asset_id": "17c70065-7e0f-4a2f-a000-dbc06bd16d25"
+  },
+  {
+   "filter_id": "e2973a85-44c2-4cbc-b333-1d35efbc7443",
+   "asset_id": "a2b637f3-bc34-486c-adc8-6fed750fd6d6"
+  },
+  {
+   "filter_id": "e2973a85-44c2-4cbc-b333-1d35efbc7443",
+   "asset_id": "de4fd6de-0791-4fc9-b6f2-3958d6c08c61"
+  },
+  {
+   "filter_id": "e2973a85-44c2-4cbc-b333-1d35efbc7443",
+   "asset_id": "7496ba3c-a693-4921-899e-c30194c4e84c"
+  },
+  {
+   "filter_id": "8c28aaee-c2af-4669-b66a-6e8bfde8b8a9",
+   "asset_id": "7d26f209-cfd2-4249-8938-a29ceab7b3af"
+  },
+  {
+   "filter_id": "8c28aaee-c2af-4669-b66a-6e8bfde8b8a9",
+   "asset_id": "09bda676-31e9-4c45-ac73-ca1eeddfd9eb"
+  },
+  {
+   "filter_id": "8c28aaee-c2af-4669-b66a-6e8bfde8b8a9",
+   "asset_id": "2765d487-2854-496e-9cf9-eb3c72f009e2"
+  },
+  {
+   "filter_id": "8c28aaee-c2af-4669-b66a-6e8bfde8b8a9",
+   "asset_id": "53399d3c-3be1-4238-88ca-f985f104b088"
+  },
+  {
+   "filter_id": "07be19be-b408-5750-af78-b5c4782aa3e4",
+   "asset_id": "89e28208-c0cd-586f-ad3c-7cffe88bcca9"
+  },
+  {
+   "filter_id": "07be19be-b408-5750-af78-b5c4782aa3e4",
+   "asset_id": "e176edf6-56b0-5c88-84df-5f1f291e8a40"
+  },
+  {
+   "filter_id": "13a5a360-60e5-5afb-ba79-cd460fc34100",
+   "asset_id": "e176edf6-56b0-5c88-84df-5f1f291e8a40"
+  },
+  {
+   "filter_id": "41a158c5-a250-5381-b19e-b9dd62f3462c",
+   "asset_id": "e176edf6-56b0-5c88-84df-5f1f291e8a40"
+  },
+  {
+   "filter_id": "6582773f-7161-4d97-ad52-c2dc4986b973",
+   "asset_id": "e176edf6-56b0-5c88-84df-5f1f291e8a40"
+  },
+  {
+   "filter_id": "07be19be-b408-5750-af78-b5c4782aa3e4",
+   "asset_id": "860796c4-7d0e-561a-8f9a-ad9fb5329edd"
+  },
+  {
+   "filter_id": "07be19be-b408-5750-af78-b5c4782aa3e4",
+   "asset_id": "c2228ee3-8d5a-5754-9f8f-443dfa190d72"
+  },
+  {
+   "filter_id": "07be19be-b408-5750-af78-b5c4782aa3e4",
+   "asset_id": "2bc12ee4-689f-505b-ac8e-fca2fe1ee2a9"
+  },
+  {
+   "filter_id": "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+   "asset_id": "6a405929-4f16-54c9-bd2a-1f1a43c5e808"
+  },
+  {
+   "filter_id": "5d51a4cb-3b58-52ae-ba1e-3470818c8d12",
+   "asset_id": "6a405929-4f16-54c9-bd2a-1f1a43c5e808"
+  },
+  {
+   "filter_id": "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+   "asset_id": "6a405929-4f16-54c9-bd2a-1f1a43c5e808"
+  },
+  {
+   "filter_id": "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+   "asset_id": "9321e8bb-21af-53ad-98af-c01b8ff7fc80"
+  },
+  {
+   "filter_id": "5d51a4cb-3b58-52ae-ba1e-3470818c8d12",
+   "asset_id": "9321e8bb-21af-53ad-98af-c01b8ff7fc80"
+  },
+  {
+   "filter_id": "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+   "asset_id": "9321e8bb-21af-53ad-98af-c01b8ff7fc80"
+  },
+  {
+   "filter_id": "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+   "asset_id": "e5f0907d-fc9f-5c61-812b-d979ff6a2615"
+  },
+  {
+   "filter_id": "5d51a4cb-3b58-52ae-ba1e-3470818c8d12",
+   "asset_id": "e5f0907d-fc9f-5c61-812b-d979ff6a2615"
+  },
+  {
+   "filter_id": "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+   "asset_id": "e5f0907d-fc9f-5c61-812b-d979ff6a2615"
+  },
+  {
+   "filter_id": "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+   "asset_id": "f759b5b2-87f6-5642-ab09-6480517546a3"
+  },
+  {
+   "filter_id": "5d51a4cb-3b58-52ae-ba1e-3470818c8d12",
+   "asset_id": "f759b5b2-87f6-5642-ab09-6480517546a3"
+  },
+  {
+   "filter_id": "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+   "asset_id": "f759b5b2-87f6-5642-ab09-6480517546a3"
+  },
+  {
+   "filter_id": "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+   "asset_id": "6f775fae-4a20-568d-8b55-a3f57ee7ed29"
+  },
+  {
+   "filter_id": "5d51a4cb-3b58-52ae-ba1e-3470818c8d12",
+   "asset_id": "6f775fae-4a20-568d-8b55-a3f57ee7ed29"
+  },
+  {
+   "filter_id": "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+   "asset_id": "6f775fae-4a20-568d-8b55-a3f57ee7ed29"
+  },
+  {
+   "filter_id": "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+   "asset_id": "efc9ec50-a927-5bbd-bc7e-4077fae9ec65"
+  },
+  {
+   "filter_id": "5d51a4cb-3b58-52ae-ba1e-3470818c8d12",
+   "asset_id": "efc9ec50-a927-5bbd-bc7e-4077fae9ec65"
+  },
+  {
+   "filter_id": "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+   "asset_id": "efc9ec50-a927-5bbd-bc7e-4077fae9ec65"
+  },
+  {
+   "filter_id": "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+   "asset_id": "0ad8f1b2-7ee0-5b36-9529-87f2c64da7dc"
+  },
+  {
+   "filter_id": "5d51a4cb-3b58-52ae-ba1e-3470818c8d12",
+   "asset_id": "0ad8f1b2-7ee0-5b36-9529-87f2c64da7dc"
+  },
+  {
+   "filter_id": "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+   "asset_id": "0ad8f1b2-7ee0-5b36-9529-87f2c64da7dc"
+  },
+  {
+   "filter_id": "54a2ee64-b832-5191-b65d-50c3bc914ad6",
+   "asset_id": "2f8b78d5-d99a-54b1-b7f0-8309f0350b2e"
+  },
+  {
+   "filter_id": "5d51a4cb-3b58-52ae-ba1e-3470818c8d12",
+   "asset_id": "2f8b78d5-d99a-54b1-b7f0-8309f0350b2e"
+  },
+  {
+   "filter_id": "acf38ce9-f4c0-54d0-b3f6-38a1eaefc5be",
+   "asset_id": "2f8b78d5-d99a-54b1-b7f0-8309f0350b2e"
+  },
+  {
+   "filter_id": "17a09c2a-a814-5c5b-8fba-d4dcdb1859a1",
+   "asset_id": "ec5b3e7c-c51d-5676-8fdc-ffc240c2f92e"
+  },
+  {
+   "filter_id": "55fc9839-97f2-55ca-abd2-839690299c94",
+   "asset_id": "ec5b3e7c-c51d-5676-8fdc-ffc240c2f92e"
+  },
+  {
+   "filter_id": "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+   "asset_id": "12850165-42bf-5151-9690-801224852b08"
+  },
+  {
+   "filter_id": "13a5a360-60e5-5afb-ba79-cd460fc34100",
+   "asset_id": "fbe92032-5878-5d08-8333-255ed37121d3"
+  },
+  {
+   "filter_id": "94219950-f956-56b3-9e09-59d2cd8be76f",
+   "asset_id": "fbe92032-5878-5d08-8333-255ed37121d3"
+  },
+  {
+   "filter_id": "d518f600-6eca-5dfa-b7fa-4cd39541801a",
+   "asset_id": "fbe92032-5878-5d08-8333-255ed37121d3"
+  },
+  {
+   "filter_id": "13a5a360-60e5-5afb-ba79-cd460fc34100",
+   "asset_id": "e97222c8-2a91-5f9f-9691-b57cbc34da71"
+  },
+  {
+   "filter_id": "17a09c2a-a814-5c5b-8fba-d4dcdb1859a1",
+   "asset_id": "e97222c8-2a91-5f9f-9691-b57cbc34da71"
+  }
+ ],
+ "flows": [
+  {
+   "id": "e889018a-146f-41f4-8389-c0eacf34c41f",
+   "name": "Untitled workflow",
+   "status": "draft",
+   "updated_at": "2026-11-05T06:18:51.495617+00:00",
+   "reads_sources": [],
+   "reads_assets": [],
+   "produces_assets": [],
+   "writes_findings": false,
+   "node_kinds": []
+  },
+  {
+   "id": "3bb49aa8-2f25-4715-9c9d-8281e92268d1",
+   "name": "Untitled workflow",
+   "status": "published",
+   "updated_at": "2026-10-13T11:01:34.784671+00:00",
+   "reads_sources": [],
+   "reads_assets": [],
+   "produces_assets": [],
+   "writes_findings": true,
+   "node_kinds": [
+    "general_agent",
+    "ai_findings",
+    "manual_trigger"
+   ]
+  },
+  {
+   "id": "70c5783f-4ba5-4a26-b150-4ede908c7035",
+   "name": "Untitled workflow",
+   "status": "draft",
+   "updated_at": "2026-09-28T10:33:46.52124+00:00",
+   "reads_sources": [
+    "5dacf8b3-7e10-4aa7-94e5-9eafba5d2bdd"
+   ],
+   "reads_assets": [
+    "0ab3f0a8-0954-4ea2-b018-50b21b6c646e"
+   ],
+   "produces_assets": [],
+   "writes_findings": false,
+   "node_kinds": [
+    "manual_trigger",
+    "asset",
+    "source"
+   ]
+  }
+ ],
+ "findings": [
+  {
+   "id": "cbd9acb5-e299-467d-9a7e-cfef9768d5e7",
+   "title": "Ramp Closure's worst road section tops KAFD simulation delay at 215 seconds, against 166 in Weekday",
+   "kind": "update",
+   "created_at": "2026-11-15T04:03:02.322241+00:00",
+   "flow": "d0d0b5ec-8b44-5522-ad99-9facd219f208",
+   "assets": [
+    "84a3e52c-7bb0-41cd-9763-f4a2295ae1db",
+    "66330ba7-8546-45d9-8a94-f38699dd1927"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  },
+  {
+   "id": "6b2534f0-6bea-41a0-a74e-669fa8514ea8",
+   "title": "Weekday's top simulated KAFD road section hits 265 seconds of delay, about 1.2 times the next-worst",
+   "kind": "update",
+   "created_at": "2026-11-12T04:02:57.049073+00:00",
+   "flow": "d0d0b5ec-8b44-5522-ad99-9facd219f208",
+   "assets": [
+    "84a3e52c-7bb0-41cd-9763-f4a2295ae1db",
+    "66330ba7-8546-45d9-8a94-f38699dd1927"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  },
+  {
+   "id": "e7ce3ad2-0bbe-44c1-b9da-ded1e18a63e5",
+   "title": "Three Weekday road sections hold 41.2% of simulated delay in the KAFD road network's top ten",
+   "kind": "update",
+   "created_at": "2026-11-11T04:02:53.376586+00:00",
+   "flow": "d0d0b5ec-8b44-5522-ad99-9facd219f208",
+   "assets": [
+    "84a3e52c-7bb0-41cd-9763-f4a2295ae1db",
+    "66330ba7-8546-45d9-8a94-f38699dd1927"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  },
+  {
+   "id": "a0434edd-8c6c-43d3-8468-af6c0dea755c",
+   "title": "28.0% of Saudi Arabia's 2026 population lives in Riyadh, the top region group by share",
+   "kind": "update",
+   "created_at": "2026-11-09T13:32:27.412141+00:00",
+   "flow": "a6ab876f-cd97-4eae-bf89-14e0afc0058d",
+   "assets": [
+    "f6f76c8f-7e86-4789-be79-43e2e9c2430e"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  },
+  {
+   "id": "2c65f9ad-2c3a-4f96-8a31-402ea957282f",
+   "title": "Uturns sections leave the KAFD road network's worst-delay list, so the 47.4% drop is not like for like",
+   "kind": "update",
+   "created_at": "2026-11-08T04:03:03.831496+00:00",
+   "flow": "d0d0b5ec-8b44-5522-ad99-9facd219f208",
+   "assets": [
+    "84a3e52c-7bb0-41cd-9763-f4a2295ae1db",
+    "66330ba7-8546-45d9-8a94-f38699dd1927"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  },
+  {
+   "id": "e440aaaa-b3ea-40dd-b8bb-bc6e6fabe96d",
+   "title": "KAFD's slowest simulated network runs at 62.6 km/h under Uturns, with delay at 22.7 seconds per km",
+   "kind": "update",
+   "created_at": "2026-11-07T04:03:15.769975+00:00",
+   "flow": "d0d0b5ec-8b44-5522-ad99-9facd219f208",
+   "assets": [
+    "84a3e52c-7bb0-41cd-9763-f4a2295ae1db",
+    "66330ba7-8546-45d9-8a94-f38699dd1927"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  },
+  {
+   "id": "e152a323-bcef-417d-9cd1-467b28f16247",
+   "title": "Ramp Closure loses the most time on simulated KAFD roads, at 23.7 seconds of delay per km",
+   "kind": "update",
+   "created_at": "2026-11-06T04:03:04.145714+00:00",
+   "flow": "d0d0b5ec-8b44-5522-ad99-9facd219f208",
+   "assets": [
+    "66330ba7-8546-45d9-8a94-f38699dd1927",
+    "84a3e52c-7bb0-41cd-9763-f4a2295ae1db"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  },
+  {
+   "id": "a5197a14-4086-457d-9e61-4530115a3849",
+   "title": "Two more Weekday sections enter KAFD network's simulated delay top five, at 140 and 117 seconds",
+   "kind": "update",
+   "created_at": "2026-11-04T04:02:30.655628+00:00",
+   "flow": "d0d0b5ec-8b44-5522-ad99-9facd219f208",
+   "assets": [
+    "84a3e52c-7bb0-41cd-9763-f4a2295ae1db",
+    "66330ba7-8546-45d9-8a94-f38699dd1927"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  },
+  {
+   "id": "e3051690-7a25-4134-b5bb-756e56390d20",
+   "title": "Simulated traffic delay concentrates on Ramp Closure, where the lead road section carries 215 seconds",
+   "kind": "update",
+   "created_at": "2026-10-31T04:02:48.08357+00:00",
+   "flow": "d0d0b5ec-8b44-5522-ad99-9facd219f208",
+   "assets": [
+    "66330ba7-8546-45d9-8a94-f38699dd1927",
+    "84a3e52c-7bb0-41cd-9763-f4a2295ae1db"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  },
+  {
+   "id": "6a24275a-cd75-4d7c-a176-244dc7841bfc",
+   "title": "KAFD traffic hotspot delays climb from 754 to 3,023 seconds on the 15 highest-delay sections",
+   "kind": "update",
+   "created_at": "2026-10-27T04:02:19.642163+00:00",
+   "flow": "d0d0b5ec-8b44-5522-ad99-9facd219f208",
+   "assets": [
+    "84a3e52c-7bb0-41cd-9763-f4a2295ae1db",
+    "66330ba7-8546-45d9-8a94-f38699dd1927"
+   ],
+   "workspace_id": null,
+   "private_workspace_id": "59f25e0c-3d2d-4536-a9ae-6d6af5db2adf"
+  }
+ ],
+ "members": [
+  {
+   "id": "a469feec-da53-4862-b29a-4190bb179f9d",
+   "name": "Mohamed QALast",
+   "role": "Workspace Admin"
+  }
+ ],
+ "context": {
+  "organization": {
+   "text": "QA automated test: when asked about testing, always mention \"regression suite\".",
+   "files": [
+    "file.txt"
+   ]
+  },
+  "personal": {
+   "text": "QA combo test context",
+   "files": []
+  }
+ }
+}

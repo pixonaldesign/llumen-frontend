@@ -1,0 +1,495 @@
+/* Studio context graph. Tokens (--st-*) come from StudioView.module.css's .root. */
+
+.viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  outline: 0;
+  background: var(--st-on-shader);
+  user-select: none;
+  animation: appear 320ms ease backwards;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+.canvas:active {
+  cursor: grabbing;
+}
+
+.viewport[data-hovering] .canvas {
+  cursor: pointer;
+}
+
+/* The page head lives in the shared PageHead; this wrapper only catches its key events. */
+.headEvents {
+  display: contents;
+}
+
+/* Zoom, fit and expand share one bar beside the search, shaped like the head's outline button. */
+.viewBar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 2px;
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  background: var(--st-fill);
+}
+
+.barIcon,
+.barText {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--st-text-secondary) !important;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.barIcon {
+  width: 30px;
+  padding: 0;
+}
+
+.barText {
+  gap: 8px;
+  padding: 0 12px 0 10px;
+  font-weight: 500 !important;
+  white-space: nowrap;
+}
+
+.barIcon:hover,
+.barText:hover {
+  background: var(--st-fill-hover);
+  color: var(--st-text) !important;
+}
+
+.barIcon:focus-visible,
+.barText:focus-visible {
+  outline: 2px solid var(--st-brand);
+  outline-offset: 1px;
+}
+
+/* ── Floating chrome: the legend sits bottom right as on Llumen maps; the inspector covers it while open ── */
+
+.legend,
+.inspector {
+  position: absolute;
+  z-index: 3;
+  cursor: default;
+}
+
+.inspector {
+  z-index: 4;
+}
+
+.legend,
+.inspector,
+.tooltip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 16, 24, 0.86);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.legend {
+  right: 16px;
+}
+
+.zoomButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--st-text-secondary) !important;
+  cursor: pointer;
+}
+
+.zoomButton:hover {
+  background: var(--st-fill-hover);
+  color: var(--st-text) !important;
+}
+
+.rule {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.zoomValue {
+  min-width: 48px;
+  color: var(--st-text-secondary);
+  font-family: var(--lc-font-mono);
+  font-size: 12px;
+  text-align: center;
+}
+
+.legend {
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 156px;
+  padding: 6px;
+  border-radius: 14px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--st-text) !important;
+  font-size: 13px !important;
+  text-align: left;
+  cursor: pointer;
+}
+
+.legendItem:hover {
+  background: var(--st-fill-hover);
+}
+
+.legendItem[aria-pressed='false'] {
+  color: var(--st-text-muted) !important;
+}
+
+.legendItem[aria-pressed='false'] .legendLabel {
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 255, 255, 0.3);
+}
+
+.legendLabel {
+  flex: 1 1 auto;
+}
+
+.legendCount {
+  color: var(--st-text-muted);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+}
+
+.glyph {
+  flex: none;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+/* ── Hover card ── */
+
+.tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 300px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.tooltip[data-open] {
+  opacity: 1;
+}
+
+.tooltipTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.tooltipMeta {
+  color: var(--st-text-muted);
+  font-size: 12px;
+}
+
+/* ── Inspector ── */
+
+.inspector {
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  overflow: hidden;
+  border-radius: 20px;
+  animation: slide-in 240ms cubic-bezier(0.2, 0, 0, 1);
+  user-select: text;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+.inspectorHead {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 4px 16px;
+}
+
+.inspectorEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--st-text-muted);
+  font-family: var(--lc-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The list scrolls edge to edge; its children carry the inset. */
+.inspectorScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 0 12px;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+}
+
+.inspectorScroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.inspectorScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.inspectorScroll::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+.inspectorBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 16px 8px;
+}
+
+.inspectorTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.inspectorLede {
+  margin: 0;
+  color: var(--st-text-secondary);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* AI context is the literal instruction text, so it reads as a quote. */
+.inspectorQuote {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--st-text);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.factWide {
+  grid-column: 1 / -1;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--st-text-muted);
+  font-size: 12px;
+}
+
+.facts dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+.relation {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--st-border-subtle);
+}
+
+.relationLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px 4px;
+  color: var(--st-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.relationCount {
+  font-family: var(--lc-font-mono);
+  font-weight: 500;
+}
+
+.relationItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 8px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 13px !important;
+  text-align: left;
+  cursor: pointer;
+}
+
+.relationItem:hover,
+.relationItem:focus-visible {
+  outline: 0;
+  background: var(--st-brand-subtle);
+}
+
+.relationText {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.relationName,
+.relationVia {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relationVia {
+  color: var(--st-text-muted);
+  font-size: 12px;
+}
+
+.relationKind {
+  flex: none;
+  color: var(--st-text-muted);
+  font-size: 12px;
+}
+
+.relationGo {
+  flex: none;
+  opacity: 0;
+}
+
+.relationItem:hover .relationGo,
+.relationItem:focus-visible .relationGo {
+  opacity: 0.7;
+}
+
+.inspectorActions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--st-border-subtle);
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  background: var(--st-fill);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.primary {
+  border-color: transparent;
+  background: #fff;
+  color: #04101f !important;
+}
+
+.secondary:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport,
+  .inspector {
+    animation: none;
+  }
+
+  .tooltip {
+    transition: none;
+  }
+}

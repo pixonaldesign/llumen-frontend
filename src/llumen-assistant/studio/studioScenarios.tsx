@@ -4,6 +4,7 @@ import {
   CaretDown,
   CaretRight,
   GearSix,
+  Graph,
   House,
   Kanban,
   MagnifyingGlass,
@@ -125,11 +126,16 @@ export function ScenarioShell({
     ) : page === 'assets' && assets ? (
       assets
     ) : (
-      <PageBody page={page} onCreateAsset={onCreateAsset} workflowNoun={overview ? 'Flow' : undefined} />
+      <PageBody
+        page={page}
+        onCreateAsset={onCreateAsset}
+        workflowNoun={overview ? 'Flow' : undefined}
+        onNavigate={go}
+      />
     )
 
-  /** The inspector and board fill the height and scroll inside; everything else scrolls the page. */
-  const fills = page === 'assets' && (scenario === 3 || scenario === 5)
+  /** The inspector, board and context graph fill the height and scroll inside; everything else scrolls the page. */
+  const fills = (page === 'assets' && (scenario === 3 || scenario === 5)) || page === 'context'
   const main = (
     <main key={page} className={`${view.main}${fills ? ` ${s.mainFill}` : ''}`}>
       {body}
@@ -872,6 +878,7 @@ function OverviewNav({
           <LibraryLinks nav={nav} entries={OVERVIEW_LIBRARY} />
           {link('apps', 'Apps', <AppWindow size={20} aria-hidden />)}
           {link('workflows', 'Flows', <Sparkle size={20} aria-hidden />)}
+          {link('context', 'Context', <Graph size={20} aria-hidden />)}
         </div>
       </div>
       <div className={s.viewsFoot}>
@@ -936,6 +943,7 @@ function OverviewRibbon({
         )}
         {pill('apps', 'Apps')}
         {pill('workflows', 'Flows')}
+        {pill('context', 'Context')}
         <span className={s.pillRule} aria-hidden />
         <button type="button" className={`${s.pill} ${s.pillIcon}`} aria-label="Settings" onClick={onSettings}>
           <GearSix size={18} aria-hidden />

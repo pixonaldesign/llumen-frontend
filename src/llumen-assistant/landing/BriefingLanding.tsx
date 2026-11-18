@@ -519,6 +519,8 @@ export function BriefingLanding({
     const onWheel = (event: WheelEvent) => {
       const target = event.target instanceof Element ? event.target : null
       if (target && barRef.current?.contains(target)) return
+      // Surfaces that zoom or pan on the wheel themselves, such as the Studio's context graph.
+      if (target?.closest('[data-own-wheel]')) return
       if (event.ctrlKey && target && mapRef.current?.contains(target)) return
       event.stopPropagation()
       if (event.ctrlKey || !target || !page.contains(target) || innerScrolls(target, page, event.deltaY)) return

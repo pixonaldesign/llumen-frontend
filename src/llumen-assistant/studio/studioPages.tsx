@@ -83,7 +83,7 @@ function columnTemplate(columns: Column[]) {
  * The page's sticky head: title and search with the create button, an optional row of filters, and the
  * table's column labels in list layouts.
  */
-function PageHead({
+export function PageHead({
   title,
   titleExtra,
   placeholder,
@@ -92,6 +92,7 @@ function PageHead({
   action,
   actionIcon = <Plus size={20} aria-hidden />,
   onAction,
+  controls,
   filters,
   tools,
   columns,
@@ -101,9 +102,11 @@ function PageHead({
   placeholder: string
   query: string
   onQuery: (value: string) => void
-  action: string
+  action?: string
   actionIcon?: ReactNode
   onAction?: () => void
+  /** Replaces the create button, for pages whose head carries their own tools. */
+  controls?: ReactNode
   filters?: ReactNode
   tools?: ReactNode
   columns?: Column[]
@@ -118,9 +121,12 @@ function PageHead({
         </div>
         <div className={styles.controls}>
           <SearchField placeholder={placeholder} value={query} onChange={onQuery} />
-          <Button icon={actionIcon} onClick={onAction}>
-            {action}
-          </Button>
+          {controls ??
+            (action ? (
+              <Button icon={actionIcon} onClick={onAction}>
+                {action}
+              </Button>
+            ) : null)}
         </div>
       </div>
       {filters || tools ? (

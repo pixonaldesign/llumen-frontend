@@ -1,4 +1,5 @@
 import type { StudioPage } from './studioData'
+import { ContextGraphView } from './studioContext'
 import {
   ApisPage,
   AppsPage,
@@ -21,11 +22,14 @@ export function PageBody({
   page,
   onCreateAsset,
   workflowNoun,
+  onNavigate,
 }: {
   page: StudioPage
   onCreateAsset: () => void
   /** What the Workflows page calls one workflow; see WorkflowsPage. */
   workflowNoun?: string
+  /** Where the context graph's "Open in…" goes. */
+  onNavigate?: (page: StudioPage) => void
 }) {
   switch (page) {
     case 'assets':
@@ -58,5 +62,7 @@ export function PageBody({
       return <MembersPage />
     case 'apps':
       return <AppsPage />
+    case 'context':
+      return <ContextGraphView onOpen={(next) => onNavigate?.(next)} />
   }
 }
