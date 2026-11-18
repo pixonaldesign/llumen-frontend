@@ -220,8 +220,8 @@
 }
 
 .close:focus-visible {
-  outline: 2px solid rgba(109, 233, 225, 0.7);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .copy[data-rail='true'] {
@@ -344,8 +344,8 @@
 .actionBtn:focus-visible,
 .voteBtn:focus-visible,
 .dashboardItem:focus-visible {
-  outline: 2px solid rgba(109, 233, 225, 0.7);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .actions {

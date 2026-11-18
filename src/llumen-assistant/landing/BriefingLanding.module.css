@@ -80,8 +80,8 @@
 }
 
 .edgeArrow:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 3px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .map {
@@ -695,8 +695,8 @@
 }
 
 .assetPeek:not([data-away='true']):focus-visible article {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 /* The Assets view's colours, registered so a new tint glides in rather than snapping. */
@@ -883,8 +883,8 @@
 }
 
 .sideBack:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .sideGrid {
@@ -893,6 +893,29 @@
   min-height: 0;
   overflow-y: auto;
   overflow-y: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+}
+
+.sideGrid::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.sideGrid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sideGrid::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+/* Chromium drops ::-webkit-scrollbar sizing when scrollbar-color is set, inherited or not. */
+@supports selector(::-webkit-scrollbar) {
+  .sideGrid {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
 }
 
 .sideGrid > * {
@@ -1274,8 +1297,8 @@
 }
 
 .panelToggle:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 /* Closed, the free room is nil and the side columns are 0 wide; the grid's track never changes width. */
@@ -1566,8 +1589,8 @@
 }
 
 .filterPill:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .filterPill > svg:last-child {
@@ -1721,6 +1744,14 @@
   position: absolute;
   right: 4px;
   bottom: 3px;
+}
+
+/* Narrow, the actions and the carousel no longer fit on one row: the carousel drops under the actions. */
+@media (max-width: 900px) {
+  .findingControls {
+    position: static;
+    margin-top: 12px;
+  }
 }
 
 .bubble {
@@ -1896,8 +1927,8 @@
 
 .dot:focus-visible,
 .carouselBtn:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: -2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset-inset);
   border-radius: 999px;
 }
 

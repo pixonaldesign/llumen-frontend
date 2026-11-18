@@ -50,6 +50,7 @@ import {
   type Go,
 } from './studioAssetMeta'
 import { AssetThumb, StudioAssetVisual } from './StudioAssetVisual'
+import { StudioTypeIcon } from './StudioTypeIcon'
 import { useDismiss } from './studioHooks'
 import { Button, Dropdown, SearchField, StatusChip, Tag } from './studioUi'
 import s from './StudioScenarios.module.css'
@@ -199,7 +200,7 @@ export function HomeHub({
               <ChartFrame asset={asset} delay={index * 80} />
               <div className={s.tileMeta}>
                 <span className={s.tileType}>
-                  <ChartLine size={14} aria-hidden />
+                  <StudioTypeIcon type={asset.type} size={14} />
                   {asset.type}
                 </span>
                 <span className={s.tileUpdated}>{asset.updated}</span>
@@ -573,7 +574,7 @@ export function BentoAssets({
                 </div>
               ) : (
                 <div className={s.bentoMeta}>
-                  <Tag icon={<ChartLine size={16} aria-hidden />}>{asset.type}</Tag>
+                  <Tag icon={<StudioTypeIcon type={asset.type} />}>{asset.type}</Tag>
                   <span className={s.muted}>{asset.updated}</span>
                   <span className={s.metaEnd}>
                     <StatusChip label={asset.status} />

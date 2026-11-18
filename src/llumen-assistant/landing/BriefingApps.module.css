@@ -210,8 +210,8 @@
 }
 
 .rowMenuBtn:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: -2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset-inset);
 }
 
 .rowMenu {

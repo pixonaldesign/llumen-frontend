@@ -2061,8 +2061,8 @@
 }
 
 .subNavTab:focus-visible {
-  outline: 2px solid var(--st-brand);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .workspacePill {

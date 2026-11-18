@@ -241,6 +241,12 @@
   --lc-search-expand-duration: 0.38s;
   --lc-search-expand-ease: cubic-bezier(0.33, 1, 0.68, 1);
 
+  /* Keyboard focus, one ring everywhere. Controls whose outer edge would be clipped use the inset offset. */
+  --lc-focus-color: #70aeff;
+  --lc-focus-ring: 2px solid var(--lc-focus-color);
+  --lc-focus-offset: 2px;
+  --lc-focus-offset-inset: -2px;
+
   --lc-scrollbar-size: 4px;
   --lc-scrollbar-thumb: rgba(132, 177, 245, 0.14);
   --lc-scrollbar-thumb-hover: rgba(132, 177, 245, 0.24);

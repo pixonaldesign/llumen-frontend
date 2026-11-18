@@ -225,9 +225,7 @@ function CurrentBar() {
           Studio
         </button>
         <CreateMenu triggerClassName={home.pillBtn} />
-        <button type="button" className={home.iconBtn} aria-label="Notifications">
-          <Bell size={20} weight="regular" />
-        </button>
+        <NotificationsMenu triggerClassName={home.iconBtn} />
         <button type="button" className={home.iconBtn} aria-label="Account">
           <User size={20} weight="regular" />
         </button>

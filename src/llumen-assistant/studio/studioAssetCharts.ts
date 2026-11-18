@@ -121,6 +121,7 @@ const TEAL = '#3fa7a0'
 const ROSE = '#e43963'
 const ORANGE = '#e39b4c'
 const OCEAN = '#1f8aa8'
+const SLATE = '#5e6f85'
 
 const thousands = (unit: string) => (value: number) => `${value.toLocaleString('en-US')}K ${unit}`
 
@@ -458,5 +459,45 @@ export const STUDIO_ASSET_CHARTS: Record<string, StudioChart> = {
     pill: { label: 'Below target', color: '#e39b4c' },
     caption: '8 points short of the 95 target',
     stops: ['#e43a63', '#e39b4c', '#e0c27a', '#50af8b'],
+  },
+  'travel-time-anomalies': {
+    kind: 'split',
+    title: 'Anomaly Detection · Travel Time Fences',
+    headline: { value: 383, unit: 'Anomalies' },
+    pill: { label: 'Max LOF 3.87', color: ROSE },
+    parts: [
+      { name: 'Anomalies', value: 383, share: 5, color: ROSE, display: '383 (5.0%)' },
+      { name: 'Normal points', value: 7273, share: 95, color: SLATE, display: '7,273 (95.0%)' },
+    ],
+  },
+  'incident-status-grid': {
+    kind: 'split',
+    title: 'Active Incidents Status',
+    headline: { value: 46, unit: 'Incidents' },
+    pill: { label: '11 critical or high', color: ROSE },
+    parts: [
+      { name: 'Open', value: 16, share: 35, color: ORANGE, display: '16 (35%)' },
+      { name: 'In progress', value: 30, share: 65, color: OCEAN, display: '30 (65%)' },
+    ],
+  },
+  'correspondence-status-grid': {
+    kind: 'split',
+    title: 'Correspondence Status',
+    headline: { value: 1800, unit: 'Items' },
+    pill: { label: '146 of pending overdue', color: ROSE },
+    parts: [
+      { name: 'Resolved', value: 1533, share: 85, color: TEAL, display: '1,533 (85%)' },
+      { name: 'Pending', value: 267, share: 15, color: ORANGE, display: '267 (15%)' },
+    ],
+  },
+  'junction-clusters': {
+    kind: 'split',
+    title: 'Spatial Clustering · Abu Dhabi Junction Points',
+    headline: { value: 39, unit: 'Clusters' },
+    pill: { label: 'Largest: 56 points', color: TEAL },
+    parts: [
+      { name: 'Clustered points', value: 500, share: 83, color: TEAL, display: '500 (83%)' },
+      { name: 'Noise', value: 99, share: 17, color: SLATE, display: '99 (17%)' },
+    ],
   },
 }

@@ -45,3 +45,12 @@
 [data-ll-scrollbar][data-ll-scrollbar-active='true']::-webkit-scrollbar-thumb:hover {
   background: var(--lc-scrollbar-thumb-hover);
 }
+
+/* Chromium drops ::-webkit-scrollbar sizing when scrollbar-color is set, which brings back the 11 px bar. */
+@supports selector(::-webkit-scrollbar) {
+  [data-ll-scrollbar],
+  [data-ll-scrollbar][data-ll-scrollbar-active='true'] {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}

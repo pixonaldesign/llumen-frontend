@@ -150,8 +150,8 @@
 }
 
 .modeOption:focus-visible {
-  outline: 2px solid #70aeff;
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -272,8 +272,8 @@
 }
 
 .segment:focus-visible {
-  outline: 2px solid #70aeff;
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .menuRule {
@@ -432,8 +432,8 @@
 }
 
 .menuItem:focus-visible {
-  outline: 2px solid #70aeff;
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 /* The side columns stop sharing a width, so the toggle can sit off-centre instead of under the actions. */

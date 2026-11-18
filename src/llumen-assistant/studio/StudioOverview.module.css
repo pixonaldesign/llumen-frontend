@@ -167,8 +167,8 @@
 }
 
 .sectionHead .shelfLink:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--st-brand) 30%, transparent);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 /*

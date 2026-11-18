@@ -4,7 +4,6 @@ import {
   CalendarBlank,
   CalendarCheck,
   CaretDown,
-  ChartLine,
   Chalkboard,
   CheckCircle,
   Clock,
@@ -69,7 +68,9 @@ import {
 } from './studioUi'
 import { useRefine } from './studioHooks'
 import { PageHeadSlot } from './studioPageHeadSlot'
-import { AssetThumb, StudioAssetVisual } from './StudioAssetVisual'
+import { AssetSkeleton, AssetThumb, StudioAssetVisual, type SkeletonShape } from './StudioAssetVisual'
+import { PREVIEW_LIST_LOADING } from './studioAssetVisuals'
+import { StudioTypeIcon } from './StudioTypeIcon'
 import styles from './StudioView.module.css'
 
 type Column = { label: string; width?: number }
@@ -198,13 +199,33 @@ export function AssetCard({ item, index = 0, onOpen }: { item: StudioAsset; inde
         <AssetActions title={item.title} />
       </div>
       <div className={styles.assetMeta}>
-        <Tag icon={<ChartLine size={16} aria-hidden />}>{item.type}</Tag>
+        <Tag icon={<StudioTypeIcon type={item.type} />}>{item.type}</Tag>
         <Tag>{item.category}</Tag>
         <span className={styles.metaEnd}>
           <StatusChip label={item.status} />
         </span>
       </div>
     </article>
+  )
+}
+
+const LOADING_PLACEHOLDERS: SkeletonShape[] = ['chart', 'table', 'chart', 'map', 'chart', 'chart', 'table', 'chart']
+
+/** A card while the asset list itself loads: nothing is known yet, so its meta row is placeholder too. */
+function AssetCardPlaceholder({ shape }: { shape: SkeletonShape }) {
+  return (
+    <div className={`${styles.assetCard} ${styles.assetCardPlaceholder}`} aria-hidden>
+      <div className={styles.assetImage}>
+        <AssetSkeleton shape={shape} />
+      </div>
+      <div className={styles.assetMeta}>
+        <span className={styles.metaPlaceholder} style={{ width: 84 }} />
+        <span className={styles.metaPlaceholder} style={{ width: 64 }} />
+        <span className={styles.metaEnd}>
+          <span className={styles.metaPlaceholder} style={{ width: 72 }} />
+        </span>
+      </div>
+    </div>
   )
 }
 
@@ -238,7 +259,13 @@ export function AssetsPage({ onCreate }: { onCreate: () => void }) {
         }
         columns={layout === 'list' ? ASSET_COLUMNS : undefined}
       />
-      {list.rows.length === 0 ? (
+      {PREVIEW_LIST_LOADING ? (
+        <div className={`${styles.grid} ${styles.assetGrid}`} role="status" aria-label="Loading assets">
+          {LOADING_PLACEHOLDERS.map((shape, index) => (
+            <AssetCardPlaceholder key={index} shape={shape} />
+          ))}
+        </div>
+      ) : list.rows.length === 0 ? (
         <NoResults />
       ) : layout === 'grid' ? (
         <div className={`${styles.grid} ${styles.assetGrid}`}>

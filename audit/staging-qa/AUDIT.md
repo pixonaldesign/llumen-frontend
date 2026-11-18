@@ -19,7 +19,7 @@
 
 ## Main status — re-tested on `main` at 768 and 390 px (2026-11-18, about 12:45)
 
-The four findings above that had not been checked on `main`. "Fixed in Main" means the fix is on local `main` and can be handed to the devs as the reference.
+The first four rows are the findings that had not been checked on `main`; the last two were fixed later the same day. Further fixes are listed under "Later fixes in Main" below the screenshots. "Fixed in Main" means the fix is on local `main` and can be handed to the devs as the reference.
 
 | Finding | Was `main` affected? | Status |
 |---|---|---|
@@ -27,12 +27,42 @@ The four findings above that had not been checked on `main`. "Fixed in Main" mea
 | A-M2 Top bar / sub-nav overflow at 390 | Yes, and also at 768. The top bar stacked into three rows below 980 px. The Studio tab bar was 844 px wide with no scrolling, so Context and Settings were cut off and unreachable at both widths. | **Fixed in Main.** The top bar stays on one row down to 641 px. On phones the logo and actions share row one (Create becomes an icon button that keeps its "Create" label for screen readers) and the Briefings/Studio toggle fills row two. The tab bar scrolls sideways inside its capsule, the active tab scrolls into view when it's off-screen, and the workspace menu still opens uncut. |
 | A-M3 Modal: Escape, dialog role, focus | `main` has no Edit Asset wizard (clicking a card opens nothing), so this can't be compared directly. Its Search popup already has a dialog role, moves focus into the field and closes on Escape. It did not return focus to the Search button. | **Fixed in Main** (focus return). The Edit Asset wizard itself is staging-only, so it goes to the devs. |
 | A-M5 Studio state not in the URL / history | Yes, and worse: switching tabs doesn't change the URL at all (`history.length` stayed at 1), so a reload always lands on the Overview. | **Not fixed.** `main` has no router; this needs a decision on whether the prototype should have one. Send to the devs as is. |
+| A-M8 Table previews are hard to read; wide tables don't fit | Partly. `main` had only 4-column tables, which fit. It also had two bugs of its own: a 1 px gap above the sticky header where scrolled rows showed through, and text columns that all grew to the widest one (a "Type" column holding only "Jam" was as wide as the longest street name). | **Fixed in Main** (added 2026-11-18, about 14:25). Staging's 11 wide tables (up to 8 columns) were imported with real rows, and the table preview was redesigned; see A-M8 for the spec. |
+| B Notifications: dead bell on `main`, rough outline on staging | Yes: the bell did nothing. Staging has a panel, but its 1 px near-white outline looks harsh against the dark UI. | **Fixed in Main** (added 2026-11-18, about 14:25). The bell opens a panel in the composer's glass: `rgba(14,16,20,.52)`, `blur(20px) saturate(160%)`, a 1 px `rgba(255,255,255,.12)` border, 20 px radius and the composer's shadow. Empty state "No notifications / You're all caught up." It closes on Escape (focus returns to the bell), on outside click and on resize. It is rendered outside the blurred top bar so its own blur works. The Briefings top bar's bell now opens the same panel (added 2026-11-18, about 16:20). |
 
 | 768 px (after) | 390 px (after) |
 |---|---|
 | ![Main Assets at 768 after the fix](main-fixed-assets-768.png) | ![Main Assets at 390 after the fix](main-fixed-assets-390.png) |
 
-**New, found while testing (main only, not fixed):** on Briefings at 768 px the View button overlaps the carousel dots and the right-hand cards are cut off at the window edge.
+| Tables: staging | Tables: Main (after) |
+|---|---|
+| ![Staging table previews](staging-assets-grid-top-1440.png) | ![Main wide tables](main-wide-tables.png) |
+| | ![Main Live Traffic Incidents, scrolled sideways](main-live-incidents-table.png) |
+
+| Notifications: staging | Notifications: Main (after) |
+|---|---|
+| ![Staging notifications](staging-notifications-1440.png) | ![Main notifications panel](main-fixed-notifications-1440.png) |
+
+### Later fixes in Main (2026-11-18, about 16:20)
+
+| Fix | What changed |
+|---|---|
+| Briefings at 768 px | **Fixed in Main.** The carousel dots sat on top of the vote buttons. Below 900 px the dots now flow under the votes (12 px gap) instead of being pinned to the bottom. The right-hand board cards that looked cut off are the intended 96 px peek, the same as at 1440, so they were left as they are. |
+| Hidden Briefings content | **Not a bug.** It looked reachable in the accessibility snapshot, but it is already `inert`, so keyboard focus and screen readers can't reach it. |
+| 4 px scrollbars | **Fixed in Main.** Chromium ignores `::-webkit-scrollbar` sizing whenever `scrollbar-color` is set, even when it's inherited, so Studio's page, the Briefings board and every auto-hiding scroller fell back to an 11 px bar. Each one now resets `scrollbar-color`/`scrollbar-width` inside `@supports selector(::-webkit-scrollbar)`, and all of them measure 4 px. |
+| Card loading and error states | **Fixed in Main.** While a card's data loads, it shows a pulsing skeleton shaped like its content (chart, table or map). After 15 s with no data it shows "Couldn't load data / The source didn't respond" and a Retry button; Retry goes back to the skeleton and then the chart. The Assets list itself shows 8 placeholder cards while loading. To preview: `?studioState=loading`, `?studioState=error` or `?studioState=loading-list`. |
+| One focus ring | **Fixed in Main.** New tokens `--lc-focus-ring` (2 px solid `#70aeff`), `--lc-focus-offset` (2 px) and `--lc-focus-offset-inset` (−2 px) replace 35 separate outlines in Studio and Briefings, and a global fallback covers links, buttons, tabs and radios. Delete keeps its red ring. The story editor and older assistant panels were not changed. |
+| An icon per asset type | **Fixed in Main.** Card and list tags used one chart icon for every type. They now use 23 type glyphs on a 16 px grid; close variants share a glyph (Gauge, Radial Gauge and Score Indicator, for example). |
+| KPI grids | **Fixed in Main.** The two KPI grid cards now use the standard card layout: a headline, a status pill, a split bar and a legend. |
+| Gauges | **Checked, not built yet.** Staging has 14 Gauge assets (not 19); 5 drew a dial and 9 were still loading. They are ticked radial dials (a tick ring colored green to amber to red, or plain white, with a marker tick, a large number and Low/High labels). `main` has no dial: its "Gauge" and "Radial Gauge" assets draw as bars or images. A mockup comes before any import. |
+
+| Briefings 768 (after) | Card error state | Card loading state |
+|---|---|---|
+| ![Main Briefings at 768 after the fix](main-fixed-briefings-768.png) | ![Main card error state with Retry](main-card-error.png) | ![Main card loading skeletons](main-card-loading.png) |
+
+| Assets list loading | Staging gauges |
+|---|---|
+| ![Main Assets list placeholders](main-list-loading.png) | ![Staging gauge dials](staging-gauges-a.png) ![Staging gauge dials](staging-gauges-b.png) |
 
 ---
 
@@ -139,6 +169,28 @@ The four findings above that had not been checked on `main`. "Fixed in Main" mea
 
   ![Staging overview with classic scrollbar](staging-overview-1440.png)
   ![Type filter dropdown](staging-type-filter-open-1440.png)
+- **Confidence:** Real. The table-preview part is fixed in Main (see A-M8).
+
+**A-M8. Table previews are hard to read, and wide tables don't fit the card**
+- **Where:** Table-type asset cards (Assets grid and Overview shelves). Staging has 91 table assets; 21 in the private workspace, many with 5–8 columns.
+- **Actual:**
+  - Headers are raw column names (`delay_s_per_km`, `co2_g_per_vehicle`, `configured_speed_kmh`).
+  - Figures are unrounded and left-aligned (`264.98900865426316`), so columns don't line up.
+  - Text cells wrap into tall rows ("Dynamic / Scenario - / Ramp Closure"), so only 2 rows fit in the card.
+  - Classic scrollbars on both axes, inset from the card edge (see A-M6).
+  - Status values show as raw codes (`no_data`, `alternative_only`).
+- **Fixed in Main — spec for the devs:**
+  - Headers in plain words with units: `co2_g_per_vehicle` → "CO₂ g/veh".
+  - Every column sizes to its own content (CSS grid `auto` / `max-content` tracks; not `1fr`, which makes every column as wide as the widest).
+  - Numbers: right-aligned, mono with tabular figures, never wrapped.
+  - Text: wraps at about 148 px, two lines at most, then "…"; the full value is the tooltip. Codes and dates don't wrap.
+  - Status columns (Status, Priority, Magnitude) as tone chips: red for Worse / Major / Urgent, amber for Moderate, green for Recommended / Better, neutral for the rest. Codes are humanised ("No data", "Alternative only").
+  - Empty values ("—") are faded.
+  - Right-to-left text (Arabic street names) keeps its own word order but aligns with its column.
+  - If the columns don't fit, the table scrolls sideways as well as down, with 4 px overlay thumbs on the card edge. At 5 or more columns the first column stays in place.
+  - The sticky header sits 1 px higher with a 1 px shadow in its own colour, so no row text shows above it.
+  - The header shows the source's full count ("1,000 rows · 6 cols") even when the card carries only the first rows.
+- **Evidence:** the "Tables" pair under Main status above.
 - **Confidence:** Real.
 
 **A-M7. Accessibility gaps in menus and controls**
@@ -224,7 +276,7 @@ Mock-data differences are ignored. "Source of truth" is my recommendation.
 | Create menu | 120 px wide, zinc-600/80, 12 px radius, light shadow; items Asset / App / **Flow** (all enabled), weight 400, 80 % text | 200 px wide, `rgba(10,16,28,.94)`, 14 px radius, `0 16px 40px rgba(0,0,0,.4)`; items Asset / App "Soon" / **Agent** "Soon", weight 500 | `staging-create-menu-1440.png`, `main-create-menu-1440.png` | Real | Main visuals; item labels need decision (Flow vs Agent) |
 | List view | Columns Asset · Tags · Type · Source · User Status · Agent Status · Last Updated (sortable header buttons); row actions Add to chat + unnamed More; name column about 153 px (truncates) | Columns Asset · Category · Type · Status · Last Updated; More only; wide name + description | `staging-assets-list-1440.png`, `main-assets-list-1440.png` | Real | Needs decision (staging has the real columns; main's wider name column reads better) |
 | Pagination | Items-per-page + "1–25 of 607" + numbered pager with blue active page | None (14 mock items) | `staging-assets-pagination-1440.png` | Real | Staging (missing on main; define its style in main) |
-| Notifications | Popover empty state "No notifications / You're all caught up!" (Escape closes) | Bell is a dead click (no panel) | `staging-notifications-1440.png`, `main-notifications-click-1440.png` | Real | Staging (missing on main) |
+| Notifications | Popover empty state "No notifications / You're all caught up!" (Escape closes) | Bell was a dead click (no panel). **Now fixed in Main** with a glass panel (see Main status) | `staging-notifications-1440.png`, `main-notifications-click-1440.png`, `main-fixed-notifications-1440.png` | Real | Main (staging's behaviour, in the composer's glass instead of the near-white outline) |
 | Escape and focus return on menus | Focus is lost after Escape | Focus returns to the trigger | eval | Real | Main |
 | Focus-visible rings | Top bar and tabs `2px solid #60a5fa` offset 2; filters none; pager UA default | Top bar and tabs UA default `auto 1px`; filters `2px solid rgb(112,174,255)` offset 2 | forced `:focus-visible` | Real | Needs decision; neither side is consistent (pick one 2 px ring token) |
 | Composer | 640 px, 20 px radius, `rgba(14,16,20,.52)`, `blur(20px) saturate(1.6)`, same shadow; editor padding 7/0; Add context only | Identical box; editor padding 7/0/7/4; **Attach file** (disabled) + Add context | computed styles | Real | Main (adds Attach); otherwise matching |

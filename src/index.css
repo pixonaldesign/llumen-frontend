@@ -7,6 +7,12 @@
   box-sizing: border-box;
 }
 
+/* Zero specificity, so any component's own focus style still wins; this only replaces the browser default. */
+:where(a, button, [role='button'], [role='tab'], [role='radio'], [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
+}
+
 html,
 body,
 #root {

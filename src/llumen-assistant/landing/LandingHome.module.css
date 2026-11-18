@@ -263,8 +263,8 @@
 .ctrlBtn:focus-visible,
 .actionBtn:focus-visible,
 .viewSlidesBtn:focus-visible {
-  outline: 2px solid #70aeff;
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .cardMedia {
@@ -741,8 +741,8 @@
 }
 
 .storyCardBtn:focus-visible {
-  outline: 2px solid rgba(109, 233, 225, 0.7);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 /*

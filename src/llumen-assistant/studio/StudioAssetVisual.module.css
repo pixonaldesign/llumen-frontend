@@ -52,17 +52,6 @@
   font-size: 11px;
 }
 
-.caption {
-  margin: 0;
-  padding: 0 12px;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .mono {
   font-family: var(--lc-font-mono);
   font-variant-numeric: tabular-nums;
@@ -77,22 +66,30 @@
   height: 100%;
 }
 
-/* Full-bleed scroller so the thumb hugs the card edge; cells carry the inset. */
+/*
+ * Full-bleed scroller on both axes so the thumbs hug the card's edges; cells carry the inset. Its surface is
+ * opaque so the sticky header and first column can match it exactly.
+ */
 .tableScroll {
+  --table-bg: #0e1117;
+  --head-bg: #151a22;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-y: overlay;
-  overflow-x: hidden;
+  overflow: auto;
+  overflow: overlay;
+  overscroll-behavior: contain;
+  background: var(--table-bg);
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .tableScroll::-webkit-scrollbar {
   width: var(--lc-scrollbar-size, 4px);
+  height: var(--lc-scrollbar-size, 4px);
 }
 
-.tableScroll::-webkit-scrollbar-track {
+.tableScroll::-webkit-scrollbar-track,
+.tableScroll::-webkit-scrollbar-corner {
   background: transparent;
 }
 
@@ -101,8 +98,11 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+/* As wide as its columns need, and never narrower than the card. */
 .tableGrid {
   display: grid;
+  width: max-content;
+  min-width: 100%;
 }
 
 .tableRow {
@@ -112,10 +112,44 @@
 .th,
 .td {
   min-width: 0;
-  padding: 5px 8px;
+  padding: 5px 10px;
+}
+
+/* The cap lives on the text, not the cell, so cells still stretch to fill their column. */
+.cellText {
+  display: -webkit-box;
+  max-width: 148px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: break-word;
+}
+
+/* Figures, codes and dates never break mid-value. */
+.th[data-align='end'] .cellText,
+.td[data-align='end'] .cellText,
+.td.mono .cellText {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.th[data-align='end'] .cellText,
+.td[data-align='end'] .cellText {
+  margin-left: auto;
+}
+
+.cellStatus {
+  white-space: nowrap;
+}
+
+/* Wrapped headers sit on the rule, level with their one-line neighbours. */
+.th {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .th:first-child,
@@ -128,12 +162,14 @@
   padding-right: 12px;
 }
 
+/* Pulled up a pixel and shadowed upwards: the scaled card otherwise rounds a sliver of rows into view above it. */
 .th {
   position: sticky;
-  top: 0;
-  z-index: 1;
+  top: -1px;
+  z-index: 2;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: #11151c;
+  background: var(--head-bg);
+  box-shadow: 0 -1px 0 var(--head-bg);
   color: rgba(255, 255, 255, 0.5);
   font-size: 11px;
   line-height: 14px;
@@ -144,180 +180,63 @@
   color: rgba(255, 255, 255, 0.86);
 }
 
+/* Physical sides, so right-to-left cells keep their own word order but still line up under their header. */
+.th[data-align='start'],
+.td[data-align='start'] {
+  text-align: left;
+}
+
 .th[data-align='end'],
 .td[data-align='end'] {
   text-align: right;
 }
 
-/* ── KPI grid ── */
-
-.kpiLayout {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  height: 100%;
-  padding-bottom: 12px;
+.td[data-empty] {
+  color: rgba(255, 255, 255, 0.3);
 }
 
-.tiles {
-  display: grid;
-  flex: 1;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  padding: 0 12px;
+/* Wide tables keep their first column in view while the rest scroll under it. */
+.tableScroll[data-wide='true'] .th:first-child,
+.tableScroll[data-wide='true'] .td:first-child {
+  position: sticky;
+  left: 0;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
-.tile {
+.tableScroll[data-wide='true'] .th:first-child {
+  z-index: 3;
+  box-shadow:
+    inset -1px 0 0 rgba(255, 255, 255, 0.08),
+    0 -1px 0 var(--head-bg);
+}
+
+.tableScroll[data-wide='true'] .td:first-child {
+  z-index: 1;
+  background: var(--table-bg);
+}
+
+.cellStatus {
   --tone: rgba(255, 255, 255, 0.7);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  display: inline-block;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, var(--tone) 50%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  color: var(--tone);
+  font-size: 11px;
+  line-height: 14px;
 }
 
-.tile[data-tone='positive'] {
+.cellStatus[data-tone='positive'] {
   --tone: #51c87d;
 }
 
-.tile[data-tone='warning'] {
+.cellStatus[data-tone='warning'] {
   --tone: #f2b84b;
 }
 
-.tile[data-tone='negative'] {
+.cellStatus[data-tone='negative'] {
   --tone: #fd7b76;
-}
-
-.tileLabel {
-  max-width: 100%;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.6);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tileValue {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  font-family: var(--lc-font-mono);
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 28px;
-  letter-spacing: -0.02em;
-}
-
-.tileUnit {
-  color: rgba(255, 255, 255, 0.55);
-  font-family: var(--lc-font-sans, inherit);
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0;
-}
-
-.tileStatus {
-  margin-top: auto;
-  padding: 1px 8px;
-  border: 1px solid color-mix(in srgb, var(--tone) 60%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--tone) 14%, transparent);
-  color: var(--tone);
-  font-size: 11px;
-  line-height: 15px;
-}
-
-/* ── Analytics ── */
-
-.analyticsLayout {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  height: 100%;
-}
-
-.source {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  margin: -6px 0 0;
-  padding: 0 12px;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 11px;
-  white-space: nowrap;
-}
-
-.model {
-  flex: none;
-  padding: 0 6px;
-  border-radius: 4px;
-  background: rgba(132, 177, 245, 0.14);
-  color: #9fc2f7;
-  font-family: var(--lc-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.layer {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  padding: 4px 12px 0;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.statValue {
-  font-family: var(--lc-font-mono);
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 24px;
-  letter-spacing: -0.02em;
-}
-
-.statLabel {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 11px;
-}
-
-.statTrack {
-  height: 3px;
-  margin-top: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.07);
-}
-
-.statFill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #e39b4c, #e2556f);
-}
-
-.summary {
-  display: -webkit-box;
-  margin-top: auto;
-  padding-bottom: 12px;
-  white-space: normal;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 /* ── Map: the assistant's inline map card (InlineVisualCard .mapImageStage) ── */
@@ -385,7 +304,89 @@
   }
 }
 
+/* ── Loading and failed ── */
+
+.skeleton {
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+.skeleton rect {
+  fill: rgba(255, 255, 255, 0.07);
+}
+
+.skeleton .skeletonBlock {
+  fill: rgba(255, 255, 255, 0.11);
+}
+
+.skeleton .skeletonFaint {
+  fill: rgba(255, 255, 255, 0.035);
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.errorBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding-bottom: 8px;
+}
+
+.errorIcon {
+  margin-bottom: 4px;
+  color: #f2b84b;
+}
+
+.errorTitle {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.errorDetail {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11.5px;
+}
+
+.retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.retry:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.retry:focus-visible {
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .visual,
   .visual * {
     animation: none !important;
   }

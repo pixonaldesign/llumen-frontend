@@ -177,8 +177,8 @@
 }
 
 .navItem:focus-visible {
-  outline: 2px solid var(--st-brand);
-  outline-offset: -2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset-inset);
 }
 
 .navItem[aria-current='page'] {
@@ -278,6 +278,14 @@
 .main::-webkit-scrollbar-thumb {
   border-radius: 99px;
   background: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24));
+}
+
+/* Chromium drops ::-webkit-scrollbar sizing when scrollbar-color is set, which brings back the 11 px bar. */
+@supports selector(::-webkit-scrollbar) {
+  .main {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
 }
 
 @keyframes page-in {
@@ -571,8 +579,8 @@
 
 .rowActions .execute:focus-visible,
 .workflowActions .execute:focus-visible {
-  outline: 2px solid var(--st-brand);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .avatar {
@@ -718,8 +726,8 @@
 .iconButton:focus-visible,
 .modalTab:focus-visible,
 .toggle:focus-visible {
-  outline: 2px solid var(--st-brand);
-  outline-offset: 2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .dropdownWrap {
@@ -837,8 +845,8 @@
 }
 
 .dropdownWrap .filterClear:focus-visible {
-  outline: 2px solid var(--st-brand);
-  outline-offset: 1px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
 }
 
 .dropdownWrap ~ .clearFilters {
@@ -1176,6 +1184,18 @@
   border-radius: 16px;
 }
 
+.assetCardPlaceholder {
+  cursor: default;
+  pointer-events: none;
+}
+
+.metaPlaceholder {
+  display: inline-block;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
 .assetImage::after {
   position: absolute;
   inset: 0;
@@ -1237,8 +1257,8 @@
 }
 
 .assetActions .assetAction:focus-visible {
-  outline: 2px solid #70aeff;
-  outline-offset: -2px;
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset-inset);
 }
 
 .assetImage img,
