@@ -92,7 +92,6 @@ const BASE_RADIUS: Record<ContextKind, number> = {
   finding: 6,
   filter: 5,
   context: 6.5,
-  person: 4.5,
 }
 /** World units between background dots; doubles whenever they would crowd closer than MIN_DOT_PX on screen. */
 const DOT_STEP = 24
@@ -194,7 +193,6 @@ function traceShape(ctx: CanvasRenderingContext2D, shape: ContextShape, x: numbe
   ctx.beginPath()
   switch (shape) {
     case 'circle':
-    case 'ring':
       ctx.arc(x, y, r, 0, Math.PI * 2)
       break
     case 'square': {
@@ -229,6 +227,16 @@ function traceShape(ctx: CanvasRenderingContext2D, shape: ContextShape, x: numbe
         return [x + Math.cos(angle) * s, y + Math.sin(angle) * s]
       })
       roundedPolygon(ctx, points, r * 0.3)
+      break
+    }
+    case 'star': {
+      const s = r * 1.5
+      const points = Array.from({ length: 10 }, (_, i): [number, number] => {
+        const angle = (Math.PI / 5) * i - Math.PI / 2
+        const d = i % 2 ? s * 0.5 : s
+        return [x + Math.cos(angle) * d, y + Math.sin(angle) * d + r * 0.1]
+      })
+      roundedPolygon(ctx, points, r * 0.18)
       break
     }
     case 'triangle': {
@@ -1110,18 +1118,12 @@ export class ContextEngine {
         ctx.shadowBlur = 16
       }
       traceShape(ctx, meta.shape, s.x, s.y, r)
-      if (meta.shape === 'ring') {
-        ctx.lineWidth = Math.max(1.2, r * 0.5)
-        ctx.strokeStyle = color
+      ctx.fillStyle = color
+      ctx.fill()
+      if (r > 3) {
+        ctx.lineWidth = 1.5
+        ctx.strokeStyle = 'rgba(6, 8, 13, 0.85)'
         ctx.stroke()
-      } else {
-        ctx.fillStyle = color
-        ctx.fill()
-        if (r > 3) {
-          ctx.lineWidth = 1.5
-          ctx.strokeStyle = 'rgba(6, 8, 13, 0.85)'
-          ctx.stroke()
-        }
       }
       ctx.shadowBlur = 0
       if (isSelected) {
@@ -1214,7 +1216,7 @@ export class ContextEngine {
       ctx.fillText(name, x, mid)
       ctx.font = `500 12px ${this.font}`
       ctx.strokeText(count, x + nameWidth + 6, mid)
-      ctx.fillStyle = `rgba(255, 255, 255, ${0.4 * dim})`
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.62 * dim})`
       ctx.fillText(count, x + nameWidth + 6, mid)
     }
     ctx.textAlign = 'center'

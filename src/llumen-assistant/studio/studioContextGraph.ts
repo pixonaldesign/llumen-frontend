@@ -1,11 +1,11 @@
 import type { StudioPage } from './studioData'
 import AIMSUN from './studioContextAimsun.json'
 
-export type ContextKind = 'source' | 'asset' | 'app' | 'flow' | 'finding' | 'filter' | 'context' | 'person'
-export type ContextShape = 'circle' | 'square' | 'diamond' | 'hexagon' | 'triangle' | 'ring' | 'page'
+export type ContextKind = 'source' | 'asset' | 'app' | 'flow' | 'finding' | 'filter' | 'context'
+export type ContextShape = 'circle' | 'square' | 'diamond' | 'hexagon' | 'triangle' | 'star' | 'page'
 
 /** Every relation runs upstream to downstream: data flows from `from` into `to`. */
-export type ContextRelation = 'reads' | 'embeds' | 'produces' | 'summarizes' | 'cites' | 'filters' | 'informs' | 'owns'
+export type ContextRelation = 'reads' | 'embeds' | 'produces' | 'summarizes' | 'cites' | 'filters' | 'informs'
 
 export type ContextNode = {
   id: string
@@ -52,10 +52,9 @@ export const KIND_META: Record<ContextKind, { label: string; plural: string; col
   asset: { label: 'Asset', plural: 'Assets', color: LLUMEN_DEFAULT[0], shape: 'circle' },
   app: { label: 'App', plural: 'Apps', color: LLUMEN_DEFAULT[1], shape: 'diamond' },
   flow: { label: 'Flow', plural: 'Flows', color: LLUMEN_DEFAULT[5], shape: 'hexagon' },
-  finding: { label: 'Finding', plural: 'Findings', color: LLUMEN_DEFAULT[4], shape: 'triangle' },
-  filter: { label: 'Filter', plural: 'Filters', color: LLUMEN_DEFAULT[3], shape: 'ring' },
-  context: { label: 'AI context', plural: 'AI context', color: LLUMEN_DEFAULT[9], shape: 'page' },
-  person: { label: 'Person', plural: 'People', color: LLUMEN_DEFAULT[6], shape: 'circle' },
+  finding: { label: 'Finding', plural: 'Findings', color: LLUMEN_DEFAULT[4], shape: 'page' },
+  filter: { label: 'Filter', plural: 'Filters', color: LLUMEN_DEFAULT[3], shape: 'triangle' },
+  context: { label: 'AI context', plural: 'AI context', color: LLUMEN_DEFAULT[9], shape: 'star' },
 }
 
 export const CONTEXT_KINDS = Object.keys(KIND_META) as ContextKind[]
@@ -69,7 +68,6 @@ export const RELATION_LABEL: Record<ContextRelation, { out: string; in: string }
   cites: { out: 'Cited in', in: 'Cites' },
   filters: { out: 'Filters', in: 'Filtered by' },
   informs: { out: 'Informs', in: 'Informed by' },
-  owns: { out: 'Created', in: 'Created by' },
 }
 
 export type ContextGraph = { workspace: string; capturedAt: string; nodes: ContextNode[]; edges: ContextEdge[]; skipped: number }
@@ -347,18 +345,6 @@ export function buildContextGraph(snapshot: StagingSnapshot = AIMSUN as StagingS
     }
   }
 
-  const members = new Map(snapshot.members.map((member) => [member.id, member]))
-  const creators: [string | null | undefined, string][] = [
-    ...[...assets.values()].map((asset) => [asset.created_by, asset.id] as [string | null | undefined, string]),
-    ...snapshot.apps.map((app) => [app.author, app.id] as [string | null | undefined, string]),
-  ]
-  for (const [user, item] of creators) {
-    const member = user ? members.get(user) : undefined
-    if (!member || !nodes.has(item)) continue
-    add({ id: `person-${member.id}`, kind: 'person', title: member.name, detail: member.role ?? 'Member', page: 'members' })
-    link(`person-${member.id}`, item, 'owns')
-  }
-
   const kept = [...edges.values()].filter((edge) => nodes.has(edge.from) && nodes.has(edge.to))
   const used = new Set(kept.flatMap((edge) => [edge.from, edge.to]))
   const linked = [...nodes.values()].filter((node) => used.has(node.id))
@@ -367,7 +353,6 @@ export function buildContextGraph(snapshot: StagingSnapshot = AIMSUN as StagingS
   return { workspace: snapshot.workspace.name, capturedAt: formatDate(snapshot.captured_at) ?? '', nodes: linked, edges: kept, skipped }
 }
 
-const PEOPLE_TOPIC = 'People'
 const CONTEXT_TOPIC = 'AI context'
 
 /** Apps head their own topic and each asset joins the app it sits on most; the rest follow their neighbours. */
@@ -375,7 +360,6 @@ function assignTopics(nodes: ContextNode[], edges: ContextEdge[]) {
   const byId = new Map(nodes.map((node) => [node.id, node]))
   for (const node of nodes) {
     if (node.kind === 'app') node.topic = node.title
-    else if (node.kind === 'person') node.topic = PEOPLE_TOPIC
     else if (node.kind === 'context') node.topic = CONTEXT_TOPIC
   }
   for (const node of nodes) {
@@ -392,7 +376,7 @@ function assignTopics(nodes: ContextNode[], edges: ContextEdge[]) {
       for (const edge of edges) {
         const other = edge.from === node.id ? edge.to : edge.to === node.id ? edge.from : null
         const topic = other ? byId.get(other)?.topic : undefined
-        if (topic && topic !== PEOPLE_TOPIC && topic !== CONTEXT_TOPIC) votes.set(topic, (votes.get(topic) ?? 0) + 1)
+        if (topic && topic !== CONTEXT_TOPIC) votes.set(topic, (votes.get(topic) ?? 0) + 1)
       }
       const best = [...votes].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]
       if (best) node.topic = best[0]

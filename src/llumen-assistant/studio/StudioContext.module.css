@@ -241,6 +241,12 @@
   line-height: 18px;
 }
 
+/* The kind mark sits at the far end so the title and the meta line share one left edge. */
+.tooltipTitle > :last-child {
+  flex: none;
+  margin-inline-start: auto;
+}
+
 .tooltipMeta {
   color: var(--st-text-muted);
   font-size: 12px;
@@ -352,22 +358,23 @@
 .facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-xl) var(--space-lg);
   margin: 0;
 }
 
 .facts dt {
   color: var(--st-text-muted);
   font-size: 12px;
+  line-height: 16px;
 }
 
 .facts dd {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 24px;
-  margin: 2px 0 0;
+  gap: var(--space-sm);
+  margin: var(--space-xxs) 0 0;
   font-size: 13px;
+  line-height: 20px;
 }
 
 .relation {
@@ -434,7 +441,10 @@
 }
 
 .relationKind {
+  display: inline-flex;
   flex: none;
+  align-items: center;
+  gap: 8px;
   color: var(--st-text-muted);
   font-size: 12px;
 }

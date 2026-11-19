@@ -7,7 +7,27 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { ArrowCounterClockwise, ArrowSquareOut, ArrowsInSimple, ArrowsOutSimple, Crosshair, CornersOut, Minus, Plus, X } from '@phosphor-icons/react'
+import {
+  AppWindow,
+  ArrowCounterClockwise,
+  ArrowSquareOut,
+  ArrowsInSimple,
+  ArrowsOutSimple,
+  Article,
+  Crosshair,
+  CornersOut,
+  Database,
+  FlowArrow,
+  Funnel,
+  Lightbulb,
+  Minus,
+  Plus,
+  Quotes,
+  Sparkle,
+  SquaresFour,
+  X,
+  type Icon,
+} from '@phosphor-icons/react'
 import type { StudioPage } from './studioData'
 import {
   CONTEXT_KINDS,
@@ -18,6 +38,7 @@ import {
   type ContextGroupBy,
   type ContextKind,
   type ContextNode,
+  type ContextRelation,
 } from './studioContextGraph'
 import { ContextEngine, type Hit, type View } from './studioContextEngine'
 import { PageHead } from './studioPages'
@@ -33,6 +54,17 @@ const PAGE_NAME: Partial<Record<StudioPage, string>> = {
   workflows: 'Flows',
   filters: 'Filters',
   members: 'Members',
+}
+
+/** The inspector's section marks, read from the selected node's side like RELATION_LABEL. */
+const RELATION_ICON: Record<ContextRelation, { out: Icon; in: Icon }> = {
+  reads: { out: FlowArrow, in: Database },
+  embeds: { out: AppWindow, in: SquaresFour },
+  produces: { out: Sparkle, in: Sparkle },
+  summarizes: { out: Article, in: Article },
+  cites: { out: Quotes, in: Quotes },
+  filters: { out: Funnel, in: Funnel },
+  informs: { out: Lightbulb, in: Lightbulb },
 }
 
 const GROUP_OPTIONS = ['Kind', 'App'] as const
@@ -53,7 +85,7 @@ export function ContextGraphView({ onOpen }: { onOpen: (page: StudioPage) => voi
   const graph = useMemo(() => buildContextGraph(), [])
   const [engine] = useState(() => new ContextEngine())
   const [groupBy, setGroupBy] = useState<ContextGroupBy>('kind')
-  const [hidden, setHidden] = useState<Set<ContextKind>>(() => new Set(['person']))
+  const [hidden, setHidden] = useState<Set<ContextKind>>(() => new Set())
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
   const [hover, setHover] = useState<Hit | null>(null)
@@ -260,7 +292,7 @@ export function ContextGraphView({ onOpen }: { onOpen: (page: StudioPage) => voi
       }
       return
     }
-    if (!drag.hit || drag.hit.type === 'halo') setSelected(null)
+    if (!drag.hit || drag.hit.type === 'halo') closeDetails()
     else if (drag.hit.type === 'node') {
       engine.setInsetRight(INSPECTOR_SPACE)
       engine.frameNode(drag.hit.id)
@@ -306,7 +338,20 @@ export function ContextGraphView({ onOpen }: { onOpen: (page: StudioPage) => voi
   const point = useCallback((id: string | null) => engine.setPointed(id), [engine])
   const colorOf = (node: ContextNode) => groupColor(engine, node)
 
+  /** Closing the details returns the whole graph to rest, including the search that led to the node. */
+  const closeDetails = () => {
+    if (!selected) return
+    setSelected(null)
+    setHovered(null)
+    engine.setPointed(null)
+    setQuery('')
+  }
+
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' && selected) {
+      closeDetails()
+      return
+    }
     if ((event.target as HTMLElement).closest('input, [data-chrome]')) return
     switch (event.key) {
       case '=':
@@ -318,9 +363,6 @@ export function ContextGraphView({ onOpen }: { onOpen: (page: StudioPage) => voi
         break
       case '0':
         engine.fit()
-        break
-      case 'Escape':
-        setSelected(null)
         break
     }
   }
@@ -343,6 +385,10 @@ export function ContextGraphView({ onOpen }: { onOpen: (page: StudioPage) => voi
         onKeyDown={(event) => {
           if (!(event.target as HTMLElement).matches('input')) return
           if (event.key === 'Enter' && matches[0]) focusNode(matches[0].id)
+          if (event.key === 'Escape' && selected) {
+            event.preventDefault()
+            closeDetails()
+          }
         }}
       >
         <PageHead
@@ -416,8 +462,8 @@ export function ContextGraphView({ onOpen }: { onOpen: (page: StudioPage) => voi
           {hoverNode ? (
             <>
               <span className={c.tooltipTitle}>
-                <KindGlyph kind={hoverNode.kind} color={groupColor(engine, hoverNode)} />
                 {hoverNode.title}
+                <KindGlyph kind={hoverNode.kind} color={groupColor(engine, hoverNode)} />
               </span>
               <span className={c.tooltipMeta}>
                 {KIND_META[hoverNode.kind].label} · {hoverNode.detail} · {connectionCount(graph, hoverNode.id)} connections
@@ -426,8 +472,8 @@ export function ContextGraphView({ onOpen }: { onOpen: (page: StudioPage) => voi
           ) : hoverGroup ? (
             <>
               <span className={c.tooltipTitle}>
-                <span className={c.dot} style={{ background: hoverGroup.color }} aria-hidden />
                 {hoverGroup.label}
+                <span className={c.dot} style={{ background: hoverGroup.color }} aria-hidden />
               </span>
               <span className={c.tooltipMeta}>
                 {hoverGroup.members.length} items · {hoverGroupOpen ? 'Click to close' : 'Click to open'}
@@ -463,7 +509,7 @@ export function ContextGraphView({ onOpen }: { onOpen: (page: StudioPage) => voi
             graph={graph}
             byId={byId}
             colorOf={colorOf}
-            onClose={() => setSelected(null)}
+            onClose={closeDetails}
             onFocus={focusNode}
             onPoint={point}
             onOpen={selectedNode.page ? () => onOpen(selectedNode.page!) : undefined}
@@ -488,8 +534,10 @@ export function KindGlyph({ kind, color, size = 12 }: { kind: ContextKind; color
   const rounded = { fill: color, stroke: color, strokeWidth: 1.6, strokeLinejoin: 'round' as const }
   return (
     <svg className={c.glyph} width={size} height={size} viewBox="0 0 12 12" aria-hidden>
-      {shape === 'circle' ? <circle cx="6" cy="6" r={kind === 'person' ? 3.5 : 4.5} fill={color} /> : null}
-      {shape === 'ring' ? <circle cx="6" cy="6" r="3.8" fill="none" stroke={color} strokeWidth="2" /> : null}
+      {shape === 'circle' ? <circle cx="6" cy="6" r="4.5" fill={color} /> : null}
+      {shape === 'star' ? (
+        <path d="M6 1.5 7.3 4.6 10.6 4.9 8.1 7.1 8.9 10.4 6 8.6 3.1 10.4 3.9 7.1 1.4 4.9 4.7 4.6Z" {...rounded} strokeWidth={1.2} />
+      ) : null}
       {shape === 'square' ? <rect x="1.8" y="1.8" width="8.4" height="8.4" rx="2.6" fill={color} /> : null}
       {shape === 'page' ? <rect x="2.4" y="1.2" width="7.2" height="9.6" rx="2.2" fill={color} /> : null}
       {shape === 'diamond' ? <path d="M6 1.6 10.4 6 6 10.4 1.6 6Z" {...rounded} /> : null}
@@ -521,26 +569,21 @@ function ContextInspector({
   onOpen?: () => void
 }) {
   const sections = useMemo(() => {
-    const map = new Map<string, Linked[]>()
+    const map = new Map<string, { icon: Icon; items: Linked[] }>()
     for (const edge of graph.edges) {
-      let label: string | null = null
-      let other: string | null = null
-      if (edge.from === node.id) {
-        label = RELATION_LABEL[edge.relation].out
-        other = edge.to
-      } else if (edge.to === node.id) {
-        label = RELATION_LABEL[edge.relation].in
-        other = edge.from
-      }
-      const target = other ? byId.get(other) : undefined
-      if (!label || !target) continue
-      map.set(label, [...(map.get(label) ?? []), { node: target, via: edge.via }])
+      const side = edge.from === node.id ? 'out' : edge.to === node.id ? 'in' : null
+      const target = side ? byId.get(side === 'out' ? edge.to : edge.from) : undefined
+      if (!side || !target) continue
+      const label = RELATION_LABEL[edge.relation][side]
+      const section = map.get(label) ?? { icon: RELATION_ICON[edge.relation][side], items: [] }
+      section.items.push({ node: target, via: edge.via })
+      map.set(label, section)
     }
     // Most recently updated first, matching the order the canvas highlights them in.
-    for (const items of map.values()) items.sort((a, b) => (b.node.updatedAt ?? 0) - (a.node.updatedAt ?? 0))
+    for (const { items } of map.values()) items.sort((a, b) => (b.node.updatedAt ?? 0) - (a.node.updatedAt ?? 0))
     return [...map]
   }, [graph, byId, node.id])
-  const total = sections.reduce((sum, [, items]) => sum + items.length, 0)
+  const total = sections.reduce((sum, [, { items }]) => sum + items.length, 0)
   const pageName = node.page ? PAGE_NAME[node.page] : undefined
   const membership =
     node.kind === 'asset' || node.kind === 'source' ? (node.external ? 'Used here, owned elsewhere' : 'This workspace') : null
@@ -601,9 +644,10 @@ function ContextInspector({
             </div>
           </dl>
         </div>
-        {sections.map(([label, items]) => (
+        {sections.map(([label, { icon: SectionIcon, items }]) => (
           <section key={label} className={c.relation}>
             <span className={c.relationLabel}>
+              <SectionIcon size={14} weight="bold" aria-hidden />
               {label}
               <span className={c.relationCount}>{items.length}</span>
             </span>
@@ -619,12 +663,14 @@ function ContextInspector({
                 onBlur={() => onPoint(null)}
                 onClick={() => onFocus(item.id)}
               >
-                <KindGlyph kind={item.kind} color={colorOf(item)} />
                 <span className={c.relationText}>
                   <span className={c.relationName}>{item.title}</span>
                   {via?.length ? <span className={c.relationVia}>{via.join(' · ')}</span> : null}
                 </span>
-                <span className={c.relationKind}>{KIND_META[item.kind].label}</span>
+                <span className={c.relationKind}>
+                  {KIND_META[item.kind].label}
+                  <KindGlyph kind={item.kind} color={colorOf(item)} />
+                </span>
                 <Crosshair className={c.relationGo} size={14} aria-hidden />
               </button>
             ))}
