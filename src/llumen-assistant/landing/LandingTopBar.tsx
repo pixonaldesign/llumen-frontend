@@ -100,6 +100,12 @@ export type LandingTopBarProps = {
   /** Selected toggle option. Omit to keep the selection inside the studio bar. */
   view?: TopBarView
   onViewChange?: (view: TopBarView) => void
+  /** Studio bar with workspaceInLogo: a client's logo after the Llumen mark, past a thin rule. */
+  partnerLogo?: { src: string; alt: string }
+  /** Studio bar: only the logo, centred, without the view toggle, Create, Search, Notifications or Account. */
+  logoOnly?: boolean
+  /** With logoOnly: the logo is a button, as to return to the introduction. */
+  onLogoClick?: () => void
 }
 
 export function LandingTopBar({
@@ -114,6 +120,9 @@ export function LandingTopBar({
   myAssetsTab = false,
   view,
   onViewChange,
+  partnerLogo,
+  logoOnly = false,
+  onLogoClick,
 }: LandingTopBarProps) {
   if (variant === 'studio') {
     return (
@@ -128,6 +137,9 @@ export function LandingTopBar({
         myAssetsTab={myAssetsTab}
         view={view}
         onViewChange={onViewChange}
+        partnerLogo={partnerLogo}
+        logoOnly={logoOnly}
+        onLogoClick={onLogoClick}
       />
     )
   }
@@ -245,6 +257,9 @@ function StudioBar({
   myAssetsTab,
   view,
   onViewChange,
+  partnerLogo,
+  logoOnly,
+  onLogoClick,
 }: {
   workspace?: string
   workspaces?: readonly WorkspaceOption[]
@@ -256,6 +271,9 @@ function StudioBar({
   myAssetsTab: boolean
   view?: TopBarView
   onViewChange?: (view: TopBarView) => void
+  partnerLogo?: { src: string; alt: string }
+  logoOnly: boolean
+  onLogoClick?: () => void
 }) {
   const workspaceOptions = workspaces ?? STUDIO_WORKSPACES
   const categoryOptions = categories ?? STUDIO_CATEGORIES
@@ -398,15 +416,47 @@ function StudioBar({
     </div>
   )
 
+  const lead = (
+    <div className={`${styles.lead}${logoOnly ? ` ${styles.leadCentred}` : ''}`}>
+      <a className={styles.logo} href="#top" aria-label="Llumen home">
+        <img className={home.logoMark} src={a.logoMark} alt="" />
+      </a>
+      {partnerLogo ? (
+        <>
+          <span className={styles.logoRule} aria-hidden />
+          <img className={styles.partnerLogo} src={partnerLogo.src} alt={partnerLogo.alt} />
+        </>
+      ) : null}
+      {showWorkspace && !logoOnly ? workspaceSelector : null}
+    </div>
+  )
+
+  if (logoOnly && onLogoClick) {
+    return (
+      <div className={styles.row}>
+        <button
+          type="button"
+          className={`${styles.lead} ${styles.leadCentred} ${styles.leadButton}`}
+          aria-label="Back to the introduction"
+          onClick={onLogoClick}
+        >
+          <img className={home.logoMark} src={a.logoMark} alt="" />
+          {partnerLogo ? (
+            <>
+              <span className={styles.logoRule} aria-hidden />
+              <img className={styles.partnerLogo} src={partnerLogo.src} alt="" />
+            </>
+          ) : null}
+        </button>
+      </div>
+    )
+  }
+  if (logoOnly) return <div className={styles.row}>{lead}</div>
+
   return (
     <div className={styles.row}>
       {workspaceInLogo ? (
-        <div className={styles.lead}>
-          <a className={styles.logo} href="#top" aria-label="Llumen home">
-            <img className={home.logoMark} src={a.logoMark} alt="" />
-          </a>
-          {showWorkspace ? workspaceSelector : null}
-        </div>
+        lead
       ) : (
         <a className={styles.logo} href="#top" aria-label="Llumen home">
           <img className={home.logoMark} src={a.logoMark} alt="" />

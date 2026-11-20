@@ -43,7 +43,7 @@ export function defaultSummaryConfig(slideId: string): SummaryConfig {
   return {
     scope: 'slide',
     slideId,
-    accent: '#ffffff',
+    accent: '#70aeff',
     gradient: ['#70aeff', '#4fc3e8', '#ffffff', '#9ca3af'],
     prompt: '',
     autoRegenerate: false,

@@ -1,0 +1,600 @@
+/*
+ * A tower's details: the story edit panel's right-hand sheet (`StoryEditPanel.module.css` `.panel`),
+ * widened for a side rail and tabbed charts. Both columns scroll full-bleed, so their thumbs sit on the
+ * column's edge; the content inside is inset instead.
+ */
+/*
+ * Hugs its content between the sheet's top and bottom insets, centred between them; taller content scrolls.
+ * The story's dive sets the width (`EstateStory.module.css` `--estate-panel-w`), with the cards out of the way.
+ */
+.panel {
+  z-index: 30;
+  width: var(--estate-panel-w, min(880px, max(560px, calc(100% - 444px))));
+  height: fit-content;
+  max-height: calc(100% - 2 * var(--space-2xl));
+  margin-block: auto;
+  animation: panelIn 1100ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+/* Slower than the edit sheets' slide, so it lands with the camera's dive rather than ahead of it. */
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateX(calc(100% + 40px));
+  }
+
+  40% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.header {
+  align-items: center;
+}
+
+.towerDot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--tower);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tower) 22%, transparent);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-left: var(--space-md);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--lc-border-default);
+  border-radius: 40px;
+  background: var(--lc-bg-control);
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
+  font-weight: var(--lc-weight-medium);
+  white-space: nowrap;
+}
+
+.tagId {
+  border-color: color-mix(in srgb, var(--tower) 48%, transparent);
+  background: color-mix(in srgb, var(--tower) 22%, transparent);
+  color: var(--lc-text-primary);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+.close {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+}
+
+.close:hover {
+  background: var(--lc-bg-default-hover);
+  color: var(--lc-text-primary);
+}
+
+.body {
+  display: grid;
+  flex: 0 1 auto;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.rail,
+.scroll {
+  min-height: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-y: overlay;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-scrollbar-thumb, rgba(255, 255, 255, 0.24)) transparent;
+}
+
+@supports selector(::-webkit-scrollbar) {
+  .rail,
+  .scroll {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
+.rail::-webkit-scrollbar,
+.scroll::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.rail::-webkit-scrollbar-track,
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rail::-webkit-scrollbar-thumb,
+.scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.rail {
+  border-right: 1px solid var(--lc-border-default);
+}
+
+.railSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-xl) var(--space-2xl);
+  border-bottom: 1px solid var(--lc-border-default);
+}
+
+.railSection:last-child {
+  border-bottom: none;
+}
+
+.railLabel {
+  margin: 0;
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
+}
+
+.railNote {
+  margin: 0;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-small);
+  text-align: center;
+}
+
+.railSpark {
+  height: 48px;
+  margin-top: calc(var(--space-xs) * -1);
+}
+
+.sparkSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.railYears {
+  display: flex;
+  justify-content: space-between;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-micro);
+}
+
+.railCenter {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-xs) 0;
+}
+
+.donut,
+.ring {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ring {
+  width: 132px;
+  height: 132px;
+}
+
+.donut svg,
+.ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ringFill {
+  animation: ringSweep 1300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Each slice sweeps on from where the last ends (its delay and duration are its share of the ring). */
+.donutSlice {
+  cursor: default;
+  animation: sweep linear both;
+  transition: opacity 160ms ease;
+}
+
+@keyframes sweep {
+  from {
+    stroke-dasharray: 0 var(--c);
+  }
+}
+
+/* The ring's round cap would show as a dot before it fills. */
+@keyframes ringSweep {
+  from {
+    stroke-dasharray: 0 var(--c);
+    opacity: 0;
+  }
+
+  6% {
+    opacity: 1;
+  }
+}
+
+/* Lines and their fills draw on from the left. */
+.railSpark svg,
+.series svg {
+  animation: drawIn 1400ms cubic-bezier(0.65, 0, 0.35, 1) var(--fill-delay, 0ms) both;
+}
+
+@keyframes drawIn {
+  from {
+    clip-path: inset(-8px 100% -8px 0);
+  }
+
+  to {
+    clip-path: inset(-8px 0 -8px 0);
+  }
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.donutCenter strong {
+  color: var(--lc-text-primary);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.donutName {
+  max-width: 80%;
+  overflow: hidden;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-micro);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.donutShare {
+  color: var(--lc-text-secondary);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.ringWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.reports {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* A report to download: drawn as the story's controls are, the download icon in its own round well. */
+.report {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  height: 36px;
+  margin: 0;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--lc-border-control);
+  border-radius: 40px;
+  background: var(--lc-bg-control);
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.report > span:first-of-type {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report:hover {
+  background: var(--lc-bg-default);
+  color: var(--lc-text-primary);
+}
+
+.report:focus-visible {
+  outline: 2px solid var(--lc-border-control-focus);
+  outline-offset: 2px;
+}
+
+.reportIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--lc-bg-default);
+  color: var(--lc-text-primary);
+}
+
+.reportIcon[data-done] {
+  background: color-mix(in srgb, var(--tower) 28%, transparent);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tabs {
+  gap: var(--space-2xl);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.scroll {
+  flex: 1;
+  animation: tabIn 220ms var(--lc-ease, ease) both;
+}
+
+@keyframes tabIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-xl);
+  padding: var(--space-xl) var(--space-2xl);
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.kpi strong {
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.kpi span {
+  font-size: 13px;
+}
+
+/* A band across the column that heads the charts under it, like the panel's own header. */
+.sectionBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 10px var(--space-2xl);
+  border-top: 1px solid var(--lc-border-default);
+  border-bottom: 1px solid var(--lc-border-default);
+  background: var(--lc-bg-subtle);
+  color: var(--lc-text-primary);
+  font: var(--lc-font-small);
+  font-weight: var(--lc-weight-medium);
+}
+
+.sectionBar svg {
+  color: var(--lc-text-secondary);
+}
+
+.breakdown {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3xl);
+  padding: var(--space-xl) var(--space-2xl);
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 64px;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 8px 0;
+  transition: opacity 160ms ease;
+}
+
+.tableRow + .tableRow {
+  border-top: 1px solid var(--lc-border-default);
+}
+
+.tableRow[data-dim] {
+  opacity: 0.4;
+}
+
+.tableName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  color: var(--lc-text-primary);
+  font: var(--lc-font-body);
+}
+
+.tableName i {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.tableCount,
+.tableShare {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 18px;
+  text-align: right;
+}
+
+.tableCount {
+  color: var(--lc-text-primary);
+}
+
+.tableShare {
+  padding-left: var(--space-md);
+  border-left: 1px solid var(--lc-border-default);
+  color: var(--lc-text-tertiary);
+}
+
+.demographics {
+  display: flex;
+  gap: 0;
+  padding: var(--space-xl) var(--space-2xl);
+}
+
+.group {
+  display: flex;
+  flex-basis: 0;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: 0 var(--space-xl);
+}
+
+.group:first-child {
+  padding-left: 0;
+}
+
+.group:last-child {
+  padding-right: 0;
+}
+
+.group + .group {
+  border-left: 1px solid var(--lc-border-default);
+}
+
+.groupTitle {
+  margin: 0;
+  color: var(--lc-text-secondary);
+  font: var(--lc-font-small);
+  text-align: center;
+}
+
+.bars {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+  height: 168px;
+}
+
+.bar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 44px;
+}
+
+.barValue {
+  color: var(--lc-text-primary);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.barTrack {
+  position: relative;
+  display: block;
+  flex: 1;
+  width: 100%;
+  max-width: 24px;
+  min-height: 0;
+}
+
+.barFill {
+  position: absolute;
+  inset: auto 0 0;
+  border-radius: 999px;
+  animation: barIn 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center bottom;
+}
+
+@keyframes barIn {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.barLabel {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--lc-text-tertiary);
+  font: var(--lc-font-micro);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The time series takes a card's chart layout, at a taller height. */
+.series {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 232px;
+  padding: var(--space-xl) var(--space-2xl) var(--space-3xl);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .scroll,
+  .barFill,
+  .ringFill,
+  .donutSlice,
+  .railSpark svg,
+  .series svg {
+    animation: none;
+  }
+}

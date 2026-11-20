@@ -21,10 +21,10 @@ import {
   ArrowsOutSimple,
   CalendarBlank,
   CaretDown,
-  ChatText,
   Check,
   MapPin,
   Plus,
+  Sparkle,
   ThumbsDown,
   ThumbsUp,
   X,
@@ -38,10 +38,14 @@ import { BriefingAssetBoard } from './BriefingAssetBoard'
 import { AssetCard, BriefingAssetGrid } from './BriefingAssets'
 import { BOARD_ASSETS, DEFAULT_BOARD_ORDER } from './briefingAssetData'
 import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
+import { BriefingIntro } from './BriefingIntro'
 import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
-import { BRIEFING_PLACES } from './briefingMapPlaces'
+import { BriefingTour, type TourStep } from './BriefingTour'
+import { BRIEFING_PLACES, type BriefingPlace } from './briefingMapPlaces'
+import { landingAssets } from './landingAssets'
 import { STORY_CAMERA_PADDING } from '../story/StoryMap'
-import { storySceneAt } from '../story/storyDemoScenes'
+import { ESTATE_STORIES } from '../realEstate/estateScenario'
+import { EMPTY_SCENE } from '../realEstate/estateMapLayers'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
 import { VoteButton } from './VoteButton'
@@ -67,45 +71,41 @@ type SummaryPart = { text: string; highlight?: boolean }
 
 /** What is happening now, in two lines at most. */
 const ASSETS_STATEMENT: SummaryPart[] = [
-  { text: 'Coastal air quality crossed the sensitive\u2011groups line overnight, ' },
-  { text: 'up 18% to 142', highlight: true },
-  { text: '.' },
+  { text: 'Odor complaints around Al Barsha’s parks rose ' },
+  { text: '14% in 7 days', highlight: true },
+  { text: ', and JVC, Arjan and Motor City are outgrowing their facilities and infrastructure.' },
 ]
 
 /** What the assets below say about it. */
 const ASSETS_DETAIL: SummaryPart[] = [
-  { text: 'AQI has stayed above the line since 09:00. Heat-related clinic visits reached ' },
-  { text: '1,284 this week', highlight: true },
-  { text: ', 22% higher and peaking at 244 on Sunday, while bus delays sit on ' },
-  { text: 'Routes 54 and 65', highlight: true },
+  { text: 'Dubai residents filed ' },
+  { text: '1,284 municipal reports today', highlight: true },
+  { text: ', 14% above average, and odor is the largest share at 24%. Al Barsha logged ' },
+  { text: '20 odor complaints this week', highlight: true },
   {
-    text: ' at 18 and 14 minutes late. Non-compliant facilities run 14% over their permit limits, Al Mussafah is now 31% industrial and adults make up 68% of residents. Network pressure in Al Ain holds at ',
+    text: ' as hydrogen sulphide at tank T-3 climbed to 420 µg/L. In the growth areas, JVC already runs its sewerage at ',
   },
-  { text: '62% of target', highlight: true },
-  { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
+  { text: '94% of capacity', highlight: true },
+  { text: ', and JVC, Arjan and Motor City are 32 public sports courts short.' },
 ]
 
 /** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
 const ASSETS_INSIGHTS: SummaryPart[][] = [
   [
-    { text: 'Heat-related clinic visits reached ' },
-    { text: '1,284 this week', highlight: true },
-    { text: ', 22% higher and peaking at 244 on Sunday.' },
+    { text: 'Dubai residents filed ' },
+    { text: '1,284 municipal reports today', highlight: true },
+    { text: ', 14% above average; odor is the largest share.' },
   ],
   [
-    { text: 'Bus delays sit on ' },
-    { text: 'Routes 54 and 65', highlight: true },
-    { text: ' at 18 and 14 minutes late.' },
+    { text: 'Al Barsha logged ' },
+    { text: '20 odor complaints this week', highlight: true },
+    { text: ', 118 in 90 days.' },
   ],
+  [{ text: 'Hydrogen sulphide at the T-3 tank outlet has nearly quadrupled since May, to 420 µg/L.' }],
   [
-    {
-      text: 'Non-compliant facilities run 14% over their permit limits, and Al Mussafah is now 31% industrial.',
-    },
-  ],
-  [
-    { text: 'Network pressure in Al Ain holds at ' },
-    { text: '62% of target', highlight: true },
-    { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
+    { text: 'JVC runs its sewerage at ' },
+    { text: '94% of capacity', highlight: true },
+    { text: ', and with Arjan and Motor City is 32 public sports courts short.' },
   ],
 ]
 
@@ -128,9 +128,70 @@ const ASSETS_SPLIT_MS = 1700
 const ASSETS_OPEN_PX = 8
 
 /** Findings style 6's slide between the findings and Assets and Apps; keep in step with --side-slide. */
+/** An element's top in the page from layout alone, so a finding still sliding in reads where it settles. */
+function layoutTop(el: HTMLElement) {
+  let top = 0
+  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) top += node.offsetTop
+  return top
+}
+
 /** A story opens on its first scene, framed clear of its insight column. */
-const STORY_OPENING_PLACE = BRIEFING_PLACES['abu-dhabi']
-const STORY_ENTER: BriefingMapEnter = { camera: storySceneAt(0).camera, padding: STORY_CAMERA_PADDING }
+const STORY_OPENINGS: Record<string, { place: BriefingPlace; enter: BriefingMapEnter }> = Object.fromEntries(
+  Object.values(ESTATE_STORIES).map((story) => [
+    story.id,
+    {
+      place: { ...BRIEFING_PLACES[story.place], scene: story.pages[0].scene },
+      enter: { camera: story.pages[0].camera, padding: STORY_CAMERA_PADDING },
+    },
+  ]),
+)
+const DM_LOGO = { src: landingAssets.dmLogo, alt: 'Dubai Municipality' }
+
+/** The introduction's map: Dubai from the Palm to Downtown, no scene on it. */
+const INTRO_PLACE: BriefingPlace = {
+  ...BRIEFING_PLACES.barsha,
+  camera: { center: [55.235, 25.14], zoom: 10.5, pitch: 48, bearing: -18 },
+  scene: EMPTY_SCENE,
+}
+/** The modal waits for the map's first frames on load, and for it to start zooming out on the way back. */
+const INTRO_FIRST_DELAY_MS = 350
+const INTRO_RETURN_DELAY_MS = 900
+/**
+ * Entering the platform: the modal dissolves as the map flies into the first finding, which fades in as
+ * the flight lands (1500ms in, BriefingLanding.module.css), then My Board slides in from the right (2100ms).
+ * The tour starts once both have settled.
+ */
+const INTRO_ENTER_MS = 3400
+/** Past the introduction once this load: a page remounted on the way back from a story skips it. */
+const introSeen = { current: false }
+
+const TOUR_STEPS: readonly TourStep[] = [
+  {
+    target: '[data-tour="view"]',
+    title: 'View the full story',
+    body: 'Open the story behind a finding: the map, the evidence and how the problem developed, step by step.',
+    side: 'bottom',
+  },
+  {
+    target: '[data-tour="simulate"]',
+    title: 'Simulate recommended actions',
+    body: 'Try the actions DM Mind recommends and see their effect on the map before committing crews or budget.',
+    side: 'bottom',
+  },
+  {
+    target: '[data-tour="vote"]',
+    title: 'Like or dislike a finding',
+    body: 'Like a finding and DM Mind brings up more stories like it in your briefings. Dislike it and you will see fewer like it.',
+    side: 'bottom',
+  },
+  {
+    target: '[data-tour="board"]',
+    title: 'My Board',
+    body: 'Your live KPIs and charts across Dubai. Open it to arrange, add and explore the numbers that matter to you.',
+    side: 'left',
+  },
+]
+const FIRST_STORY = FEED_STOPS.find((stop) => stop.storyId)?.storyId ?? Object.keys(ESTATE_STORIES)[0]
 /** BriefingMap's flight (2200ms) plus slack. */
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
@@ -283,9 +344,20 @@ export function BriefingLanding({
     onViewChange?.(next)
   }
   const [active, setActive] = useState(0)
+  /** The introduction over the zoomed-out map; `entering` while it hands over to the findings. */
+  const [intro, setIntro] = useState<'shown' | 'entering' | null>(() =>
+    introSeen.current || storyReturn || storyRelease ? null : 'shown',
+  )
+  /** Remounts the introduction each time the logo brings it back, so it opens on its first view. */
+  const [introEpoch, setIntroEpoch] = useState(0)
+  const [touring, setTouring] = useState(false)
+  const introTimerRef = useRef(0)
   /** The story whose opening view the map is flying to; the page's chrome steps aside meanwhile. */
   const [storyFlight, setStoryFlight] = useState<string | null>(null)
   if (storyRelease && storyFlight) setStoryFlight(null)
+  /** The story last opened: the map holds its opening view while the page comes back from it. */
+  const [lastStory, setLastStory] = useState(FIRST_STORY)
+  const storyOpening = STORY_OPENINGS[storyFlight ?? lastStory] ?? STORY_OPENINGS[FIRST_STORY]
   const arrivedRef = useRef(false)
   const [assetsOpen, setAssetsOpen] = useState(false)
   /** Findings style 8 is style 6 with Assets and Apps as a modal over the map instead of a slide past it. */
@@ -346,21 +418,56 @@ export function BriefingLanding({
 
   const stop = FEED_STOPS[active]
 
+  /** Style 8 with a chart on top: where the chart starts, so the map turns its scene above it. */
+  const charted = floating && Boolean(stop.chart)
+  /**
+   * Each finding's last chart top, for while the previous finding is still on screen: the map flies as
+   * soon as the finding changes, so it frames clear of a chart that hasn't been laid out yet.
+   */
+  const chartTopsRef = useRef(new Map<string, number>())
+  const readChartTop = useCallback(() => {
+    const mapEl = mapRef.current
+    const chart = mapEl?.parentElement?.querySelector<HTMLElement>(
+      `[data-chart="true"][data-stop="${stop.id}"] > :first-child`,
+    )
+    const tops = chartTopsRef.current
+    if (!mapEl || !chart) return tops.get(stop.id) ?? [...tops.values()].at(-1) ?? null
+    const top = Math.round(layoutTop(chart) - layoutTop(mapEl))
+    tops.set(stop.id, top)
+    return top
+  }, [stop.id])
+  const [chartCheck, setChartCheck] = useState(0)
+  useEffect(() => {
+    const stage = mapRef.current?.parentElement
+    if (!charted || !stage) return
+    const recheck = () => setChartCheck((count) => count + 1)
+    /* In case the finding is laid out late, as on a fresh load behind the page's intro. */
+    const settle = [400, 1200, 3000].map((delay) => window.setTimeout(recheck, delay))
+    const observer = new ResizeObserver(recheck)
+    observer.observe(stage)
+    return () => {
+      settle.forEach((timer) => window.clearTimeout(timer))
+      observer.disconnect()
+    }
+  }, [charted, stop.id])
+
   const returnHeld = storyReturn?.phase === 'hold'
   /** The map is flying into the story, or holding that view underneath it. */
   const opening = storyFlight !== null && !storyRelease && !returnHeld
   const mapPlace = useMemo(() => {
-    if (opening || returnHeld) return STORY_OPENING_PLACE
+    if (opening || returnHeld) return storyOpening.place
+    if (intro === 'shown') return INTRO_PLACE
     for (let index = active; index >= 0; index -= 1) {
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
-    return BRIEFING_PLACES['abu-dhabi']
-  }, [active, opening, returnHeld])
+    return BRIEFING_PLACES.barsha
+  }, [active, opening, returnHeld, storyOpening, intro])
 
   const enterStory = useCallback(
     (storyId: string) => {
       if (storyFlight) return
+      setLastStory(storyId)
       if (!onStoryFlight || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         onOpenStory?.(storyId)
         return
@@ -768,8 +875,31 @@ export function BriefingLanding({
     return () => window.removeEventListener('keydown', onKey)
   }, [floating, sideAssets, addingAsset, flyAssets])
 
+  const enterPlatform = useCallback(() => {
+    introSeen.current = true
+    setIntro('entering')
+    window.clearTimeout(introTimerRef.current)
+    introTimerRef.current = window.setTimeout(() => {
+      setIntro(null)
+      setTouring(true)
+    }, INTRO_ENTER_MS)
+  }, [])
+
+  /** The logo: the page steps aside and the map zooms out to Dubai under the introduction. */
+  const showIntro = useCallback(() => {
+    if (intro === 'shown') return
+    window.clearTimeout(introTimerRef.current)
+    setTouring(false)
+    if (sideAssets) flyAssets(false)
+    setIntroEpoch((epoch) => epoch + 1)
+    setIntro('shown')
+  }, [intro, sideAssets, flyAssets])
+
+  useEffect(() => () => window.clearTimeout(introTimerRef.current), [])
+
+  const introShown = intro === 'shown'
   const blurred = !stop.place || !!findingToast
-  const mapBlurred = blurred && !opening && !returnHeld
+  const mapBlurred = blurred && !opening && !returnHeld && !introShown
   const storyState = storyRelease
     ? 'back'
     : storyFlight
@@ -787,6 +917,7 @@ export function BriefingLanding({
       data-findings-style={findingsStyle}
       data-alert={alert}
       data-story={storyState}
+      data-intro={intro ?? undefined}
       inert={opening || returnHeld}
       style={{
         ['--feed-pad' as string]: reserveComposer ? '106px' : '48px',
@@ -806,6 +937,9 @@ export function BriefingLanding({
           briefingTab
           view={view}
           onViewChange={changeView}
+          partnerLogo={DM_LOGO}
+          logoOnly
+          onLogoClick={showIntro}
         />
       </header>
       {inStudio ? (
@@ -827,14 +961,16 @@ export function BriefingLanding({
           settlePage()
         }}
       >
-        <div className={styles.stage} data-away={away} inert={away}>
+        <div className={styles.stage} data-away={away} inert={away || introShown}>
           <div ref={mapRef} className={`${styles.map}${mapBlurred ? ` ${styles.mapBlur}` : ''}`} aria-hidden>
             <BriefingMap
               place={mapPlace}
               blank={mapBlurred}
               focusRight={findingsStyle === 2 || findingsStyle === 5}
               focusLow={findingsStyle === 8}
-              enter={opening ? STORY_ENTER : null}
+              chartTop={charted ? readChartTop : null}
+              chartCheck={chartCheck}
+              enter={opening ? storyOpening.enter : null}
               onArrive={arriveAtStory}
               align={storyRelease && storyRelease !== 'home' ? storyRelease : null}
               start={returnHeld ? storyReturn.from : null}
@@ -848,7 +984,7 @@ export function BriefingLanding({
           <ConversationalBubble
             stop={stop}
             findingsStyle={findingsStyle}
-            frozen={assetsOpen || away || storyState !== undefined}
+            frozen={assetsOpen || away || storyState !== undefined || introShown}
             vote={votes[stop.id] ?? null}
             onVote={(value) =>
               setVotes((prev) => ({
@@ -873,7 +1009,9 @@ export function BriefingLanding({
                   !findingToast &&
                   !opening &&
                   !storyRelease &&
-                  !storyReturn
+                  !storyReturn &&
+                  !intro &&
+                  !touring
                 }
                 onSelect={setActive}
                 onStep={stepFeed}
@@ -918,6 +1056,10 @@ export function BriefingLanding({
               edge={peekEdge}
               onReorder={setBoardOrder}
               onBack={() => flyAssets(false)}
+              onOpenApp={(storyId) => {
+                flyAssets(false)
+                enterStory(storyId)
+              }}
               tools={floating ? { onAddAssets: () => setAddingAsset(true) } : undefined}
             />
             {addingAsset ? (
@@ -930,7 +1072,8 @@ export function BriefingLanding({
               className={styles.assetPeek}
               data-away={away}
               data-landed={away && landed}
-              inert={away}
+              data-tour="board"
+              inert={away || introShown}
               role="button"
               tabIndex={0}
               aria-label="Open Assets and Apps"
@@ -960,11 +1103,20 @@ export function BriefingLanding({
           </div>
         )}
       </div>
+      {intro !== null || introEpoch > 0 ? (
+        <BriefingIntro
+          key={introEpoch}
+          shown={introShown}
+          delay={introEpoch > 0 ? INTRO_RETURN_DELAY_MS : INTRO_FIRST_DELAY_MS}
+          onEnter={enterPlatform}
+        />
+      ) : null}
+      {touring ? <BriefingTour rootRef={rootRef} steps={TOUR_STEPS} onClose={() => setTouring(false)} /> : null}
     </div>
   )
 }
 
-const ASSET_LOCATIONS = ['Abu Dhabi Emirate', 'Abu Dhabi City', 'Al Ain', 'Al Dhafra'] as const
+const ASSET_LOCATIONS = ['Dubai', 'Al Barsha', 'Jumeirah Village Circle', 'Business Bay'] as const
 const ASSET_PERIODS = ['Today', 'Last 7 days', 'Last 30 days', 'This year'] as const
 
 /**
@@ -1057,7 +1209,7 @@ function FilterSelect<T extends string>({
 
 /** Global filters for the Assets section: location and time. */
 function AssetsFilters() {
-  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Abu Dhabi Emirate')
+  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Dubai')
   const [period, setPeriod] = useState<(typeof ASSET_PERIODS)[number]>('Last 7 days')
   return (
     <div className={styles.assetsFilters} role="group" aria-label="Filters">
@@ -1236,6 +1388,7 @@ function AssetsAppsView({
   edge,
   onReorder,
   onBack,
+  onOpenApp,
   tools,
 }: {
   shown: boolean
@@ -1250,6 +1403,8 @@ function AssetsAppsView({
   edge: { room: number; min: number; partial?: number }
   onReorder: (order: string[]) => void
   onBack: () => void
+  /** An app's View button: leaves the board for the app's story. */
+  onOpenApp: (storyId: string) => void
   /** Findings style 8's modal. */
   tools?: { onAddAssets: () => void }
 }) {
@@ -1308,7 +1463,14 @@ function AssetsAppsView({
           </div>
         ) : null}
         <div ref={setGrid} className={styles.sideGrid}>
-          <BriefingAssetBoard order={order} columns={columns} roomy={roomy} edge={edge} onReorder={onReorder} />
+          <BriefingAssetBoard
+            order={order}
+            columns={columns}
+            roomy={roomy}
+            edge={edge}
+            onReorder={onReorder}
+            onOpenApp={onOpenApp}
+          />
         </div>
       </div>
     </section>
@@ -1608,7 +1770,7 @@ function FindingBody({
   const revealScrollbar = useRevealScrollbarOnScroll()
   return (
     <>
-      <div ref={revealScrollbar} className={styles.findingMain} data-chart={Boolean(stop.chart)}>
+      <div ref={revealScrollbar} className={styles.findingMain} data-chart={Boolean(stop.chart)} data-stop={stop.id}>
         {stop.chart ? <FeedChartCard key={stop.id} chart={stop.chart} /> : null}
         <div className={styles.findingCopy}>
           <p className={styles.bubbleMeta}>{stop.domain}</p>
@@ -1623,28 +1785,36 @@ function FindingBody({
         <button
           type="button"
           className={`${home.actionBtn} ${styles.tellMoreBtn}`}
-          aria-label="Tell me more"
-          onClick={() =>
+          data-tour="simulate"
+          aria-label="Simulate recommended actions"
+          aria-disabled={stop.tellMore === false || undefined}
+          onClick={() => {
+            if (stop.tellMore === false) return
             onTellMeMore?.({
               id: stop.id,
               title: stop.title,
               domain: stop.domain,
               finding,
             })
-          }
+          }}
         >
           <span className={home.actionInner}>
-            <ChatText size={20} weight="regular" aria-hidden />
-            <span>Tell Me More</span>
+            <Sparkle size={20} weight="regular" aria-hidden />
+            <span>Simulate recommended actions</span>
           </span>
         </button>
         {stop.storyId ? (
-          <button type="button" className={styles.storyBtn} onClick={() => onOpenStory?.(stop.storyId!)}>
+          <button
+            type="button"
+            className={styles.storyBtn}
+            data-tour="view"
+            onClick={() => onOpenStory?.(stop.storyId!)}
+          >
             <ArrowUpRight size={20} weight="regular" aria-hidden />
             View
           </button>
         ) : null}
-        <div className={home.voteGroup}>
+        <div className={home.voteGroup} data-tour="vote">
           <VoteButton
             label="Show more like this"
             pressed={vote === 'up'}
