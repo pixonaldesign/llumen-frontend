@@ -14,6 +14,7 @@ import {
   type StudioStyle,
   type TopBarVariant,
 } from './prototypeChrome'
+import { setStudioPreviewState, useStudioPreviewState, type StudioPreviewState } from './studio/studioPreviewState'
 import styles from './CommandPalette.module.css'
 
 type Command = {
@@ -28,8 +29,17 @@ type Command = {
 }
 
 /** The tab row under the search: every command, or one group's. */
-const TABS = ['All', 'Landing', 'Findings', 'Studio', 'Shaders', 'Comparison', 'Top bar', 'UX', 'Aurora'] as const
+const TABS = ['All', 'Landing', 'Findings', 'Studio', 'States', 'Shaders', 'Comparison', 'Top bar', 'UX', 'Aurora'] as const
 type Tab = (typeof TABS)[number]
+
+/** Forced data states for reviewing Studio's asset cards and list. */
+const PREVIEW_STATE_OPTIONS: { state: StudioPreviewState; label: string; hint: string }[] = [
+  { state: 'ready', label: 'Data · Live', hint: 'Cards show their data' },
+  { state: 'loading', label: 'Data · Card loading', hint: 'Skeletons, then the error after 15 s' },
+  { state: 'error', label: 'Data · Card error', hint: "Couldn't load data, with Retry" },
+  { state: 'loading-list', label: 'Data · List loading', hint: 'Placeholder cards on Assets' },
+  { state: 'no-thumbnail', label: 'Data · No thumbnails', hint: 'Every card on its mesh cover' },
+]
 
 export type CommandPaletteProps = {
   open: boolean
@@ -79,6 +89,7 @@ export function CommandPalette({
   const [cursor, setCursor] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const previewState = useStudioPreviewState()
 
   const commands = useMemo<Command[]>(() => {
     const choose = (run: () => void) => () => {
@@ -157,6 +168,14 @@ export function CommandPalette({
         hint: option.hint,
         active: studioStyle === option.style,
         run: choose(() => onStudioStyle(option.style)),
+      })),
+      ...PREVIEW_STATE_OPTIONS.map((option) => ({
+        id: `state-${option.state}`,
+        group: 'States',
+        label: option.label,
+        hint: option.hint,
+        active: previewState === option.state,
+        run: choose(() => setStudioPreviewState(option.state)),
       })),
       ...STUDIO_SHADER_OPTIONS.map((option) => ({
         id: `shader-${option.shader}`,
@@ -253,6 +272,7 @@ export function CommandPalette({
     onStudioStyle,
     onTopBar,
     onUx,
+    previewState,
     studioShader,
     studioStyle,
     topBar,
@@ -353,7 +373,7 @@ export function CommandPalette({
               setQuery(event.target.value)
               setCursor(0)
             }}
-            placeholder="Landing, findings, Studio, shaders, comparison, top bar, UX, Aurora…"
+            placeholder="Landing, findings, Studio, states, shaders, comparison, top bar, UX, Aurora…"
             aria-label="Filter commands"
             aria-controls="command-palette-list"
             aria-activedescendant={filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined}

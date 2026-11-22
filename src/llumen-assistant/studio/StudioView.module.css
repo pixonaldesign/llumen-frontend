@@ -390,6 +390,75 @@
   white-space: nowrap;
 }
 
+/* Cut-off cells carry a title, so the full value is a hover away. */
+.cellText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sortHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: -2px -4px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.sortHeader svg {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.sortHeader:hover,
+.sortHeader[data-active] {
+  color: var(--st-text);
+}
+
+.sortHeader:hover svg,
+.sortHeader:focus-visible svg,
+.sortHeader[data-active] svg {
+  opacity: 1;
+}
+
+.sortHeader:focus-visible {
+  outline: var(--lc-focus-ring);
+  outline-offset: var(--lc-focus-offset);
+}
+
+/* List columns marked `lg` drop out below 1280 px, and `md` ones too below 1024 px. */
+@media (max-width: 1279px) {
+  .tableHead,
+  .row {
+    grid-template-columns: var(--cols-lg, var(--cols));
+  }
+
+  .tableHead > [data-hide='lg'],
+  .row > [data-hide='lg'] {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .tableHead,
+  .row {
+    grid-template-columns: var(--cols-md, var(--cols));
+  }
+
+  .tableHead > [data-hide],
+  .row > [data-hide] {
+    display: none;
+  }
+}
+
 .lead {
   display: flex;
   align-items: center;
@@ -1283,6 +1352,50 @@
   flex: 1 1 auto;
   justify-content: flex-end;
   min-width: 0;
+}
+
+/* The type and category tags scroll (or drag) sideways when they don't fit beside the status, fading out
+   at whichever edge has more past it. The strip is too short for a scrollbar; the fade is the cue. */
+.metaTags {
+  --fade: 24px;
+  display: flex;
+  flex: 0 1 auto;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  cursor: grab;
+}
+
+.metaTags::-webkit-scrollbar {
+  display: none;
+}
+
+.metaTags[data-dragging] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.metaTags > * {
+  flex-shrink: 0;
+}
+
+.metaTags[data-fade='end'] {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--fade)), transparent);
+}
+
+.metaTags[data-fade='start'] {
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade));
+}
+
+.metaTags[data-fade='both'] {
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent);
+}
+
+.metaTags + .metaEnd {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
 }
 
 .briefingCard {

@@ -11,6 +11,7 @@ import {
 import { STUDIO_WORKSPACE_NAMES, type StudioPage } from './studioData'
 import { PageBody } from './studioNav'
 import { NAV, groupOf, type NavGroup } from './studioNavItems'
+import { PAGE_PARAM, parseStudioPage, useHistoryParam } from './studioLocation'
 import { PageHeadSlot } from './studioPageHeadSlot'
 import { MembersPage } from './studioPages'
 import { StudioBackdrop } from './studioBackdrop'
@@ -37,7 +38,7 @@ export function StudioView({
   shader = DEFAULT_STUDIO_SHADER,
   onAskBarChange,
 }: StudioViewProps) {
-  const [page, setPage] = useState<StudioPage>('assets')
+  const [page, setPage] = useHistoryParam<StudioPage>(PAGE_PARAM, 'assets', parseStudioPage)
   const [workspace, setWorkspace] = useState<string>(STUDIO_WORKSPACE_NAMES[0])
   const [open, setOpen] = useState<Record<NavGroup['id'], boolean>>({
     sources: false,

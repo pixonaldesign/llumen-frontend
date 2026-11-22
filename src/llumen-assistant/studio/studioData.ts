@@ -65,6 +65,38 @@ export type StudioAsset = {
   updated: string
   /** A pre-rendered thumbnail; assets drawn live from `STUDIO_ASSET_VISUALS` leave it out. */
   image?: string
+  /** The data source it reads; defaults to its category's source (`assetSource`). */
+  source?: string
+}
+
+export type AgentStatus = 'Active' | 'Inactive'
+
+/** Where each category's assets read from; categories that build their own data (filters, text, analysis) have none. */
+const CATEGORY_SOURCE: Record<string, string> = {
+  Traffic: 'ITC traffic sensors',
+  Mobility: 'Bus network (GTFS)',
+  Operations: 'Service requests',
+  Safety: 'Incident reports',
+  Environment: 'Air quality stations',
+  Monitoring: 'Air quality stations',
+  Emissions: 'Emissions inventory',
+  'Net-Zero': 'Emissions inventory',
+  Energy: 'Energy meters',
+  Groundwater: 'Groundwater wells',
+  'Water Quality': 'Groundwater wells',
+  Biodiversity: 'Species surveys',
+  'Real Estate': 'Property transactions',
+}
+
+export const NO_SOURCE = 'None'
+
+export function assetSource(asset: StudioAsset) {
+  return asset.source ?? CATEGORY_SOURCE[asset.category] ?? NO_SOURCE
+}
+
+/** The monitoring agent runs while the asset is in use and has a source to watch. */
+export function assetAgentStatus(asset: StudioAsset): AgentStatus {
+  return asset.status !== 'Inactive' && assetSource(asset) !== NO_SOURCE ? 'Active' : 'Inactive'
 }
 
 const asset = (slug: string) => `${b}/asset-${slug}.png`
@@ -409,6 +441,33 @@ export const STUDIO_ASSETS: StudioAsset[] = [
     type: 'DBSCAN Clusters',
     status: 'Active',
     updated: '20 min ago',
+  },
+  {
+    id: 'commute-time',
+    title: 'Average bus commute time',
+    description: 'Door-to-door bus journey time across Abu Dhabi, by district',
+    category: 'Mobility',
+    type: 'KPI',
+    status: 'Active',
+    updated: '25 min ago',
+  },
+  {
+    id: 'corniche-speed-occupancy',
+    title: 'Speed vs occupancy · Corniche',
+    description: 'Sensor speed against lane occupancy on the Corniche corridor',
+    category: 'Traffic',
+    type: 'Scatter Chart',
+    status: 'Inactive',
+    updated: '2 days ago',
+  },
+  {
+    id: 'groundwater-forecast',
+    title: 'Groundwater level forecast to 2030',
+    description: 'Projected well levels under current abstraction',
+    category: 'Groundwater',
+    type: 'Area Chart',
+    status: 'Active',
+    updated: '5 hours ago',
   },
   {
     id: 'bus-stops',

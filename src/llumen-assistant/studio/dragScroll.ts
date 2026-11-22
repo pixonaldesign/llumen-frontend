@@ -18,10 +18,12 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>) {
     let samples: { x: number; t: number }[] = []
     let fling = 0
 
+    row.dataset.dragScroll = ''
     const stopFling = () => cancelAnimationFrame(fling)
 
     const onDown = (event: PointerEvent) => {
       if (event.pointerType !== 'mouse' || event.button !== 0) return
+      if (innermostScroller(event.target) !== row) return
       stopFling()
       press = { x: event.clientX, left: row.scrollLeft, id: event.pointerId }
       samples = [{ x: event.clientX, t: event.timeStamp }]
@@ -88,13 +90,59 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>) {
       row.removeEventListener('wheel', stopFling)
       row.removeEventListener('dragstart', noNativeDrag)
       row.removeEventListener('click', swallow, { capture: true })
+      delete row.dataset.dragScroll
     }
   }, [ref])
 }
 
+/** Rows nest (a card's tags inside a shelf), so a press drags the innermost row that has anywhere to go. */
+function innermostScroller(target: EventTarget | null) {
+  let node = target instanceof Element ? target.closest<HTMLElement>('[data-drag-scroll]') : null
+  while (node && node.scrollWidth <= node.clientWidth + 1) {
+    node = node.parentElement?.closest<HTMLElement>('[data-drag-scroll]') ?? null
+  }
+  return node
+}
+
+/**
+ * Marks which ends of a sideways row have more content past them, as `data-fade="start" | "end" | "both"`,
+ * so CSS can fade those edges. Nothing is set while everything fits.
+ */
+export function useEdgeFade(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const row = ref.current
+    if (!row) return
+    const update = () => {
+      const max = row.scrollWidth - row.clientWidth
+      const left = Math.abs(row.scrollLeft)
+      const start = left > 1
+      const end = left < max - 1
+      if (start && end) row.dataset.fade = 'both'
+      else if (start) row.dataset.fade = 'start'
+      else if (end) row.dataset.fade = 'end'
+      else delete row.dataset.fade
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(row)
+    for (const child of row.children) observer.observe(child)
+    row.addEventListener('scroll', update, { passive: true })
+    return () => {
+      observer.disconnect()
+      row.removeEventListener('scroll', update)
+    }
+  }, [ref])
+}
+
+/** Where each row's smooth scroll is headed, until it settles. */
+const heading = new WeakMap<HTMLElement, { left: number; timer: number; settle: () => void }>()
+/** Settles a heading where `scrollend` isn't supported, a little after a smooth scroll would finish. */
+const HEADING_TIMEOUT_MS = 1200
+
 /**
  * Pages a row to its next page stop: every `count`th card's leading edge, as if only the arrows had ever
- * moved it, whatever a free drag left behind.
+ * moved it, whatever a free drag left behind. A click during a smooth scroll pages on from where that scroll
+ * is headed, not from wherever it has got to, so quick clicks each move a full page.
  */
 export function pageRow(row: HTMLElement, direction: 1 | -1, count: number) {
   const cards = [...row.children].filter((child): child is HTMLElement => child instanceof HTMLElement && child.offsetParent !== null)
@@ -107,10 +155,24 @@ export function pageRow(row: HTMLElement, direction: 1 | -1, count: number) {
         .map((card) => Math.round(Math.min(card.offsetLeft - cards[0].offsetLeft, max))),
     ),
   ]
-  const at = row.scrollLeft
+  const pending = heading.get(row)
+  const at = pending?.left ?? row.scrollLeft
   const target =
     direction > 0
       ? (stops.find((stop) => stop > at + 1) ?? stops[stops.length - 1])
       : ([...stops].reverse().find((stop) => stop < at - 1) ?? 0)
+  if (pending) {
+    window.clearTimeout(pending.timer)
+    row.removeEventListener('scrollend', pending.settle)
+  }
+  const settle = () => {
+    const current = heading.get(row)
+    if (current?.settle !== settle) return
+    window.clearTimeout(current.timer)
+    heading.delete(row)
+    row.removeEventListener('scrollend', settle)
+  }
+  row.addEventListener('scrollend', settle)
+  heading.set(row, { left: target, timer: window.setTimeout(settle, HEADING_TIMEOUT_MS), settle })
   row.scrollTo({ left: target, behavior: 'smooth' })
 }

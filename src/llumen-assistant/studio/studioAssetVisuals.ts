@@ -9,13 +9,6 @@ export type TableColumn = {
   status?: boolean
 }
 
-/**
- * Main's data is local, so cards never really load or fail. `?studioState=loading | error | loading-list` forces
- * those states so they can be reviewed: `loading-list` is the asset list itself still loading.
- */
-export const PREVIEW_STATE = new URLSearchParams(window.location.search).get('studioState')
-export const PREVIEW_LIST_LOADING = PREVIEW_STATE === 'loading-list'
-
 /** Tone of each status value the tables use; anything unlisted reads as neutral. */
 export const STATUS_TONE: Record<string, StatusTone> = {
   Worse: 'negative',

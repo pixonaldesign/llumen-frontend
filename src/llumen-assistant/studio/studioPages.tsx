@@ -1,9 +1,10 @@
-import { useContext, useState, type CSSProperties, type ReactNode } from 'react'
+import { useContext, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   CalendarBlank,
   CalendarCheck,
   CaretDown,
+  CaretUp,
   Chalkboard,
   CheckCircle,
   Clock,
@@ -42,6 +43,9 @@ import {
   STUDIO_ROOMS,
   STUDIO_SLIDES,
   STUDIO_WORKFLOWS,
+  ageMinutes,
+  assetAgentStatus,
+  assetSource,
   type ApiRequest,
   type AppKind,
   type FilterKind,
@@ -66,17 +70,56 @@ import {
   TextSegments,
   type Layout,
 } from './studioUi'
-import { useRefine } from './studioHooks'
+import { useDragScroll, useEdgeFade } from './dragScroll'
+import { useRefine, type Order } from './studioHooks'
 import { PageHeadSlot } from './studioPageHeadSlot'
 import { AssetSkeleton, AssetThumb, StudioAssetVisual, type SkeletonShape } from './StudioAssetVisual'
-import { PREVIEW_LIST_LOADING } from './studioAssetVisuals'
+import { useStudioPreviewState } from './studioPreviewState'
 import { StudioTypeIcon } from './StudioTypeIcon'
 import styles from './StudioView.module.css'
 
-type Column = { label: string; width?: number }
+/** `lg` columns drop out below 1280 px and `md` ones below 1024 px, so the rest keep room to read. */
+type ColumnHide = 'lg' | 'md'
+
+type Column = {
+  label: string
+  width?: number
+  /** The `orders` key its header sorts by; columns without one have plain headers. */
+  sort?: string
+  hide?: ColumnHide
+}
 
 function columnTemplate(columns: Column[]) {
   return columns.map((column) => (column.width ? `${column.width}px` : 'minmax(0, 1fr)')).join(' ')
+}
+
+/** The grid at full width, then without the columns each breakpoint drops. */
+function columnTemplates(columns: Column[]) {
+  return {
+    '--cols': columnTemplate(columns),
+    '--cols-lg': columnTemplate(columns.filter((column) => column.hide !== 'lg')),
+    '--cols-md': columnTemplate(columns.filter((column) => !column.hide)),
+  } as CSSProperties
+}
+
+function SortHeader({ column, order, onOrder }: { column: Column; order: Order | null; onOrder: (next: Order) => void }) {
+  const active = order?.key === column.sort
+  const desc = active && order !== null && order.desc
+  const direction = active ? (desc ? 'descending' : 'ascending') : 'none'
+  const Arrow = desc ? CaretDown : CaretUp
+  return (
+    <span role="columnheader" aria-sort={direction} data-hide={column.hide}>
+      <button
+        type="button"
+        className={styles.sortHeader}
+        data-active={active || undefined}
+        onClick={() => onOrder({ key: column.sort!, desc: active ? !desc : false })}
+      >
+        {column.label}
+        <Arrow size={12} weight="bold" aria-hidden />
+      </button>
+    </span>
+  )
 }
 
 /**
@@ -96,6 +139,8 @@ export function PageHead({
   filters,
   tools,
   columns,
+  order = null,
+  onOrder,
 }: {
   title: string
   titleExtra?: ReactNode
@@ -110,6 +155,8 @@ export function PageHead({
   filters?: ReactNode
   tools?: ReactNode
   columns?: Column[]
+  order?: Order | null
+  onOrder?: (next: Order) => void
 }) {
   const slot = useContext(PageHeadSlot)
   const head = (
@@ -136,10 +183,16 @@ export function PageHead({
         </div>
       ) : null}
       {columns ? (
-        <div className={styles.tableHead} style={{ '--cols': columnTemplate(columns) } as CSSProperties}>
-          {columns.map((column, index) => (
-            <span key={`${column.label}-${index}`}>{column.label}</span>
-          ))}
+        <div className={styles.tableHead} style={columnTemplates(columns)}>
+          {columns.map((column, index) =>
+            column.sort && onOrder ? (
+              <SortHeader key={`${column.label}-${index}`} column={column} order={order} onOrder={onOrder} />
+            ) : (
+              <span key={`${column.label}-${index}`} data-hide={column.hide}>
+                {column.label}
+              </span>
+            ),
+          )}
         </div>
       ) : null}
     </div>
@@ -151,7 +204,7 @@ function Row({ columns, children, onClick }: { columns: Column[]; children: Reac
   return (
     <div
       className={styles.row}
-      style={{ '--cols': columnTemplate(columns) } as CSSProperties}
+      style={columnTemplates(columns)}
       onClick={onClick}
       data-clickable={onClick ? 'true' : undefined}
     >
@@ -160,8 +213,12 @@ function Row({ columns, children, onClick }: { columns: Column[]; children: Reac
   )
 }
 
-function Cell({ children }: { children: ReactNode }) {
-  return <span className={styles.cell}>{children}</span>
+function Cell({ children, hide }: { children: ReactNode; hide?: ColumnHide }) {
+  return (
+    <span className={styles.cell} data-hide={hide}>
+      {children}
+    </span>
+  )
 }
 
 function NoResults() {
@@ -182,16 +239,21 @@ function NameBlock({ name, detail, extra }: { name: string; detail?: ReactNode; 
 /* ---------------------------------------------------------------- Assets */
 
 const ASSET_COLUMNS: Column[] = [
-  { label: 'Asset' },
-  { label: 'Category', width: 160 },
-  { label: 'Type', width: 160 },
-  { label: 'Status', width: 160 },
-  { label: 'Last Updated', width: 160 },
+  { label: 'Asset', sort: 'name' },
+  { label: 'Tags', width: 130, sort: 'tags', hide: 'md' },
+  { label: 'Type', width: 130, sort: 'type' },
+  { label: 'Source', width: 170, sort: 'source', hide: 'lg' },
+  { label: 'User Status', width: 136, sort: 'status' },
+  { label: 'Agent Status', width: 120, sort: 'agent', hide: 'lg' },
+  { label: 'Last Updated', width: 120, sort: 'updated' },
   { label: '', width: 32 },
 ]
 
 /** An asset in a grid: its chart over its type, category and status. `index` staggers the chart's entrance. */
 export function AssetCard({ item, index = 0, onOpen }: { item: StudioAsset; index?: number; onOpen?: () => void }) {
+  const tagsRef = useRef<HTMLDivElement>(null)
+  useDragScroll(tagsRef)
+  useEdgeFade(tagsRef)
   return (
     <article className={styles.assetCard} aria-label={item.title} onClick={onOpen}>
       <div className={styles.assetImage}>
@@ -199,8 +261,10 @@ export function AssetCard({ item, index = 0, onOpen }: { item: StudioAsset; inde
         <AssetActions title={item.title} />
       </div>
       <div className={styles.assetMeta}>
-        <Tag icon={<StudioTypeIcon type={item.type} />}>{item.type}</Tag>
-        <Tag>{item.category}</Tag>
+        <div ref={tagsRef} className={styles.metaTags}>
+          <Tag icon={<StudioTypeIcon type={item.type} />}>{item.type}</Tag>
+          <Tag>{item.category}</Tag>
+        </div>
         <span className={styles.metaEnd}>
           <StatusChip label={item.status} />
         </span>
@@ -231,14 +295,26 @@ function AssetCardPlaceholder({ shape }: { shape: SkeletonShape }) {
 
 export function AssetsPage({ onCreate }: { onCreate: () => void }) {
   const [layout, setLayout] = useState<Layout>('grid')
+  const listLoading = useStudioPreviewState() === 'loading-list'
   const list = useRefine(STUDIO_ASSETS, {
     text: (item) => `${item.title} ${item.description}`,
     name: (item) => item.title,
     updated: (item) => item.updated,
     fields: {
-      Category: (item) => item.category,
+      Tags: (item) => item.category,
       Type: (item) => item.type,
-      Status: (item) => item.status,
+      Source: assetSource,
+      'User Status': (item) => item.status,
+      'Agent Status': assetAgentStatus,
+    },
+    orders: {
+      name: (item) => item.title,
+      tags: (item) => item.category,
+      type: (item) => item.type,
+      source: assetSource,
+      status: (item) => item.status,
+      agent: assetAgentStatus,
+      updated: (item) => -ageMinutes(item.updated),
     },
   })
   return (
@@ -250,7 +326,7 @@ export function AssetsPage({ onCreate }: { onCreate: () => void }) {
         onQuery={list.setQuery}
         action="Create Asset"
         onAction={onCreate}
-        filters={<FilterBar list={list} keys={['Category', 'Type', 'Status']} />}
+        filters={<FilterBar list={list} keys={['Tags', 'Type', 'Source', 'User Status', 'Agent Status']} />}
         tools={
           <>
             <LayoutToggle value={layout} onChange={setLayout} />
@@ -258,8 +334,10 @@ export function AssetsPage({ onCreate }: { onCreate: () => void }) {
           </>
         }
         columns={layout === 'list' ? ASSET_COLUMNS : undefined}
+        order={list.order}
+        onOrder={list.setOrder}
       />
-      {PREVIEW_LIST_LOADING ? (
+      {listLoading ? (
         <div className={`${styles.grid} ${styles.assetGrid}`} role="status" aria-label="Loading assets">
           {LOADING_PLACEHOLDERS.map((shape, index) => (
             <AssetCardPlaceholder key={index} shape={shape} />
@@ -283,10 +361,24 @@ export function AssetsPage({ onCreate }: { onCreate: () => void }) {
                 </span>
                 <NameBlock name={item.title} detail={item.description} />
               </span>
-              <Cell>{item.category}</Cell>
-              <Cell>{item.type}</Cell>
+              <Cell hide="md">
+                <Tag>{item.category}</Tag>
+              </Cell>
+              <Cell>
+                <span className={styles.cellText} title={item.type}>
+                  {item.type}
+                </span>
+              </Cell>
+              <Cell hide="lg">
+                <span className={styles.cellText} title={assetSource(item)}>
+                  {assetSource(item)}
+                </span>
+              </Cell>
               <Cell>
                 <StatusChip label={item.status} />
+              </Cell>
+              <Cell hide="lg">
+                <StatusChip label={assetAgentStatus(item)} />
               </Cell>
               <Cell>{item.updated}</Cell>
               <RowMenu label={item.title} />

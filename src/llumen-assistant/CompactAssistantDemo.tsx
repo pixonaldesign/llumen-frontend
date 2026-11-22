@@ -18,6 +18,7 @@ import { llumenAssets } from './assets'
 import LandingHomeDefault from './landing/LandingHomeDefault'
 import { BriefingLanding } from './landing/BriefingLanding'
 import type { TopBarView } from './landing/LandingTopBar'
+import { PAGE_PARAM, VIEW_PARAM, useHistoryParam } from './studio/studioLocation'
 import { Briefing2Landing } from './landing/Briefing2Landing'
 import { FeedLanding } from './landing/FeedLanding'
 import { OverlayScrollThumb } from './landing/OverlayScrollThumb'
@@ -184,6 +185,12 @@ import {
 import type { SendVisualState } from './SendButton'
 import { useRevealScrollbarOnScroll } from './useRevealScrollbarOnScroll'
 import { useStickToBottomScroll } from './useStickToBottomScroll'
+
+const parseTopBarView = (value: string | null): TopBarView | null =>
+  value === 'briefing' || value === 'assets' || value === 'studio' ? value : null
+
+/** The Studio's page only means something inside the Studio. */
+const leaveStudio = (next: TopBarView) => (next === 'studio' ? [] : [PAGE_PARAM])
 
 type ChatMessage = SavedChatMessage
 
@@ -2180,7 +2187,7 @@ export function CompactAssistantDemo() {
   /** Remounts the Briefing page when a story is left before it has settled, dropping its flight state. */
   const [landingEpoch, setLandingEpoch] = useState(0)
   /** The Briefing top bar's Briefing / Studio switch; the Studio has no hub composer unless its page asks for it. */
-  const [briefingView, setBriefingView] = useState<TopBarView>('briefing')
+  const [briefingView, setBriefingView] = useHistoryParam<TopBarView>(VIEW_PARAM, 'briefing', parseTopBarView, leaveStudio)
   const [studioAskBar, setStudioAskBar] = useState<StudioAskBar | null>(null)
   /** Picking a style from the palette also opens the view it styles. */
   const pickFindingsStyle = useCallback(
@@ -2188,18 +2195,18 @@ export function CompactAssistantDemo() {
       onFindingsStyleChange(next)
       setBriefingView('briefing')
     },
-    [onFindingsStyleChange],
+    [onFindingsStyleChange, setBriefingView],
   )
   const pickStudioStyle = useCallback((next: StudioStyle) => {
     persistStudioStyle(next)
     setStudioStyle(next)
     setBriefingView('studio')
-  }, [])
+  }, [setBriefingView])
   const pickStudioShader = useCallback((next: StudioShader) => {
     persistStudioShader(next)
     setStudioShader(next)
     setBriefingView('studio')
-  }, [])
+  }, [setBriefingView])
   const pickComparisonSplit = useCallback((next: ComparisonSplit) => {
     persistComparisonSplit(next)
     setComparisonSplit(next)

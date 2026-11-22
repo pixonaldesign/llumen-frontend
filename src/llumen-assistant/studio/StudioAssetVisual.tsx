@@ -2,8 +2,9 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { ArrowClockwise, WarningCircle } from '@phosphor-icons/react'
 import type { StudioAsset } from './studioData'
 import { STUDIO_ASSET_CHARTS } from './studioAssetCharts'
-import { PREVIEW_STATE, STATUS_TONE, STUDIO_ASSET_VISUALS, type StudioVisual } from './studioAssetVisuals'
+import { STATUS_TONE, STUDIO_ASSET_VISUALS, type StudioVisual } from './studioAssetVisuals'
 import { StudioAssetChart } from './StudioAssetChart'
+import { useStudioPreviewState, type StudioPreviewState } from './studioPreviewState'
 import styles from './StudioAssetVisual.module.css'
 
 /** The SVG charts' artwork size; HTML visuals are laid out at it too so every kind scales the same in a card. */
@@ -18,11 +19,18 @@ const RETRY_MS = 900
 
 type DataState = 'ready' | 'loading' | 'retrying' | 'error'
 
+const dataStateFor = (preview: StudioPreviewState): DataState =>
+  preview === 'loading' || preview === 'error' ? preview : 'ready'
+
 /** An asset's visual: its live chart, its laid-out table, grid or map, or its thumbnail. */
 export function StudioAssetVisual({ asset, delay = 0 }: { asset: StudioAsset; delay?: number }) {
-  const [state, setState] = useState<DataState>(() =>
-    PREVIEW_STATE === 'loading' || PREVIEW_STATE === 'error' ? PREVIEW_STATE : 'ready',
-  )
+  const preview = useStudioPreviewState()
+  const [state, setState] = useState<DataState>(() => dataStateFor(preview))
+  const [shownPreview, setShownPreview] = useState(preview)
+  if (shownPreview !== preview) {
+    setShownPreview(preview)
+    setState(dataStateFor(preview))
+  }
   useEffect(() => {
     if (state !== 'loading' && state !== 'retrying') return
     const timer = window.setTimeout(
@@ -34,16 +42,19 @@ export function StudioAssetVisual({ asset, delay = 0 }: { asset: StudioAsset; de
   if (state === 'loading' || state === 'retrying')
     return <AssetSkeleton shape={skeletonShape(asset)} label={`${asset.title}, loading`} />
   if (state === 'error') return <AssetError asset={asset} onRetry={() => setState('retrying')} />
+  if (preview === 'no-thumbnail') return <MeshCover asset={asset} />
   const chart = STUDIO_ASSET_CHARTS[asset.id]
   if (chart) return <StudioAssetChart chart={chart} delay={delay} />
   const visual = STUDIO_ASSET_VISUALS[asset.id]
   if (visual) return <HtmlVisual visual={visual} delay={delay} />
-  return <img src={asset.image} alt={asset.title} />
+  if (asset.image) return <img src={asset.image} alt={asset.title} />
+  return <MeshCover asset={asset} />
 }
 
 /** A list row's small preview: the asset's thumbnail when it has one, else its visual shrunk to fit. */
 export function AssetThumb({ asset, className }: { asset: StudioAsset; className?: string }) {
-  if (asset.image) return <img className={className} src={asset.image} alt="" loading="lazy" />
+  const preview = useStudioPreviewState()
+  if (asset.image && preview !== 'no-thumbnail') return <img className={className} src={asset.image} alt="" loading="lazy" />
   return (
     <span className={`${styles.thumb}${className ? ` ${className}` : ''}`} aria-hidden>
       <StudioAssetVisual asset={asset} />
@@ -124,6 +135,36 @@ function AssetError({ asset, onRetry }: { asset: StudioAsset; onRetry: () => voi
                 Retry
               </button>
             </div>
+          </div>
+        </foreignObject>
+      </svg>
+    </div>
+  )
+}
+
+/** Rendered by scripts/studio-mesh/generate.py; raise this if more covers are generated. */
+const MESH_COVERS = 16
+const MESH_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/studio/mesh`
+
+/** Stable per asset, so a card keeps its cover across sessions and sorts. */
+function meshCoverFor(id: string) {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0
+  return `${MESH_BASE}/cover-${String((hash % MESH_COVERS) + 1).padStart(2, '0')}.jpg`
+}
+
+/** An asset with nothing to draw: a brand mesh, its title where every visual puts it, and its description. */
+function MeshCover({ asset }: { asset: StudioAsset }) {
+  return (
+    <div className={styles.visual}>
+      <svg className={styles.svg} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={asset.title}>
+        <foreignObject x={0} y={0} width={W} height={H}>
+          <div className={`${styles.stage} ${styles.cover}`}>
+            <img className={styles.coverImage} src={meshCoverFor(asset.id)} alt="" loading="lazy" />
+            <p className={styles.head}>
+              <span className={styles.title}>{asset.title}</span>
+            </p>
+            <p className={styles.coverText}>{asset.description}</p>
           </div>
         </foreignObject>
       </svg>

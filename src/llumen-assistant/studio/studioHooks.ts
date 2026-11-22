@@ -32,27 +32,43 @@ const NONE: string[] = []
 export const SORTS = ['Default', 'Last Updated', 'Name (A-Z)', 'Name (Z-A)'] as const
 export type Sort = (typeof SORTS)[number]
 
+/** A list ordered by one of its columns, from a click on that column's header. */
+export type Order<O extends string = string> = { key: O; desc: boolean }
+
 /**
  * Search, column filters and sort over a list: every filter offers the values its column holds, any
- * number of which can be picked (none means all), and Last Updated sorts newest first.
+ * number of which can be picked (none means all), and Last Updated sorts newest first. Lists with sortable
+ * column headers pass `orders`; a header order and the sort menu replace each other.
  */
-export function useRefine<T, K extends string>(
+export function useRefine<T, K extends string, O extends string = never>(
   items: readonly T[],
   {
     text,
     name,
     updated,
     fields,
+    orders,
   }: {
     text: (item: T) => string
     name: (item: T) => string
     updated: (item: T) => string
     fields: Record<K, (item: T) => string>
+    /** Each sortable column's value; ascending numbers or A–Z text first. */
+    orders?: Record<O, (item: T) => string | number>
   },
 ) {
   const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<Sort>('Default')
+  const [sort, setSortState] = useState<Sort>('Default')
+  const [order, setOrderState] = useState<Order | null>(null)
   const [filters, setFilters] = useState<Partial<Record<K, string[]>>>({})
+  const setSort = (next: Sort) => {
+    setSortState(next)
+    setOrderState(null)
+  }
+  const setOrder = (next: Order | null) => {
+    setOrderState(next)
+    setSortState('Default')
+  }
   const keys = Object.keys(fields) as K[]
   const options = {} as Record<K, string[]>
   for (const key of keys) options[key] = [...new Set(items.map((item) => fields[key](item)))]
@@ -65,11 +81,22 @@ export function useRefine<T, K extends string>(
   if (sort === 'Last Updated') rows.sort((a, b) => ageMinutes(updated(a)) - ageMinutes(updated(b)))
   if (sort === 'Name (A-Z)') rows.sort((a, b) => name(a).localeCompare(name(b)))
   if (sort === 'Name (Z-A)') rows.sort((a, b) => name(b).localeCompare(name(a)))
+  const by = order && orders && order.key in orders ? orders[order.key as O] : null
+  if (order && by) {
+    rows.sort((a, b) => {
+      const x = by(a)
+      const y = by(b)
+      const ascending = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))
+      return order.desc ? -ascending : ascending
+    })
+  }
   return {
     query,
     setQuery,
     sort,
     setSort,
+    order,
+    setOrder,
     options,
     filter: (key: K) => filters[key] ?? NONE,
     setFilter: (key: K, values: string[]) => setFilters((prev) => ({ ...prev, [key]: values })),

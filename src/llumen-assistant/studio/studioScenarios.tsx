@@ -20,6 +20,7 @@ import { CanvasAssets, CommandPalette, type CanvasHandle } from './studioCanvas'
 import { BentoAssets, BoardAssets, GalleryAssets, HomeHub, InspectorAssets } from './studioExperiences'
 import { RichHome } from './studioHome'
 import { useDismiss } from './studioHooks'
+import { PAGE_PARAM, parseStudioPage, useHistoryParam } from './studioLocation'
 import { PageBody } from './studioNav'
 import { NAV, groupOf, isGroup, pageLabel, type NavEntry, type NavGroup } from './studioNavItems'
 import { OverviewHome } from './studioOverview'
@@ -29,6 +30,8 @@ import view from './StudioView.module.css'
 import s from './StudioScenarios.module.css'
 
 type ShellPage = StudioPage | 'home'
+
+const parseShellPage = (value: string | null): ShellPage | null => (value === 'home' ? 'home' : parseStudioPage(value))
 
 type ShellProps = {
   scenario: Exclude<StudioStyle, 1>
@@ -55,7 +58,11 @@ export function ScenarioShell({
   onAskBarChange,
 }: ShellProps) {
   const overview = scenario === 9 || scenario === 10
-  const [page, setPage] = useState<ShellPage>(scenario === 2 || scenario === 7 || overview ? 'home' : 'assets')
+  const [page, setPage] = useHistoryParam<ShellPage>(
+    PAGE_PARAM,
+    scenario === 2 || scenario === 7 || overview ? 'home' : 'assets',
+    parseShellPage,
+  )
   const askBar: StudioAskBar | null =
     overview && page === 'home' ? (scenario === 9 ? 'beside-sidebar' : 'full-width') : null
 
