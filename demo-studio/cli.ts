@@ -1,21 +1,22 @@
-import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import type { DemoScript } from '../src/demo-recorder/types.ts'
 import { encode } from './encode.ts'
+import { entryFor, writeEntry } from './entry.ts'
 import { DEMOS_DIR, OUT_DIR, ROOT, isDemoName } from './paths.ts'
-import { REMOTION_ENTRY, render } from './render.ts'
+import { render } from './render.ts'
 import { replay } from './replay.ts'
 import { writeStatus } from './status.ts'
+import { launchStudio } from './studio.ts'
 import type { DemoTrack } from './track.ts'
 
 const USAGE = `Usage: npm run demo -- <command> <name> [options]
 
 Commands
-  replay <name>   Replay demos/<name>.json into demo-out/<name>/raw.mp4 and track.json
-  render <name>   Composite raw.mp4 into demo-out/<name>/final.mp4 (cursor, camera, keycaps)
+  replay <name>   Replay demos/<name>.json into demo-out/<name>/ (raw.mp4, track.json, Remotion project)
+  render <name>   Composite raw.mp4 into demo-out/<name>/final.mp4, with any edits saved in Remotion Studio
   make <name>     replay, then render
-  studio <name>   Open the composition in Remotion Studio to preview or tweak
+  studio <name>   Open the take in Remotion Studio to adjust zooms, cursor, keycaps and framing
 
 Options
   --url <origin>  Dev server to replay against; starts its own when omitted
@@ -70,17 +71,14 @@ async function replayCommand(name: string, flags: Map<string, string | true>) {
     events: result.events,
   }
   writeFileSync(path.join(outDir, 'track.json'), JSON.stringify(track))
+  writeEntry(track)
   console.log(`Wrote ${path.relative(ROOT, outDir)}/raw.mp4 (${result.duration.toFixed(1)} s, ${result.frames.length} captured frames)`)
 }
 
 function loadTrack(name: string): DemoTrack {
   const file = path.join(OUT_DIR, name, 'track.json')
   if (!existsSync(file)) throw new Error(`Replay ${name} first: npm run demo -- replay ${name}`)
-  const track = JSON.parse(readFileSync(file, 'utf8')) as DemoTrack
-  /* Render options are read fresh so tweaking demos/<name>.json doesn't need a new replay. */
-  const script = path.join(DEMOS_DIR, `${name}.json`)
-  if (existsSync(script)) track.render = (JSON.parse(readFileSync(script, 'utf8')) as DemoScript).render ?? {}
-  return track
+  return JSON.parse(readFileSync(file, 'utf8')) as DemoTrack
 }
 
 async function main() {
@@ -98,11 +96,8 @@ async function main() {
     } else if (command === 'replay') {
       writeStatus(name, { phase: 'done', message: 'Replayed', output: `demo-out/${name}/raw.mp4` }, true)
     } else if (command === 'studio') {
-      const props = path.join(OUT_DIR, name, 'props.json')
-      writeFileSync(props, JSON.stringify({ track: loadTrack(name) }))
-      const bin = path.join(ROOT, 'node_modules/.bin/remotion')
-      const args = ['studio', REMOTION_ENTRY, `--public-dir=${path.join(OUT_DIR, name)}`, `--props=${props}`]
-      spawn(bin, args, { cwd: ROOT, stdio: 'inherit' }).on('exit', (code) => process.exit(code ?? 0))
+      if (!existsSync(entryFor(name))) writeEntry(loadTrack(name))
+      launchStudio(name, { open: true, stdio: 'inherit' }).on('exit', (code) => process.exit(code ?? 0))
     } else if (command !== 'make') {
       console.log(USAGE)
       process.exit(1)

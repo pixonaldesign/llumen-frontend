@@ -1,9 +1,12 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, openSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, openSync, readdirSync, readFileSync, statSync, writeFileSync, writeSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
 import type { Plugin } from 'vite'
+import { entryFor, writeEntry } from './entry.ts'
 import { DEMOS_DIR, OUT_DIR, ROOT, isDemoName } from './paths.ts'
+import { launchStudio, STUDIO_PORT } from './studio.ts'
+import type { DemoTrack } from './track.ts'
 
 function readBody(req: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -32,11 +35,36 @@ function send(res: ServerResponse, status: number, body: unknown) {
  */
 export function demoStudio(): Plugin {
   let job: { name: string; child: ChildProcess } | null = null
+  let studio: { name: string; child: ChildProcess; url: string } | null = null
+
+  const openStudio = (name: string) => {
+    if (studio && studio.name === name && studio.child.exitCode === null) {
+      spawn('open', [studio.url], { stdio: 'ignore' })
+      return studio.url
+    }
+    studio?.child.kill()
+    const child = launchStudio(name, { open: true, stdio: 'pipe' })
+    const current = { name, child, url: `http://localhost:${STUDIO_PORT}` }
+    const log = openSync(path.join(OUT_DIR, name, 'studio-log.txt'), 'w')
+    const onOutput = (chunk: Buffer) => {
+      writeSync(log, chunk)
+      const found = chunk.toString().match(/https?:\/\/localhost:\d+/)
+      if (found) current.url = found[0]
+    }
+    child.stdout?.on('data', onOutput)
+    child.stderr?.on('data', onOutput)
+    child.on('exit', () => {
+      if (studio?.child === child) studio = null
+    })
+    studio = current
+    return current.url
+  }
 
   return {
     name: 'llumen-demo-studio',
     apply: 'serve',
     configureServer(server) {
+      server.httpServer?.on('close', () => studio?.child.kill())
       server.middlewares.use('/__demo', async (req, res) => {
         const url = new URL(req.url ?? '/', 'http://localhost')
         try {
@@ -62,6 +90,7 @@ export function demoStudio(): Plugin {
                   steps: script.steps.length,
                   format: script.format.id,
                   video: existsSync(video) ? path.relative(ROOT, video) : null,
+                  editable: existsSync(path.join(OUT_DIR, name, 'track.json')),
                   updatedAt: statSync(full).mtime.toISOString(),
                 }
               })
@@ -70,9 +99,11 @@ export function demoStudio(): Plugin {
           }
 
           if (req.method === 'POST' && url.pathname === '/render') {
-            const { name } = (await readBody(req)) as { name?: string }
+            const { name, mode } = (await readBody(req)) as { name?: string; mode?: 'render' | 'edit' }
             if (!isDemoName(name) || !existsSync(path.join(DEMOS_DIR, `${name}.json`))) return send(res, 404, { error: 'No such demo' })
             if (job) return send(res, 409, { error: `Already rendering ${job.name}` })
+            /* Editing only needs the replay; the final render happens from Remotion Studio or a later Render. */
+            const command = mode === 'edit' ? 'replay' : 'make'
             const origin = new URL(server.resolvedUrls?.local[0] ?? `http://localhost:${server.config.server.port ?? 5173}`).origin
             const dir = path.join(OUT_DIR, name)
             mkdirSync(dir, { recursive: true })
@@ -81,7 +112,7 @@ export function demoStudio(): Plugin {
               JSON.stringify({ phase: 'replaying', message: 'Starting', updatedAt: new Date().toISOString() }),
             )
             const log = openSync(path.join(dir, 'log.txt'), 'w')
-            const child = spawn(process.execPath, [path.join(ROOT, 'demo-studio/cli.ts'), 'make', name, '--url', origin], {
+            const child = spawn(process.execPath, [path.join(ROOT, 'demo-studio/cli.ts'), command, name, '--url', origin], {
               cwd: ROOT,
               stdio: ['ignore', log, log],
             })
@@ -102,10 +133,20 @@ export function demoStudio(): Plugin {
           if (req.method === 'POST' && url.pathname === '/reveal') {
             const { name } = (await readBody(req)) as { name?: string }
             if (!isDemoName(name)) return send(res, 400, { error: 'Invalid name' })
-            const final = path.join(OUT_DIR, name, 'final.mp4')
-            const target = existsSync(final) ? final : path.join(DEMOS_DIR, `${name}.json`)
-            spawn('open', ['-R', target], { stdio: 'ignore' })
+            const candidates = [path.join(OUT_DIR, name, 'final.mp4'), path.join(OUT_DIR, name, 'raw.mp4'), path.join(DEMOS_DIR, `${name}.json`)]
+            const target = candidates.find((file) => existsSync(file))
+            if (target) spawn('open', ['-R', target], { stdio: 'ignore' })
             return send(res, 200, {})
+          }
+
+          if (req.method === 'POST' && url.pathname === '/studio') {
+            const { name } = (await readBody(req)) as { name?: string }
+            if (!isDemoName(name)) return send(res, 400, { error: 'Invalid name' })
+            if (!existsSync(path.join(OUT_DIR, name, 'track.json'))) return send(res, 409, { error: `Replay ${name} before editing it` })
+            if (!existsSync(entryFor(name))) {
+              writeEntry(JSON.parse(readFileSync(path.join(OUT_DIR, name, 'track.json'), 'utf8')) as DemoTrack)
+            }
+            return send(res, 200, { url: openStudio(name) })
           }
 
           send(res, 404, { error: 'Not found' })

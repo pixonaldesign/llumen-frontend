@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 demo-out
+# Remotion Studio's default render folder
+out
 
 # Editor directories and files
 .vscode/*

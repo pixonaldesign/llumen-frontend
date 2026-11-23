@@ -30,16 +30,28 @@ function keyName(event: KeyboardEvent) {
  * Listens to the whole document and reports clean, replayable steps. Pointer jitter is dropped on purpose: only the
  * element, where in it, and roughly when are kept, so replay can redo the motion smoothly.
  */
-export function startCapture(onStep: (step: DemoStep) => void, startedAt: number) {
+export function startCapture(onStep: (step: DemoStep) => void, startedAt: number, onMarkZoom: () => void) {
   const now = () => Math.round(performance.now() - startedAt)
   const cleanups: (() => void)[] = []
-  const listen = <K extends keyof DocumentEventMap>(type: K, handler: (event: DocumentEventMap[K]) => void) => {
+  const listen = <K extends keyof DocumentEventMap>(type: K, handler: (event: DocumentEventMap[K]) => void, passive = true) => {
     const wrapped = (event: Event) => {
       if (!ignored(event.target)) handler(event as DocumentEventMap[K])
     }
-    document.addEventListener(type, wrapped, { capture: true, passive: true })
+    document.addEventListener(type, wrapped, { capture: true, passive })
     cleanups.push(() => document.removeEventListener(type, wrapped, { capture: true }))
   }
+
+  /* ⌥Z marks the next step for the camera; it is never replayed, and must not type "Ω" into a field. */
+  listen(
+    'keydown',
+    (event) => {
+      if (!event.altKey || event.code !== 'KeyZ' || event.metaKey || event.ctrlKey) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      if (!event.repeat) onMarkZoom()
+    },
+    false,
+  )
 
   let lastClick: { step: Extract<DemoStep, { kind: 'click' }>; el: Element; at: number } | null = null
   let pendingHover: Extract<DemoStep, { kind: 'hover' }> | null = null
@@ -89,6 +101,7 @@ export function startCapture(onStep: (step: DemoStep) => void, startedAt: number
   listen('keydown', (event) => {
     if (event.repeat || event.isComposing) return
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') return
+    if (event.altKey && event.code === 'KeyZ') return
     const inField = isTextField(event.target)
     const modified = event.metaKey || event.ctrlKey || event.altKey
     if (inField && !modified && !['Enter', 'Escape', 'Tab', 'ArrowUp', 'ArrowDown'].includes(event.key)) return

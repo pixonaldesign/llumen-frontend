@@ -240,6 +240,7 @@ export async function replay(
       case 'hover': {
         const { x, y } = await pointFor(step.target, step.at)
         await moveTo(x, y)
+        if (typeof step.zoom === 'number') focus(step, x, y)
         await sleep(700)
         return
       }

@@ -1,9 +1,47 @@
-import { useMemo } from 'react'
-import { AbsoluteFill, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from 'remotion'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  AbsoluteFill,
+  cancelRender,
+  continueRender,
+  delayRender,
+  interpolate,
+  OffthreadVideo,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+  type CalculateMetadataFunction,
+} from 'remotion'
 import type { DemoTrack, TrackEvent } from '../track.ts'
 import { buildTimeline } from './camera.ts'
+import type { DemoProps } from './schema.ts'
 
-export type DemoVideoProps = { track: DemoTrack | null }
+let trackRequest: Promise<DemoTrack> | null = null
+/** The take's cursor path and timing, from the demo's public folder next to raw.mp4. */
+const loadTrack = () => (trackRequest ??= fetch(staticFile('track.json')).then((response) => response.json() as Promise<DemoTrack>))
+
+export const calculateDemoMetadata: CalculateMetadataFunction<DemoProps> = async () => {
+  const track = await loadTrack()
+  return {
+    width: track.format.width * track.format.scale,
+    height: track.format.height * track.format.scale,
+    fps: track.format.fps,
+    durationInFrames: Math.max(1, Math.ceil(track.duration * track.format.fps)),
+  }
+}
+
+function useTrack() {
+  const [track, setTrack] = useState<DemoTrack | null>(null)
+  const [handle] = useState(() => delayRender('Loading track.json'))
+  useEffect(() => {
+    loadTrack()
+      .then((loaded) => {
+        setTrack(loaded)
+        continueRender(handle)
+      })
+      .catch((error) => cancelRender(error))
+  }, [handle])
+  return track
+}
 
 const KEY_GLYPHS: Record<string, string> = {
   Meta: '⌘',
@@ -32,11 +70,11 @@ function lastBefore<T extends TrackEvent['type']>(events: TrackEvent[], t: numbe
   return found
 }
 
-function Cursor({ track, t, x, y, size }: { track: DemoTrack; t: number; x: number; y: number; size: number }) {
+function Cursor({ track, t, x, y, size, ripple }: { track: DemoTrack; t: number; x: number; y: number; size: number; ripple: boolean }) {
   const press = lastBefore(track.events, t, ['down', 'up'])
   const since = press ? t - press.t : Infinity
   const scale = press?.type === 'down' ? interpolate(since, [0, 0.08], [1, 0.82], { extrapolateRight: 'clamp' }) : interpolate(since, [0, 0.18], [0.82, 1], { extrapolateRight: 'clamp' })
-  const ripples = track.events.filter((event) => event.type === 'down' && t >= event.t && t - event.t < 0.5)
+  const ripples = ripple ? track.events.filter((event) => event.type === 'down' && t >= event.t && t - event.t < 0.5) : []
 
   return (
     <>
@@ -133,25 +171,23 @@ function Keycaps({ track, t, unit }: { track: DemoTrack; t: number; unit: number
   )
 }
 
-export function DemoVideo({ track }: DemoVideoProps) {
+export function DemoVideo(props: DemoProps) {
   const frame = useCurrentFrame()
   const { fps, width, height, durationInFrames } = useVideoConfig()
-  const timeline = useMemo(() => (track ? buildTimeline(track, fps, durationInFrames) : []), [track, fps, durationInFrames])
+  const track = useTrack()
+  const timeline = useMemo(
+    () => (track ? buildTimeline(track, props.zooms, fps, durationInFrames) : []),
+    [track, props.zooms, fps, durationInFrames],
+  )
 
-  if (!track) {
-    return (
-      <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', background: '#0a0e16', color: '#fff', fontSize: 40 }}>
-        Run `npm run demo -- studio &lt;name&gt;` to load a demo
-      </AbsoluteFill>
-    )
-  }
+  if (!track || !timeline.length) return null
 
-  const { render, format } = track
+  const { format } = track
   const t = frame / fps
   const state = timeline[Math.min(frame, timeline.length - 1)]
   /** Output px per CSS px of the replay viewport. */
   const px = width / format.width
-  const inset = (render.inset ?? 0) * px
+  const inset = props.inset * px
   const fit = (width - inset * 2) / width
   const uiWidth = width * fit
   const uiHeight = height * fit
@@ -163,7 +199,7 @@ export function DemoVideo({ track }: DemoVideoProps) {
   const zoom = state.zoom
 
   return (
-    <AbsoluteFill style={{ background: render.background ?? 'linear-gradient(135deg, #1b2340 0%, #0a0e16 55%, #10233a 100%)' }}>
+    <AbsoluteFill style={{ background: props.background }}>
       <AbsoluteFill
         style={{
           transform: `translate(${width / 2 - camX * zoom}px, ${height / 2 - camY * zoom}px) scale(${zoom})`,
@@ -184,9 +220,11 @@ export function DemoVideo({ track }: DemoVideoProps) {
         >
           <OffthreadVideo src={staticFile('raw.mp4')} muted style={{ width: '100%', height: '100%' }} />
         </div>
-        {render.cursor === 'none' ? null : <Cursor track={track} t={t} x={cursorX} y={cursorY} size={28 * px * fit * (render.cursorScale ?? 1)} />}
+        {props.cursor ? (
+          <Cursor track={track} t={t} x={cursorX} y={cursorY} size={28 * px * fit * props.cursorScale} ripple={props.ripple} />
+        ) : null}
       </AbsoluteFill>
-      {render.keys === false ? null : <Keycaps track={track} t={t} unit={px} />}
+      {props.keycaps ? <Keycaps track={track} t={t} unit={px} /> : null}
     </AbsoluteFill>
   )
 }

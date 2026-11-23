@@ -1,0 +1,279 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dialog {
+  width: min(560px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: rgba(10, 14, 22, 0.96);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-family: var(--lc-font-sans);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.header {
+  flex-shrink: 0;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Scroller is full-bleed so its thumb sits on the dialog edge; sections carry the inset. */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  padding: 4px 0 8px;
+}
+
+.body::-webkit-scrollbar {
+  width: var(--lc-scrollbar-size, 4px);
+}
+
+.body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.section {
+  padding: 12px 20px 4px;
+}
+
+.section + .section {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sectionTitle {
+  margin: 0 0 6px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 40px;
+  padding: 4px 0;
+}
+
+.rowLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowControl {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.hint {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.segment {
+  margin: 0;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segment:hover {
+  color: #fff;
+}
+
+.segment[aria-checked='true'] {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.switch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.switch[aria-checked='true'] {
+  background: #4c8dff;
+}
+
+.knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.switch[aria-checked='true'] .knob {
+  transform: translateX(14px);
+}
+
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider[data-disabled] {
+  opacity: 0.4;
+}
+
+.slider input {
+  width: 160px;
+  margin: 0;
+  accent-color: #4c8dff;
+}
+
+.value {
+  min-width: 44px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--lc-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.dimensions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.number {
+  width: 76px;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font: inherit;
+  font-family: var(--lc-font-mono, ui-monospace, monospace);
+  outline: none;
+}
+
+.number:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+}
+
+.swatch[aria-checked='true'] {
+  border-color: #fff;
+}
+
+.footer {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.primary,
+.ghost {
+  margin: 0;
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  background: #fff;
+  color: #0a0e16;
+}
+
+.ghost {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.ghost:hover {
+  background: rgba(255, 255, 255, 0.14);
+}

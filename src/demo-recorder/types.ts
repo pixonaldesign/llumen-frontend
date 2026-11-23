@@ -66,8 +66,15 @@ export type DemoStep =
   | (StepBase & { kind: 'navigate'; path: string })
   | (StepBase & { kind: 'wait'; ms: number })
 
+/**
+ * `auto` zooms on every click and keystroke (⌥Z while recording skips the next one); `marked` zooms only on steps
+ * marked with ⌥Z; `off` keeps the whole UI in frame.
+ */
+export type ZoomMode = 'auto' | 'marked' | 'off'
+
 export type DemoRenderOptions = {
-  /** Auto-zoom level on clicks and typing; `false` keeps the whole UI in frame. */
+  zoomMode?: ZoomMode
+  /** Zoom level for automatic and marked zooms; `false` is the older spelling of `zoomMode: 'off'`. */
   zoom?: number | false
   /** Padding around the UI in CSS px; 0 renders the UI full-bleed. */
   inset?: number
@@ -75,8 +82,22 @@ export type DemoRenderOptions = {
   background?: string
   cursor?: 'arrow' | 'none'
   cursorScale?: number
+  /** Ring that expands from each click. */
+  ripple?: boolean
   /** Show a keycap overlay for shortcuts (⌘K, Enter, Esc…). */
   keys?: boolean
+}
+
+/** What happens once a take is saved: render straight to MP4, or open it in Remotion Studio to edit first. */
+export type DemoAfter = 'render' | 'edit'
+
+/** Chosen in the setup dialog before recording; remembered for the next take. */
+export type DemoSettings = {
+  format: DemoFormat
+  render: Required<Omit<DemoRenderOptions, 'zoom'>> & { zoom: number }
+  pace: number
+  typingSpeed: number
+  after: DemoAfter
 }
 
 export type DemoScript = {
@@ -98,6 +119,7 @@ export type DemoScript = {
   /** Typing speed in characters per second. */
   typingSpeed?: number
   render?: DemoRenderOptions
+  after?: DemoAfter
   steps: DemoStep[]
 }
 
@@ -114,4 +136,23 @@ export type DemoRenderStatus = {
 export const DEMO_FORMATS: DemoFormat[] = [
   { id: '16:9', width: 1920, height: 1080, scale: 2, fps: 60 },
   { id: '16:10', width: 1728, height: 1080, scale: 2, fps: 60 },
+  { id: '1:1', width: 1080, height: 1080, scale: 2, fps: 60 },
+  { id: '9:16', width: 1080, height: 1920, scale: 2, fps: 60 },
 ]
+
+export const DEFAULT_SETTINGS: DemoSettings = {
+  format: DEMO_FORMATS[0],
+  render: {
+    zoomMode: 'auto',
+    zoom: 1.5,
+    inset: 0,
+    background: 'linear-gradient(135deg, #1b2340 0%, #0a0e16 55%, #10233a 100%)',
+    cursor: 'arrow',
+    cursorScale: 1,
+    ripple: true,
+    keys: true,
+  },
+  pace: 1,
+  typingSpeed: 14,
+  after: 'render',
+}

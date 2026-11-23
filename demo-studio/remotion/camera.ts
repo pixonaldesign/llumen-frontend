@@ -1,4 +1,5 @@
 import type { DemoTrack, TrackEvent } from '../track.ts'
+import type { Zoom } from './schema.ts'
 
 export type FrameState = {
   /** Cursor in CSS px of the replay viewport. */
@@ -9,13 +10,6 @@ export type FrameState = {
   cy: number
   zoom: number
 }
-
-const DEFAULT_ZOOM = 1.5
-/** How long the camera stays in after a click or keystroke, and how early it starts moving. */
-const LEAD = 0.6
-const HOLD = 1.8
-/** Zoom windows closer than this merge, so a run of clicks stays zoomed instead of pumping. */
-const MERGE_GAP = 1.2
 
 type Move = Extract<TrackEvent, { type: 'move' }>
 
@@ -36,32 +30,14 @@ function cursorAt(moves: Move[], t: number) {
   return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }
 }
 
-function zoomWindows(track: DemoTrack) {
-  const fallback = track.render.zoom ?? DEFAULT_ZOOM
-  const windows: { from: number; to: number; zoom: number }[] = []
-  for (const event of track.events) {
-    if (event.type !== 'focus') continue
-    const zoom = event.zoom ?? fallback
-    if (zoom === false || zoom <= 1) continue
-    const from = event.t - LEAD
-    const to = event.t + HOLD
-    const last = windows[windows.length - 1]
-    if (last && from - last.to < MERGE_GAP) {
-      last.to = Math.max(last.to, to)
-      last.zoom = Math.max(last.zoom, zoom)
-    } else windows.push({ from, to, zoom })
-  }
-  return windows
-}
-
 /**
  * The whole camera path, one entry per frame. Zoom and centre chase their targets with critically damped springs, so
  * moves ease in and out without overshoot and the result is identical however Remotion splits the render.
  */
-export function buildTimeline(track: DemoTrack, fps: number, frames: number): FrameState[] {
+export function buildTimeline(track: DemoTrack, zooms: Zoom[], fps: number, frames: number): FrameState[] {
   const { width, height } = track.format
   const moves = track.events.filter((event): event is Move => event.type === 'move')
-  const windows = zoomWindows(track)
+  const windows = [...zooms].filter((zoom) => zoom.to > zoom.from && zoom.level > 1).sort((a, b) => a.from - b.from)
   const out: FrameState[] = []
   const zoomSpring = { x: 1, v: 0, omega: 5 }
   const cxSpring = { x: width / 2, v: 0, omega: 3.5 }
@@ -74,13 +50,11 @@ export function buildTimeline(track: DemoTrack, fps: number, frames: number): Fr
     spring.x += spring.v * dt
   }
 
-  let windowIndex = 0
   for (let frame = 0; frame < frames; frame++) {
     const t = frame / fps
     const cursor = cursorAt(moves, t)
-    while (windowIndex < windows.length && windows[windowIndex].to < t) windowIndex++
-    const active = windows[windowIndex] && windows[windowIndex].from <= t ? windows[windowIndex] : null
-    const targetZoom = active ? active.zoom : 1
+    const active = windows.find((zoom) => zoom.from <= t && t < zoom.to) ?? null
+    const targetZoom = active ? active.level : 1
     const targetX = active ? cursor.x : width / 2
     const targetY = active ? cursor.y : height / 2
     for (let i = 0; i < substeps; i++) {

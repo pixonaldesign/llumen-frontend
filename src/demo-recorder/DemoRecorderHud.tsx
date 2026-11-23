@@ -1,6 +1,18 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { dismissRecorder, isReplaying, renderDemo, revealOutput, saveRecording, stopRecording, useRecorderState } from './recorderStore'
+import { DemoSetupDialog } from './DemoSetupDialog'
+import {
+  dismissRecorder,
+  isReplaying,
+  openInRemotion,
+  renderDemo,
+  revealOutput,
+  saveRecording,
+  stopRecording,
+  toggleZoomMark,
+  useRecorderState,
+  type RecorderState,
+} from './recorderStore'
 import type { DemoScript } from './types'
 import styles from './DemoRecorderHud.module.css'
 
@@ -22,13 +34,13 @@ function Elapsed({ since }: { since: number }) {
 
 function ReviewForm({ script }: { script: DemoScript }) {
   const [name, setName] = useState(script.name)
-  const submit = (render: boolean) => void saveRecording(name, render)
+  const edit = script.after === 'edit'
   return (
     <form
       className={styles.form}
       onSubmit={(event) => {
         event.preventDefault()
-        submit(true)
+        void saveRecording(name, edit ? 'edit' : 'render')
       }}
     >
       <span className={styles.muted}>
@@ -45,13 +57,44 @@ function ReviewForm({ script }: { script: DemoScript }) {
       <button type="button" className={styles.ghost} onClick={dismissRecorder}>
         Discard
       </button>
-      <button type="button" className={styles.ghost} onClick={() => submit(false)}>
+      <button type="button" className={styles.ghost} onClick={() => void saveRecording(name, 'save')}>
         Save
       </button>
+      <button type="button" className={styles.ghost} onClick={() => void saveRecording(name, edit ? 'render' : 'edit')}>
+        {edit ? 'Render as is' : 'Edit in Remotion'}
+      </button>
       <button type="submit" className={styles.primary}>
-        Save & render
+        {edit ? 'Edit in Remotion' : 'Render'}
       </button>
     </form>
+  )
+}
+
+function RecordingBar({ state }: { state: Extract<RecorderState, { phase: 'recording' }> }) {
+  const { format, steps } = state.script
+  const mode = state.settings.render.zoomMode
+  return (
+    <>
+      <span className={styles.dot} aria-hidden />
+      <span className={styles.label}>Recording</span>
+      <Elapsed since={state.startedAt} />
+      <span className={styles.muted}>
+        {steps.length} {steps.length === 1 ? 'step' : 'steps'} · {format.id}
+      </span>
+      {mode !== 'off' ? (
+        <button
+          type="button"
+          className={state.zoomArmed ? styles.armed : styles.ghost}
+          onClick={toggleZoomMark}
+          title={mode === 'auto' ? 'Skip the zoom on the next action' : 'Zoom on the next action'}
+        >
+          {state.zoomArmed ? (mode === 'auto' ? 'No zoom next' : 'Zoom next') : mode === 'auto' ? '⌥Z skip zoom' : '⌥Z zoom'}
+        </button>
+      ) : null}
+      <button type="button" className={styles.primary} onClick={stopRecording}>
+        Stop
+      </button>
+    </>
   )
 }
 
@@ -60,23 +103,11 @@ export function DemoRecorderHud() {
   const state = useRecorderState()
 
   if (state.phase === 'idle' || isReplaying()) return null
+  if (state.phase === 'setup') return <DemoSetupDialog />
 
   let body: ReactNode
   if (state.phase === 'recording') {
-    const { format, steps } = state.script
-    body = (
-      <>
-        <span className={styles.dot} aria-hidden />
-        <span className={styles.label}>Recording</span>
-        <Elapsed since={state.startedAt} />
-        <span className={styles.muted}>
-          {steps.length} {steps.length === 1 ? 'step' : 'steps'} · {format.id}
-        </span>
-        <button type="button" className={styles.primary} onClick={stopRecording}>
-          Stop
-        </button>
-      </>
-    )
+    body = <RecordingBar state={state} />
   } else if (state.phase === 'review') {
     body = <ReviewForm key={state.script.createdAt} script={state.script} />
   } else if (state.phase === 'saving') {
@@ -96,19 +127,29 @@ export function DemoRecorderHud() {
       </>
     )
   } else if (state.phase === 'done') {
-    const { name: doneName } = state
+    const { name, studio, rendered, editable } = state
     body = (
       <>
-        <span className={styles.label}>Ready</span>
+        <span className={styles.label}>{studio === 'open' ? 'Open in Remotion' : 'Ready'}</span>
         <span className={`${styles.muted} ${styles.mono}`}>{state.output}</span>
-        {state.output.endsWith('.json') ? (
-          <button type="button" className={styles.ghost} onClick={() => void renderDemo(doneName)}>
+        {!rendered ? (
+          <button type="button" className={styles.ghost} onClick={() => void renderDemo(name)}>
             Render
           </button>
         ) : null}
-        <button type="button" className={styles.ghost} onClick={() => revealOutput(doneName)}>
+        <button type="button" className={styles.ghost} onClick={() => revealOutput(name)}>
           Show in Finder
         </button>
+        {editable || !rendered ? (
+          <button
+            type="button"
+            className={styles.ghost}
+            disabled={studio === 'opening'}
+            onClick={() => (editable ? void openInRemotion(name) : void renderDemo(name, 'edit'))}
+          >
+            {studio === 'opening' ? 'Opening…' : 'Open in Remotion'}
+          </button>
+        ) : null}
         <button type="button" className={styles.primary} onClick={dismissRecorder}>
           Close
         </button>
