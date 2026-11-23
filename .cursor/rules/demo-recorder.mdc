@@ -1,0 +1,74 @@
+---
+description: Demo recorder (⌘K → Demo, demo-studio/, src/demo-recorder/). Use when importing the recorder into a branch, recording or rendering demo videos, or editing takes in Remotion Studio.
+alwaysApply: false
+---
+
+# Demo recorder
+
+Records a flow you click through in the dev app, replays it in headless Chromium at a fixed size, and composites the
+footage with Remotion (fake cursor, click ripple, keycaps, camera zooms, framing). Dev-only: nothing ships in the build.
+
+- `src/demo-recorder/`: in-app capture, setup dialog, recording bar and ⌘K commands.
+- `demo-studio/`: replay (Playwright), encode (Remotion's ffmpeg), Remotion composition, CLI and the Vite dev plugin.
+- `demos/<name>.json`: saved scripts (committed). `demo-out/<name>/`: footage, track, Remotion project, renders (ignored).
+
+## Importing into a branch
+
+Bring the self-contained folders over from `main` as-is, then wire up the shared files by hand. Never check out the
+shared files from `main`: they carry unrelated `main` changes and would revert the branch's own work.
+
+1. `git fetch origin main`
+2. Copy the folders and files that only the recorder uses:
+
+   ```bash
+   git checkout origin/main -- src/demo-recorder demo-studio tsconfig.demo.json .cursor/rules/demo-recorder.mdc
+   ```
+
+3. Wire up the shared files, merging into what the branch already has:
+
+   - **`package.json`**: add the script `"demo": "node demo-studio/cli.ts"` and these devDependencies, at the versions on
+     `main` (`git show origin/main:package.json`): `playwright`, `remotion`, `@remotion/cli`, `@remotion/bundler`,
+     `@remotion/renderer`, `@remotion/zod-types`, `zod`. All Remotion packages must share one exact version.
+   - **`vite.config.ts`**: `import { demoStudio } from './demo-studio/vitePlugin.ts'` and add `demoStudio()` to `plugins`.
+   - **`src/App.tsx`**: render `{import.meta.env.DEV ? <DemoRecorderHud /> : null}` next to the app root, imported from
+     `./demo-recorder/DemoRecorderHud`.
+   - **`src/llumen-assistant/CommandPalette.tsx`** (or the branch's palette):
+     - add `'Demo'` to `TABS`;
+     - `const close = useCallback(() => onOpenChange(false), [onOpenChange])` and
+       `const demoCommands = useDemoCommands(open, close)` (from `../demo-recorder/useDemoCommands`);
+     - spread `...demoCommands` into the command list and add `demoCommands` to that `useMemo`'s dependencies;
+     - put `data-demo-ignore` on the palette's backdrop so opening ⌘K mid-take isn't recorded.
+
+     If the branch's palette has a different command shape, adapt `useDemoCommands`' return value to it rather than
+     changing the palette.
+   - **`tsconfig.json`**: add `{ "path": "./tsconfig.demo.json" }` to `references`.
+   - **`eslint.config.js`**: turn off `react-refresh/only-export-components` for `demo-studio/remotion/**/*.{ts,tsx}`.
+   - **`.gitignore`**: add `demo-out` and `out` (Remotion Studio's default render folder).
+
+4. `npm install`, then `npx playwright install chromium` (once per machine).
+5. Verify: `npx tsc -b`, `npx eslint src/demo-recorder demo-studio` and `npm run build` pass; in `npm run dev`, ⌘K →
+   "Demo · New recording…" opens the setup dialog.
+
+Branch UI that the recorder should never capture (floating dev panels, debug overlays) gets `data-demo-ignore`.
+
+## Using it
+
+- ⌘K → **Demo · New recording…** → choose options → click through the flow → **Stop** → name it → Render or Edit.
+- Format and pace are fixed when the take is filmed. Zooms, cursor, ripple, keycaps and framing are starting values,
+  editable later in Remotion Studio without recording again.
+- ⌥Z while recording: in Marked mode, the next click or typing zooms; in Auto mode, it skips the next zoom.
+- **Open in Remotion** starts Studio on port 3123. Edit props on the right and press **Save**; renders pick them up.
+  Zooms anchor to a step number (shown in the preview's guide strip), so they follow that step if the take is replayed.
+- CLI: `npm run demo -- <replay|render|make|studio> <name> [--url <origin>] [--headed] [--keep-frames]`.
+
+## Gotchas
+
+- Replays restore the sessionStorage/localStorage snapshot taken at the start of the take, pin `Date` to the recorded
+  clock and seed `Math.random`. App code that reads other state (cookies, IndexedDB, network) can drift between takes.
+- Steps find their targets by test id, role and name, placeholder or text, in that order. Add `data-demo="…"` to
+  controls whose labels change between runs.
+- Scripts are plain JSON. Hand-tune with `pause` (ms) on a step or by deleting stray steps, then Render again.
+- Commit `demos/*.json` only if they hold nothing sensitive: they include the storage snapshot.
+- Playwright and Remotion need a real browser: in sandboxed agent shells, run replays and renders outside the sandbox
+  and make sure `PLAYWRIGHT_BROWSERS_PATH` isn't pointing at a sandbox cache.
+- Remotion is free for individuals and companies of up to 3 people; larger teams need a company licence.
