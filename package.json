@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo": "node demo-studio/cli.ts"
   },
   "dependencies": {
     "@paper-design/shaders-react": "^0.0.72",
@@ -23,6 +24,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@remotion/bundler": "^4.0.546",
+    "@remotion/cli": "^4.0.546",
+    "@remotion/renderer": "^4.0.546",
     "@tailwindcss/vite": "^4.2.2",
     "@types/mapbox-gl": "^3.4.1",
     "@types/node": "^24.12.0",
@@ -34,7 +38,9 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "playwright": "^1.65.1",
     "postcss-prefix-selector": "^2.2.1",
+    "remotion": "^4.0.546",
     "tailwindcss": "^4.2.2",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.57.0",

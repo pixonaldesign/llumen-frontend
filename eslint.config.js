@@ -20,4 +20,9 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // Remotion's entry registers its root instead of exporting components; Vite fast refresh doesn't apply.
+    files: ['demo-studio/remotion/**/*.{ts,tsx}'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])

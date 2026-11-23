@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite'
 import prefixSelector from 'postcss-prefix-selector'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { demoStudio } from './demo-studio/vitePlugin.ts'
 
 const ASSET_BUILDER_SCOPE = '.ab-scope'
 
@@ -10,7 +11,7 @@ export default defineConfig({
   // Project Pages site: https://pixonaldesign.github.io/llumen-frontend/
   // PR previews are built under /llumen-frontend/preview/<branch>/ (see deploy-pages.yml).
   base: process.env.VITE_BASE || '/llumen-frontend/',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), demoStudio()],
   css: {
     postcss: {
       plugins: [

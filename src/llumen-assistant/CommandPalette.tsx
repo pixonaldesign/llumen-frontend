@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, MagnifyingGlass } from '@phosphor-icons/react'
+import { useDemoCommands } from '../demo-recorder/useDemoCommands'
 import type { ChatInteractionModel } from './interactionModel'
 import {
   COMPARISON_SPLIT_OPTIONS,
@@ -29,7 +30,7 @@ type Command = {
 }
 
 /** The tab row under the search: every command, or one group's. */
-const TABS = ['All', 'Landing', 'Findings', 'Studio', 'States', 'Shaders', 'Comparison', 'Top bar', 'UX', 'Aurora'] as const
+const TABS = ['All', 'Landing', 'Findings', 'Studio', 'States', 'Shaders', 'Comparison', 'Top bar', 'UX', 'Aurora', 'Demo'] as const
 type Tab = (typeof TABS)[number]
 
 /** Forced data states for reviewing Studio's asset cards and list. */
@@ -90,6 +91,8 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const previewState = useStudioPreviewState()
+  const close = useCallback(() => onOpenChange(false), [onOpenChange])
+  const demoCommands = useDemoCommands(open, close)
 
   const commands = useMemo<Command[]>(() => {
     const choose = (run: () => void) => () => {
@@ -256,9 +259,11 @@ export function CommandPalette({
           onDualStateAurora()
         },
       },
+      ...demoCommands,
     ]
   }, [
     comparisonSplit,
+    demoCommands,
     findingsStyle,
     landing,
     onComparisonSplit,
@@ -340,7 +345,7 @@ export function CommandPalette({
   })
 
   return createPortal(
-    <div className={styles.backdrop} onMouseDown={() => onOpenChange(false)}>
+    <div className={styles.backdrop} data-demo-ignore onMouseDown={() => onOpenChange(false)}>
       <div
         className={styles.panel}
         role="dialog"
@@ -373,7 +378,7 @@ export function CommandPalette({
               setQuery(event.target.value)
               setCursor(0)
             }}
-            placeholder="Landing, findings, Studio, states, shaders, comparison, top bar, UX, Aurora…"
+            placeholder="Landing, findings, Studio, states, shaders, comparison, top bar, UX, Aurora, demo…"
             aria-label="Filter commands"
             aria-controls="command-palette-list"
             aria-activedescendant={filtered[activeIndex] ? `command-${filtered[activeIndex].id}` : undefined}
