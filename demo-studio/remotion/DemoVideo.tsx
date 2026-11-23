@@ -8,11 +8,12 @@ import {
   OffthreadVideo,
   staticFile,
   useCurrentFrame,
+  useRemotionEnvironment,
   useVideoConfig,
   type CalculateMetadataFunction,
 } from 'remotion'
 import type { DemoTrack, TrackEvent } from '../track.ts'
-import { buildTimeline } from './camera.ts'
+import { buildTimeline, momentsOf, resolveZooms, type ZoomWindow } from './camera.ts'
 import type { DemoProps } from './schema.ts'
 
 let trackRequest: Promise<DemoTrack> | null = null
@@ -171,7 +172,113 @@ function Keycaps({ track, t, unit }: { track: DemoTrack; t: number; unit: number
   )
 }
 
+/**
+ * Studio-only overlay: which step just happened, where a fixed-focus zoom is looking, and a strip showing every step
+ * and zoom over the whole take. Studio's own timeline collapses mapped sequences, so the strip lives in the preview.
+ */
+function Guides({
+  track,
+  t,
+  windows,
+  unit,
+  toScreen,
+}: {
+  track: DemoTrack
+  t: number
+  windows: ZoomWindow[]
+  unit: number
+  toScreen: (x: number, y: number) => readonly [number, number]
+}) {
+  const moment = lastBefore(track.events, t, ['moment'])
+  const active = windows.find((zoom) => zoom.from <= t && t < zoom.to)
+  const chip = {
+    padding: `${unit * 6}px ${unit * 12}px`,
+    borderRadius: unit * 8,
+    background: 'rgba(255, 196, 0, 0.92)',
+    color: '#111',
+    fontSize: unit * 18,
+    fontWeight: 600,
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif',
+  } as const
+  const target = active?.target ? toScreen(active.target.x, active.target.y) : null
+  const at = (seconds: number) => `${(seconds / track.duration) * 100}%`
+  return (
+    <>
+      <div
+        style={{
+          position: 'absolute',
+          left: unit * 24,
+          right: unit * 24,
+          bottom: unit * 16,
+          height: unit * 40,
+          borderRadius: unit * 8,
+          background: 'rgba(0, 0, 0, 0.6)',
+          fontFamily: chip.fontFamily,
+          fontSize: unit * 14,
+          fontWeight: 600,
+        }}
+      >
+        {windows.map((zoom) => (
+          <div
+            key={zoom.index}
+            style={{
+              position: 'absolute',
+              left: at(zoom.from),
+              width: at(zoom.to - zoom.from),
+              top: 0,
+              bottom: 0,
+              borderRadius: unit * 6,
+              background: 'rgba(255, 196, 0, 0.28)',
+              color: 'rgba(255, 196, 0, 0.95)',
+              padding: `${unit * 2}px ${unit * 6}px`,
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Zoom {zoom.index} · {zoom.level}×
+          </div>
+        ))}
+        {momentsOf(track).map((moment) => (
+          <div
+            key={moment.step}
+            style={{ position: 'absolute', left: at(moment.t), bottom: 0, height: unit * 22, borderLeft: `${unit * 2}px solid #fff`, color: '#fff' }}
+          >
+            <span style={{ position: 'absolute', left: unit * 4, bottom: unit * 2 }}>{moment.step}</span>
+          </div>
+        ))}
+        <div style={{ position: 'absolute', left: at(t), top: -unit * 4, bottom: -unit * 4, width: unit * 2, background: 'rgb(255, 80, 80)' }} />
+      </div>
+      <div style={{ position: 'absolute', left: unit * 24, top: unit * 24, display: 'flex', gap: unit * 8 }}>
+        {moment ? (
+          <span style={chip}>
+            Step {moment.step} · {moment.label} · {moment.t.toFixed(2)}s
+          </span>
+        ) : null}
+        {active ? (
+          <span style={chip}>
+            Zoom {active.index} · {active.level}×
+          </span>
+        ) : null}
+      </div>
+      {target ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: target[0] - unit * 14,
+            top: target[1] - unit * 14,
+            width: unit * 28,
+            height: unit * 28,
+            borderRadius: '50%',
+            border: `${unit * 3}px solid rgba(255, 196, 0, 0.92)`,
+          }}
+        />
+      ) : null}
+    </>
+  )
+}
+
 export function DemoVideo(props: DemoProps) {
+  const { isStudio } = useRemotionEnvironment()
   const frame = useCurrentFrame()
   const { fps, width, height, durationInFrames } = useVideoConfig()
   const track = useTrack()
@@ -179,6 +286,7 @@ export function DemoVideo(props: DemoProps) {
     () => (track ? buildTimeline(track, props.zooms, fps, durationInFrames) : []),
     [track, props.zooms, fps, durationInFrames],
   )
+  const windows = useMemo(() => (track ? resolveZooms(track, props.zooms) : []), [track, props.zooms])
 
   if (!track || !timeline.length) return null
 
@@ -225,6 +333,18 @@ export function DemoVideo(props: DemoProps) {
         ) : null}
       </AbsoluteFill>
       {props.keycaps ? <Keycaps track={track} t={t} unit={px} /> : null}
+      {isStudio && props.guides ? (
+        <Guides
+          track={track}
+          t={t}
+          windows={windows}
+          unit={px}
+          toScreen={(x, y) => {
+            const [sx, sy] = toStage(x, y)
+            return [width / 2 + (sx - camX) * zoom, height / 2 + (sy - camY) * zoom] as const
+          }}
+        />
+      ) : null}
     </AbsoluteFill>
   )
 }

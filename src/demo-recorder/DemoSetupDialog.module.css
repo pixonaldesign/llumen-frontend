@@ -108,6 +108,14 @@
   justify-content: flex-end;
 }
 
+.later {
+  margin-left: 8px;
+  color: rgba(255, 255, 255, 0.3);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .hint {
   color: rgba(255, 255, 255, 0.45);
   font-size: 12px;

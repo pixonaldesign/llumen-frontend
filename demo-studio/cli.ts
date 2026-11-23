@@ -2,7 +2,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node
 import path from 'node:path'
 import type { DemoScript } from '../src/demo-recorder/types.ts'
 import { encode } from './encode.ts'
-import { entryFor, writeEntry } from './entry.ts'
+import { writeEntry } from './entry.ts'
 import { DEMOS_DIR, OUT_DIR, ROOT, isDemoName } from './paths.ts'
 import { render } from './render.ts'
 import { replay } from './replay.ts'
@@ -71,8 +71,9 @@ async function replayCommand(name: string, flags: Map<string, string | true>) {
     events: result.events,
   }
   writeFileSync(path.join(outDir, 'track.json'), JSON.stringify(track))
-  writeEntry(track)
+  const { kept } = writeEntry(track)
   console.log(`Wrote ${path.relative(ROOT, outDir)}/raw.mp4 (${result.duration.toFixed(1)} s, ${result.frames.length} captured frames)`)
+  if (kept) console.log('Kept the zooms and overlays saved in Remotion Studio')
 }
 
 function loadTrack(name: string): DemoTrack {
@@ -96,7 +97,7 @@ async function main() {
     } else if (command === 'replay') {
       writeStatus(name, { phase: 'done', message: 'Replayed', output: `demo-out/${name}/raw.mp4` }, true)
     } else if (command === 'studio') {
-      if (!existsSync(entryFor(name))) writeEntry(loadTrack(name))
+      writeEntry(loadTrack(name))
       launchStudio(name, { open: true, stdio: 'inherit' }).on('exit', (code) => process.exit(code ?? 0))
     } else if (command !== 'make') {
       console.log(USAGE)

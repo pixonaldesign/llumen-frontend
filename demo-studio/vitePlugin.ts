@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, openSync, readdirSync, readFileSync, statSync, w
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
 import type { Plugin } from 'vite'
-import { entryFor, writeEntry } from './entry.ts'
+import { writeEntry } from './entry.ts'
 import { DEMOS_DIR, OUT_DIR, ROOT, isDemoName } from './paths.ts'
 import { launchStudio, STUDIO_PORT } from './studio.ts'
 import type { DemoTrack } from './track.ts'
@@ -102,11 +102,21 @@ export function demoStudio(): Plugin {
             const { name, mode } = (await readBody(req)) as { name?: string; mode?: 'render' | 'edit' }
             if (!isDemoName(name) || !existsSync(path.join(DEMOS_DIR, `${name}.json`))) return send(res, 404, { error: 'No such demo' })
             if (job) return send(res, 409, { error: `Already rendering ${job.name}` })
-            /* Editing only needs the replay; the final render happens from Remotion Studio or a later Render. */
-            const command = mode === 'edit' ? 'replay' : 'make'
-            const origin = new URL(server.resolvedUrls?.local[0] ?? `http://localhost:${server.config.server.port ?? 5173}`).origin
             const dir = path.join(OUT_DIR, name)
+            const trackFile = path.join(dir, 'track.json')
+            /* Footage newer than the script is still that take; only the compositing needs redoing. */
+            const current = existsSync(trackFile) && statSync(trackFile).mtimeMs >= statSync(path.join(DEMOS_DIR, `${name}.json`)).mtimeMs
+            /* Editing only needs the replay; the final render happens from Remotion Studio or a later Render. */
+            const command = mode === 'edit' ? (current ? null : 'replay') : current ? 'render' : 'make'
             mkdirSync(dir, { recursive: true })
+            if (!command) {
+              writeFileSync(
+                path.join(dir, 'status.json'),
+                JSON.stringify({ phase: 'done', message: 'Replayed', output: `demo-out/${name}/raw.mp4`, updatedAt: new Date().toISOString() }),
+              )
+              return send(res, 202, { name })
+            }
+            const origin = new URL(server.resolvedUrls?.local[0] ?? `http://localhost:${server.config.server.port ?? 5173}`).origin
             writeFileSync(
               path.join(dir, 'status.json'),
               JSON.stringify({ phase: 'replaying', message: 'Starting', updatedAt: new Date().toISOString() }),
@@ -143,9 +153,7 @@ export function demoStudio(): Plugin {
             const { name } = (await readBody(req)) as { name?: string }
             if (!isDemoName(name)) return send(res, 400, { error: 'Invalid name' })
             if (!existsSync(path.join(OUT_DIR, name, 'track.json'))) return send(res, 409, { error: `Replay ${name} before editing it` })
-            if (!existsSync(entryFor(name))) {
-              writeEntry(JSON.parse(readFileSync(path.join(OUT_DIR, name, 'track.json'), 'utf8')) as DemoTrack)
-            }
+            writeEntry(JSON.parse(readFileSync(path.join(OUT_DIR, name, 'track.json'), 'utf8')) as DemoTrack)
             return send(res, 200, { url: openStudio(name) })
           }
 

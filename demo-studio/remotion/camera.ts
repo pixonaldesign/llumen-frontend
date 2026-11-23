@@ -30,6 +30,46 @@ function cursorAt(moves: Move[], t: number) {
   return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }
 }
 
+type Moment = Extract<TrackEvent, { type: 'moment' }>
+
+export type ZoomWindow = {
+  index: number
+  from: number
+  to: number
+  level: number
+  /** Fixed camera target in CSS px; null follows the cursor. */
+  target: { x: number; y: number } | null
+}
+
+/** Zoom windows closer than this are bridged, so a run of clicks stays zoomed instead of pumping. */
+const MERGE_GAP = 1.2
+
+export const momentsOf = (track: DemoTrack) => track.events.filter((event): event is Moment => event.type === 'moment')
+
+/** Zooms in seconds from the start of the video; ones anchored to a step the take no longer has are dropped. */
+export function resolveZooms(track: DemoTrack, zooms: Zoom[]): ZoomWindow[] {
+  const { width, height } = track.format
+  const moments = new Map(momentsOf(track).map((moment) => [moment.step, moment]))
+  const windows: ZoomWindow[] = []
+  zooms.forEach((zoom, index) => {
+    const moment = zoom.moment ? moments.get(zoom.moment) : undefined
+    if (zoom.moment && !moment) return
+    const base = moment?.t ?? 0
+    const from = Math.max(0, base + zoom.from)
+    const to = base + zoom.to
+    if (to <= from || zoom.level <= 1) return
+    const target =
+      zoom.focus === 'point' ? { x: zoom.x * width, y: zoom.y * height } : zoom.focus === 'moment' && moment ? { x: moment.x, y: moment.y } : null
+    windows.push({ index, from, to, level: zoom.level, target })
+  })
+  windows.sort((a, b) => a.from - b.from)
+  for (let i = 1; i < windows.length; i++) {
+    const gap = windows[i].from - windows[i - 1].to
+    if (gap > 0 && gap < MERGE_GAP) windows[i - 1].to = windows[i].from
+  }
+  return windows
+}
+
 /**
  * The whole camera path, one entry per frame. Zoom and centre chase their targets with critically damped springs, so
  * moves ease in and out without overshoot and the result is identical however Remotion splits the render.
@@ -37,7 +77,7 @@ function cursorAt(moves: Move[], t: number) {
 export function buildTimeline(track: DemoTrack, zooms: Zoom[], fps: number, frames: number): FrameState[] {
   const { width, height } = track.format
   const moves = track.events.filter((event): event is Move => event.type === 'move')
-  const windows = [...zooms].filter((zoom) => zoom.to > zoom.from && zoom.level > 1).sort((a, b) => a.from - b.from)
+  const windows = resolveZooms(track, zooms)
   const out: FrameState[] = []
   const zoomSpring = { x: 1, v: 0, omega: 5 }
   const cxSpring = { x: width / 2, v: 0, omega: 3.5 }
@@ -55,8 +95,8 @@ export function buildTimeline(track: DemoTrack, zooms: Zoom[], fps: number, fram
     const cursor = cursorAt(moves, t)
     const active = windows.find((zoom) => zoom.from <= t && t < zoom.to) ?? null
     const targetZoom = active ? active.level : 1
-    const targetX = active ? cursor.x : width / 2
-    const targetY = active ? cursor.y : height / 2
+    const targetX = active ? (active.target?.x ?? cursor.x) : width / 2
+    const targetY = active ? (active.target?.y ?? cursor.y) : height / 2
     for (let i = 0; i < substeps; i++) {
       stepSpring(zoomSpring, targetZoom)
       stepSpring(cxSpring, targetX)

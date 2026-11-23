@@ -212,8 +212,17 @@ export async function replay(
     return { x: box.x + box.width * fx, y: box.y + box.height * fy, locator }
   }
 
-  const focus = (step: DemoStep, x: number, y: number) =>
-    events.push({ t: clock(), type: 'focus', x, y, ...(step.zoom !== undefined ? { zoom: step.zoom } : {}) })
+  const current = { step: 0, label: '', landed: false }
+  /** Marks the instant the current step happens, once, so edits in Studio can refer to it by number. */
+  const land = (x = cursor.x, y = cursor.y) => {
+    if (current.landed) return
+    current.landed = true
+    events.push({ t: clock(), type: 'moment', step: current.step, label: current.label, x, y })
+  }
+  const focus = (step: DemoStep, x: number, y: number) => {
+    land(x, y)
+    events.push({ t: clock(), type: 'focus', x, y, step: current.step, ...(step.zoom !== undefined ? { zoom: step.zoom } : {}) })
+  }
 
   async function press(button: 'left' | 'right', clickCount = 1) {
     events.push({ t: clock(), type: 'down' })
@@ -241,6 +250,7 @@ export async function replay(
         const { x, y } = await pointFor(step.target, step.at)
         await moveTo(x, y)
         if (typeof step.zoom === 'number') focus(step, x, y)
+        else land(x, y)
         await sleep(700)
         return
       }
@@ -313,6 +323,7 @@ export async function replay(
         return
       }
       case 'key': {
+        land()
         events.push({ t: clock(), type: 'key', key: step.key })
         await page.keyboard.press(step.key)
         return
@@ -324,6 +335,7 @@ export async function replay(
           const inside = cursor.x >= box.x && cursor.x <= box.x + box.width && cursor.y >= box.y && cursor.y <= box.y + box.height
           if (!inside) await moveTo(box.x + box.width / 2, clamp(box.y + box.height / 2, 0, format.height))
         }
+        land()
         const target = locator ?? page.locator('html')
         await target.evaluate(
           (el, to) =>
@@ -388,13 +400,16 @@ export async function replay(
     const gap = i === 0 ? 0 : step.t - script.steps[i - 1].t
     const pause = (i === 0 ? 900 : clamp(gap * 0.45, 250, 1600)) * pace + (step.pause ?? 0)
     await sleep(pause)
-    const label = 'target' in step ? step.target.label : step.kind === 'key' ? step.key : step.kind
+    const label = 'target' in step ? step.target.label : step.kind === 'key' ? step.key : step.kind === 'navigate' ? step.path : step.kind
+    Object.assign(current, { step: i + 1, label: `${step.kind} ${label}`, landed: false })
     writeStatus(script.name, { phase: 'replaying', message: `${step.kind} ${label}`, progress: i / script.steps.length })
     try {
+      if (step.kind === 'navigate' || step.kind === 'wait') land()
       await run(step)
     } catch (error) {
       console.warn(`Step ${i + 1} (${step.kind}) failed: ${(error as Error).message}`)
     }
+    land()
   }
 
   await sleep(1600 * pace)

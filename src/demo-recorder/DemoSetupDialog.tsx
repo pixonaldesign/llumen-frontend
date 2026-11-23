@@ -154,7 +154,10 @@ export function DemoSetupDialog() {
           <h2 id="demo-setup-title" className={styles.title}>
             New recording
           </h2>
-          <p className={styles.subtitle}>Click through the flow at your pace. The take is replayed and filmed at the size below.</p>
+          <p className={styles.subtitle}>
+            Click through the flow at your pace. Format and pace are filmed in; camera, overlays and framing are starting values you can change in
+            Remotion afterwards.
+          </p>
         </header>
 
         <div className={styles.body}>
@@ -222,7 +225,9 @@ export function DemoSetupDialog() {
           </section>
 
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Camera</h3>
+            <h3 className={styles.sectionTitle}>
+              Camera<span className={styles.later}>Editable after</span>
+            </h3>
             <Row label="Zoom" hint={ZOOM_HINTS[render.zoomMode]}>
               <Segmented
                 label="Zoom"
@@ -250,7 +255,9 @@ export function DemoSetupDialog() {
           </section>
 
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Overlays</h3>
+            <h3 className={styles.sectionTitle}>
+              Overlays<span className={styles.later}>Editable after</span>
+            </h3>
             <Row label="Cursor">
               <Toggle label="Cursor" checked={render.cursor === 'arrow'} onChange={(on) => updateRender({ cursor: on ? 'arrow' : 'none' })} />
             </Row>
@@ -275,7 +282,9 @@ export function DemoSetupDialog() {
           </section>
 
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>Framing</h3>
+            <h3 className={styles.sectionTitle}>
+              Framing<span className={styles.later}>Editable after</span>
+            </h3>
             <Row label="Layout">
               <Segmented
                 label="Layout"
