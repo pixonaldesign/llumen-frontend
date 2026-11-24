@@ -26,7 +26,8 @@
   animation: entranceDown 720ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-.root[data-entrance='play'] .insight > * {
+/* Settled: assets and grid cells placed later appear in place rather than replaying the entrance. */
+.root[data-entrance='play']:not([data-entrance-settled]) .insight > * {
   --enter-d: 160ms;
   animation: entranceLeft 960ms cubic-bezier(0.16, 1, 0.3, 1) var(--enter-d) backwards;
 }
@@ -153,7 +154,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .root[data-entrance='play'] .header,
-  .root[data-entrance='play'] .insight > *,
+  .root[data-entrance='play']:not([data-entrance-settled]) .insight > *,
   .root[data-entrance='play'] .mapStack,
   .root[data-entrance='play'] .lowerNav {
     animation-duration: 1ms;

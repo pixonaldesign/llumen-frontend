@@ -348,6 +348,9 @@ const INSIGHT_CARD_IDS = ['summary', 'emissions', 'groundwater', 'biodiversity',
 /** Cards one cell wide; they keep that cell when the grid gains columns instead of stretching. */
 const ONE_CELL_CARDS: ReadonlySet<InsightCardId> = new Set<InsightCardId>(['deviation'])
 
+/** The arrival choreography in StoryView.module.css: the last piece lands about 1.9s in. */
+const ENTRANCE_MS = 2000
+
 /** Edit-mode grid: a row per full-width card, rows of one-cell cards, then 3 empty rows. */
 const EMPTY_GRID_ROWS = 3
 
@@ -613,6 +616,16 @@ export function StoryView({
     Record<string, Partial<Record<InsightCardId, InsightCardPrefs>>>
   >({})
   const [timersBySlide, setTimersBySlide] = useState<Record<string, StoryTimer[]>>({})
+  /* `entrance` stays 'play' after the cards land; once they have, cards placed later skip the entrance. */
+  const [entranceSettled, setEntranceSettled] = useState(false)
+  useEffect(() => {
+    if (entrance !== 'play') return
+    const id = window.setTimeout(() => setEntranceSettled(true), ENTRANCE_MS)
+    return () => {
+      window.clearTimeout(id)
+      setEntranceSettled(false)
+    }
+  }, [entrance])
   const [cardMenu, setCardMenu] = useState<{
     slideId: string
     cardId: InsightCardId
@@ -1205,12 +1218,11 @@ export function StoryView({
     viewLayout === 'sidebar'
       ? (sidebarColumnsBySlide[slide.id] ?? DEFAULT_SIDEBAR_COLUMNS)
       : DEFAULT_SIDEBAR_COLUMNS
-  const sidebarRows =
-    INSIGHT_CARD_IDS.length -
-    ONE_CELL_CARDS.size +
-    Math.ceil(ONE_CELL_CARDS.size / sidebarColumns) +
-    Math.ceil(timerCells / sidebarColumns) +
-    EMPTY_GRID_ROWS
+  /* Placed assets fill the empty rows first; the grid only grows, by a spare row, once they run out. */
+  const sidebarRows = Math.max(
+    INSIGHT_CARD_IDS.length - ONE_CELL_CARDS.size + Math.ceil(ONE_CELL_CARDS.size / sidebarColumns) + EMPTY_GRID_ROWS,
+    placedFull + Math.ceil((placedOneCell + timerCells) / sidebarColumns) + 1,
+  )
   const emptyGridCells = Math.max(
     0,
     sidebarRows * sidebarColumns - placedFull * sidebarColumns - placedOneCell - timerCells,
@@ -2535,6 +2547,7 @@ export function StoryView({
       data-comparison={viewLayout === 'comparison' ? comparisonDirection : undefined}
       aria-label={`${story.storyTitle} story`}
       data-entrance={entrance}
+      data-entrance-settled={entranceSettled || undefined}
       data-map-hidden={mapHidden || undefined}
       inert={entrance === 'leave' || entrance === 'gone'}
     >
