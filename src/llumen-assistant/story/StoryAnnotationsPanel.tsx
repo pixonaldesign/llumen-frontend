@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Keyb
 import { createPortal } from 'react-dom'
 import {
   ArrowCounterClockwise,
+  ArrowsClockwise,
   ArrowUpRight,
   Check,
   Circle,
+  ClockCountdown,
   DotsSixVertical,
   DotsThree,
   Eye,
@@ -14,13 +16,17 @@ import {
   PencilSimple,
   Polygon,
   Rectangle,
+  GearSix,
+  Timer,
   Trash,
 } from '@phosphor-icons/react'
 import { ColorPicker } from './StoryColorPicker'
 import { Slider } from './StoryBackgroundSettings'
+import { clockText } from './storyClockFormat'
 import {
   ANNOTATION_TOOLS,
   annotationTool,
+  clockTitle,
   contextSummary,
   minimumPoints,
   shapeMeasurements,
@@ -33,10 +39,14 @@ import styles from './StoryAnnotations.module.css'
 
 export type AnnotationDrawingState = { tool: AnnotationTool; points: number }
 
-export type AnnotationPatch = Partial<Pick<MapAnnotationItem, 'visible' | 'opacity'>> & { style?: Partial<AnnotationStyle> }
+export type AnnotationPatch = Partial<Pick<MapAnnotationItem, 'visible' | 'opacity' | 'clock'>> & {
+  style?: Partial<AnnotationStyle>
+}
 
 const TOOL_ICONS: Record<AnnotationTool, (size: number) => ReactNode> = {
   marker: (size) => <MapPinSimple size={size} weight="bold" aria-hidden />,
+  timer: (size) => <ClockCountdown size={size} weight="bold" aria-hidden />,
+  stopwatch: (size) => <Timer size={size} weight="bold" aria-hidden />,
   line: (size) => <LineSegments size={size} weight="bold" aria-hidden />,
   arrow: (size) => <ArrowUpRight size={size} weight="bold" aria-hidden />,
   polygon: (size) => <Polygon size={size} weight="bold" aria-hidden />,
@@ -46,6 +56,8 @@ const TOOL_ICONS: Record<AnnotationTool, (size: number) => ReactNode> = {
 
 const DRAW_STEP: Record<AnnotationTool, (points: number) => string> = {
   marker: () => 'Click the map to place the marker.',
+  timer: () => 'Click the map to place the timer.',
+  stopwatch: () => 'Click the map to place the stopwatch.',
   line: (points) => (points === 0 ? 'Click the map to start the line.' : 'Click to add a point; click the last one again to finish.'),
   arrow: (points) =>
     points === 0 ? 'Click where the arrow starts.' : 'Click to add a point; click the last one again to finish.',
@@ -57,6 +69,8 @@ const DRAW_STEP: Record<AnnotationTool, (points: number) => string> = {
 
 const EDIT_HINT: Record<AnnotationTool, string> = {
   marker: 'Drag the point to move the marker.',
+  timer: 'Drag the point to move the timer.',
+  stopwatch: 'Drag the point to move the stopwatch.',
   line: 'Drag the points to reshape the line.',
   arrow: 'Drag the points to reshape the arrow.',
   polygon: 'Drag the corners to reshape the area.',
@@ -65,6 +79,16 @@ const EDIT_HINT: Record<AnnotationTool, string> = {
 }
 
 function rowMeta(item: MapAnnotationItem) {
+  const { clock } = item
+  if (clock?.kind === 'timer') {
+    return clock.configuring && clock.startedAt === null
+      ? 'Not set up yet'
+      : `${clockTitle(item)} · ${clockText(clock.durationS, clock.durationS >= 3600)}`
+  }
+  if (clock?.kind === 'stopwatch') {
+    const laps = clock.laps.length ? ` · ${clock.laps.length} lap${clock.laps.length === 1 ? '' : 's'}` : ''
+    return `${clockTitle(item)}${laps}`
+  }
   const measured = shapeMeasurements(item.tool, item.geometry, item.circle).join(' · ')
   if (measured) return measured
   if (item.style.text) return item.style.text
@@ -331,17 +355,52 @@ function LayerPopover({
         />
       </div>
       <div className={styles.popoverSection}>
-        <span className={styles.popoverLabel}>Text</span>
+        <span className={styles.popoverLabel}>{item.clock ? 'Title' : 'Text'}</span>
         <textarea
           className={styles.textInput}
-          rows={2}
-          aria-label="Annotation text"
-          placeholder={item.tool === 'marker' ? 'Shown in a tooltip above the marker' : 'Shown in a pill at the centre'}
+          rows={item.clock ? 1 : 2}
+          aria-label={item.clock ? 'Title' : 'Annotation text'}
+          placeholder={
+            item.clock
+              ? annotationTool(item.tool).label
+              : item.tool === 'marker'
+                ? 'Shown in a tooltip above the marker'
+                : 'Shown in a pill at the centre'
+          }
           value={item.style.text}
           onChange={(event) => onChange({ style: { text: event.target.value } })}
         />
       </div>
       <div className={styles.popoverDivider} />
+      {item.clock?.kind === 'timer' ? (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            className={styles.popoverItem}
+            onClick={() => {
+              if (item.clock?.kind === 'timer') onChange({ clock: { ...item.clock, configuring: true } })
+              onClose()
+            }}
+          >
+            <GearSix size={16} weight="regular" aria-hidden />
+            Set duration
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={styles.popoverItem}
+            disabled={item.clock.startedAt === null}
+            onClick={() => {
+              if (item.clock?.kind === 'timer') onChange({ clock: { ...item.clock, startedAt: Date.now() } })
+              onClose()
+            }}
+          >
+            <ArrowsClockwise size={16} weight="regular" aria-hidden />
+            Restart
+          </button>
+        </>
+      ) : null}
       <button type="button" role="menuitem" className={styles.popoverDanger} onClick={onDelete}>
         <Trash size={16} weight="regular" aria-hidden />
         Delete

@@ -7,6 +7,7 @@ import {
   closeRing,
   distanceM,
   fromLocal,
+  isPointTool,
   labelAnchor,
   minimumPoints,
   shapeMeasurements,
@@ -388,7 +389,29 @@ function pillElement(item: MapAnnotationItem, validity: AnnotationValidity | und
 /** Half the marker dot, so the dot's centre sits on the point. */
 const DOT_OFFSET_PX = 7
 
-type LabelEntry = { marker: mapboxgl.Marker; signature: string }
+/**
+ * A clock pin: the same dot and stem as a marker, under an empty card that React portals the live clock into.
+ * Presses and keys stop at the pin so its buttons and fields don't pan the map; React still sees them, because it
+ * listens on the portal's own container.
+ */
+function clockElement() {
+  const root = el('div', styles.marker)
+  const host = el('div', `${styles.markerCard} ${styles.clockCard}`)
+  for (const type of ['mousedown', 'pointerdown', 'touchstart', 'dblclick', 'keydown']) {
+    root.addEventListener(type, (event) => event.stopPropagation())
+  }
+  root.append(host, el('span', styles.markerStem), el('span', styles.dot))
+  return { root, host }
+}
+
+function setStatus(dot: Element | null, validity: AnnotationValidity | undefined) {
+  if (!dot) return
+  dot.replaceChildren()
+  const status = validity && STATUS_CLASS[validity.state]
+  if (status) dot.append(el('span', `${styles.status} ${status}`))
+}
+
+type LabelEntry = { marker: mapboxgl.Marker; signature: string; host?: HTMLElement }
 
 /** DOM labels: every marker, plus the text pill of any other annotation that has text. */
 export class AnnotationLabels {
@@ -396,10 +419,17 @@ export class AnnotationLabels {
   private seen = new Set<string>()
   private map: mapboxgl.Map
   private onSelect: () => ((id: string) => void) | undefined
+  private onClockHosts: (hosts: Record<string, HTMLElement>) => void
 
-  constructor(map: mapboxgl.Map, onSelect: () => ((id: string) => void) | undefined) {
+  /** `onClockHosts` hears the card element of every clock pin whenever the set changes. */
+  constructor(
+    map: mapboxgl.Map,
+    onSelect: () => ((id: string) => void) | undefined,
+    onClockHosts: (hosts: Record<string, HTMLElement>) => void,
+  ) {
     this.map = map
     this.onSelect = onSelect
+    this.onClockHosts = onClockHosts
   }
 
   sync(
@@ -409,6 +439,7 @@ export class AnnotationLabels {
     selectable: boolean,
   ) {
     const keep = new Set<string>()
+    let hostsChanged = false
     for (const item of items) {
       const isMarker = item.geometry.type === 'Point'
       if (!item.visible || (!isMarker && !item.style.text)) continue
@@ -416,21 +447,40 @@ export class AnnotationLabels {
       const selected = item.id === selectedId
       const state = validity[item.id]
       const at = labelAnchor(item)
-      const signature = JSON.stringify([item.style, item.opacity, at, selected, state?.state, isMarker, selectable])
+      const opacity = String(item.opacity * (state?.state === 'invalid' ? 0.5 : 1))
       const current = this.entries.get(item.id)
+      // A clock pin keeps its element, so the React card inside it (and any half-typed configure form) survives.
+      if (item.clock) {
+        const signature = JSON.stringify(['clock', selectable])
+        let entry = current?.signature === signature ? current : undefined
+        if (!entry) {
+          current?.marker.remove()
+          const { root, host } = clockElement()
+          this.mount(item.id, root, selectable)
+          const marker = new mapboxgl.Marker({ element: root, anchor: 'bottom', offset: [0, DOT_OFFSET_PX] })
+          entry = { marker: marker.setLngLat(at).addTo(this.map), signature, host }
+          this.entries.set(item.id, entry)
+          hostsChanged = true
+        } else entry.marker.setLngLat(at)
+        const node = entry.marker.getElement()
+        // Mapbox makes markers an image, which would hide the card's buttons from assistive tech.
+        node.setAttribute('role', 'group')
+        node.setAttribute('aria-label', item.name)
+        node.style.setProperty('--annotation-color', item.style.color)
+        node.style.setProperty('--annotation-opacity', opacity)
+        node.classList.toggle(styles.selected, selected)
+        setStatus(node.querySelector(`.${styles.dot}`), state)
+        continue
+      }
+      const signature = JSON.stringify([item.style, item.opacity, at, selected, state?.state, isMarker, selectable])
       if (current?.signature === signature) continue
       current?.marker.remove()
+      if (current?.host) hostsChanged = true
       const node = isMarker ? markerElement(item, state) : pillElement(item, state)
       node.style.setProperty('--annotation-color', item.style.color)
-      node.style.setProperty('--annotation-opacity', String(item.opacity * (state?.state === 'invalid' ? 0.5 : 1)))
+      node.style.setProperty('--annotation-opacity', opacity)
       node.classList.toggle(styles.selected, selected)
-      node.classList.toggle(styles.readOnly, !selectable)
-      if (!this.seen.has(item.id)) node.classList.add(styles.entering)
-      this.seen.add(item.id)
-      node.addEventListener('click', (event) => {
-        event.stopPropagation()
-        this.onSelect()?.(item.id)
-      })
+      this.mount(item.id, node, selectable)
       const marker = new mapboxgl.Marker({
         element: node,
         anchor: isMarker ? 'bottom' : 'center',
@@ -444,12 +494,31 @@ export class AnnotationLabels {
       if (keep.has(id)) continue
       entry.marker.remove()
       this.entries.delete(id)
+      if (entry.host) hostsChanged = true
     }
+    if (hostsChanged) this.onClockHosts(this.hosts())
+  }
+
+  private mount(id: string, node: HTMLElement, selectable: boolean) {
+    node.classList.toggle(styles.readOnly, !selectable)
+    if (!this.seen.has(id)) node.classList.add(styles.entering)
+    this.seen.add(id)
+    node.addEventListener('click', (event) => {
+      event.stopPropagation()
+      this.onSelect()?.(id)
+    })
+  }
+
+  private hosts() {
+    const hosts: Record<string, HTMLElement> = {}
+    for (const [id, entry] of this.entries) if (entry.host) hosts[id] = entry.host
+    return hosts
   }
 
   destroy() {
     for (const entry of this.entries.values()) entry.marker.remove()
     this.entries.clear()
+    this.onClockHosts({})
   }
 }
 
@@ -541,7 +610,7 @@ function holdBoxZoom(map: mapboxgl.Map) {
   }
 }
 
-const snapsTo = (tool: AnnotationTool) => tool === 'marker' || tool === 'line' || tool === 'arrow'
+const snapsTo = (tool: AnnotationTool) => isPointTool(tool) || tool === 'line' || tool === 'arrow'
 
 function pixelsBetween(map: mapboxgl.Map, a: LngLat, b: LngLat) {
   const pa = map.project(a)
@@ -706,7 +775,7 @@ export function startAnnotationDrawing(map: mapboxgl.Map, tool: AnnotationTool, 
     shift = event.originalEvent.shiftKey
     const snap = track(event.point, toLngLat(event.lngLat))
     const at = cursor?.at ?? toLngLat(event.lngLat)
-    if (tool === 'marker') {
+    if (isPointTool(tool)) {
       snaps.push(snap?.ref ?? null)
       complete({ type: 'Point', coordinates: at })
       return

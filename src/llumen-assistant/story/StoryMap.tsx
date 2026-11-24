@@ -3,6 +3,7 @@
  * value-distribution columns and monitored-junction disks, varied per slide scene.
  */
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { MapControls, type InteractiveMapHandle } from '../InteractiveMap'
@@ -47,6 +48,7 @@ import {
   type AnnotationDrawing,
 } from './storyMapAnnotationLayer'
 import type { AnnotationTool, AnnotationValidity, DrawnShape, MapAnnotationItem } from './storyMapAnnotations'
+import { StoryClockPin, type ClockPinChange } from './StoryClockPin'
 import styles from './StoryMap.module.css'
 import { captureMapView } from './captureMapView'
 import { bySpace } from '../demoSpace'
@@ -144,6 +146,10 @@ export type StoryMapAnnotationLayer = {
   /** An annotation whose anchor points can be dragged; leave it out of `items` while it is edited. */
   editing?: MapAnnotationItem | null
   onEdited?: (shape: DrawnShape) => void
+  /** A timer or stopwatch pin was started, paused, lapped or set up on the map. */
+  onClockChange?: (id: string, change: ClockPinChange) => void
+  /** A new timer pin's setup was cancelled before it ever ran. */
+  onClockDiscard?: (id: string) => void
 }
 
 const NO_VALIDITY: Record<string, AnnotationValidity> = {}
@@ -1058,6 +1064,8 @@ export function StoryMap({
   const annotationsRef = useRef(annotations)
   const actionTooltipRef = useRef(actionTooltip)
   const labelsRef = useRef<AnnotationLabels | null>(null)
+  /** Card elements of the timer and stopwatch pins, which the live clocks portal into. */
+  const [clockHosts, setClockHosts] = useState<Record<string, HTMLElement>>({})
   const drawingRef = useRef<AnnotationDrawing | null>(null)
   const onReadyRef = useRef(onReady)
 
@@ -1144,7 +1152,7 @@ export function StoryMap({
       }
       map.on('render', announce)
     })
-    labelsRef.current = new AnnotationLabels(map, () => annotationsRef.current?.onSelect)
+    labelsRef.current = new AnnotationLabels(map, () => annotationsRef.current?.onSelect, setClockHosts)
 
     handleRef.current = {
       zoomIn: () => map.zoomIn({ duration: 280 }),
@@ -1666,6 +1674,21 @@ export function StoryMap({
           onResetNorth={() => handleRef.current?.resetNorth()}
         />
       ) : null}
+      {(annotationItems ?? []).map((item) => {
+        const host = clockHosts[item.id]
+        return host && item.clock
+          ? createPortal(
+              <StoryClockPin
+                item={item}
+                editable={selectable}
+                onChange={(change) => annotations?.onClockChange?.(item.id, change)}
+                onDiscard={() => annotations?.onClockDiscard?.(item.id)}
+              />,
+              host,
+              item.id,
+            )
+          : null
+      })}
     </div>
   )
 }

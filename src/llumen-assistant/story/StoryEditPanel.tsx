@@ -9,6 +9,7 @@ import {
   ChartLine,
   Check,
   Circle,
+  ClockCountdown,
   Copy,
   DotsThreeVertical,
   FunnelSimple,
@@ -964,13 +965,14 @@ const STORY_TOOLS: { id: string; label: string; group: ToolGroup; icon: ToolIcon
   { id: 'subtitle-deck', label: 'Subtitle · deck', group: 'text', icon: Circle },
   { id: 'table', label: 'Table', group: 'text', icon: Table },
   { id: 'text', label: 'Text', group: 'text', icon: TextT },
-  { id: 'timer', label: 'Timer', group: 'misc', icon: Timer },
+  { id: 'stopwatch', label: 'Stopwatch', group: 'misc', icon: Timer },
+  { id: 'timer', label: 'Timer', group: 'misc', icon: ClockCountdown },
   { id: 'video', label: 'Video', group: 'media', icon: VideoCamera },
   { id: 'weekly-waste-density', label: 'Weekly Waste Density per km² KPI', group: 'text', icon: Circle },
 ]
 
 /** Tools that go straight onto the slide when picked; the rest are only selected for now. */
-const PLACEABLE_TOOLS: ReadonlySet<string> = new Set(['timer'])
+const PLACEABLE_TOOLS: ReadonlySet<string> = new Set(['stopwatch', 'timer'])
 
 function ToolsSection({ onPlace }: { onPlace: (toolId: string) => void }) {
   const [tab, setTab] = useState<ToolTab>('all')

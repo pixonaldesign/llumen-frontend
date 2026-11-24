@@ -6,10 +6,25 @@
  */
 import { pointInPolygon } from './storyAiScenarios'
 import { DEMO_COLUMNS, DEMO_JUNCTIONS } from './storyDemoMapData'
+import type { StopwatchClock, TimerClock } from './storyTimer'
 
 export type LngLat = [number, number]
 
-export type AnnotationTool = 'marker' | 'line' | 'arrow' | 'polygon' | 'rectangle' | 'circle'
+export type AnnotationTool = 'marker' | 'timer' | 'stopwatch' | 'line' | 'arrow' | 'polygon' | 'rectangle' | 'circle'
+
+/** Markers and the clock pins: one click places them. */
+export const isPointTool = (tool: AnnotationTool) => tool === 'marker' || tool === 'timer' || tool === 'stopwatch'
+
+/** A timer or stopwatch pinned to the map; a fresh timer opens its configure form on the pin. */
+export type AnnotationClock = (TimerClock & { configuring: boolean }) | StopwatchClock
+
+const DEFAULT_TIMER_S = 5 * 60
+
+function newClock(tool: AnnotationTool): AnnotationClock | undefined {
+  if (tool === 'timer') return { kind: 'timer', durationS: DEFAULT_TIMER_S, startedAt: null, configuring: true }
+  if (tool === 'stopwatch') return { kind: 'stopwatch', elapsedMs: 0, runningSince: null, laps: [] }
+  return undefined
+}
 
 export type AnnotationToolOption = {
   id: AnnotationTool
@@ -24,6 +39,18 @@ export const ANNOTATION_TOOLS: AnnotationToolOption[] = [
     label: 'Marker',
     description: 'Marks a geographic point.',
     hint: 'Click the map to place the marker. Click a column or junction to pin it to that feature.',
+  },
+  {
+    id: 'timer',
+    label: 'Timer',
+    description: 'Counts down beside a geographic point.',
+    hint: 'Click the map to place the timer, then set its duration on the pin.',
+  },
+  {
+    id: 'stopwatch',
+    label: 'Stopwatch',
+    description: 'Counts up beside a geographic point.',
+    hint: 'Click the map to place the stopwatch.',
   },
   {
     id: 'line',
@@ -110,7 +137,12 @@ export type MapAnnotationItem = {
   /** Layer opacity, 0–1; applies to the whole annotation including its label. */
   opacity: number
   context: AnnotationDataContext
+  /** Timer and stopwatch pins; their text is the clock's title. */
+  clock?: AnnotationClock
 }
+
+/** A clock pin's title: its text, or the tool's name. */
+export const clockTitle = (item: MapAnnotationItem) => item.style.text.trim() || annotationTool(item.tool).label
 
 /** What the drawing tool hands back; snaps are the features a point was dropped on. */
 export type DrawnShape = {
@@ -231,7 +263,9 @@ function snapshot(ref: FeatureRef, data: AnnotationData): FeatureSnapshot {
 function featuresInside(ring: LngLat[], data: AnnotationData): FeatureRef[] {
   const inside = (points: [number, number, number][], layer: FeatureLayer) =>
     layerVisible(layer, data)
-      ? points.flatMap(([lng, lat], index): FeatureRef[] => (pointInPolygon([lng, lat], ring) ? [{ layer, index }] : []))
+      ? points.flatMap(([lng, lat], index): FeatureRef[] =>
+          pointInPolygon([lng, lat], ring) ? [{ layer, index }] : [],
+        )
       : []
   return [...inside(DEMO_COLUMNS, 'columns'), ...inside(DEMO_JUNCTIONS, 'junctions')]
 }
@@ -247,13 +281,17 @@ export function annotationContext(shape: DrawnShape, data: AnnotationData, dataL
   }
 }
 
-/** Builds the annotation for a finished drawing; a feature-anchored marker sits exactly on its feature. */
+/**
+ * Builds the annotation for a finished drawing; a feature-anchored marker sits exactly on its feature. A clock pin
+ * copied from a slide asset passes its `clock` and title; otherwise a clock tool starts a fresh one.
+ */
 export function createAnnotation(
   shape: DrawnShape,
   existing: MapAnnotationItem[],
   data: AnnotationData,
   dataLabel: string,
   color = DEFAULT_ANNOTATION_COLOR,
+  from?: { clock: AnnotationClock; text: string },
 ): MapAnnotationItem {
   const tool = annotationTool(shape.tool)
   const count = existing.filter((item) => item.tool === shape.tool).length
@@ -267,10 +305,11 @@ export function createAnnotation(
     name: `${tool.label} ${count + 1}`,
     geometry,
     circle: shape.circle,
-    style: { ...DEFAULT_ANNOTATION_STYLE, color },
+    style: { ...DEFAULT_ANNOTATION_STYLE, color, text: from?.text ?? '' },
     visible: true,
     opacity: 1,
     context: annotationContext({ ...shape, geometry }, data, dataLabel),
+    clock: from?.clock ?? newClock(shape.tool),
   }
 }
 
@@ -304,7 +343,8 @@ export function contextSummary(context: AnnotationDataContext) {
  */
 export function annotationValidity(item: MapAnnotationItem, data: AnnotationData): AnnotationValidity {
   const { features, anchor, dataLabel } = item.context
-  if (features.length === 0) return { state: 'valid', detail: 'Refers to a place only, so data changes don’t affect it.' }
+  if (features.length === 0)
+    return { state: 'valid', detail: 'Refers to a place only, so data changes don’t affect it.' }
   const hidden = features.filter((ref) => !layerVisible(ref.layer, data))
   if (hidden.length === features.length || (anchor === 'feature' && hidden.length > 0)) {
     const layers = [...new Set(hidden.map((ref) => LAYER_LABELS[ref.layer]))]

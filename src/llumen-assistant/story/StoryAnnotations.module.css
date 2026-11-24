@@ -284,7 +284,7 @@
 
 .toolbar {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 2px;
   padding: 3px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -498,6 +498,7 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+.popoverItem,
 .popoverDanger {
   display: flex;
   align-items: center;
@@ -518,6 +519,20 @@
 
 .popoverDanger:hover {
   background: rgba(190, 65, 65, 0.2);
+}
+
+.popoverItem {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.popoverItem:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.popoverItem:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .textInput {

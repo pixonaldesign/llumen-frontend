@@ -8,63 +8,30 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
+import {
+  clockText,
+  pad,
+  segments,
+  spokenText,
+  unitLabel,
+  UNIT_LABELS,
+  type Segment,
+  type Unit,
+} from './storyClockFormat'
 import { TIMER_CELLS, type StoryTimer, type StoryTimerSize } from './storyTimer'
+import { useRemaining } from './useStoryClock'
 import styles from './StoryTimerCard.module.css'
 
 const SIZE_ORDER: StoryTimerSize[] = ['1x1', '2x1', '2x2']
 const TICKS = 60
-const TICK_MS = 200
 const CELL_GAP = 12
 const MAX_DURATION_S = 99 * 3600 + 59 * 60 + 59
 
-const pad = (value: number) => String(value).padStart(2, '0')
-
-type Unit = 'H' | 'M' | 'S'
-type Segment = { value: string; unit: Unit }
-
-/** Shared by the readout and the configure fields; 1×1 uses the short form. */
-const UNIT_LABELS: Record<Unit, { full: string; short: string }> = {
-  H: { full: 'Hours', short: 'Hrs' },
-  M: { full: 'Minutes', short: 'Min' },
-  S: { full: 'Seconds', short: 'Sec' },
-}
-const unitLabel = (unit: Unit, compact: boolean) => UNIT_LABELS[unit][compact ? 'short' : 'full']
-
-/** Hours, minutes, seconds, each with its letter; hours show whenever the full duration has them, so the width never jumps. */
-function segments(seconds: number, withHours: boolean): Segment[] {
-  const m: Segment = {
-    value: pad(Math.floor((seconds % 3600) / 60)),
-    unit: 'M',
-  }
-  const s: Segment = { value: pad(seconds % 60), unit: 'S' }
-  return withHours ? [{ value: pad(Math.floor(seconds / 3600)), unit: 'H' }, m, s] : [m, s]
-}
-
-const clockText = (seconds: number, withHours: boolean) =>
-  segments(seconds, withHours)
-    .map((segment) => segment.value)
-    .join(':')
-
-const spokenText = (seconds: number, withHours: boolean) =>
-  segments(seconds, withHours)
-    .map((segment) => `${Number(segment.value)} ${UNIT_LABELS[segment.unit].full.toLowerCase()}`)
-    .join(' ')
-
 /** Colon-separated parts, each labelled underneath like the configure fields. */
-function Readout({
-  seconds,
-  withHours,
-  compact,
-  className,
-}: {
-  seconds: number
-  withHours: boolean
-  compact: boolean
-  className: string
-}) {
+export function Readout({ parts, compact, className }: { parts: Segment[]; compact: boolean; className: string }) {
   return (
-    <p className={className} role="timer" aria-live="off" aria-label={spokenText(seconds, withHours)}>
-      {segments(seconds, withHours).map((segment, index) => (
+    <p className={className} role="timer" aria-live="off" aria-label={spokenText(parts)}>
+      {parts.map((segment, index) => (
         <span key={segment.unit} className={styles.part}>
           {index > 0 ? (
             <span className={styles.colon} aria-hidden>
@@ -79,24 +46,6 @@ function Readout({
       ))}
     </p>
   )
-}
-
-function useRemaining(timer: StoryTimer) {
-  const running = !timer.configuring && timer.startedAt !== null
-  const [now, setNow] = useState(() => Date.now())
-  const endsAt = timer.startedAt === null ? null : timer.startedAt + timer.durationS * 1000
-  const done = running && endsAt !== null && now >= endsAt
-  useEffect(() => {
-    if (!running || done) return
-    const id = window.setInterval(() => setNow(Date.now()), TICK_MS)
-    return () => window.clearInterval(id)
-  }, [running, done])
-  const remainingMs = !running || endsAt === null ? timer.durationS * 1000 : Math.max(0, endsAt - now)
-  return {
-    seconds: Math.ceil(remainingMs / 1000),
-    fraction: timer.durationS > 0 ? remainingMs / (timer.durationS * 1000) : 0,
-    done,
-  }
 }
 
 type Tick = { x: number; y: number; nx: number; ny: number }
@@ -147,8 +96,19 @@ function rectTicks(halfWidth: number, halfHeight: number, radius: number, count:
   })
 }
 
-/** Ticks round the card's dial area; the lit run empties clockwise from the top as time runs out. */
-function TickGauge({ fraction, large }: { fraction: number; large: boolean }) {
+/**
+ * Ticks round the card's dial area. Draining (the timer), the lit run empties clockwise from the top as time runs
+ * out; filling (the stopwatch), it grows clockwise from the top.
+ */
+export function TickGauge({
+  fraction,
+  large,
+  fill = 'drain',
+}: {
+  fraction: number
+  large: boolean
+  fill?: 'drain' | 'fill'
+}) {
   const ref = useRef<SVGSVGElement>(null)
   const [box, setBox] = useState<{ width: number; height: number } | null>(null)
   useEffect(() => {
@@ -166,6 +126,7 @@ function TickGauge({ fraction, large }: { fraction: number; large: boolean }) {
   const inset = large ? 1.5 : 1
   const ticks = box ? rectTicks(box.width / 2 - inset, box.height / 2 - inset, large ? 10 : 6, TICKS) : []
   const spent = (1 - fraction) * ticks.length
+  const filled = fraction * ticks.length
   return (
     <svg
       ref={ref}
@@ -174,7 +135,7 @@ function TickGauge({ fraction, large }: { fraction: number; large: boolean }) {
       aria-hidden
     >
       {ticks.map((tick, index) => {
-        const lit = Math.min(1, Math.max(0, index + 1 - spent))
+        const lit = Math.min(1, Math.max(0, fill === 'drain' ? index + 1 - spent : filled - index))
         const isMajor = index % 5 === 0
         const length = isMajor ? major : minor
         return (
@@ -194,7 +155,7 @@ function TickGauge({ fraction, large }: { fraction: number; large: boolean }) {
 }
 
 /** Hours, minutes and seconds as three two-digit fields; arrow keys step them. */
-function DurationFields({
+export function DurationFields({
   value,
   compact,
   onChange,
@@ -239,12 +200,17 @@ function DurationFields({
   )
 }
 
-function ConfigureForm({
+export function ConfigureForm({
   timer,
+  compact,
+  className = styles.configure,
   onConfirm,
   onCancel,
 }: {
-  timer: StoryTimer
+  timer: Pick<StoryTimer, 'title' | 'durationS'>
+  /** 1×1: abbreviated field labels. */
+  compact: boolean
+  className?: string
   onConfirm: (patch: Pick<StoryTimer, 'title' | 'durationS'>) => void
   onCancel: () => void
 }) {
@@ -263,7 +229,7 @@ function ConfigureForm({
     }
   }
   return (
-    <div className={styles.configure} onKeyDown={onKeyDown}>
+    <div className={className} onKeyDown={onKeyDown}>
       <input
         className={styles.titleInput}
         value={title}
@@ -274,7 +240,7 @@ function ConfigureForm({
         autoFocus
       />
       <div className={styles.configureBody}>
-        <DurationFields value={durationS} compact={timer.size === '1x1'} onChange={setDurationS} />
+        <DurationFields value={durationS} compact={compact} onChange={setDurationS} />
       </div>
       <div className={styles.configureActions}>
         <button type="button" className={styles.secondary} onClick={onCancel}>
@@ -288,12 +254,15 @@ function ConfigureForm({
   )
 }
 
-/** The macOS widget corner: drag it to snap the timer between 1×1, 2×1 and 2×2; Enter steps through them. */
-function ResizeHandle({
+/** The macOS widget corner: drag it to snap the card between 1×1, 2×1 and 2×2; Enter steps through them. */
+export function ResizeHandle({
+  label,
   size,
   cardRef,
   onResize,
 }: {
+  /** What's resized, e.g. "timer". */
+  label: string
   size: StoryTimerSize
   cardRef: RefObject<HTMLElement | null>
   onResize: (size: StoryTimerSize) => void
@@ -329,7 +298,7 @@ function ResizeHandle({
     <button
       type="button"
       className={styles.resize}
-      aria-label={`Resize timer, ${size.replace('x', ' by ')}`}
+      aria-label={`Resize ${label}, ${size.replace('x', ' by ')}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={end}
@@ -380,6 +349,7 @@ export function StoryTimerCard({
       {timer.configuring ? (
         <ConfigureForm
           timer={timer}
+          compact={timer.size === '1x1'}
           onConfirm={(patch) => onChange({ ...patch, configuring: false, startedAt: Date.now() })}
           onCancel={onCancelConfigure}
         />
@@ -392,8 +362,7 @@ export function StoryTimerCard({
             <TickGauge fraction={fraction} large={timer.size === '2x2'} />
             <div className={styles.dialCentre}>
               <Readout
-                seconds={seconds}
-                withHours={withHours}
+                parts={segments(seconds, withHours)}
                 compact={timer.size === '1x1'}
                 className={styles.dialValue}
               />
@@ -403,7 +372,9 @@ export function StoryTimerCard({
         </>
       )}
       {timer.configuring ? null : toolbar}
-      {editing ? <ResizeHandle size={timer.size} cardRef={cardRef} onResize={(size) => onChange({ size })} /> : null}
+      {editing ? (
+        <ResizeHandle label="timer" size={timer.size} cardRef={cardRef} onResize={(size) => onChange({ size })} />
+      ) : null}
     </section>
   )
 }

@@ -40,6 +40,7 @@ import {
   Layout,
   List,
   MapPin,
+  MapPinPlus,
   MapTrifold,
   Pause,
   PencilSimple,
@@ -76,8 +77,16 @@ import type { WorkflowProposal } from '../assistantReplyTypes'
 import { SplitIcon } from './StorySplitIcon'
 import { DEFAULT_CHART_KPI, resolveKpi, type ChartCardId, type ChartKpiConfig } from './storyKpi'
 import { StorySummaryConfigModal } from './StorySummaryConfigModal'
+import { StoryStopwatchCard } from './StoryStopwatchCard'
 import { StoryTimerCard } from './StoryTimerCard'
-import { newStoryTimer, timerFootprint, type StoryTimer, type StoryTimerSize } from './storyTimer'
+import {
+  clockTiming,
+  newStoryStopwatch,
+  newStoryTimer,
+  timerFootprint,
+  type StoryClockAsset,
+  type StoryTimerSize,
+} from './storyTimer'
 import {
   SUMMARY_REGENERATE_MS,
   defaultSummaryConfig,
@@ -141,6 +150,7 @@ import {
   annotationValidity,
   createAnnotation,
   reshapeAnnotation,
+  type AnnotationClock,
   type AnnotationData,
   type DrawnShape,
   type MapAnnotationItem,
@@ -615,7 +625,10 @@ export function StoryView({
   const [cardPrefsBySlide, setCardPrefsBySlide] = useState<
     Record<string, Partial<Record<InsightCardId, InsightCardPrefs>>>
   >({})
-  const [timersBySlide, setTimersBySlide] = useState<Record<string, StoryTimer[]>>({})
+  /** Timers and stopwatches placed from the Tools menu, in placement order. */
+  const [clocksBySlide, setClocksBySlide] = useState<Record<string, StoryClockAsset[]>>({})
+  /** A slide clock being pinned to the map: the next pin of its kind copies its title and timing. */
+  const [pendingClockPin, setPendingClockPin] = useState<{ clock: AnnotationClock; text: string } | null>(null)
   /* `entrance` stays 'play' after the cards land; once they have, cards placed later skip the entrance. */
   const [entranceSettled, setEntranceSettled] = useState(false)
   useEffect(() => {
@@ -852,7 +865,12 @@ export function StoryView({
         : lowerAnnotations,
     [annotationPane, editingAnnotationId, lowerAnnotations],
   )
-  const startAnnotationDrawing = (tool: AnnotationDrawingState['tool'], pane: MapPane = 'upper') => {
+  const startAnnotationDrawing = (
+    tool: AnnotationDrawingState['tool'],
+    pane: MapPane = 'upper',
+    clockPin: { clock: AnnotationClock; text: string } | null = null,
+  ) => {
+    setPendingClockPin(clockPin)
     setAnnotationPane(pane)
     setAnnotationEditing(null)
     setEditSection(null)
@@ -869,10 +887,12 @@ export function StoryView({
   }
   const onAnnotationDrawn = (shape: DrawnShape, pane: MapPane = 'upper') => {
     setAnnotationDrawing(null)
+    const from = pendingClockPin?.clock.kind === shape.tool ? pendingClockPin : undefined
+    setPendingClockPin(null)
     const item =
       pane === 'lower'
-        ? createAnnotation(shape, lowerAnnotations, lowerAnnotationData, lowerAnnotationDataLabel)
-        : createAnnotation(shape, mapAnnotations, annotationData, annotationDataLabel)
+        ? createAnnotation(shape, lowerAnnotations, lowerAnnotationData, lowerAnnotationDataLabel, undefined, from)
+        : createAnnotation(shape, mapAnnotations, annotationData, annotationDataLabel, undefined, from)
     setAnnotationsOf(pane)((items) => [item, ...items])
     setSelectedAnnotationId(item.id)
   }
@@ -1212,8 +1232,8 @@ export function StoryView({
   const placedIds = INSIGHT_CARD_IDS.filter((id) => !cardPrefs[id]?.deleted)
   const placedOneCell = placedIds.filter((id) => ONE_CELL_CARDS.has(id)).length
   const placedFull = placedIds.length - placedOneCell
-  const timers = timersBySlide[slide.id] ?? []
-  const timerCells = timers.reduce((sum, timer) => sum + timerFootprint(timer.size), 0)
+  const clocks = clocksBySlide[slide.id] ?? []
+  const timerCells = clocks.reduce((sum, clock) => sum + timerFootprint(clock.size), 0)
   const sidebarColumns =
     viewLayout === 'sidebar'
       ? (sidebarColumnsBySlide[slide.id] ?? DEFAULT_SIDEBAR_COLUMNS)
@@ -2262,61 +2282,91 @@ export function StoryView({
     )
   }
 
-  const updateTimer = (id: string, patch: Partial<StoryTimer>) =>
-    setTimersBySlide((current) => ({
+  const updateClock = (id: string, patch: Partial<StoryClockAsset>) =>
+    setClocksBySlide((current) => ({
       ...current,
-      [slide.id]: (current[slide.id] ?? []).map((timer) => (timer.id === id ? { ...timer, ...patch } : timer)),
+      [slide.id]: (current[slide.id] ?? []).map((clock) =>
+        clock.id === id ? ({ ...clock, ...patch } as StoryClockAsset) : clock,
+      ),
     }))
-  const removeTimer = (id: string) =>
-    setTimersBySlide((current) => ({
+  const removeClock = (id: string) =>
+    setClocksBySlide((current) => ({
       ...current,
-      [slide.id]: (current[slide.id] ?? []).filter((timer) => timer.id !== id),
+      [slide.id]: (current[slide.id] ?? []).filter((clock) => clock.id !== id),
     }))
   const addTool = (toolId: string) => {
-    if (toolId !== 'timer') return
-    const timer = newStoryTimer(`timer-${Date.now()}`)
-    setTimersBySlide((current) => ({ ...current, [slide.id]: [...(current[slide.id] ?? []), timer] }))
+    const id = `${toolId}-${Date.now()}`
+    const clock = toolId === 'timer' ? newStoryTimer(id) : toolId === 'stopwatch' ? newStoryStopwatch(id) : null
+    if (!clock) return
+    setClocksBySlide((current) => ({ ...current, [slide.id]: [...(current[slide.id] ?? []), clock] }))
   }
+  /** Pins a copy of a slide clock to the map; it shares the clock's timing, so the two read the same. */
+  const pinClock = (clock: StoryClockAsset) =>
+    startAnnotationDrawing(clock.kind, 'upper', { clock: clockTiming(clock), text: clock.title })
   const timerSizeClass: Record<StoryTimerSize, string> = {
     '1x1': '',
     '2x1': styles.timerWide,
     '2x2': styles.timerLarge,
   }
+  const clockCardClass = (size: StoryTimerSize) =>
+    [styles.timerCard, timerSizeClass[size], styles.insightCard].filter(Boolean).join(' ')
+  const clockToolbar = (clock: StoryClockAsset, actions: ReactNode) => (
+    <div className={styles.cardActions} role="toolbar" aria-label={`${clock.title} actions`}>
+      {actions}
+      {storyMode === 'edit' && background.kind === 'basemap' ? (
+        <CardActionButton label="Add as annotation" ariaLabel={`Add ${clock.title} as a map annotation`} onClick={() => pinClock(clock)}>
+          <MapPinPlus size={16} aria-hidden />
+        </CardActionButton>
+      ) : null}
+      <CardActionButton label="Remove" ariaLabel={`Remove ${clock.title}`} onClick={() => removeClock(clock.id)}>
+        <Trash size={16} aria-hidden />
+      </CardActionButton>
+    </div>
+  )
   const timerCards = aiFocus
     ? null
-    : timers.map((timer) => (
-        <StoryTimerCard
-          key={timer.id}
-          timer={timer}
-          editing={storyMode === 'edit'}
-          className={[styles.timerCard, timerSizeClass[timer.size], styles.insightCard].filter(Boolean).join(' ')}
-          onChange={(patch) => updateTimer(timer.id, patch)}
-          onCancelConfigure={() =>
-            timer.startedAt === null ? removeTimer(timer.id) : updateTimer(timer.id, { configuring: false })
-          }
-          toolbar={
-            <div className={styles.cardActions} role="toolbar" aria-label={`${timer.title} actions`}>
-              <CardActionButton
-                label="Configure"
-                ariaLabel={`Configure ${timer.title}`}
-                onClick={() => updateTimer(timer.id, { configuring: true })}
-              >
-                <GearSix size={16} aria-hidden />
-              </CardActionButton>
-              <CardActionButton
-                label="Restart"
-                ariaLabel={`Restart ${timer.title}`}
-                onClick={() => updateTimer(timer.id, { startedAt: Date.now() })}
-              >
-                <ArrowsClockwise size={16} aria-hidden />
-              </CardActionButton>
-              <CardActionButton label="Remove" ariaLabel={`Remove ${timer.title}`} onClick={() => removeTimer(timer.id)}>
-                <Trash size={16} aria-hidden />
-              </CardActionButton>
-            </div>
-          }
-        />
-      ))
+    : clocks.map((clock) =>
+        clock.kind === 'timer' ? (
+          <StoryTimerCard
+            key={clock.id}
+            timer={clock}
+            editing={storyMode === 'edit'}
+            className={clockCardClass(clock.size)}
+            onChange={(patch) => updateClock(clock.id, patch)}
+            onCancelConfigure={() =>
+              clock.startedAt === null ? removeClock(clock.id) : updateClock(clock.id, { configuring: false })
+            }
+            toolbar={clockToolbar(
+              clock,
+              <>
+                <CardActionButton
+                  label="Configure"
+                  ariaLabel={`Configure ${clock.title}`}
+                  onClick={() => updateClock(clock.id, { configuring: true })}
+                >
+                  <GearSix size={16} aria-hidden />
+                </CardActionButton>
+                <CardActionButton
+                  label="Restart"
+                  ariaLabel={`Restart ${clock.title}`}
+                  onClick={() => updateClock(clock.id, { startedAt: Date.now() })}
+                >
+                  <ArrowsClockwise size={16} aria-hidden />
+                </CardActionButton>
+              </>,
+            )}
+          />
+        ) : (
+          <StoryStopwatchCard
+            key={clock.id}
+            stopwatch={clock}
+            editing={storyMode === 'edit'}
+            className={clockCardClass(clock.size)}
+            onChange={(patch) => updateClock(clock.id, patch)}
+            toolbar={clockToolbar(clock, null)}
+          />
+        ),
+      )
 
   const insightCards = (
     <>
@@ -2590,6 +2640,9 @@ export function StoryView({
             onDrawCancel: () => setAnnotationDrawing(null),
             editing: annotationPane === 'upper' ? editingAnnotation : null,
             onEdited: (shape) => onAnnotationEdited(shape, 'upper'),
+            onClockChange: (id, { clock, text }) =>
+              updateAnnotation(id, { clock, style: text === undefined ? undefined : { text } }, 'upper'),
+            onClockDiscard: (id) => deleteAnnotation(id, 'upper'),
           }}
           onHandle={onMapHandle}
           onReady={onMapReady}
@@ -2630,6 +2683,9 @@ export function StoryView({
               onDrawCancel: () => setAnnotationDrawing(null),
               editing: annotationPane === 'lower' ? editingAnnotation : null,
               onEdited: (shape) => onAnnotationEdited(shape, 'lower'),
+              onClockChange: (id, { clock, text }) =>
+                updateAnnotation(id, { clock, style: text === undefined ? undefined : { text } }, 'lower'),
+              onClockDiscard: (id) => deleteAnnotation(id, 'lower'),
             }}
             onHandle={onLowerMapHandle}
           />

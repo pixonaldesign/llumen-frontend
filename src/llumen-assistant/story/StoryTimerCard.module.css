@@ -157,6 +157,124 @@
   }
 }
 
+/* —— Stopwatch —— */
+
+/* The dial alone, or beside its laps in 2×1 and above them in 2×2. */
+.stopwatchBody {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  gap: 12px;
+}
+
+.timer[data-size='2x1'][data-laps] .stopwatchBody {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.timer[data-size='2x2'][data-laps] .stopwatchBody {
+  grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.laps {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overflow-y: overlay;
+  list-style: none;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.timer[data-size='2x2'] .laps {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.lap {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.lap:first-child {
+  color: #fff;
+}
+
+.lap[data-rank='fastest'] {
+  color: var(--color-positive-300, #7dcea0);
+}
+
+.lap[data-rank='slowest'] {
+  color: var(--color-negative-300, #f17474);
+}
+
+.lapTime {
+  font-family: var(--lc-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.controls {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.control {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.86);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    opacity 140ms ease;
+}
+
+.control:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+
+.control:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--lc-focus-color, #70aeff);
+  outline-offset: 1px;
+}
+
+.controlPrimary {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--timer-accent) 24%, transparent);
+  color: var(--timer-accent);
+}
+
+.controlPrimary:hover:not(:disabled) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--timer-accent) 34%, transparent);
+  color: var(--timer-accent);
+}
+
+.timer[data-size='2x2'] .control {
+  width: 36px;
+  height: 36px;
+}
+
 /* —— Configure —— */
 
 /* Title in the header, duration in the middle, actions in the footer. */

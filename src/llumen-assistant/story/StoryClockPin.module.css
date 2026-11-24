@@ -1,0 +1,68 @@
+/* The card above a timer or stopwatch pin: a small tick dial like the slide asset's, sized for the map. */
+.pin {
+  --timer-accent: var(--color-primary-500, #73adf5);
+  --timer-track: rgba(255, 255, 255, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 168px;
+  padding: 10px 12px 12px;
+}
+
+.pin[data-done] {
+  --timer-accent: var(--color-negative-300, #f17474);
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pin[data-done] .title {
+  color: var(--timer-accent);
+}
+
+.dial {
+  display: grid;
+  place-items: center;
+  height: 76px;
+  container-type: size;
+}
+
+.dial > * {
+  grid-area: 1 / 1;
+}
+
+/* Fills the width inside the ticks like the slide asset (a mono character is 0.6em), up to 20px. */
+.value {
+  display: flex;
+  align-items: flex-start;
+  margin: 0;
+  color: #fff;
+  font-family: var(--lc-font-mono);
+  font-size: min(20px, calc((100cqi - 32px) * 1.6 / var(--chars)));
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pin[data-done] .value {
+  animation: timeUp 1600ms ease-in-out infinite;
+}
+
+@keyframes timeUp {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.configure {
+  width: 232px;
+  padding: 12px;
+}

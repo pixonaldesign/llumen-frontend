@@ -30,6 +30,20 @@
   white-space: pre-wrap;
 }
 
+/* Timer and stopwatch pins: the card holds a live clock (see StoryClockPin). */
+.clockCard {
+  max-width: none;
+  padding: 0;
+  cursor: default;
+}
+
+/* Timer and stopwatch pins: the card holds a live clock (see StoryClockPin). */
+.clockCard {
+  max-width: none;
+  padding: 0;
+  cursor: default;
+}
+
 .markerStem {
   width: 2px;
   height: 44px;
