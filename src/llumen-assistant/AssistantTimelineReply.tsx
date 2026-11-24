@@ -16,7 +16,7 @@ import {
   Wind,
   X,
 } from '@phosphor-icons/react'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import type {
   AgentResponseBlock,
@@ -843,6 +843,29 @@ export function AssistantTimelineReply({
                       active={selectedComponentId === component.id}
                       onExpand={onComponentSelect ? () => onComponentSelect(component) : undefined}
                     />
+                  </div>
+                </AnswerBlockShell>
+              )
+            }
+
+            if (block.type === 'visualRow') {
+              const row = block.componentIds.flatMap((id) => componentById.get(id) ?? [])
+              return (
+                <AnswerBlockShell
+                  key={`visual-row-${index}`}
+                  animating={isAnimating}
+                  reduceMotion={reduceMotion}
+                  onComplete={isAnimating ? onActiveBlockComplete : undefined}
+                >
+                  <div className={styles.visualRow} style={{ '--row-count': row.length } as CSSProperties}>
+                    {row.map((component) => (
+                      <InlineVisualCard
+                        key={component.id}
+                        component={component}
+                        active={selectedComponentId === component.id}
+                        onExpand={onComponentSelect ? () => onComponentSelect(component) : undefined}
+                      />
+                    ))}
                   </div>
                 </AnswerBlockShell>
               )

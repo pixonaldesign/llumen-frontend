@@ -92,6 +92,8 @@ export type EstateLabel = {
 /** A baked raster laid on the ground, such as flood depth: its corners run top-left, top-right, bottom-right, bottom-left. */
 export type EstateWater = {
   url: string
+  /** Earlier states of the same raster, oldest first, ending on `url`: what a view's player steps through. */
+  frames?: readonly string[]
   corners: [LngLat, LngLat, LngLat, LngLat]
   opacity?: number
   group: string

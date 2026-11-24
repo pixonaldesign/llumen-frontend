@@ -163,9 +163,15 @@ function shiftDate(date: Date, unit: DateUnit, steps: number) {
 }
 
 /** `yearOffset` moves the whole timeline by whole years, e.g. -1 for a compared map on the prior period. */
-export function timelineFrameDate(granularity: TimelineGranularity, frameCount: number, frame: number, yearOffset = 0) {
+export function timelineFrameDate(
+  granularity: TimelineGranularity,
+  frameCount: number,
+  frame: number,
+  yearOffset = 0,
+  end = TIMELINE_END,
+) {
   return shiftDate(
-    shiftDate(TIMELINE_END, 'year', yearOffset),
+    shiftDate(end, 'year', yearOffset),
     granularity.unit,
     (frame - (frameCount - 1)) * granularity.step,
   )

@@ -1074,6 +1074,7 @@ export function BriefingLanding({
                 running={
                   autoplay &&
                   !inStudio &&
+                  !covered &&
                   (overlaid || (!held && !away)) &&
                   !assetsOpen &&
                   !alert &&

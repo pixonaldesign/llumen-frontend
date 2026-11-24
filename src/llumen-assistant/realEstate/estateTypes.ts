@@ -181,6 +181,11 @@ export type EstateAskView = {
   scene: EstateMapScene
   layers: MapDataLayer[]
   compare?: { before: EstateAskView; labels: [before: string, after: string] }
+  /**
+   * Plays the scene's water through its hourly `frames`, ending at `end` (the hour `water.url` shows). A
+   * comparison's two maps step together.
+   */
+  player?: { end: Date }
 }
 
 export type EstateStory = {

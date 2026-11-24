@@ -258,12 +258,15 @@
   top: calc(var(--asset-header-h, 0px) + 16px);
 }
 
-/* A finding map's legend, where the story keeps its Map Data. */
-.mapData {
+/* A finding map's legend, and its player when it has one, where the story keeps its Map Data. */
+.mapDock {
   position: absolute;
   right: 32px;
   bottom: 32px;
   z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: 300px;
 }
 

@@ -41,10 +41,51 @@ function useMorphSettled() {
   return settled
 }
 
+const SPARK_H = 32
+
+function Spark({ chart, gradientId }: { chart: Extract<StoryReplyChartData, { type: 'spark' }>; gradientId: string }) {
+  const max = Math.max(...chart.points) || 1
+  const last = chart.points.length - 1
+  const coords = chart.points.map((v, i) => `${(i / last) * 100},${SPARK_H - 2 - (v / max) * (SPARK_H - 4)}`)
+  return (
+    <div className={styles.spark}>
+      <svg viewBox={`0 0 100 ${SPARK_H}`} preserveAspectRatio="none" aria-hidden>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={chart.color} stopOpacity={0.35} />
+            <stop offset="1" stopColor={chart.color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <polygon points={`0,${SPARK_H} ${coords.join(' ')} 100,${SPARK_H}`} fill={`url(#${gradientId})`} />
+        <polyline
+          className={styles.sparkLine}
+          points={coords.join(' ')}
+          stroke={chart.color}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <div className={styles.sparkAxis}>
+        <span>{chart.xLabels[0]}</span>
+        <span>{chart.xLabels[1]}</span>
+      </div>
+    </div>
+  )
+}
+
 /** Story insight-card style chart for assistant replies. */
 export function StoryReplyChart({ chart }: { chart: StoryReplyChartData }) {
   const gradientId = `reply-chart-${useId().replace(/:/g, '')}`
   const settled = useMorphSettled()
+
+  if (chart.type === 'spark') {
+    return (
+      <div className={`${styles.card} ${styles.sparkCard}`}>
+        <p className={`${storyStyles.visualTitle} ${styles.sparkTitle}`}>{chart.title}</p>
+        <Value value={chart.value} unit={chart.unit} />
+        <Spark chart={chart} gradientId={gradientId} />
+      </div>
+    )
+  }
 
   if (chart.type === 'status') {
     const values = settled || !chart.from ? chart : chart.from

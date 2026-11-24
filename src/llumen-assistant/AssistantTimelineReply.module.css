@@ -619,6 +619,16 @@
   overflow: visible;
 }
 
+.visualRow {
+  display: grid;
+  grid-template-columns: repeat(var(--row-count, 3), minmax(0, 1fr));
+  gap: 8px;
+}
+
+.visualRow > * {
+  min-width: 0;
+}
+
 .answerBlockSeparator {
   overflow: visible;
 }

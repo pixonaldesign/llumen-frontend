@@ -62,17 +62,26 @@ const CAMERA: EstateCamera = { center: [55.2765, 25.1925], zoom: 14.2, pitch: 50
 /** Where the storage tunnel lets out: the Business Bay bank below Burj Khalifa. */
 const OUTFALL: LngLat = [55.27063, 25.18557]
 
-const scene = (run: Run, parts: Partial<EstateMapScene> = {}): EstateMapScene => ({
-  ...EMPTY_SCENE,
-  ...parts,
-  labels: [...roadLabels(run), ...(parts.labels ?? [])],
-  water: { url: `${BASE}/downtown-${run}.png`, corners: CORNERS, opacity: 0.95, group: 'flood' },
-})
+const HOURS = Array.from({ length: FLOOD_BAKE.hours + 1 }, (_, hour) => hour)
+/** The recorded storm replayed as today's forecast: from midnight to 4 PM today. */
+const END = new Date(new Date().setHours(FLOOD_BAKE.hours, 0, 0, 0))
+
+const frames = (run: Run) => HOURS.map((hour) => `${BASE}/downtown-${run}-${String(hour).padStart(2, '0')}.webp`)
+
+const scene = (run: Run, parts: Partial<EstateMapScene> = {}): EstateMapScene => {
+  const hourly = frames(run)
+  return {
+    ...EMPTY_SCENE,
+    ...parts,
+    labels: [...roadLabels(run), ...(parts.labels ?? [])],
+    water: { url: hourly[hourly.length - 1], frames: hourly, corners: CORNERS, opacity: 0.95, group: 'flood' },
+  }
+}
 
 const LAYER = {
   flood: {
     group: 'flood',
-    title: 'Modelled flood depth at 4 PM',
+    title: 'Modelled flood depth',
     mark: 'area',
     color: { ramp: FLOOD_RAMP, low: '10 cm', high: '1.5 m+' },
   },
@@ -148,6 +157,7 @@ const FLOOD_VIEW: EstateAskView = {
   camera: CAMERA,
   scene: scene('before'),
   layers: [LAYER.flood, LAYER.roads('before')],
+  player: { end: END },
 }
 
 const RESPONSE: Record<Horizon, { label: string; after: string; parts: Partial<EstateMapScene> }> = {
@@ -163,7 +173,8 @@ const solutionView = (horizon: Horizon): EstateAskView => {
     camera: CAMERA,
     scene: scene(run, parts),
     layers: [actionsLayer(horizon, label), LAYER.flood, LAYER.roads(run)],
-    compare: { before: FLOOD_VIEW, labels: ['No action · 4 PM', after] },
+    compare: { before: FLOOD_VIEW, labels: ['No action', after] },
+    player: { end: END },
   }
 }
 
@@ -182,5 +193,14 @@ export const FLOOD_BRIEFING = {
   peakMmH: 29,
   floodedHa: (horizon: Horizon | 'before') => Math.round(run(horizon).floodedHa),
   worst: (horizon: Horizon | 'before') => depthText(run(horizon).hotspots.financialCentre),
-  roads: ROADS.map(({ spot, title }) => ({ title, depth: depthText(depth('before', spot)) })),
+  roads: ROADS.map(({ spot, title }) => ({
+    spot,
+    title,
+    depth: depthText(depth('before', spot)),
+    color: depthColor(depth('before', spot)),
+    /** Water on the road at each hour from midnight to 4 PM. */
+    byHour: FLOOD_BAKE.scenarios.before.hotspotsByHour[spot] as readonly number[],
+  })),
+  /** Rain fallen since midnight, at each hour to 4 PM. */
+  rainByHour: FLOOD_BAKE.rainByHour as readonly number[],
 }

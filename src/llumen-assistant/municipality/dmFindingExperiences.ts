@@ -429,6 +429,21 @@ function floodAlert(stateId: (place: EstateFindingStageId) => string): EstateFin
     { id: 'flood-done', kind: 'done', title: 'Flood map ready' },
   ]
   const overview = mapComponent(stateId('flood'), FLOOD_MAP)
+  const roads = FLOOD_BRIEFING.roads.map((road) =>
+    chartComponent(
+      `${overview.id}-road-${road.spot}`,
+      {
+        type: 'spark',
+        title: road.title,
+        value: road.depth,
+        unit: 'by 4 PM',
+        color: road.color,
+        points: road.byHour,
+        xLabels: ['12 AM', '4 PM'],
+      },
+      `Modelled water on ${road.title} through the day`,
+    ),
+  )
   return {
     prompt: 'Where could Downtown Dubai flood this afternoon?',
     map: { stateId: overview.id, snapshot: findingSnapshot('flood'), open: true },
@@ -436,14 +451,13 @@ function floodAlert(stateId: (place: EstateFindingStageId) => string): EstateFin
       headline: `${FLOOD_BRIEFING.floodedHa('before')} ha of Downtown streets could be under water by 4 PM.`,
       thinkingSteps: steps,
       timeline: timeline(steps),
-      createdComponents: [overview],
+      createdComponents: [overview, ...roads],
       blocks: [
         {
           type: 'text',
-          content: `By 4 PM, ${FLOOD_BRIEFING.rainMm} mm of rain could put ${FLOOD_BRIEFING.floodedHa('before')} ha of Downtown streets under water.`,
+          content: `I simulated today’s forecast on Downtown’s streets. By 4 PM, ${FLOOD_BRIEFING.rainMm} mm of rain could put ${FLOOD_BRIEFING.floodedHa('before')} ha under water.`,
         },
-        { type: 'bullets', items: FLOOD_BRIEFING.roads.map((road) => `${road.title}: ${road.depth}`) },
-        { type: 'text', content: 'Ask me to run a simulation to compare responses.' },
+        { type: 'visualRow', componentIds: roads.map((road) => road.id) },
       ],
     },
   }
@@ -516,7 +530,7 @@ function floodSimulationReply(overviewId: string, stateId: (place: EstateFinding
     timeline: timeline(steps),
     createdComponents: solutions.map(({ component }) => component),
     blocks: [
-      { type: 'text', content: 'Same storm, three responses. Open one to compare it with no action.' },
+      { type: 'text', content: 'I ran the same storm with three responses. Here are the results.' },
       {
         type: 'solutions',
         overviewId,

@@ -73,8 +73,12 @@ export type StoryTimeSeriesProps = {
   onFrameChange: (frame: number) => void
   onPlayingChange: (playing: boolean) => void
   onSpeedChange: (speed: number) => void
-  onGranularityChange: (granularityId: string) => void
-  onRangeChange: (rangeId: string) => void
+  /** Without it, the time step is a fixed label. */
+  onGranularityChange?: (granularityId: string) => void
+  /** Without it, the date-range menu is left out. */
+  onRangeChange?: (rangeId: string) => void
+  /** The last frame's time, in place of the demo timeline's. */
+  end?: Date
   /** Map scene the line charts sample; the chart button shows when this and `onChartsChange` are set. */
   chartScene?: StoryScene
   /** Shifts chart samples the same way the map's frame phase is shifted. */
@@ -107,6 +111,7 @@ export function StoryTimeSeries({
   onChartsChange,
   editable,
   yearOffset = 0,
+  end,
 }: StoryTimeSeriesProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
@@ -147,7 +152,7 @@ export function StoryTimeSeries({
 
   const lastFrame = frameCount - 1
   const progress = lastFrame > 0 ? frame / lastFrame : 0
-  const dateText = formatFrameDate(timelineFrameDate(granularity, frameCount, frame, yearOffset))
+  const dateText = formatFrameDate(timelineFrameDate(granularity, frameCount, frame, yearOffset, end))
   const [dateLabel, timeLabel] = dateText.split(', ')
 
   useEffect(() => {
@@ -304,18 +309,24 @@ export function StoryTimeSeries({
   return (
     <div ref={cardRef} className={styles.card} aria-label="Slide time series">
       <div className={styles.topRow}>
-        <button
-          ref={granularityBtnRef}
-          type="button"
-          className={`${styles.granularityBtn}${menu === 'granularity' ? ` ${styles.controlOpen}` : ''}`}
-          aria-label={`Time step: ${granularity.label}`}
-          aria-haspopup="listbox"
-          aria-expanded={menu === 'granularity'}
-          onClick={() => toggleMenu('granularity')}
-        >
-          <span>{granularity.label}</span>
-          <CaretDown size={14} weight="bold" aria-hidden />
-        </button>
+        {onGranularityChange ? (
+          <button
+            ref={granularityBtnRef}
+            type="button"
+            className={`${styles.granularityBtn}${menu === 'granularity' ? ` ${styles.controlOpen}` : ''}`}
+            aria-label={`Time step: ${granularity.label}`}
+            aria-haspopup="listbox"
+            aria-expanded={menu === 'granularity'}
+            onClick={() => toggleMenu('granularity')}
+          >
+            <span>{granularity.label}</span>
+            <CaretDown size={14} weight="bold" aria-hidden />
+          </button>
+        ) : (
+          <span className={styles.granularityBtn} aria-label={`Time step: ${granularity.label}`}>
+            <span>{granularity.label}</span>
+          </span>
+        )}
         <div className={styles.controls}>
           {chartsEnabled ? (
             <button
@@ -415,7 +426,7 @@ export function StoryTimeSeries({
                   role="status"
                 >
                   <span className={styles.chartTooltipDate}>
-                    {formatFrameDate(timelineFrameDate(granularity, frameCount, hoverFrame, yearOffset))}
+                    {formatFrameDate(timelineFrameDate(granularity, frameCount, hoverFrame, yearOffset, end))}
                   </span>
                   {chartLines.map((line) => (
                     <span key={line.series.id} className={styles.chartTooltipRow}>
@@ -472,17 +483,19 @@ export function StoryTimeSeries({
         <span className={styles.date}>
           {dateLabel}, <strong>{timeLabel}</strong>
         </span>
-        <button
-          ref={datesBtnRef}
-          type="button"
-          className={`${styles.funnelBtn}${menu === 'dates' ? ` ${styles.controlOpen}` : ''}`}
-          aria-label="Date range"
-          aria-haspopup="dialog"
-          aria-expanded={menu === 'dates'}
-          onClick={() => toggleMenu('dates')}
-        >
-          <CalendarBlank size={16} weight="regular" aria-hidden />
-        </button>
+        {onRangeChange ? (
+          <button
+            ref={datesBtnRef}
+            type="button"
+            className={`${styles.funnelBtn}${menu === 'dates' ? ` ${styles.controlOpen}` : ''}`}
+            aria-label="Date range"
+            aria-haspopup="dialog"
+            aria-expanded={menu === 'dates'}
+            onClick={() => toggleMenu('dates')}
+          >
+            <CalendarBlank size={16} weight="regular" aria-hidden />
+          </button>
+        ) : null}
       </div>
 
       {menu
@@ -628,7 +641,7 @@ export function StoryTimeSeries({
                       aria-selected={selected}
                       className={`${styles.granularityItem}${selected ? ` ${styles.granularityItemActive}` : ''}`}
                       onClick={() => {
-                        if (!selected) onGranularityChange(option.id)
+                        if (!selected) onGranularityChange?.(option.id)
                         setMenu(null)
                       }}
                     >
@@ -670,7 +683,7 @@ export function StoryTimeSeries({
                           className={`${styles.setupItem}${selected ? ` ${styles.setupItemActive}` : ''}`}
                           aria-pressed={selected}
                           onClick={() => {
-                            onRangeChange(option.id)
+                            onRangeChange?.(option.id)
                             setMenu(null)
                           }}
                         >

@@ -109,6 +109,16 @@ export type StoryReplyChartData =
       before: number[]
       after: number[]
     }
+  | {
+      /** A KPI over its sparkline. */
+      type: 'spark'
+      title: string
+      value: string
+      unit?: string
+      color: string
+      points: readonly number[]
+      xLabels: [start: string, end: string]
+    }
 
 export type CreatedComponentPreview =
   | { kind: 'kpi'; value: string; unit?: string; status?: string; statusTone?: 'critical' | 'normal' | 'warning' }
@@ -191,6 +201,11 @@ export type AgentResponseBlock =
       caption: string
       displayMode: 'inline' | 'subcontext'
       openSubcontext?: boolean
+    }
+  | {
+      /** Small assets side by side, each still its own component. */
+      type: 'visualRow'
+      componentIds: string[]
     }
   | {
       type: 'report'

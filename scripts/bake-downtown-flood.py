@@ -7,7 +7,7 @@ Each scenario adds drainage the source model leaves out (pumps, drains, a
 storage tunnel), so the after views are the same storm with that fix.
 
     python3 scripts/bake-downtown-flood.py analyze   # hotspots of the unmitigated storm
-    python3 scripts/bake-downtown-flood.py bake      # PNG overlays + flood stats JSON
+    python3 scripts/bake-downtown-flood.py bake      # hourly WebP overlays + floodBake.ts stats
 """
 
 import json
@@ -24,6 +24,7 @@ STATS = Path(__file__).resolve().parent.parent / "src" / "llumen-assistant" / "m
 
 SIM_SECONDS = 240.0
 TIME_LAPSE = 240.0
+HOUR_SIM_S = 3600 / TIME_LAPSE
 DAMPING = 0.999
 G = 9.81
 DRY_M = 0.02
@@ -84,7 +85,7 @@ def rain_total_mm(sim_seconds):
 
 
 def simulate(drain_mm_h=0.0, drain_mask=None, sinks=()):
-    """Depth after SIM_SECONDS. `sinks` are (mask, m3/s) pumps or intakes, in real-time capacity."""
+    """Depth on the hour from midnight to SIM_SECONDS. `sinks` are (mask, m3/s) pumps or intakes, in real-time capacity."""
     dt = min(0.25, 0.5 * CELL / math.sqrt(G * max(0.1, HARBOR_LEVEL - float(ground.min()))))
     steps = int(math.ceil(SIM_SECONDS / dt))
     dt = SIM_SECONDS / steps
@@ -105,7 +106,10 @@ def simulate(drain_mm_h=0.0, drain_mask=None, sinks=()):
     removal = drain + sink_rate
     area = CELL * CELL
     k = dt * G * CELL
+    frames = [depth.copy()]
     for i in range(steps):
+        if (i * dt) >= len(frames) * HOUR_SIM_S - 1e-6:
+            frames.append(depth.copy())
         head = ground + depth
         hn = np.empty((4, ROWS, COLS), np.float32)
         hn[0][:, 1:] = head[:, :-1]
@@ -133,7 +137,8 @@ def simulate(drain_mm_h=0.0, drain_mask=None, sinks=()):
             depth = np.maximum(0, depth - removal * dt)
         depth = np.where(harbor, np.maximum(HARBOR_LEVEL - ground, 0), depth)
         depth[walls] = 0
-    return depth
+    frames.append(depth)
+    return frames
 
 
 def clusters(depth, threshold=0.15, min_cells=150):
@@ -217,26 +222,36 @@ def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "analyze"
     print(f"{SIM_SECONDS:.0f} sim s = {rain_total_mm(SIM_SECONDS):.1f} mm fallen", flush=True)
     if mode == "analyze":
-        depth = simulate()
+        depth = simulate()[-1]
         np.save("/tmp/downtown-flood-before.npy", depth)
         print(json.dumps(summary(depth)))
         for c in clusters(depth)[:12]:
             print(json.dumps(c))
         return
     OUT.mkdir(parents=True, exist_ok=True)
+    for old in OUT.glob("downtown-*"):
+        old.unlink()
+    hours = int(SIM_SECONDS // HOUR_SIM_S)
     stats = {
         "simSeconds": SIM_SECONDS,
         "rainMm": round(rain_total_mm(SIM_SECONDS), 1),
+        "start": header["rain"]["start"],
+        "hours": hours,
+        "rainByHour": [round(rain_total_mm(h * HOUR_SIM_S), 1) for h in range(hours + 1)],
         "bounds": B,
         "hotspots": {k: list(v) for k, v in HOTSPOTS.items()},
         "pumps": [list(p) for p in PUMPS],
         "scenarios": {},
     }
+    spots = {k: disk(*v, 6) for k, v in HOTSPOTS.items()}
     for name, spec in {"before": {}, **SCENARIOS}.items():
-        depth = simulate(**spec.get("sim", {}))
-        color(depth).save(OUT / f"downtown-{name}.png", optimize=True)
-        hot = {k: round(float(depth[disk(*v, 6)].max(initial=0)), 2) for k, v in HOTSPOTS.items()}
-        stats["scenarios"][name] = {**summary(depth), "hotspots": hot}
+        frames = simulate(**spec.get("sim", {}))
+        for h, frame in enumerate(frames):
+            color(frame).save(OUT / f"downtown-{name}-{h:02d}.webp", quality=80, method=6)
+        depth = frames[-1]
+        hot = {k: round(float(depth[m].max(initial=0)), 2) for k, m in spots.items()}
+        series = {k: [round(float(f[m].max(initial=0)), 2) for f in frames] for k, m in spots.items()}
+        stats["scenarios"][name] = {**summary(depth), "hotspots": hot, "hotspotsByHour": series}
         print(name, json.dumps(stats["scenarios"][name]), flush=True)
     STATS.write_text(
         "/** Written by scripts/bake-downtown-flood.py from Map 3D's Downtown Dubai grid. Depths in m, areas in ha. */\n"

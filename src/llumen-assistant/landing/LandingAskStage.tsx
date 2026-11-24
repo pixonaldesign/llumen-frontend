@@ -49,6 +49,8 @@ import type { EstateTower } from '../realEstate/estateMapLayers'
 import type { MapDataLayer } from '../realEstate/estateTypes'
 import storyStyles from '../story/StoryView.module.css'
 import { createCameraLink } from '../story/storyCameraLink'
+import { StoryTimeSeries } from '../story/StoryTimeSeries'
+import { TIMELINE_GRANULARITIES } from '../story/storyTimeline'
 
 /** Loads the asset builder's styles only once Data or Source is opened. */
 const LandingAssetPanels = lazy(() => import('./LandingAssetPanels'))
@@ -338,7 +340,7 @@ function FindingMapData({ layers, towers }: { layers: MapDataLayer[]; towers: Es
   const labelled = towers.filter((tower) => tower.label !== false && !tower.footprint)
   const [open, setOpen] = useState(false)
   return (
-    <div className={`${storyStyles.mapData} ${styles.mapData}`}>
+    <div className={storyStyles.mapData}>
       <button
         type="button"
         className={`${storyStyles.mapDataHeader}${open ? '' : ` ${storyStyles.mapDataHeaderSolo}`}`}
@@ -492,6 +494,65 @@ function CompareHandle({
   )
 }
 
+const PLAYER_GRANULARITY = TIMELINE_GRANULARITIES.find((granularity) => granularity.id === 'hour')!
+const PLAYER_STEP_MS = 650
+/** Lets the stage open and the scene grow in before the water starts rising. */
+const PLAYER_START_MS = 1400
+
+/**
+ * Steps a view's water through its frames, once from the first to the last when the view opens; Play
+ * from the end starts over.
+ */
+function useWaterPlayer(place: EstateFindingStageId, frameCount: number) {
+  const last = frameCount - 1
+  const [state, setState] = useState({ place, frame: 0, playing: true, started: false })
+  const [speed, setSpeed] = useState(1)
+  if (state.place !== place) setState({ place, frame: 0, playing: true, started: false })
+  const stepMs = Math.round(PLAYER_STEP_MS / speed)
+  useEffect(() => {
+    if (!state.playing || last < 1) return
+    const timer = window.setTimeout(
+      () =>
+        setState((current) =>
+          current.frame >= last
+            ? { ...current, playing: false }
+            : { ...current, frame: current.frame + 1, started: true },
+        ),
+      state.started ? stepMs : PLAYER_START_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [state, last, stepMs])
+  return {
+    frame: Math.min(state.frame, Math.max(0, last)),
+    playing: state.playing,
+    speed,
+    stepMs,
+    onFrameChange: (frame: number) => setState((current) => ({ ...current, frame, started: true })),
+    onPlayingChange: (playing: boolean) =>
+      setState((current) => ({
+        ...current,
+        playing,
+        started: true,
+        frame: playing && current.frame >= last ? 0 : current.frame,
+      })),
+    onSpeedChange: setSpeed,
+  }
+}
+
+/** Fetches every frame up front, so stepping through them never waits on the network. */
+function usePreloaded(urls: readonly string[]) {
+  useEffect(() => {
+    const images = urls.map((url) => {
+      const image = new Image()
+      image.src = url
+      return image
+    })
+    return () => images.forEach((image) => (image.src = ''))
+  }, [urls])
+}
+
+const NO_FRAMES: readonly string[] = []
+
 /**
  * A real-estate finding's place, as Tell Me More reads it: every tall tower coloured by its potential. A
  * solution opens below the problem it solves, the two maps on one camera with a divider between them.
@@ -512,15 +573,42 @@ function FindingPlaceMap({
     () => (preview ? { ...stage.camera, zoom: stage.camera.zoom + PREVIEW_ZOOM_OFFSET } : stage.camera),
     [preview, stage],
   )
+  const frames = (!preview && stage.player && stage.scene.water?.frames) || NO_FRAMES
+  const beforeFrames = (compare && stage.player && compare.before.scene.water?.frames) || NO_FRAMES
+  const playable = frames.length > 1
+  const player = useWaterPlayer(place, frames.length)
+  usePreloaded(frames)
+  usePreloaded(beforeFrames)
+  const range = useMemo(() => ({ id: 'storm', label: 'Storm', unit: 'hour' as const, amount: frames.length - 1 }), [frames.length])
+  const playerCard =
+    playable && stage.player ? (
+      <StoryTimeSeries
+        range={range}
+        granularity={PLAYER_GRANULARITY}
+        frameCount={frames.length}
+        end={stage.player.end}
+        editable={false}
+        {...player}
+      />
+    ) : null
+  /* Mid-play frames would make a poor thumbnail: a playing view is captured off screen, at rest. */
+  const [captured, setCaptured] = useState<string | null>(null)
+  const captureAtRest = useCallback(
+    (stateId: string, shot: StoryMapCapture) => {
+      setCaptured(stateId)
+      onCapture(stateId, shot)
+    },
+    [onCapture],
+  )
   useEffect(() => {
-    if (!capture) return
+    if (!capture || playable) return
     const timer = window.setTimeout(() => {
       void handleRef.current?.capture().then((shot) => {
         if (shot) onCapture(capture.stateId, shot)
       })
     }, capture.delay)
     return () => window.clearTimeout(timer)
-  }, [capture, onCapture])
+  }, [capture, onCapture, playable])
   const [stackSize, setStackSize] = useState<{ height: number; header: number } | null>(null)
   useLayoutEffect(() => {
     const stack = stackRef.current
@@ -553,9 +641,12 @@ function FindingPlaceMap({
             padding={padding?.before ?? MAP_PADDING}
             controlsClassName={styles.mapControls}
             cameraLink={cameraLink}
+            waterFrame={playable ? (beforeFrames[player.frame] ?? null) : null}
           />
           <span className={styles.compareTag}>{compare.labels[0]}</span>
-          <FindingMapData layers={compare.before.layers} towers={compare.before.scene.towers} />
+          <div className={styles.mapDock}>
+            <FindingMapData layers={compare.before.layers} towers={compare.before.scene.towers} />
+          </div>
         </div>
       ) : null}
       <div className={compare ? `${styles.comparePane} ${styles.compareAfter}` : styles.mapSingle}>
@@ -570,11 +661,22 @@ function FindingPlaceMap({
           controlsClassName={styles.mapControls}
           handleRef={handleRef}
           cameraLink={compare ? cameraLink : undefined}
+          waterFrame={playable ? frames[player.frame] : null}
         />
         {compare ? <span className={styles.compareTag}>{compare.labels[1]}</span> : null}
-        {preview ? null : <FindingMapData layers={stage.layers} towers={stage.scene.towers} />}
+        {preview ? null : (
+          <div className={styles.mapDock}>
+            {playerCard}
+            <FindingMapData layers={stage.layers} towers={stage.scene.towers} />
+          </div>
+        )}
       </div>
       {compare ? <CompareHandle stackRef={stackRef} split={split} onSplit={setSplit} /> : null}
+      {capture && playable && captured !== capture.stateId ? (
+        <div className={styles.captureStage} aria-hidden>
+          <QueuedCapture key={capture.stateId} stateId={capture.stateId} place={place} onCapture={captureAtRest} />
+        </div>
+      ) : null}
     </div>
   )
 }

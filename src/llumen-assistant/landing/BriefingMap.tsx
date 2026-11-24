@@ -293,6 +293,7 @@ export function BriefingMap({
   const onReadyRef = useRef(onReady)
   const onSamplerRef = useRef(onSampler)
   const pausedRef = useRef(paused)
+  const resumeOrbitRef = useRef<() => void>(() => {})
 
   useEffect(() => {
     onArriveRef.current = onArrive
@@ -424,12 +425,15 @@ export function BriefingMap({
     let frame = 0
     let last = performance.now()
     const orbit = (now: number) => {
+      if (pausedRef.current) {
+        frame = 0
+        return
+      }
       const dt = Math.min(64, now - last)
       last = now
       if (
         readyRef.current &&
         !reduce &&
-        !pausedRef.current &&
         !flyingRef.current &&
         !document.hidden &&
         now > holdUntilRef.current
@@ -439,8 +443,14 @@ export function BriefingMap({
       frame = window.requestAnimationFrame(orbit)
     }
     frame = window.requestAnimationFrame(orbit)
+    resumeOrbitRef.current = () => {
+      if (frame) return
+      last = performance.now()
+      frame = window.requestAnimationFrame(orbit)
+    }
 
     return () => {
+      resumeOrbitRef.current = () => {}
       window.cancelAnimationFrame(frame)
       window.cancelAnimationFrame(tweenRef.current)
       canvas.removeEventListener('pointerdown', onPress)
@@ -458,6 +468,7 @@ export function BriefingMap({
   useEffect(() => {
     const map = mapRef.current
     if (map) holdPulse(map, paused)
+    if (!paused) resumeOrbitRef.current()
   }, [paused])
 
   useEffect(() => {
