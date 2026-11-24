@@ -80,6 +80,7 @@ import { StorySummaryConfigModal } from './StorySummaryConfigModal'
 import { StoryStopwatchCard } from './StoryStopwatchCard'
 import { StoryTimerCard } from './StoryTimerCard'
 import {
+  clockPatch,
   clockTiming,
   newStoryStopwatch,
   newStoryTimer,
@@ -149,9 +150,10 @@ import { StoryAnnotationsPanel, type AnnotationDrawingState, type AnnotationPatc
 import {
   annotationValidity,
   createAnnotation,
+  mirrorClocks,
   reshapeAnnotation,
-  type AnnotationClock,
   type AnnotationData,
+  type ClockPinSource,
   type DrawnShape,
   type MapAnnotationItem,
 } from './storyMapAnnotations'
@@ -628,7 +630,21 @@ export function StoryView({
   /** Timers and stopwatches placed from the Tools menu, in placement order. */
   const [clocksBySlide, setClocksBySlide] = useState<Record<string, StoryClockAsset[]>>({})
   /** A slide clock being pinned to the map: the next pin of its kind copies its title and timing. */
-  const [pendingClockPin, setPendingClockPin] = useState<{ clock: AnnotationClock; text: string } | null>(null)
+  const [pendingClockPin, setPendingClockPin] = useState<ClockPinSource | null>(null)
+  const clockById = useMemo(
+    () => Object.fromEntries(Object.values(clocksBySlide).flatMap((clocks) => clocks.map((clock) => [clock.id, clock]))),
+    [clocksBySlide],
+  ) as Record<string, StoryClockAsset | undefined>
+  /** Slide clocks live on one slide, but their pins can be driven from any slide. */
+  const updateClock = (id: string, patch: Partial<StoryClockAsset>) =>
+    setClocksBySlide((current) =>
+      Object.fromEntries(
+        Object.entries(current).map(([slideId, clocks]) => [
+          slideId,
+          clocks.map((clock) => (clock.id === id ? ({ ...clock, ...patch } as StoryClockAsset) : clock)),
+        ]),
+      ),
+    )
   /* `entrance` stays 'play' after the cards land; once they have, cards placed later skip the entrance. */
   const [entranceSettled, setEntranceSettled] = useState(false)
   useEffect(() => {
@@ -850,25 +866,29 @@ export function StoryView({
     const items = annotationPane === 'lower' ? lowerAnnotations : mapAnnotations
     return items.find((item) => item.id === editingAnnotationId) ?? null
   }, [annotationPane, editingAnnotationId, lowerAnnotations, mapAnnotations])
+  /** Pins made with "Add as annotation" show their slide clock's live timing. */
+  const shownUpperAnnotations = useMemo(() => mirrorClocks(mapAnnotations, clockById), [clockById, mapAnnotations])
+  const shownLowerAnnotations = useMemo(() => mirrorClocks(lowerAnnotations, clockById), [clockById, lowerAnnotations])
+  const shownAnnotationsOf = (pane: MapPane) => (pane === 'lower' ? shownLowerAnnotations : shownUpperAnnotations)
   // The edited annotation is drawn by the editing session (with its handles) instead of the regular layers.
   const mapAnnotationItems = useMemo(
     () =>
       editingAnnotationId && annotationPane === 'upper'
-        ? mapAnnotations.filter((item) => item.id !== editingAnnotationId)
-        : mapAnnotations,
-    [annotationPane, editingAnnotationId, mapAnnotations],
+        ? shownUpperAnnotations.filter((item) => item.id !== editingAnnotationId)
+        : shownUpperAnnotations,
+    [annotationPane, editingAnnotationId, shownUpperAnnotations],
   )
   const lowerAnnotationItems = useMemo(
     () =>
       editingAnnotationId && annotationPane === 'lower'
-        ? lowerAnnotations.filter((item) => item.id !== editingAnnotationId)
-        : lowerAnnotations,
-    [annotationPane, editingAnnotationId, lowerAnnotations],
+        ? shownLowerAnnotations.filter((item) => item.id !== editingAnnotationId)
+        : shownLowerAnnotations,
+    [annotationPane, editingAnnotationId, shownLowerAnnotations],
   )
   const startAnnotationDrawing = (
     tool: AnnotationDrawingState['tool'],
     pane: MapPane = 'upper',
-    clockPin: { clock: AnnotationClock; text: string } | null = null,
+    clockPin: ClockPinSource | null = null,
   ) => {
     setPendingClockPin(clockPin)
     setAnnotationPane(pane)
@@ -896,12 +916,21 @@ export function StoryView({
     setAnnotationsOf(pane)((items) => [item, ...items])
     setSelectedAnnotationId(item.id)
   }
-  const updateAnnotation = (id: string, patch: AnnotationPatch, pane: MapPane = 'upper') =>
+  const updateAnnotation = (id: string, change: AnnotationPatch, pane: MapPane = 'upper') => {
+    const source = annotationsOf(pane).find((item) => item.id === id)?.linkedClockId
+    let patch = change
+    // A mirrored pin's controls drive its slide clock; the pin follows from there.
+    if (change.clock && source && clockById[source]) {
+      updateClock(source, clockPatch(change.clock))
+      patch = { ...change }
+      delete patch.clock
+    }
     setAnnotationsOf(pane)((items) =>
       items.map((item) =>
         item.id === id ? { ...item, ...patch, style: patch.style ? { ...item.style, ...patch.style } : item.style } : item,
       ),
     )
+  }
   const editAnnotationShape = (id: string, pane: MapPane = 'upper') => {
     const original = annotationsOf(pane).find((item) => item.id === id)
     if (!original) return
@@ -2202,7 +2231,7 @@ export function StoryView({
   ) => {
     const upper = pane === 'upper'
     const open = comparisonLegendOpen[pane] || storyMode === 'edit'
-    const items = annotationsOf(pane)
+    const items = shownAnnotationsOf(pane)
     const tab = upper ? mapDataTab : lowerMapDataTab
     const setTab = upper ? setMapDataTab : setLowerMapDataTab
     const showTabs = editingAnnotations || items.length > 0
@@ -2282,18 +2311,20 @@ export function StoryView({
     )
   }
 
-  const updateClock = (id: string, patch: Partial<StoryClockAsset>) =>
-    setClocksBySlide((current) => ({
-      ...current,
-      [slide.id]: (current[slide.id] ?? []).map((clock) =>
-        clock.id === id ? ({ ...clock, ...patch } as StoryClockAsset) : clock,
-      ),
-    }))
-  const removeClock = (id: string) =>
+  const removeClock = (id: string) => {
+    // Pins that mirrored it keep its timing as their own from here on.
+    const source = clockById[id]
+    const unlink = (items: MapAnnotationItem[]) =>
+      items.map((item) =>
+        item.linkedClockId === id ? { ...item, clock: source ? clockTiming(source) : item.clock, linkedClockId: undefined } : item,
+      )
+    setMapAnnotations(unlink)
+    setLowerAnnotations(unlink)
     setClocksBySlide((current) => ({
       ...current,
       [slide.id]: (current[slide.id] ?? []).filter((clock) => clock.id !== id),
     }))
+  }
   const addTool = (toolId: string) => {
     const id = `${toolId}-${Date.now()}`
     const clock = toolId === 'timer' ? newStoryTimer(id) : toolId === 'stopwatch' ? newStoryStopwatch(id) : null
@@ -2302,7 +2333,7 @@ export function StoryView({
   }
   /** Pins a copy of a slide clock to the map; it shares the clock's timing, so the two read the same. */
   const pinClock = (clock: StoryClockAsset) =>
-    startAnnotationDrawing(clock.kind, 'upper', { clock: clockTiming(clock), text: clock.title })
+    startAnnotationDrawing(clock.kind, 'upper', { clock: clockTiming(clock), text: clock.title, linkedClockId: clock.id })
   const timerSizeClass: Record<StoryTimerSize, string> = {
     '1x1': '',
     '2x1': styles.timerWide,
@@ -3182,7 +3213,7 @@ export function StoryView({
                 ) : null}
                 {showAnnotationsTab && mapDataTab === 'annotations' ? (
                   <StoryAnnotationsPanel
-                    items={mapAnnotations}
+                    items={shownUpperAnnotations}
                     selectedId={selectedAnnotationId}
                     editable={editingAnnotations}
                     drawing={annotationDrawing}

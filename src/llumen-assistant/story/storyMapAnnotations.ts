@@ -6,7 +6,7 @@
  */
 import { pointInPolygon } from './storyAiScenarios'
 import { DEMO_COLUMNS, DEMO_JUNCTIONS } from './storyDemoMapData'
-import type { StopwatchClock, TimerClock } from './storyTimer'
+import { clockTiming, type StopwatchClock, type StoryClock, type TimerClock } from './storyTimer'
 
 export type LngLat = [number, number]
 
@@ -139,7 +139,23 @@ export type MapAnnotationItem = {
   context: AnnotationDataContext
   /** Timer and stopwatch pins; their text is the clock's title. */
   clock?: AnnotationClock
+  /**
+   * A pin made with "Add as annotation" mirrors the slide clock with this id: it shows that clock's timing, and its
+   * controls drive it. Pins drawn from the Annotations panel have their own clock.
+   */
+  linkedClockId?: string
 }
+
+/** Mirrored pins take their slide clock's timing; a pin whose clock is gone keeps its own. */
+export function mirrorClocks(items: MapAnnotationItem[], clocks: Record<string, StoryClock | undefined>) {
+  return items.map((item) => {
+    const source = item.linkedClockId ? clocks[item.linkedClockId] : undefined
+    return source ? { ...item, clock: clockTiming(source) } : item
+  })
+}
+
+/** The slide clock a pin is copied from: its timing and title, and the id the pin mirrors. */
+export type ClockPinSource = { clock: AnnotationClock; text: string; linkedClockId?: string }
 
 /** A clock pin's title: its text, or the tool's name. */
 export const clockTitle = (item: MapAnnotationItem) => item.style.text.trim() || annotationTool(item.tool).label
@@ -291,7 +307,7 @@ export function createAnnotation(
   data: AnnotationData,
   dataLabel: string,
   color = DEFAULT_ANNOTATION_COLOR,
-  from?: { clock: AnnotationClock; text: string },
+  from?: ClockPinSource,
 ): MapAnnotationItem {
   const tool = annotationTool(shape.tool)
   const count = existing.filter((item) => item.tool === shape.tool).length
@@ -310,6 +326,7 @@ export function createAnnotation(
     opacity: 1,
     context: annotationContext({ ...shape, geometry }, data, dataLabel),
     clock: from?.clock ?? newClock(shape.tool),
+    linkedClockId: from?.linkedClockId,
   }
 }
 

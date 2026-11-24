@@ -80,14 +80,15 @@ const EDIT_HINT: Record<AnnotationTool, string> = {
 
 function rowMeta(item: MapAnnotationItem) {
   const { clock } = item
+  const linked = item.linkedClockId ? ' · Mirrors slide asset' : ''
   if (clock?.kind === 'timer') {
     return clock.configuring && clock.startedAt === null
       ? 'Not set up yet'
-      : `${clockTitle(item)} · ${clockText(clock.durationS, clock.durationS >= 3600)}`
+      : `${clockTitle(item)} · ${clockText(clock.durationS, clock.durationS >= 3600)}${linked}`
   }
   if (clock?.kind === 'stopwatch') {
     const laps = clock.laps.length ? ` · ${clock.laps.length} lap${clock.laps.length === 1 ? '' : 's'}` : ''
-    return `${clockTitle(item)}${laps}`
+    return `${clockTitle(item)}${laps}${linked}`
   }
   const measured = shapeMeasurements(item.tool, item.geometry, item.circle).join(' · ')
   if (measured) return measured

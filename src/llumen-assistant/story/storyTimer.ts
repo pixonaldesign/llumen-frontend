@@ -85,6 +85,16 @@ export const resetStopwatch = (clock: StopwatchClock): StopwatchClock => ({
   laps: [],
 })
 
+/**
+ * What a mirrored pin's clock change does to its slide clock: timing carries over, and "Set duration" on a timer
+ * pin opens the slide timer's own configure form.
+ */
+export function clockPatch(clock: StoryClock & { configuring?: boolean }): Partial<StoryClockAsset> {
+  if (clock.kind === 'stopwatch')
+    return { elapsedMs: clock.elapsedMs, runningSince: clock.runningSince, laps: clock.laps }
+  return clock.configuring ? { configuring: true } : { durationS: clock.durationS, startedAt: clock.startedAt }
+}
+
 /** Just the timing, for a map pin copied from a slide clock: it keeps running in step with the original. */
 export function clockTiming(clock: StoryClock): (TimerClock & { configuring: false }) | StopwatchClock {
   return clock.kind === 'timer'
