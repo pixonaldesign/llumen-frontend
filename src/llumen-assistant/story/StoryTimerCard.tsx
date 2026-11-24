@@ -1,0 +1,273 @@
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react'
+import { TIMER_CELLS, type StoryTimer, type StoryTimerSize } from './storyTimer'
+import styles from './StoryTimerCard.module.css'
+
+const SIZE_ORDER: StoryTimerSize[] = ['1x1', '2x1', '2x2']
+const TICKS = 60
+const TICK_MS = 200
+const CELL_GAP = 12
+const MAX_DURATION_S = 99 * 3600 + 59 * 60 + 59
+
+const pad = (value: number) => String(value).padStart(2, '0')
+
+/** "M:SS" style readout; hours show whenever the full duration has them, so the width never jumps. */
+function clock(seconds: number, withHours: boolean) {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  return withHours ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
+}
+
+function useRemaining(timer: StoryTimer) {
+  const running = !timer.configuring && timer.startedAt !== null
+  const [now, setNow] = useState(() => Date.now())
+  const endsAt = timer.startedAt === null ? null : timer.startedAt + timer.durationS * 1000
+  const done = running && endsAt !== null && now >= endsAt
+  useEffect(() => {
+    if (!running || done) return
+    const id = window.setInterval(() => setNow(Date.now()), TICK_MS)
+    return () => window.clearInterval(id)
+  }, [running, done])
+  const remainingMs = !running || endsAt === null ? timer.durationS * 1000 : Math.max(0, endsAt - now)
+  return {
+    seconds: Math.ceil(remainingMs / 1000),
+    fraction: timer.durationS > 0 ? remainingMs / (timer.durationS * 1000) : 0,
+    done,
+  }
+}
+
+/** Sixty ticks round the dial; the lit arc runs back to the top as time runs out. */
+function TickGauge({ fraction }: { fraction: number }) {
+  const spent = (1 - fraction) * TICKS
+  return (
+    <svg className={styles.gauge} viewBox="-50 -50 100 100" aria-hidden>
+      {Array.from({ length: TICKS }, (_, index) => {
+        const lit = Math.min(1, Math.max(0, index + 1 - spent))
+        const major = index % 5 === 0
+        return (
+          <line
+            key={index}
+            className={styles.tick}
+            x1={0}
+            y1={-47}
+            x2={0}
+            y2={major ? -39 : -42}
+            transform={`rotate(${(index / TICKS) * 360})`}
+            style={{ '--lit': lit } as CSSProperties}
+          />
+        )
+      })}
+    </svg>
+  )
+}
+
+/** Hours, minutes and seconds as three two-digit fields; arrow keys step them. */
+function DurationFields({ value, onChange }: { value: number; onChange: (seconds: number) => void }) {
+  const parts = [Math.floor(value / 3600), Math.floor((value % 3600) / 60), value % 60]
+  const limits = [99, 59, 59]
+  const labels = ['Hours', 'Minutes', 'Seconds']
+  const set = (index: number, next: number) => {
+    const clamped = Math.min(limits[index], Math.max(0, Math.round(next) || 0))
+    const updated = parts.map((part, at) => (at === index ? clamped : part))
+    onChange(Math.min(MAX_DURATION_S, updated[0] * 3600 + updated[1] * 60 + updated[2]))
+  }
+  return (
+    <div className={styles.fields}>
+      {parts.map((part, index) => (
+        <label key={labels[index]} className={styles.field}>
+          <input
+            className={styles.fieldInput}
+            inputMode="numeric"
+            aria-label={labels[index]}
+            value={pad(part)}
+            onFocus={(event) => event.currentTarget.select()}
+            onChange={(event) => set(index, Number(event.target.value.replace(/\D/g, '').slice(-2)))}
+            onKeyDown={(event) => {
+              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+              event.preventDefault()
+              set(index, part + (event.key === 'ArrowUp' ? 1 : -1))
+            }}
+          />
+          <span className={styles.fieldLabel}>{labels[index][0].toLowerCase()}</span>
+        </label>
+      ))}
+    </div>
+  )
+}
+
+function ConfigureForm({
+  timer,
+  onConfirm,
+  onCancel,
+}: {
+  timer: StoryTimer
+  onConfirm: (patch: Pick<StoryTimer, 'title' | 'durationS'>) => void
+  onCancel: () => void
+}) {
+  const [title, setTitle] = useState(timer.title)
+  const [durationS, setDurationS] = useState(timer.durationS)
+  const confirm = () => {
+    if (durationS > 0) onConfirm({ title: title.trim() || 'Timer', durationS })
+  }
+  const onKeyDown = (event: ReactKeyboardEvent) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation()
+      onCancel()
+    } else if (event.key === 'Enter') {
+      event.preventDefault()
+      confirm()
+    }
+  }
+  return (
+    <div className={styles.configure} onKeyDown={onKeyDown}>
+      <input
+        className={styles.titleInput}
+        value={title}
+        placeholder="Timer title"
+        aria-label="Timer title"
+        maxLength={60}
+        onChange={(event) => setTitle(event.target.value)}
+        autoFocus
+      />
+      <DurationFields value={durationS} onChange={setDurationS} />
+      <div className={styles.configureActions}>
+        <button type="button" className={styles.secondary} onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" className={styles.primary} disabled={durationS === 0} onClick={confirm}>
+          Confirm
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** The macOS widget corner: drag it to snap the timer between 1×1, 2×1 and 2×2; Enter steps through them. */
+function ResizeHandle({
+  size,
+  cardRef,
+  onResize,
+}: {
+  size: StoryTimerSize
+  cardRef: RefObject<HTMLElement | null>
+  onResize: (size: StoryTimerSize) => void
+}) {
+  const drag = useRef<{ left: number; top: number; cell: number } | null>(null)
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const card = cardRef.current
+    if (!card || event.button !== 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    const rect = card.getBoundingClientRect()
+    const { columns } = TIMER_CELLS[size]
+    drag.current = { left: rect.left, top: rect.top, cell: (rect.width - (columns - 1) * CELL_GAP) / columns }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const start = drag.current
+    if (!start) return
+    const reach = start.cell * 1.5 + CELL_GAP / 2
+    const wide = event.clientX - start.left > reach
+    const tall = event.clientY - start.top > reach
+    const next: StoryTimerSize = tall ? '2x2' : wide ? '2x1' : '1x1'
+    if (next !== size) onResize(next)
+  }
+  const end = () => {
+    drag.current = null
+  }
+  return (
+    <button
+      type="button"
+      className={styles.resize}
+      aria-label={`Resize timer, ${size.replace('x', ' by ')}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onClick={(event) => {
+        if (event.detail === 0) onResize(SIZE_ORDER[(SIZE_ORDER.indexOf(size) + 1) % SIZE_ORDER.length])
+      }}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden>
+        <path d="M14 5 A9 9 0 0 1 5 14" />
+      </svg>
+    </button>
+  )
+}
+
+export function StoryTimerCard({
+  timer,
+  editing,
+  className,
+  toolbar,
+  onChange,
+  onCancelConfigure,
+}: {
+  timer: StoryTimer
+  /** Edit mode: the resize corner shows. */
+  editing: boolean
+  /** The card shell and its size, from the story's card styles. */
+  className: string
+  /** The hover toolbar, hidden while configuring. */
+  toolbar: ReactNode
+  onChange: (patch: Partial<StoryTimer>) => void
+  onCancelConfigure: () => void
+}) {
+  const cardRef = useRef<HTMLElement>(null)
+  const { seconds, fraction, done } = useRemaining(timer)
+  const withHours = timer.durationS >= 3600
+  const readout = clock(seconds, withHours)
+  const status = done ? 'Time’s up' : timer.startedAt === null ? 'Ready' : 'Remaining'
+  return (
+    <section
+      ref={cardRef}
+      className={`${className} ${styles.timer}`}
+      data-size={timer.size}
+      data-done={done || undefined}
+      style={{ '--chars': readout.length } as CSSProperties}
+      aria-label={timer.title}
+    >
+      {timer.configuring ? (
+        <ConfigureForm
+          timer={timer}
+          onConfirm={(patch) => onChange({ ...patch, configuring: false, startedAt: Date.now() })}
+          onCancel={onCancelConfigure}
+        />
+      ) : timer.size === '2x1' ? (
+        <div className={styles.wide}>
+          <div className={styles.wideHead}>
+            <p className={styles.title}>{timer.title}</p>
+            <span className={styles.total}>{done ? status : clock(timer.durationS, withHours)}</span>
+          </div>
+          <p className={styles.wideValue} role="timer" aria-live="off">
+            {readout}
+          </p>
+          <div className={styles.bar} aria-hidden>
+            <span className={styles.barFill} style={{ transform: `scaleX(${fraction})` }} />
+          </div>
+        </div>
+      ) : (
+        <div className={styles.dial}>
+          <TickGauge fraction={fraction} />
+          <div className={styles.dialCentre}>
+            <p className={styles.dialValue} role="timer" aria-live="off">
+              {readout}
+            </p>
+            <p className={styles.dialStatus}>{status}</p>
+          </div>
+        </div>
+      )}
+      {timer.configuring ? null : toolbar}
+      {editing ? <ResizeHandle size={timer.size} cardRef={cardRef} onResize={(size) => onChange({ size })} /> : null}
+    </section>
+  )
+}

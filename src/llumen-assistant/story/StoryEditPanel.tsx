@@ -27,6 +27,7 @@ import {
   Student,
   Table,
   TextT,
+  Timer,
   Play,
   Trash,
   UploadSimple,
@@ -92,6 +93,8 @@ export type StoryEditPanelProps = {
   charts?: StoryEditChart[]
   /** Draws a picked map layer's columns and disks on the map the picker opened for. */
   onAddMapLayer?: (layer: StoryMapLayerPick) => void
+  /** Places a tool picked from the Tools menu (see PLACEABLE_TOOLS) on the active slide. */
+  onAddTool?: (toolId: string) => void
   section: StoryEditSection
 }
 
@@ -130,6 +133,7 @@ export function StoryEditPanel({
   onAddCharts,
   charts,
   onAddMapLayer,
+  onAddTool,
   section,
 }: StoryEditPanelProps) {
   const [isEditingSlide, setIsEditingSlide] = useState(directSlideEditor)
@@ -305,7 +309,12 @@ export function StoryEditPanel({
           onCancel={onClose}
         />
       ) : section === 'tools' ? (
-        <ToolsSection />
+        <ToolsSection
+          onPlace={(toolId) => {
+            onAddTool?.(toolId)
+            onClose()
+          }}
+        />
       ) : section === 'story' ? (
         <StoryConfigForm
           storyTitle={storyTitle}
@@ -955,11 +964,15 @@ const STORY_TOOLS: { id: string; label: string; group: ToolGroup; icon: ToolIcon
   { id: 'subtitle-deck', label: 'Subtitle · deck', group: 'text', icon: Circle },
   { id: 'table', label: 'Table', group: 'text', icon: Table },
   { id: 'text', label: 'Text', group: 'text', icon: TextT },
+  { id: 'timer', label: 'Timer', group: 'misc', icon: Timer },
   { id: 'video', label: 'Video', group: 'media', icon: VideoCamera },
   { id: 'weekly-waste-density', label: 'Weekly Waste Density per km² KPI', group: 'text', icon: Circle },
 ]
 
-function ToolsSection() {
+/** Tools that go straight onto the slide when picked; the rest are only selected for now. */
+const PLACEABLE_TOOLS: ReadonlySet<string> = new Set(['timer'])
+
+function ToolsSection({ onPlace }: { onPlace: (toolId: string) => void }) {
   const [tab, setTab] = useState<ToolTab>('all')
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -1007,7 +1020,9 @@ function ToolsSection() {
                 type="button"
                 className={`${styles.toolsRow}${selected ? ` ${styles.toolsRowSelected}` : ''}`}
                 aria-pressed={selected}
-                onClick={() => setSelectedId(selected ? null : tool.id)}
+                onClick={() =>
+                  PLACEABLE_TOOLS.has(tool.id) ? onPlace(tool.id) : setSelectedId(selected ? null : tool.id)
+                }
               >
                 <Icon size={18} weight="regular" aria-hidden />
                 <span>{tool.label}</span>

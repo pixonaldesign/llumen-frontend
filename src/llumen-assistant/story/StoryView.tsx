@@ -76,6 +76,8 @@ import type { WorkflowProposal } from '../assistantReplyTypes'
 import { SplitIcon } from './StorySplitIcon'
 import { DEFAULT_CHART_KPI, resolveKpi, type ChartCardId, type ChartKpiConfig } from './storyKpi'
 import { StorySummaryConfigModal } from './StorySummaryConfigModal'
+import { StoryTimerCard } from './StoryTimerCard'
+import { newStoryTimer, timerFootprint, type StoryTimer, type StoryTimerSize } from './storyTimer'
 import {
   SUMMARY_REGENERATE_MS,
   defaultSummaryConfig,
@@ -610,6 +612,7 @@ export function StoryView({
   const [cardPrefsBySlide, setCardPrefsBySlide] = useState<
     Record<string, Partial<Record<InsightCardId, InsightCardPrefs>>>
   >({})
+  const [timersBySlide, setTimersBySlide] = useState<Record<string, StoryTimer[]>>({})
   const [cardMenu, setCardMenu] = useState<{
     slideId: string
     cardId: InsightCardId
@@ -1196,13 +1199,22 @@ export function StoryView({
   const placedIds = INSIGHT_CARD_IDS.filter((id) => !cardPrefs[id]?.deleted)
   const placedOneCell = placedIds.filter((id) => ONE_CELL_CARDS.has(id)).length
   const placedFull = placedIds.length - placedOneCell
+  const timers = timersBySlide[slide.id] ?? []
+  const timerCells = timers.reduce((sum, timer) => sum + timerFootprint(timer.size), 0)
   const sidebarColumns =
     viewLayout === 'sidebar'
       ? (sidebarColumnsBySlide[slide.id] ?? DEFAULT_SIDEBAR_COLUMNS)
       : DEFAULT_SIDEBAR_COLUMNS
   const sidebarRows =
-    INSIGHT_CARD_IDS.length - ONE_CELL_CARDS.size + Math.ceil(ONE_CELL_CARDS.size / sidebarColumns) + EMPTY_GRID_ROWS
-  const emptyGridCells = sidebarRows * sidebarColumns - placedFull * sidebarColumns - placedOneCell
+    INSIGHT_CARD_IDS.length -
+    ONE_CELL_CARDS.size +
+    Math.ceil(ONE_CELL_CARDS.size / sidebarColumns) +
+    Math.ceil(timerCells / sidebarColumns) +
+    EMPTY_GRID_ROWS
+  const emptyGridCells = Math.max(
+    0,
+    sidebarRows * sidebarColumns - placedFull * sidebarColumns - placedOneCell - timerCells,
+  )
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const [bodySize, setBodySize] = useState({ width: 0, height: 0 })
@@ -1210,7 +1222,7 @@ export function StoryView({
   const gridWidth = bodySize.width - 2 * GRID_INSET_X
   const gridCell =
     gridWidth > 0 ? (gridWidth - (gridColumns - 1) * GRID_CELL_GAP) / gridColumns : GRID_CELL_SIZE
-  const gridCellsUsed = placedFull * GRID_CARD_SPAN + placedOneCell
+  const gridCellsUsed = placedFull * GRID_CARD_SPAN + placedOneCell + timerCells
   const gridRows = Math.max(
     1,
     Math.ceil(gridCellsUsed / gridColumns),
@@ -2238,6 +2250,62 @@ export function StoryView({
     )
   }
 
+  const updateTimer = (id: string, patch: Partial<StoryTimer>) =>
+    setTimersBySlide((current) => ({
+      ...current,
+      [slide.id]: (current[slide.id] ?? []).map((timer) => (timer.id === id ? { ...timer, ...patch } : timer)),
+    }))
+  const removeTimer = (id: string) =>
+    setTimersBySlide((current) => ({
+      ...current,
+      [slide.id]: (current[slide.id] ?? []).filter((timer) => timer.id !== id),
+    }))
+  const addTool = (toolId: string) => {
+    if (toolId !== 'timer') return
+    const timer = newStoryTimer(`timer-${Date.now()}`)
+    setTimersBySlide((current) => ({ ...current, [slide.id]: [...(current[slide.id] ?? []), timer] }))
+  }
+  const timerSizeClass: Record<StoryTimerSize, string> = {
+    '1x1': '',
+    '2x1': styles.timerWide,
+    '2x2': styles.timerLarge,
+  }
+  const timerCards = aiFocus
+    ? null
+    : timers.map((timer) => (
+        <StoryTimerCard
+          key={timer.id}
+          timer={timer}
+          editing={storyMode === 'edit'}
+          className={[styles.timerCard, timerSizeClass[timer.size], styles.insightCard].filter(Boolean).join(' ')}
+          onChange={(patch) => updateTimer(timer.id, patch)}
+          onCancelConfigure={() =>
+            timer.startedAt === null ? removeTimer(timer.id) : updateTimer(timer.id, { configuring: false })
+          }
+          toolbar={
+            <div className={styles.cardActions} role="toolbar" aria-label={`${timer.title} actions`}>
+              <CardActionButton
+                label="Configure"
+                ariaLabel={`Configure ${timer.title}`}
+                onClick={() => updateTimer(timer.id, { configuring: true })}
+              >
+                <GearSix size={16} aria-hidden />
+              </CardActionButton>
+              <CardActionButton
+                label="Restart"
+                ariaLabel={`Restart ${timer.title}`}
+                onClick={() => updateTimer(timer.id, { startedAt: Date.now() })}
+              >
+                <ArrowsClockwise size={16} aria-hidden />
+              </CardActionButton>
+              <CardActionButton label="Remove" ariaLabel={`Remove ${timer.title}`} onClick={() => removeTimer(timer.id)}>
+                <Trash size={16} aria-hidden />
+              </CardActionButton>
+            </div>
+          }
+        />
+      ))
+
   const insightCards = (
     <>
       {insightCard(
@@ -2364,6 +2432,7 @@ export function StoryView({
           <p className={styles.kpiCellNote}>average non-compliant facility is going 14% over their legal limit</p>
         </>,
       )}
+      {timerCards}
     </>
   )
 
@@ -2942,6 +3011,7 @@ export function StoryView({
               })
             }}
             onAddMapLayer={addLowerMapLayer}
+            onAddTool={addTool}
           />
         ) : null}
 

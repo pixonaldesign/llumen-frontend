@@ -1,0 +1,355 @@
+/*
+ * The Timer asset. Its shell and cell sizes come from the story's card styles; this file lays out what sits
+ * inside: the tick dial (1×1, 2×2), the wide readout with its bar (2×1), and the configure form.
+ */
+.timer {
+  --timer-accent: var(--color-primary-500, #73adf5);
+  --timer-track: rgba(255, 255, 255, 0.14);
+}
+
+.timer[data-done] {
+  --timer-accent: var(--color-negative-300, #f17474);
+}
+
+/* —— Dial: 1×1 and 2×2 —— */
+
+.dial {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
+.gauge {
+  grid-area: 1 / 1;
+  width: min(100cqi, 100cqh);
+  height: min(100cqi, 100cqh);
+  overflow: visible;
+}
+
+.tick {
+  stroke: color-mix(in srgb, var(--timer-accent) calc(var(--lit) * 100%), var(--timer-track));
+  stroke-width: 2px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 240ms linear;
+}
+
+.timer[data-size='2x2'] .tick {
+  stroke-width: 3px;
+}
+
+.dialCentre {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 72cqmin;
+}
+
+.dialValue,
+.wideValue {
+  margin: 0;
+  color: #fff;
+  font-family: var(--lc-font-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Sized to the dial's inner ring: fewer characters read larger. */
+.dialValue {
+  font-size: calc(110cqmin / var(--chars));
+}
+
+.dialStatus {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.timer[data-size='2x2'] .dialStatus {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.timer[data-done] .dialStatus {
+  color: var(--timer-accent);
+}
+
+.timer[data-done] .dialValue,
+.timer[data-done] .wideValue {
+  animation: timeUp 1600ms ease-in-out infinite;
+}
+
+@keyframes timeUp {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* —— Wide: 2×1 —— */
+
+.wide {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+}
+
+.wideHead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.total {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.48);
+  font-family: var(--lc-font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  transition: opacity 160ms ease-out;
+}
+
+/* The hover toolbar sits where the total is. */
+.timer:hover .total {
+  opacity: 0;
+}
+
+.timer[data-done] .total {
+  color: var(--timer-accent);
+  font-family: inherit;
+}
+
+/* Spans the card's width, capped so it never crowds the title or the bar. */
+.wideValue {
+  margin-block: auto;
+  font-size: min(calc(162cqi / var(--chars)), 120px);
+  line-height: 0.9;
+}
+
+.bar {
+  flex-shrink: 0;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--timer-track);
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--timer-accent);
+  transform-origin: left;
+  transition: transform 200ms linear;
+}
+
+/* —— Configure —— */
+
+.configure {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.titleInput,
+.fieldInput {
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font: inherit;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.titleInput:hover,
+.fieldInput:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.titleInput:focus,
+.fieldInput:focus {
+  border-color: var(--lc-focus-color, #70aeff);
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.titleInput {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.titleInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.fieldInput {
+  width: 100%;
+  height: 36px;
+  padding: 0;
+  font-family: var(--lc-font-mono);
+  font-size: 20px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.timer[data-size='2x2'] .fieldInput {
+  height: 56px;
+  font-size: 32px;
+}
+
+.fieldLabel {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.configureActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.primary,
+.secondary {
+  height: 28px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.timer[data-size='1x1'] .primary,
+.timer[data-size='1x1'] .secondary {
+  flex: 1;
+  padding: 0 8px;
+}
+
+.primary {
+  border: none;
+  background: var(--lc-bg-brand, #73adf5);
+  color: var(--lc-text-on-brand, #0b1220);
+}
+
+.primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.secondary {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.secondary:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.resize:focus-visible {
+  outline: 2px solid var(--lc-focus-color, #70aeff);
+  outline-offset: 1px;
+}
+
+/* —— Resize corner, as on macOS widgets —— */
+
+.resize {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0 0 10px 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: nwse-resize;
+  opacity: 0;
+  touch-action: none;
+  transition:
+    opacity 160ms ease-out,
+    color 140ms ease;
+}
+
+.timer:hover > .resize,
+.resize:focus-visible,
+.resize:active {
+  opacity: 1;
+}
+
+.resize:hover,
+.resize:active {
+  color: #fff;
+}
+
+.resize svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
