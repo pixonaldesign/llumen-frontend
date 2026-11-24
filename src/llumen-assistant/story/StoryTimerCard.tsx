@@ -19,7 +19,16 @@ const MAX_DURATION_S = 99 * 3600 + 59 * 60 + 59
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
-type Segment = { value: string; unit: 'H' | 'M' | 'S' }
+type Unit = 'H' | 'M' | 'S'
+type Segment = { value: string; unit: Unit }
+
+/** Shared by the readout and the configure fields; 1×1 uses the short form. */
+const UNIT_LABELS: Record<Unit, { full: string; short: string }> = {
+  H: { full: 'Hours', short: 'Hrs' },
+  M: { full: 'Minutes', short: 'Min' },
+  S: { full: 'Seconds', short: 'Sec' },
+}
+const unitLabel = (unit: Unit, compact: boolean) => UNIT_LABELS[unit][compact ? 'short' : 'full']
 
 /** Hours, minutes, seconds, each with its letter; hours show whenever the full duration has them, so the width never jumps. */
 function segments(seconds: number, withHours: boolean): Segment[] {
@@ -38,11 +47,21 @@ const clockText = (seconds: number, withHours: boolean) =>
 
 const spokenText = (seconds: number, withHours: boolean) =>
   segments(seconds, withHours)
-    .map((segment) => `${segment.value}${segment.unit}`)
+    .map((segment) => `${Number(segment.value)} ${UNIT_LABELS[segment.unit].full.toLowerCase()}`)
     .join(' ')
 
-/** Colon-separated parts, each with its letter underneath. */
-function Readout({ seconds, withHours, className }: { seconds: number; withHours: boolean; className: string }) {
+/** Colon-separated parts, each labelled underneath like the configure fields. */
+function Readout({
+  seconds,
+  withHours,
+  compact,
+  className,
+}: {
+  seconds: number
+  withHours: boolean
+  compact: boolean
+  className: string
+}) {
   return (
     <p className={className} role="timer" aria-live="off" aria-label={spokenText(seconds, withHours)}>
       {segments(seconds, withHours).map((segment, index) => (
@@ -54,7 +73,7 @@ function Readout({ seconds, withHours, className }: { seconds: number; withHours
           ) : null}
           <span className={styles.segment}>
             {segment.value}
-            <span className={styles.unit}>{segment.unit}</span>
+            <span className={styles.unit}>{unitLabel(segment.unit, compact)}</span>
           </span>
         </span>
       ))}
@@ -187,8 +206,7 @@ function DurationFields({
 }) {
   const parts = [Math.floor(value / 3600), Math.floor((value % 3600) / 60), value % 60]
   const limits = [99, 59, 59]
-  const labels = ['Hours', 'Minutes', 'Seconds']
-  const shortLabels = ['Hrs', 'Min', 'Sec']
+  const units: Unit[] = ['H', 'M', 'S']
   const set = (index: number, next: number) => {
     const clamped = Math.min(limits[index], Math.max(0, Math.round(next) || 0))
     const updated = parts.map((part, at) => (at === index ? clamped : part))
@@ -197,13 +215,13 @@ function DurationFields({
   return (
     <div className={styles.fields}>
       {parts.map((part, index) => (
-        <label key={labels[index]} className={styles.fieldGroup}>
+        <label key={units[index]} className={styles.fieldGroup}>
           <span className={styles.field}>
             <input
               className={styles.fieldInput}
               size={2}
               inputMode="numeric"
-              aria-label={labels[index]}
+              aria-label={UNIT_LABELS[units[index]].full}
               value={pad(part)}
               onFocus={(event) => event.currentTarget.select()}
               onChange={(event) => set(index, Number(event.target.value.replace(/\D/g, '').slice(-2)))}
@@ -214,7 +232,7 @@ function DurationFields({
               }}
             />
           </span>
-          <span className={styles.fieldLabel}>{compact ? shortLabels[index] : labels[index]}</span>
+          <span className={styles.fieldLabel}>{unitLabel(units[index], compact)}</span>
         </label>
       ))}
     </div>
@@ -373,7 +391,12 @@ export function StoryTimerCard({
           <div className={styles.dial}>
             <TickGauge fraction={fraction} large={timer.size === '2x2'} />
             <div className={styles.dialCentre}>
-              <Readout seconds={seconds} withHours={withHours} className={styles.dialValue} />
+              <Readout
+                seconds={seconds}
+                withHours={withHours}
+                compact={timer.size === '1x1'}
+                className={styles.dialValue}
+              />
               {done ? <p className={styles.dialStatus}>Time’s up</p> : null}
             </div>
           </div>

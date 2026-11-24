@@ -42,14 +42,20 @@
   align-items: center;
 }
 
+/* Same text as the configure field labels. */
 .unit {
-  margin-top: 0.12em;
+  margin-top: 4px;
   color: rgba(255, 255, 255, 0.56);
   font-family: var(--lc-font-sans);
-  font-size: max(10px, 0.18em);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 14px;
+  text-shadow: none;
+}
+
+.timer[data-size='2x2'] .unit {
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .timer[data-done] {
