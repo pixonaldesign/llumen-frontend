@@ -45,8 +45,8 @@
 
 .gauge {
   grid-area: 1 / 1;
-  width: min(100cqi, 100cqh);
-  height: min(100cqi, 100cqh);
+  width: 100cqi;
+  height: 100cqh;
   overflow: visible;
 }
 
@@ -68,7 +68,6 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  max-width: 72cqmin;
 }
 
 .dialValue,
@@ -83,9 +82,14 @@
   text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* Sized to the dial's inner ring: fewer characters read larger. */
+/* Fills the width inside the ticks (--tick-clear each side); fewer characters read larger. */
 .dialValue {
-  font-size: calc(110cqmin / var(--chars));
+  --tick-clear: 20px;
+  font-size: min(calc((100cqi - 2 * var(--tick-clear)) * 1.9 / var(--chars)), calc(100cqh - 3 * var(--tick-clear)));
+}
+
+.timer[data-size='2x2'] .dialValue {
+  --tick-clear: 28px;
 }
 
 .dialStatus {

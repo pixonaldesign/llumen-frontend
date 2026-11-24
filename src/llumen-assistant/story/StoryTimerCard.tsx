@@ -12,20 +12,19 @@ import { TIMER_CELLS, type StoryTimer, type StoryTimerSize } from './storyTimer'
 import styles from './StoryTimerCard.module.css'
 
 const SIZE_ORDER: StoryTimerSize[] = ['1x1', '2x1', '2x2']
-const TICKS = 60
 const TICK_MS = 200
 const CELL_GAP = 12
 const MAX_DURATION_S = 99 * 3600 + 59 * 60 + 59
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
-type Segment = { value: string; unit: 'h' | 'm' | 's' }
+type Segment = { value: string; unit: 'H' | 'M' | 'S' }
 
 /** Hours, minutes, seconds, each with its letter; hours show whenever the full duration has them, so the width never jumps. */
 function segments(seconds: number, withHours: boolean): Segment[] {
-  const m: Segment = { value: pad(Math.floor((seconds % 3600) / 60)), unit: 'm' }
-  const s: Segment = { value: pad(seconds % 60), unit: 's' }
-  return withHours ? [{ value: String(Math.floor(seconds / 3600)), unit: 'h' }, m, s] : [m, s]
+  const m: Segment = { value: pad(Math.floor((seconds % 3600) / 60)), unit: 'M' }
+  const s: Segment = { value: pad(seconds % 60), unit: 'S' }
+  return withHours ? [{ value: String(Math.floor(seconds / 3600)), unit: 'H' }, m, s] : [m, s]
 }
 
 const clockText = (seconds: number, withHours: boolean) =>
@@ -64,23 +63,86 @@ function useRemaining(timer: StoryTimer) {
   }
 }
 
-/** Sixty ticks round the dial; the lit arc runs back to the top as time runs out. */
-function TickGauge({ fraction }: { fraction: number }) {
-  const spent = (1 - fraction) * TICKS
+type Tick = { x: number; y: number; nx: number; ny: number }
+
+/**
+ * Ticks round a rounded rectangle, clockwise from the top middle. Each eighth of the outline (side middle to
+ * corner) gets the same number of ticks, so majors land on the side middles and corners at any aspect ratio.
+ */
+function rectTicks(halfWidth: number, halfHeight: number, radius: number, perEighth: number): Tick[] {
+  const a = halfWidth - radius
+  const b = halfHeight - radius
+  const corner = (cx: number, cy: number, from: number) => (t: number): Tick => {
+    const angle = from + (t * Math.PI) / 2
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    return { x: cx + radius * cos, y: cy + radius * sin, nx: -cos, ny: -sin }
+  }
+  const line = (x0: number, y0: number, x1: number, y1: number, nx: number, ny: number) => (t: number): Tick => ({
+    x: x0 + (x1 - x0) * t,
+    y: y0 + (y1 - y0) * t,
+    nx,
+    ny,
+  })
+  const arc = (Math.PI * radius) / 4
+  /* Each eighth: a straight run then half a corner, or half a corner then a straight run. */
+  const eighths: { run: number; straight: (t: number) => Tick; bend: (t: number) => Tick; runFirst: boolean }[] = [
+    { run: a, straight: line(0, -halfHeight, a, -halfHeight, 0, 1), bend: corner(a, -b, -Math.PI / 2), runFirst: true },
+    { run: b, straight: line(halfWidth, -b, halfWidth, 0, -1, 0), bend: corner(a, -b, -Math.PI / 2), runFirst: false },
+    { run: b, straight: line(halfWidth, 0, halfWidth, b, -1, 0), bend: corner(a, b, 0), runFirst: true },
+    { run: a, straight: line(a, halfHeight, 0, halfHeight, 0, -1), bend: corner(a, b, 0), runFirst: false },
+    { run: a, straight: line(0, halfHeight, -a, halfHeight, 0, -1), bend: corner(-a, b, Math.PI / 2), runFirst: true },
+    { run: b, straight: line(-halfWidth, b, -halfWidth, 0, 1, 0), bend: corner(-a, b, Math.PI / 2), runFirst: false },
+    { run: b, straight: line(-halfWidth, 0, -halfWidth, -b, 1, 0), bend: corner(-a, -b, Math.PI), runFirst: true },
+    { run: a, straight: line(-a, -halfHeight, 0, -halfHeight, 0, 1), bend: corner(-a, -b, Math.PI), runFirst: false },
+  ]
+  return eighths.flatMap(({ run, straight, bend, runFirst }) =>
+    Array.from({ length: perEighth }, (_, index) => {
+      const d = (index / perEighth) * (run + arc)
+      if (runFirst) return d <= run ? straight(run ? d / run : 0) : bend((d - run) / arc / 2)
+      return d < arc ? bend(0.5 + d / arc / 2) : straight((d - arc) / run)
+    }),
+  )
+}
+
+/** Ticks round the card's dial area; the lit run empties clockwise from the top as time runs out. */
+function TickGauge({ fraction, large }: { fraction: number; large: boolean }) {
+  const ref = useRef<SVGSVGElement>(null)
+  const [box, setBox] = useState<{ width: number; height: number } | null>(null)
+  useEffect(() => {
+    const svg = ref.current
+    if (!svg) return
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setBox((previous) => (previous?.width === width && previous.height === height ? previous : { width, height }))
+    })
+    observer.observe(svg)
+    return () => observer.disconnect()
+  }, [])
+  const perEighth = large ? 12 : 8
+  const minor = large ? 8 : 5
+  const major = large ? 14 : 9
+  const inset = large ? 1.5 : 1
+  const ticks = box ? rectTicks(box.width / 2 - inset, box.height / 2 - inset, large ? 18 : 12, perEighth) : []
+  const spent = (1 - fraction) * ticks.length
   return (
-    <svg className={styles.gauge} viewBox="-50 -50 100 100" aria-hidden>
-      {Array.from({ length: TICKS }, (_, index) => {
+    <svg
+      ref={ref}
+      className={styles.gauge}
+      viewBox={box ? `${-box.width / 2} ${-box.height / 2} ${box.width} ${box.height}` : undefined}
+      aria-hidden
+    >
+      {ticks.map((tick, index) => {
         const lit = Math.min(1, Math.max(0, index + 1 - spent))
-        const major = index % 5 === 0
+        const length = index % perEighth === 0 ? major : minor
         return (
           <line
             key={index}
             className={styles.tick}
-            x1={0}
-            y1={-47}
-            x2={0}
-            y2={major ? -39 : -42}
-            transform={`rotate(${(index / TICKS) * 360})`}
+            x1={tick.x}
+            y1={tick.y}
+            x2={tick.x + tick.nx * length}
+            y2={tick.y + tick.ny * length}
             style={{ '--lit': lit } as CSSProperties}
           />
         )
@@ -117,7 +179,7 @@ function DurationFields({ value, onChange }: { value: number; onChange: (seconds
               set(index, part + (event.key === 'ArrowUp' ? 1 : -1))
             }}
           />
-          <span className={styles.unit}>{labels[index][0].toLowerCase()}</span>
+          <span className={styles.unit}>{labels[index][0]}</span>
         </label>
       ))}
     </div>
@@ -283,7 +345,7 @@ export function StoryTimerCard({
             </div>
           ) : (
             <div className={styles.dial}>
-              <TickGauge fraction={fraction} />
+              <TickGauge fraction={fraction} large={timer.size === '2x2'} />
               <div className={styles.dialCentre}>
                 <Readout seconds={seconds} withHours={withHours} className={styles.dialValue} />
                 <p className={styles.dialStatus}>{status}</p>
