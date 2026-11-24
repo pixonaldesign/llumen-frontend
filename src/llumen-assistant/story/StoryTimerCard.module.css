@@ -1,6 +1,6 @@
 /*
  * The Timer asset. Its shell and cell sizes come from the story's card styles; this file lays out what sits
- * inside: the tick dial (1×1, 2×2), the wide readout with its bar (2×1), and the configure form.
+ * inside: the tick dial, which takes the card's shape at every size, and the configure form.
  */
 .timer {
   --timer-accent: var(--color-primary-500, #73adf5);
@@ -13,6 +13,18 @@
   display: flex;
   align-items: baseline;
   gap: 12px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Each part of the readout carries its letter underneath, so minutes never read as hours. */
@@ -44,7 +56,7 @@
   --timer-accent: var(--color-negative-300, #f17474);
 }
 
-/* —— Dial: 1×1 and 2×2 —— */
+/* —— Dial —— */
 
 .dial {
   position: relative;
@@ -86,8 +98,7 @@
   gap: 2px;
 }
 
-.dialValue,
-.wideValue {
+.dialValue {
   display: flex;
   align-items: flex-start;
   margin: 0;
@@ -130,8 +141,7 @@
   color: var(--timer-accent);
 }
 
-.timer[data-done] .dialValue,
-.timer[data-done] .wideValue {
+.timer[data-done] .dialValue {
   animation: timeUp 1600ms ease-in-out infinite;
 }
 
@@ -139,71 +149,6 @@
   50% {
     opacity: 0.55;
   }
-}
-
-/* —— Wide: 2×1 —— */
-
-.wide {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  container-type: inline-size;
-}
-
-.title {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 14px;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.total {
-  flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.48);
-  font-family: var(--lc-font-mono);
-  font-size: 12px;
-  line-height: 16px;
-  transition: opacity 160ms ease-out;
-}
-
-/* The hover toolbar sits where the total is. */
-.timer:hover .total {
-  opacity: 0;
-}
-
-.timer[data-done] .total {
-  color: var(--timer-accent);
-  font-family: inherit;
-}
-
-/* Spans the card's width, capped so it never crowds the title or the bar. */
-.wideValue {
-  margin-block: auto;
-  font-size: min(calc(160cqi / var(--chars)), 96px);
-  line-height: 0.9;
-}
-
-.bar {
-  flex-shrink: 0;
-  height: 6px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--timer-track);
-}
-
-.barFill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--timer-accent);
-  transform-origin: left;
-  transition: transform 200ms linear;
 }
 
 /* —— Configure —— */

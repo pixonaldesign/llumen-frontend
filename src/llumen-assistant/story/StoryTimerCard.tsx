@@ -357,26 +357,14 @@ export function StoryTimerCard({
         <>
           <div className={styles.head}>
             <p className={styles.title}>{timer.title}</p>
-            {timer.size === '2x1' ? (
-              <span className={styles.total}>{done ? 'Time’s up' : clockText(timer.durationS, withHours)}</span>
-            ) : null}
           </div>
-          {timer.size === '2x1' ? (
-            <div className={styles.wide}>
-              <Readout seconds={seconds} withHours={withHours} className={styles.wideValue} />
-              <div className={styles.bar} aria-hidden>
-                <span className={styles.barFill} style={{ transform: `scaleX(${fraction})` }} />
-              </div>
+          <div className={styles.dial}>
+            <TickGauge fraction={fraction} large={timer.size === '2x2'} />
+            <div className={styles.dialCentre}>
+              <Readout seconds={seconds} withHours={withHours} className={styles.dialValue} />
+              {done ? <p className={styles.dialStatus}>Time’s up</p> : null}
             </div>
-          ) : (
-            <div className={styles.dial}>
-              <TickGauge fraction={fraction} large={timer.size === '2x2'} />
-              <div className={styles.dialCentre}>
-                <Readout seconds={seconds} withHours={withHours} className={styles.dialValue} />
-                {done ? <p className={styles.dialStatus}>Time’s up</p> : null}
-              </div>
-            </div>
-          )}
+          </div>
         </>
       )}
       {timer.configuring ? null : toolbar}
