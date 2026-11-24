@@ -680,6 +680,20 @@
   word-break: break-word;
 }
 
+.finalReplyBullets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0 0 28px;
+  padding-left: 20px;
+  font: var(--lc-font-body-lg);
+  color: rgba(241, 245, 249, 0.95);
+}
+
+.finalReplyBullets li::marker {
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .finalReplyHeading {
   margin: var(--space-2xl) 0 var(--space-md);
   font: var(--lc-font-heading-md);

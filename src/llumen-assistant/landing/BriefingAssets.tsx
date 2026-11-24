@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
-import { BRIEFING_ASSETS, type AssetSlice, type BriefingAsset } from './briefingAssetData'
+import { BRIEFING_ASSETS, type AssetBar, type AssetSlice, type BriefingAsset } from './briefingAssetData'
 import styles from './BriefingAssets.module.css'
 
 /** Charts play card by card, each starting a beat after the previous one. */
@@ -153,16 +153,14 @@ function AssetVisual({
               className={styles.hbar}
               style={{ ['--i' as string]: i }}
               onPointerMove={(event) =>
-                showTip({ x: event.clientX, y: event.clientY, label: bar.label, value: `+${bar.value} ${asset.unit}` })
+                showTip({ x: event.clientX, y: event.clientY, label: bar.label, value: hbarText(bar, asset.unit) })
               }
             >
               <span className={styles.hbarLabel}>{bar.label}</span>
               <span className={styles.track}>
-                <span className={styles.fill} style={{ width: `${(bar.value / asset.bars[0].value) * 100}%` }} />
+                <span className={styles.fill} style={{ width: `${(bar.value / hbarMax(asset.bars)) * 100}%` }} />
               </span>
-              <span className={styles.hbarValue}>
-                +{bar.value} {asset.unit}
-              </span>
+              <span className={styles.hbarValue}>{hbarText(bar, asset.unit)}</span>
             </li>
           ))}
         </ul>
@@ -212,7 +210,8 @@ function AssetVisual({
     case 'pie':
       return <Ring slices={asset.slices} pie legend={legend} showTip={showTip} />
     case 'kpi': {
-      const last = asset.spark.length - 1
+      const points = spark ? asset.spark : undefined
+      const last = (points?.length ?? 0) - 1
       return (
         <>
           <p className={`${styles.value} ${styles.kpiValue}`}>
@@ -220,14 +219,14 @@ function AssetVisual({
             <CountUp value={asset.value} play={play} delay={delay} />
             {asset.suffix}
           </p>
-          <p className={`${styles.caption}${spark ? '' : ` ${styles.captionFoot}`}`}>{asset.caption}</p>
-          {spark ? (
+          <p className={`${styles.caption}${points ? '' : ` ${styles.captionFoot}`}`}>{asset.caption}</p>
+          {points ? (
             <Sparkline
-              points={asset.spark}
+              points={points}
               showTip={showTip}
               describe={(i) => ({
                 label: i === last ? 'This week' : `${last - i} wk ago`,
-                value: `${asset.prefix ?? ''}${asset.spark[i]}${asset.suffix ?? ''}`,
+                value: `${asset.prefix ?? ''}${points[i].toLocaleString('en-US')}${asset.suffix ?? ''}`,
               })}
             />
           ) : null}
@@ -263,7 +262,7 @@ function AssetVisual({
                   showTip({
                     x: event.clientX,
                     y: event.clientY,
-                    label: 'Gap to target',
+                    label: asset.tips?.gap ?? 'Gap to target',
                     value: `${100 - asset.value}%`,
                   })
                 }
@@ -274,7 +273,12 @@ function AssetVisual({
                 pathLength={100}
                 style={{ ['--len' as string]: asset.value }}
                 onPointerMove={(event) =>
-                  showTip({ x: event.clientX, y: event.clientY, label: 'Pressure', value: `${asset.value}% of target` })
+                  showTip({
+                    x: event.clientX,
+                    y: event.clientY,
+                    label: asset.tips?.fill ?? 'Pressure',
+                    value: `${asset.value}%${asset.tips?.fillSuffix ?? ' of target'}`,
+                  })
                 }
               />
               <text className={styles.gaugeText} x="60" y="60" textAnchor="middle">
@@ -629,6 +633,14 @@ function Sparkline({
       {hover != null ? <HoverMark x={coords[hover][0]} y={(coords[hover][1] / 24) * 100} /> : null}
     </div>
   )
+}
+
+function hbarMax(bars: AssetBar[]) {
+  return Math.max(...bars.map((bar) => bar.value))
+}
+
+function hbarText(bar: AssetBar, unit: string) {
+  return bar.display ?? `+${bar.value} ${unit}`
 }
 
 function CountUp({ value, play, delay }: Play & { value: number }) {

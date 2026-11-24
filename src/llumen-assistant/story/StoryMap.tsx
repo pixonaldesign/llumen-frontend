@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { MapControls, type InteractiveMapHandle } from '../InteractiveMap'
+import { ESTATE_MAP_STYLE, coverSand } from '../realEstate/estateMapLayers'
 import { DEMO_COLUMNS, DEMO_JUNCTIONS } from './storyDemoMapData'
 import {
   hexToRgb,
@@ -47,9 +48,10 @@ import {
 } from './storyMapAnnotationLayer'
 import type { AnnotationTool, AnnotationValidity, DrawnShape, MapAnnotationItem } from './storyMapAnnotations'
 import styles from './StoryMap.module.css'
+import { captureMapView } from './captureMapView'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
-const MAPBOX_STYLE = 'mapbox://styles/pixonal/cmgnqbyjf005g01sh9s510hi2'
+const MAPBOX_STYLE = 'mapbox://styles/pixonal/cmu15yibh003r01r16sdc7t05'
 export const STORY_MAP_STYLE = MAPBOX_STYLE
 /** Keeps the demo overlay clear of the 380px insight column. */
 export const STORY_CAMERA_PADDING = { top: 0, right: 0, bottom: 0, left: 400 }
@@ -142,34 +144,6 @@ export type StoryMapAnnotationLayer = {
 }
 
 const NO_VALIDITY: Record<string, AnnotationValidity> = {}
-
-const CAPTURE_WIDTH = 560
-const CAPTURE_ASPECT = 2.2
-
-function captureMapView(map: mapboxgl.Map): StoryMapCapture {
-  const canvas = map.getCanvas()
-  const ratio = canvas.width / Math.max(1, canvas.clientWidth)
-  const { top: padTop = 0, right: padRight = 0, bottom: padBottom = 0, left: padLeft = 0 } = map.getPadding()
-  const left = padLeft * ratio
-  const width = Math.max(1, canvas.width - left - padRight * ratio)
-  const height = Math.min(canvas.height, width / CAPTURE_ASPECT)
-  const centerY = ((padTop + (canvas.clientHeight - padBottom)) / 2) * ratio
-  const top = Math.max(0, Math.min(canvas.height - height, centerY - height / 2))
-  const out = document.createElement('canvas')
-  out.width = CAPTURE_WIDTH
-  out.height = Math.round(CAPTURE_WIDTH / CAPTURE_ASPECT)
-  out.getContext('2d')?.drawImage(canvas, left, top, width, height, 0, 0, out.width, out.height)
-  const center = map.getCenter()
-  return {
-    image: out.toDataURL('image/jpeg', 0.74),
-    camera: {
-      center: [center.lng, center.lat],
-      zoom: map.getZoom(),
-      pitch: map.getPitch(),
-      bearing: map.getBearing(),
-    },
-  }
-}
 
 export type StoryMapProps = {
   className?: string
@@ -1153,6 +1127,7 @@ export function StoryMap({
     }
 
     map.on('load', () => {
+      if (appliedStyleRef.current === ESTATE_MAP_STYLE) coverSand(map)
       mountStoryLayers(map, frameRef.current)
       mountAnnotationLayers(map, frameRef.current.lift)
       syncDemoLayers(map, layersRef.current, layerOpacityRef.current)
@@ -1552,6 +1527,7 @@ export function StoryMap({
     appliedStyleRef.current = styleUrl
     setReady(false)
     map.once('style.load', () => {
+      if (styleUrl === ESTATE_MAP_STYLE) coverSand(map)
       mountStoryLayers(map, frameRef.current)
       mountAnnotationLayers(map, frameRef.current.lift)
       syncDemoLayers(map, layersRef.current, layerOpacityRef.current)

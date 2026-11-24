@@ -27,6 +27,7 @@ import type {
 } from './assistantReplyTypes'
 import { thinkingStepsFromTimeline } from './thinkingSteps'
 import { InlineVisualCard } from './InlineVisualCard'
+import { ReplySolutions } from './ReplySolutions'
 import { ReportThumbnail } from './ReportThumbnail'
 import { WorkflowProposalCard } from './WorkflowProposalCard'
 import { useRevealScrollbarOnScroll } from './useRevealScrollbarOnScroll'
@@ -751,11 +752,17 @@ export function AssistantTimelineReply({
             const prev = index > 0 ? visibleBlocks[index - 1] : null
             const isMedia = block.type === 'visual' || block.type === 'report'
             const prevIsCopy = prev?.type === 'text'
-            // Top separator when a visual/report follows body text (no separator after component)
-            const needsTopSeparator = isMedia && prevIsCopy
+            const isMapState =
+              block.type === 'visual' &&
+              componentById.get(block.componentId)?.preview?.kind === 'story-map-state'
+            // Top separator when a visual/report follows body text; map views close their section instead
+            const needsTopSeparator = isMedia && prevIsCopy && !isMapState
+            const needsBottomSeparator = isMapState && index < blocks.length - 1
             const separatorClass = needsTopSeparator
               ? `${styles.answerBlockSeparator} ${styles.answerBlockSeparatorTop}`
-              : undefined
+              : needsBottomSeparator
+                ? `${styles.answerBlockSeparator} ${styles.answerBlockSeparatorBottom}`
+                : undefined
 
             if (block.type === 'heading') {
               return (
@@ -781,6 +788,41 @@ export function AssistantTimelineReply({
                     onComplete={isAnimating ? onActiveBlockComplete : undefined}
                   />
                 </div>
+              )
+            }
+
+            if (block.type === 'bullets') {
+              return (
+                <AnswerBlockShell
+                  key={`bullets-${index}`}
+                  animating={isAnimating}
+                  reduceMotion={reduceMotion}
+                  onComplete={isAnimating ? onActiveBlockComplete : undefined}
+                >
+                  <ul className={styles.finalReplyBullets}>
+                    {block.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </AnswerBlockShell>
+              )
+            }
+
+            if (block.type === 'solutions') {
+              return (
+                <AnswerBlockShell
+                  key={`solutions-${index}`}
+                  animating={isAnimating}
+                  reduceMotion={reduceMotion}
+                  onComplete={isAnimating ? onActiveBlockComplete : undefined}
+                >
+                  <ReplySolutions
+                    solutions={block.solutions}
+                    components={componentById}
+                    overviewId={block.overviewId}
+                    panelRef={conversationPanelRef}
+                  />
+                </AnswerBlockShell>
               )
             }
 

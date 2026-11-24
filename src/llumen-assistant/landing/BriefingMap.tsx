@@ -1,20 +1,25 @@
 /**
- * Briefing backdrop: the story map's value columns and junction disks, slowly orbiting
- * and flying to each map stop's place. Dragging, rotating or pinching pauses the orbit.
+ * Briefing backdrop: each finding's night Dubai scene (its towers lit, sales heat and roof labels),
+ * slowly orbiting and flying to each map stop's place. It is a backdrop: it takes no pointer, wheel or touch.
  */
 import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { STORY_MAP_STYLE } from '../story/StoryMap'
-import { rampColor, rgbString } from '../story/storyDemoScenes'
 import type { StoryMapView } from '../story/StoryMap'
 import type { BriefingPlace } from './briefingMapPlaces'
+import {
+  ESTATE_MAP_STYLE,
+  TowerLabels,
+  drawEstateScene,
+  forgetTowers,
+  mountEstateLayers,
+  resolveTowers,
+  sceneLabels,
+} from '../realEstate/estateMapLayers'
 import styles from './BriefingLanding.module.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
-const COLUMN_RADIUS_M = 36
 const ORBIT_DEG_PER_S = 2.2
-const RESUME_AFTER_MS = 2600
 const FLY_MS = 2800
 const SHRINK_MS = 700
 const GROW_DELAY_MS = 1300
@@ -34,130 +39,52 @@ const CAMERA_PADDING = { top: 0, right: 0, bottom: 220, left: 0 }
  * lands (`ratio` of the stage height), so the columns end just above the finding at any height.
  */
 const LOW_FOCUS = { ratio: 0.69, lift: 200 }
+/**
+ * A finding with a chart on top: the orbit centre stays `clearance` px above the chart's top edge, so the
+ * scene turns above the chart rather than behind it, but no higher than `minRatio` of the stage.
+ */
+const CHART_FOCUS = { clearance: 130, minRatio: 0.17 }
 
-/** Web-mercator meters per pixel at zoom 0 for 512px tiles, at the demo latitude. */
-const METERS_PER_PX_Z0 = (40075016.686 / 512) * Math.cos((24.6 * Math.PI) / 180)
-
-function metersToPixels(scale: number): mapboxgl.ExpressionSpecification {
-  const base = ['/', ['*', ['get', 'radius'], scale], METERS_PER_PX_Z0]
-  return ['interpolate', ['exponential', 2], ['zoom'], 0, base, 22, ['*', base, 2 ** 22]]
-}
-
-function ring(lng: number, lat: number, radiusMeters: number, sides: number) {
-  const dLat = radiusMeters / 111320
-  const dLng = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180))
-  const coords: [number, number][] = []
-  for (let i = 0; i <= sides; i += 1) {
-    const t = (i / sides) * Math.PI * 2
-    coords.push([lng + Math.cos(t) * dLng, lat + Math.sin(t) * dLat])
-  }
-  return { type: 'Polygon' as const, coordinates: [coords] }
-}
-
-const geometryCache = new WeakMap<BriefingPlace, ReturnType<typeof ring>[]>()
-
-function columnGeometry(place: BriefingPlace) {
-  let geometry = geometryCache.get(place)
-  if (!geometry) {
-    geometry = place.columns.map(([lng, lat]) => ring(lng, lat, COLUMN_RADIUS_M, 14))
-    geometryCache.set(place, geometry)
-  }
-  return geometry
-}
-
-function columnData(place: BriefingPlace, grow: number): GeoJSON.FeatureCollection {
-  const geometry = columnGeometry(place)
-  return {
-    type: 'FeatureCollection',
-    features:
-      grow <= 0
-        ? []
-        : place.columns.map(([, , height], index) => ({
-            type: 'Feature',
-            properties: { height: height * grow, color: rgbString(rampColor(place.ramp, height)) },
-            geometry: geometry[index],
-          })),
-  }
-}
-
-function junctionData(place: BriefingPlace, grow: number): GeoJSON.FeatureCollection {
-  return {
-    type: 'FeatureCollection',
-    features:
-      grow <= 0
-        ? []
-        : place.junctions.map(([lng, lat, radius]) => ({
-            type: 'Feature',
-            properties: { radius: radius * grow },
-            geometry: { type: 'Point', coordinates: [lng, lat] },
-          })),
-  }
-}
+const LAYERS = 'briefing'
 
 type Drawn = { place: BriefingPlace; grow: number }
 
+const labelsByMap = new WeakMap<mapboxgl.Map, TowerLabels>()
+
 function drawPlace(map: mapboxgl.Map, drawn: { current: Drawn }, place: BriefingPlace, grow: number) {
   drawn.current = { place, grow }
-  ;(map.getSource('briefing-columns') as mapboxgl.GeoJSONSource | undefined)?.setData(columnData(place, grow))
-  ;(map.getSource('briefing-junctions') as mapboxgl.GeoJSONSource | undefined)?.setData(junctionData(place, grow))
-}
-
-function paintDisks(map: mapboxgl.Map, place: BriefingPlace) {
-  map.setPaintProperty('briefing-junctions', 'circle-color', place.diskCore)
-  map.setPaintProperty('briefing-junctions-halo', 'circle-color', place.diskHalo)
+  drawEstateScene(map, LAYERS, place.scene, grow)
+  labelsByMap.get(map)?.sync(sceneLabels(place.scene), grow)
 }
 
 function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {
-  map.addSource('briefing-junctions', { type: 'geojson', data: junctionData(place, 0) })
-  map.addSource('briefing-columns', { type: 'geojson', data: columnData(place, 0) })
-  map.addLayer({
-    id: 'briefing-junctions-halo',
-    type: 'circle',
-    source: 'briefing-junctions',
-    paint: {
-      'circle-radius': metersToPixels(1.7),
-      'circle-color': place.diskHalo,
-      'circle-opacity': 0.22,
-      'circle-blur': 1,
-      'circle-pitch-alignment': 'map',
-      'circle-pitch-scale': 'map',
-    },
-  })
-  map.addLayer({
-    id: 'briefing-junctions',
-    type: 'circle',
-    source: 'briefing-junctions',
-    paint: {
-      'circle-radius': metersToPixels(1),
-      'circle-color': place.diskCore,
-      'circle-opacity': 0.36,
-      'circle-blur': 0.55,
-      'circle-pitch-alignment': 'map',
-      'circle-pitch-scale': 'map',
-    },
-  })
-  map.addLayer({
-    id: 'briefing-columns',
-    type: 'fill-extrusion',
-    source: 'briefing-columns',
-    paint: {
-      'fill-extrusion-color': ['to-color', ['get', 'color']],
-      'fill-extrusion-height': ['get', 'height'],
-      'fill-extrusion-base': 0,
-      'fill-extrusion-opacity': 1,
-      'fill-extrusion-vertical-gradient': true,
-    },
-  })
+  forgetTowers(map)
+  mountEstateLayers(map, LAYERS, place.scene.towers)
+  let labels = labelsByMap.get(map)
+  if (!labels) {
+    labels = new TowerLabels(map, LAYERS)
+    labelsByMap.set(map, labels)
+  }
+  labels.mount()
 }
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 
 /** `focusRight` moves the orbit centre into the right two thirds, clear of a left-hand panel. */
-function cameraPadding(el: HTMLElement, focusRight: boolean, focusLow: boolean): mapboxgl.PaddingOptions {
+function cameraPadding(
+  el: HTMLElement,
+  focusRight: boolean,
+  focusLow: boolean,
+  chartTop: number | null,
+): mapboxgl.PaddingOptions {
   const left = focusRight ? Math.round(el.clientWidth / 3) : 0
   if (!focusLow) return { ...CAMERA_PADDING, left }
   const height = el.clientHeight
-  const shift = Math.round(2 * (height * LOW_FOCUS.ratio - LOW_FOCUS.lift) - height)
+  let centre = height * LOW_FOCUS.ratio - LOW_FOCUS.lift
+  if (chartTop !== null) {
+    centre = Math.min(centre, Math.max(height * CHART_FOCUS.minRatio, chartTop - CHART_FOCUS.clearance))
+  }
+  const shift = Math.round(2 * centre - height)
   return { top: Math.max(0, shift), right: 0, bottom: Math.max(0, -shift), left }
 }
 
@@ -183,6 +110,8 @@ export function BriefingMap({
   blank = false,
   focusRight = false,
   focusLow = false,
+  chartTop = null,
+  chartCheck = 0,
   enter = null,
   onArrive,
   start = null,
@@ -196,6 +125,13 @@ export function BriefingMap({
   focusRight?: boolean
   /** The finding sits low on the stage: the columns frame down to just above it. */
   focusLow?: boolean
+  /**
+   * With `focusLow`: reads the finding's chart top edge, in px from the map's top (null while it isn't
+   * laid out). Read whenever the camera's padding is worked out, so the first frame already clears it.
+   */
+  chartTop?: (() => number | null) | null
+  /** Bumped when the chart may have moved: the padding is read again and the camera follows if it changed. */
+  chartCheck?: number
   enter?: BriefingMapEnter | null
   onArrive?: () => void
   start?: BriefingMapEnter | null
@@ -214,6 +150,7 @@ export function BriefingMap({
   const blankRef = useRef(blank)
   const focusRightRef = useRef(focusRight)
   const focusLowRef = useRef(focusLow)
+  const chartTopRef = useRef(chartTop)
   /** The place whose columns are on the map, and how far they've grown. */
   const drawnRef = useRef<Drawn>({ place, grow: 0 })
   const readyRef = useRef(false)
@@ -245,20 +182,21 @@ export function BriefingMap({
     mapboxgl.accessToken = MAPBOX_TOKEN
     const map = new mapboxgl.Map({
       container: el,
-      style: STORY_MAP_STYLE,
+      style: ESTATE_MAP_STYLE,
       ...(heldRef.current?.camera ?? placeRef.current.camera),
       maxPitch: MAX_PITCH,
       antialias: true,
       attributionControl: false,
+      interactive: false,
     })
-    map.setPadding(heldRef.current?.padding ?? cameraPadding(el, focusRightRef.current, focusLowRef.current))
+    map.setPadding(heldRef.current?.padding ?? cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null))
     if (heldRef.current) holdUntilRef.current = Number.POSITIVE_INFINITY
     mapRef.current = map
 
     const observer = new ResizeObserver(() => {
       map.resize()
       if ((focusRightRef.current || focusLowRef.current) && !flyingRef.current && !heldRef.current && !enterRef.current) {
-        map.setPadding(cameraPadding(el, focusRightRef.current, focusLowRef.current))
+        map.setPadding(cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null))
       }
     })
     observer.observe(el)
@@ -291,14 +229,18 @@ export function BriefingMap({
     map.on('load', () => {
       const current = placeRef.current
       const held = heldRef.current
-      map.jumpTo(held ? { ...held.camera, padding: held.padding } : current.camera)
+      map.jumpTo(
+        held
+          ? { ...held.camera, padding: held.padding }
+          : { ...current.camera, padding: cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null) },
+      )
       mountLayers(map, current)
       readyRef.current = true
       if (pendingReleaseRef.current) {
         pendingReleaseRef.current = false
         holdUntilRef.current = 0
         flyingRef.current = true
-        flyHome(map, placeRef.current, cameraPadding(el, focusRightRef.current, focusLowRef.current), alignRef.current)
+        flyHome(map, placeRef.current, cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null), alignRef.current)
         map.once('moveend', () => {
           flyingRef.current = false
         })
@@ -311,6 +253,7 @@ export function BriefingMap({
         onReadyRef.current?.('painted')
       }
       map.on('render', announce)
+      map.on('idle', () => resolveTowers(map, drawnRef.current.place.scene.towers))
       drawPlace(map, drawnRef, current, held && !blankRef.current ? 1 : 0)
       if (blankRef.current || held) return
       const start = performance.now()
@@ -320,29 +263,6 @@ export function BriefingMap({
         if (t < 1 && !reduce) tweenRef.current = window.requestAnimationFrame(grow)
       }
       tweenRef.current = window.requestAnimationFrame(grow)
-    })
-
-    const hold = (ms: number) => {
-      holdUntilRef.current = Math.max(holdUntilRef.current, performance.now() + ms)
-    }
-    let pressed = false
-    const onPress = () => {
-      pressed = true
-      holdUntilRef.current = Number.POSITIVE_INFINITY
-    }
-    const onRelease = () => {
-      if (!pressed) return
-      pressed = false
-      if (enterRef.current || heldRef.current) return
-      holdUntilRef.current = 0
-      hold(RESUME_AFTER_MS)
-    }
-    const canvas = map.getCanvasContainer()
-    canvas.addEventListener('pointerdown', onPress)
-    window.addEventListener('pointerup', onRelease)
-    window.addEventListener('pointercancel', onRelease)
-    map.on('move', (event) => {
-      if (event.originalEvent) hold(RESUME_AFTER_MS)
     })
 
     let frame = 0
@@ -367,11 +287,9 @@ export function BriefingMap({
     return () => {
       window.cancelAnimationFrame(frame)
       window.cancelAnimationFrame(tweenRef.current)
-      canvas.removeEventListener('pointerdown', onPress)
-      window.removeEventListener('pointerup', onRelease)
-      window.removeEventListener('pointercancel', onRelease)
       observer.disconnect()
       onSamplerRef.current?.(null)
+      labelsByMap.get(map)?.clear()
       map.remove()
       mapRef.current = null
       readyRef.current = false
@@ -380,11 +298,17 @@ export function BriefingMap({
 
   useEffect(() => {
     const map = mapRef.current
-    if (focusRightRef.current === focusRight && focusLowRef.current === focusLow) return
+    const changed =
+      focusRightRef.current !== focusRight || focusLowRef.current !== focusLow || chartTopRef.current !== chartTop
     focusRightRef.current = focusRight
     focusLowRef.current = focusLow
-    if (!map || !readyRef.current) return
-    const padding = cameraPadding(map.getContainer(), focusRight, focusLow)
+    chartTopRef.current = chartTop
+    if (!map || !readyRef.current || heldRef.current || enterRef.current) return
+    if (!changed && flyingRef.current) return
+    const padding = cameraPadding(map.getContainer(), focusRight, focusLow, chartTop?.() ?? null)
+    const now = map.getPadding()
+    const near = (a = 0, b = 0) => Math.abs(a - b) < 3
+    if (near(now.top, padding.top) && near(now.bottom, padding.bottom) && near(now.left, padding.left)) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       map.setPadding(padding)
       return
@@ -400,7 +324,7 @@ export function BriefingMap({
     map.once('moveend', () => {
       if (flightRef.current === flight) flyingRef.current = false
     })
-  }, [focusRight, focusLow])
+  }, [focusRight, focusLow, chartTop, chartCheck])
 
   useEffect(() => {
     const map = mapRef.current
@@ -424,13 +348,13 @@ export function BriefingMap({
     if (!moved && !swapping && from === target && !entering && !releasing) return
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const padding = cameraPadding(map.getContainer(), focusRightRef.current, focusLowRef.current)
+    const padding = cameraPadding(map.getContainer(), focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null)
     window.cancelAnimationFrame(tweenRef.current)
     if (reduce) {
       if (entering) map.jumpTo({ ...enter.camera, padding: enter.padding })
       else if (moved || releasing) map.jumpTo({ ...place.camera, padding })
       if (releasing) holdUntilRef.current = 0
-      paintDisks(map, place)
+      mountEstateLayers(map, LAYERS, place.scene.towers)
       drawPlace(map, drawnRef, place, target)
       if (entering) onArriveRef.current?.()
       return
@@ -455,7 +379,7 @@ export function BriefingMap({
       })
     }
 
-    /** A new place shrinks the old columns, then grows its own once the flight is underway. */
+    /** A new place dims the old scene, then lights its own once the flight is underway. */
     const startedAt = performance.now()
     const growFrom = swapping ? 0 : from
     const delay = swapping ? GROW_DELAY_MS : 0
@@ -470,7 +394,7 @@ export function BriefingMap({
           return
         }
         swapped = true
-        paintDisks(map, place)
+        mountEstateLayers(map, LAYERS, place.scene.towers)
       }
       const t = Math.max(0, Math.min(1, (elapsed - delay) / span))
       drawPlace(map, drawnRef, place, growFrom + (target - growFrom) * easeOut(t))

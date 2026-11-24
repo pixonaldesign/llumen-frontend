@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
@@ -88,6 +88,8 @@ export type StoryEditPanelProps = {
   basemapOnly?: boolean
   /** Places the picked charts (STORY_CHARTS ids) into the slide's grid. */
   onAddCharts?: (chartIds: string[]) => void
+  /** The charts the Assets picker offers; defaults to STORY_CHARTS. */
+  charts?: StoryEditChart[]
   /** Draws a picked map layer's columns and disks on the map the picker opened for. */
   onAddMapLayer?: (layer: StoryMapLayerPick) => void
   section: StoryEditSection
@@ -126,6 +128,7 @@ export function StoryEditPanel({
   onBackgroundChange,
   basemapOnly = false,
   onAddCharts,
+  charts,
   onAddMapLayer,
   section,
 }: StoryEditPanelProps) {
@@ -228,6 +231,7 @@ export function StoryEditPanel({
           filters={filters}
           onFiltersChange={onFiltersChange}
           onAddCharts={onAddCharts}
+          charts={charts}
           onAddMapLayer={onAddMapLayer}
           onClose={onClose}
           chartsOnly={section === 'assets'}
@@ -436,7 +440,12 @@ const MAP_LAYERS = [
 
 export type StoryMapLayerPick = { sceneIndex: number; title: string }
 
-const CHARTS = STORY_CHARTS
+export type StoryEditChart = { id: string; title: string; category: string; preview: ReactNode }
+
+const DEFAULT_CHARTS: StoryEditChart[] = STORY_CHARTS.map((chart) => ({
+  ...chart,
+  preview: <StoryChartPreview id={chart.id} />,
+}))
 const AI_ASSET = {
   id: 'ai-asset',
   title: 'AI Asset',
@@ -644,6 +653,7 @@ function AssetsPicker({
   filters,
   onFiltersChange,
   onAddCharts,
+  charts = DEFAULT_CHARTS,
   onAddMapLayer,
   onClose,
   chartsOnly = false,
@@ -653,6 +663,7 @@ function AssetsPicker({
   filters: StoryFilter[]
   onFiltersChange: (filters: StoryFilter[]) => void
   onAddCharts?: (chartIds: string[]) => void
+  charts?: StoryEditChart[]
   onAddMapLayer?: (layer: StoryMapLayerPick) => void
   onClose: () => void
   chartsOnly?: boolean
@@ -673,7 +684,7 @@ function AssetsPicker({
       (category === 'All Map Layers' || item.category === category) &&
       item.title.toLowerCase().includes(normalizedQuery),
   )
-  const chartItems = CHARTS.filter(
+  const chartItems = charts.filter(
     (item) =>
       (category === 'All Charts' || item.category === category) &&
       item.title.toLowerCase().includes(normalizedQuery),
@@ -700,7 +711,7 @@ function AssetsPicker({
   const selectedItems = selected.flatMap((id) => {
     const layer = MAP_LAYERS.find((item) => item.id === id)
     if (layer) return [{ id, title: layer.category }]
-    const chart = CHARTS.find((item) => item.id === id)
+    const chart = charts.find((item) => item.id === id)
     if (chart) return [{ id, title: chart.title }]
     const filter = filters.find((item) => item.id === id)
     if (filter) return [{ id, title: filter.label }]
@@ -835,7 +846,7 @@ function AssetsPicker({
                     <span className={styles.assetCardClip}>
                       {tab === 'charts' ? (
                         <span className={styles.assetChartPreview}>
-                          <StoryChartPreview id={item.id} />
+                          {'preview' in item ? item.preview : null}
                         </span>
                       ) : (
                         <>
@@ -901,7 +912,7 @@ function AssetsPicker({
               } else if (catalogAdditions.length > 0) {
                 onFiltersChange([...filters, ...catalogAdditions])
               }
-              const selectedCharts = CHARTS.filter((item) => selected.includes(item.id)).map(
+              const selectedCharts = charts.filter((item) => selected.includes(item.id)).map(
                 (item) => item.id,
               )
               if (selectedCharts.length > 0) onAddCharts?.(selectedCharts)
