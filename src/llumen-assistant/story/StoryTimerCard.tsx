@@ -19,12 +19,31 @@ const MAX_DURATION_S = 99 * 3600 + 59 * 60 + 59
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
-/** "M:SS" style readout; hours show whenever the full duration has them, so the width never jumps. */
-function clock(seconds: number, withHours: boolean) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  return withHours ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
+type Segment = { value: string; unit: 'h' | 'm' | 's' }
+
+/** Hours, minutes, seconds, each with its letter; hours show whenever the full duration has them, so the width never jumps. */
+function segments(seconds: number, withHours: boolean): Segment[] {
+  const m: Segment = { value: pad(Math.floor((seconds % 3600) / 60)), unit: 'm' }
+  const s: Segment = { value: pad(seconds % 60), unit: 's' }
+  return withHours ? [{ value: String(Math.floor(seconds / 3600)), unit: 'h' }, m, s] : [m, s]
+}
+
+const clockText = (seconds: number, withHours: boolean) =>
+  segments(seconds, withHours)
+    .map((segment) => `${segment.value}${segment.unit}`)
+    .join(' ')
+
+function Readout({ seconds, withHours, className }: { seconds: number; withHours: boolean; className: string }) {
+  return (
+    <p className={className} role="timer" aria-live="off" aria-label={clockText(seconds, withHours)}>
+      {segments(seconds, withHours).map((segment) => (
+        <span key={segment.unit} className={styles.segment}>
+          {segment.value}
+          <span className={styles.unit}>{segment.unit}</span>
+        </span>
+      ))}
+    </p>
+  )
 }
 
 function useRemaining(timer: StoryTimer) {
@@ -86,6 +105,7 @@ function DurationFields({ value, onChange }: { value: number; onChange: (seconds
         <label key={labels[index]} className={styles.field}>
           <input
             className={styles.fieldInput}
+            size={2}
             inputMode="numeric"
             aria-label={labels[index]}
             value={pad(part)}
@@ -97,7 +117,7 @@ function DurationFields({ value, onChange }: { value: number; onChange: (seconds
               set(index, part + (event.key === 'ArrowUp' ? 1 : -1))
             }}
           />
-          <span className={styles.fieldLabel}>{labels[index][0].toLowerCase()}</span>
+          <span className={styles.unit}>{labels[index][0].toLowerCase()}</span>
         </label>
       ))}
     </div>
@@ -138,7 +158,9 @@ function ConfigureForm({
         onChange={(event) => setTitle(event.target.value)}
         autoFocus
       />
-      <DurationFields value={durationS} onChange={setDurationS} />
+      <div className={styles.configureBody}>
+        <DurationFields value={durationS} onChange={setDurationS} />
+      </div>
       <div className={styles.configureActions}>
         <button type="button" className={styles.secondary} onClick={onCancel}>
           Cancel
@@ -225,7 +247,9 @@ export function StoryTimerCard({
   const cardRef = useRef<HTMLElement>(null)
   const { seconds, fraction, done } = useRemaining(timer)
   const withHours = timer.durationS >= 3600
-  const readout = clock(seconds, withHours)
+  const parts = withHours ? 3 : 2
+  /* The readout's width in mono digits: two per part, its letter, and the gap between parts. */
+  const chars = parts * 2.6 + (parts - 1) * 0.4
   const status = done ? 'Time’s up' : timer.startedAt === null ? 'Ready' : 'Remaining'
   return (
     <section
@@ -233,7 +257,7 @@ export function StoryTimerCard({
       className={`${className} ${styles.timer}`}
       data-size={timer.size}
       data-done={done || undefined}
-      style={{ '--chars': readout.length } as CSSProperties}
+      style={{ '--chars': chars } as CSSProperties}
       aria-label={timer.title}
     >
       {timer.configuring ? (
@@ -242,29 +266,31 @@ export function StoryTimerCard({
           onConfirm={(patch) => onChange({ ...patch, configuring: false, startedAt: Date.now() })}
           onCancel={onCancelConfigure}
         />
-      ) : timer.size === '2x1' ? (
-        <div className={styles.wide}>
-          <div className={styles.wideHead}>
-            <p className={styles.title}>{timer.title}</p>
-            <span className={styles.total}>{done ? status : clock(timer.durationS, withHours)}</span>
-          </div>
-          <p className={styles.wideValue} role="timer" aria-live="off">
-            {readout}
-          </p>
-          <div className={styles.bar} aria-hidden>
-            <span className={styles.barFill} style={{ transform: `scaleX(${fraction})` }} />
-          </div>
-        </div>
       ) : (
-        <div className={styles.dial}>
-          <TickGauge fraction={fraction} />
-          <div className={styles.dialCentre}>
-            <p className={styles.dialValue} role="timer" aria-live="off">
-              {readout}
-            </p>
-            <p className={styles.dialStatus}>{status}</p>
+        <>
+          <div className={styles.head}>
+            <p className={styles.title}>{timer.title}</p>
+            {timer.size === '2x1' ? (
+              <span className={styles.total}>{done ? status : clockText(timer.durationS, withHours)}</span>
+            ) : null}
           </div>
-        </div>
+          {timer.size === '2x1' ? (
+            <div className={styles.wide}>
+              <Readout seconds={seconds} withHours={withHours} className={styles.wideValue} />
+              <div className={styles.bar} aria-hidden>
+                <span className={styles.barFill} style={{ transform: `scaleX(${fraction})` }} />
+              </div>
+            </div>
+          ) : (
+            <div className={styles.dial}>
+              <TickGauge fraction={fraction} />
+              <div className={styles.dialCentre}>
+                <Readout seconds={seconds} withHours={withHours} className={styles.dialValue} />
+                <p className={styles.dialStatus}>{status}</p>
+              </div>
+            </div>
+          )}
+        </>
       )}
       {timer.configuring ? null : toolbar}
       {editing ? <ResizeHandle size={timer.size} cardRef={cardRef} onResize={(size) => onChange({ size })} /> : null}

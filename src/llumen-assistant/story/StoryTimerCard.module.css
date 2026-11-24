@@ -5,6 +5,27 @@
 .timer {
   --timer-accent: var(--color-primary-500, #73adf5);
   --timer-track: rgba(255, 255, 255, 0.14);
+  gap: 8px;
+}
+
+.head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+/* Each part of the readout carries its letter, so minutes never read as hours. */
+.segment + .segment {
+  margin-left: 0.24em;
+}
+
+.unit {
+  margin-left: 0.06em;
+  color: rgba(255, 255, 255, 0.56);
+  font-family: var(--lc-font-sans);
+  font-size: 0.4em;
+  font-weight: 400;
 }
 
 .timer[data-done] {
@@ -104,12 +125,6 @@
   container-type: inline-size;
 }
 
-.wideHead {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
 .title {
   flex: 1;
   min-width: 0;
@@ -144,7 +159,7 @@
 /* Spans the card's width, capped so it never crowds the title or the bar. */
 .wideValue {
   margin-block: auto;
-  font-size: min(calc(162cqi / var(--chars)), 120px);
+  font-size: min(calc(196cqi / var(--chars)), 120px);
   line-height: 0.9;
 }
 
@@ -167,17 +182,25 @@
 
 /* —— Configure —— */
 
+/* Title in the header, duration in the middle, actions in the footer. */
 .configure {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 10px;
 }
 
+.configureBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .titleInput,
-.fieldInput {
+.field {
   box-sizing: border-box;
   min-width: 0;
   margin: 0;
@@ -192,12 +215,12 @@
 }
 
 .titleInput:hover,
-.fieldInput:hover {
+.field:hover {
   border-color: rgba(255, 255, 255, 0.24);
 }
 
 .titleInput:focus,
-.fieldInput:focus {
+.field:focus-within {
   border-color: var(--lc-focus-color, #70aeff);
   background: rgba(255, 255, 255, 0.1);
   outline: none;
@@ -221,33 +244,37 @@
   gap: 6px;
 }
 
+/* A digit pair with its letter, like the readout. */
 .field {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.fieldInput {
-  width: 100%;
-  height: 36px;
-  padding: 0;
+  align-items: baseline;
+  justify-content: center;
+  height: 40px;
+  padding: 0 4px;
   font-family: var(--lc-font-mono);
   font-size: 20px;
   font-weight: 500;
+  line-height: 38px;
+  cursor: text;
+}
+
+.fieldInput {
+  width: 2ch;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-variant-numeric: tabular-nums;
   text-align: center;
+  outline: none;
 }
 
-.timer[data-size='2x2'] .fieldInput {
-  height: 56px;
-  font-size: 32px;
-}
-
-.fieldLabel {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 11px;
-  line-height: 14px;
+.timer[data-size='2x2'] .field {
+  height: 64px;
+  font-size: 34px;
+  line-height: 62px;
 }
 
 .configureActions {
