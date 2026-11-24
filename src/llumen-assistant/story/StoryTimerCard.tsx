@@ -175,10 +175,20 @@ function TickGauge({ fraction, large }: { fraction: number; large: boolean }) {
 }
 
 /** Hours, minutes and seconds as three two-digit fields; arrow keys step them. */
-function DurationFields({ value, onChange }: { value: number; onChange: (seconds: number) => void }) {
+function DurationFields({
+  value,
+  compact,
+  onChange,
+}: {
+  value: number
+  /** 1×1: abbreviated labels. */
+  compact: boolean
+  onChange: (seconds: number) => void
+}) {
   const parts = [Math.floor(value / 3600), Math.floor((value % 3600) / 60), value % 60]
   const limits = [99, 59, 59]
   const labels = ['Hours', 'Minutes', 'Seconds']
+  const shortLabels = ['Hrs', 'Min', 'Sec']
   const set = (index: number, next: number) => {
     const clamped = Math.min(limits[index], Math.max(0, Math.round(next) || 0))
     const updated = parts.map((part, at) => (at === index ? clamped : part))
@@ -187,22 +197,24 @@ function DurationFields({ value, onChange }: { value: number; onChange: (seconds
   return (
     <div className={styles.fields}>
       {parts.map((part, index) => (
-        <label key={labels[index]} className={styles.field}>
-          <input
-            className={styles.fieldInput}
-            size={2}
-            inputMode="numeric"
-            aria-label={labels[index]}
-            value={pad(part)}
-            onFocus={(event) => event.currentTarget.select()}
-            onChange={(event) => set(index, Number(event.target.value.replace(/\D/g, '').slice(-2)))}
-            onKeyDown={(event) => {
-              if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
-              event.preventDefault()
-              set(index, part + (event.key === 'ArrowUp' ? 1 : -1))
-            }}
-          />
-          <span className={styles.unit}>{labels[index][0]}</span>
+        <label key={labels[index]} className={styles.fieldGroup}>
+          <span className={styles.field}>
+            <input
+              className={styles.fieldInput}
+              size={2}
+              inputMode="numeric"
+              aria-label={labels[index]}
+              value={pad(part)}
+              onFocus={(event) => event.currentTarget.select()}
+              onChange={(event) => set(index, Number(event.target.value.replace(/\D/g, '').slice(-2)))}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+                event.preventDefault()
+                set(index, part + (event.key === 'ArrowUp' ? 1 : -1))
+              }}
+            />
+          </span>
+          <span className={styles.fieldLabel}>{compact ? shortLabels[index] : labels[index]}</span>
         </label>
       ))}
     </div>
@@ -244,7 +256,7 @@ function ConfigureForm({
         autoFocus
       />
       <div className={styles.configureBody}>
-        <DurationFields value={durationS} onChange={setDurationS} />
+        <DurationFields value={durationS} compact={timer.size === '1x1'} onChange={setDurationS} />
       </div>
       <div className={styles.configureActions}>
         <button type="button" className={styles.secondary} onClick={onCancel}>

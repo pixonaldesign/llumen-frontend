@@ -215,10 +215,10 @@
   gap: 6px;
 }
 
-/* A digit pair with its letter, like the readout. */
+/* The box round a digit pair; its label sits underneath. */
 .field {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
   height: 40px;
   padding: 0 4px;
@@ -229,11 +229,26 @@
   cursor: text;
 }
 
-.field .unit {
-  margin: 0 0 0 0.06em;
-  font-size: 0.4em;
-  font-weight: 400;
-  letter-spacing: 0;
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fieldLabel {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timer[data-size='2x2'] .fieldLabel {
+  font-size: 13px;
+  line-height: 18px;
 }
 
 .fieldInput {
