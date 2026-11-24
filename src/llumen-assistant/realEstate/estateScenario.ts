@@ -3,6 +3,7 @@
  * on, and the views Tell Me More opens (each story's problem, then one per impact horizon).
  */
 import { FACILITIES_ASK_VIEWS, FACILITIES_PLACE, FACILITIES_STORY } from '../municipality/facilitiesScenario'
+import { FLOOD_ASK_VIEWS } from '../municipality/floodScenario'
 import { INFRASTRUCTURE_ASK_VIEWS, INFRASTRUCTURE_PLACE, INFRASTRUCTURE_STORY } from '../municipality/infrastructureScenario'
 import { ODOR_ASK_VIEWS, ODOR_PLACE, ODOR_STORY } from '../municipality/odorScenario'
 import type { EstateAskView, EstatePlace, EstatePlaceId, EstateStory } from './estateTypes'
@@ -23,7 +24,12 @@ export const ESTATE_PLACES: Record<EstatePlaceId, EstatePlace> = {
   infrastructure: INFRASTRUCTURE_PLACE,
 }
 
-export const ESTATE_ASK_VIEWS = { ...ODOR_ASK_VIEWS, ...FACILITIES_ASK_VIEWS, ...INFRASTRUCTURE_ASK_VIEWS } satisfies Record<
+export const ESTATE_ASK_VIEWS = {
+  ...ODOR_ASK_VIEWS,
+  ...FACILITIES_ASK_VIEWS,
+  ...INFRASTRUCTURE_ASK_VIEWS,
+  ...FLOOD_ASK_VIEWS,
+} satisfies Record<
   string,
   EstateAskView
 >

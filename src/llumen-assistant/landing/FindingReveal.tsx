@@ -473,8 +473,8 @@ export function FindingReveal({
               <button
                 type="button"
                 className={`${styles.actionBtn} ${styles.viewBtn}`}
-                onClick={() => onOpenRelated(active)}
-                disabled={!relatedStoryId(active)}
+                onClick={() => (relatedStoryId(active) || !active.viewOpensAsk ? onOpenRelated(active) : onTellMeMore(active))}
+                disabled={!relatedStoryId(active) && !active.viewOpensAsk}
               >
                 <ArrowUpRight size={20} weight="regular" aria-hidden />
                 View

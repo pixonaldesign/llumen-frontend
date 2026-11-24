@@ -12,6 +12,7 @@ import type {
   ThinkingStep,
   TimelineStep,
 } from '../assistantReplyTypes'
+import type { FindingToastItem } from '../landing/findingDemoData'
 import { HORIZON_COLOR, HORIZON_SPAN } from './dmShared'
 import {
   HOMES_EXPOSED,
@@ -23,6 +24,7 @@ import {
 } from './odorScenario'
 import { FACILITIES_BRIEFING, FACILITIES_SOLUTIONS } from './facilitiesScenario'
 import type { PlanningSolution } from './growthAreas'
+import { FLOOD_BRIEFING } from './floodScenario'
 import { INFRASTRUCTURE_BRIEFING, INFRASTRUCTURE_SOLUTIONS } from './infrastructureScenario'
 import { ESTATE_ASK_VIEWS, isAskView, type EstateAskViewId } from '../realEstate/estateScenario'
 import { STATUS, type EstateAskView, type Horizon } from '../realEstate/estateTypes'
@@ -36,8 +38,11 @@ export type EstateFindingExperience = {
   /** What the ask stage shows the user asking, in place of "Tell me more about …". */
   prompt?: string
   reply: AssistantReplyPayload
-  /** The map the stage opens on, slid in with `revealWith`; null answers in charts and keeps the map closed. */
-  map: { stateId: string; snapshot: StoryAiSnapshot; revealWith?: string } | null
+  /**
+   * The map the stage opens on, slid in with `revealWith` (or with the stage itself when `open`); null
+   * answers in charts and keeps the map closed.
+   */
+  map: { stateId: string; snapshot: StoryAiSnapshot; revealWith?: string; open?: boolean } | null
 }
 
 export const isEstateFindingPlace = isAskView
@@ -248,6 +253,8 @@ const odorShare = Math.round((ODOR_BRIEFING.inWindow / ODOR_BRIEFING.complaints)
 const roundK = (value: number) => Math.round(value / 1000) * 1000
 const [today, sixMonths, oneYear] = FACILITIES_BRIEFING.baseline
 
+const FLOOD_ALERT_ID = 'downtown-flood'
+
 const EXPERIENCES: Record<string, (stateId: (place: EstateFindingStageId) => string) => EstateFindingExperience> = {
   odor: (stateId) =>
     experience(
@@ -402,6 +409,150 @@ const EXPERIENCES: Record<string, (stateId: (place: EstateFindingStageId) => str
       },
       stateId,
     ),
+
+  [FLOOD_ALERT_ID]: floodAlert,
+}
+
+/* —— The Downtown flood alert: a short read of the forecast, then a simulation of three responses on request —— */
+
+const FLOOD_MAP: EstateFindingMap = {
+  place: 'flood',
+  title: 'Potential flood at 4 PM · Downtown Dubai',
+  tag: 'Downtown Dubai',
+  meta: `${FLOOD_BRIEFING.floodedHa('before')} ha of streets under water`,
+}
+
+function floodAlert(stateId: (place: EstateFindingStageId) => string): EstateFindingExperience {
+  const steps: ThinkingStep[] = [
+    { id: 'flood-read', kind: 'reasoning', title: 'Reading the rainfall forecast for Downtown Dubai…' },
+    { id: 'flood-search', kind: 'search', title: 'Running the cloudburst on the Downtown terrain model…' },
+    { id: 'flood-done', kind: 'done', title: 'Flood map ready' },
+  ]
+  const overview = mapComponent(stateId('flood'), FLOOD_MAP)
+  return {
+    prompt: 'Where could Downtown Dubai flood this afternoon?',
+    map: { stateId: overview.id, snapshot: findingSnapshot('flood'), open: true },
+    reply: {
+      headline: `${FLOOD_BRIEFING.floodedHa('before')} ha of Downtown streets could be under water by 4 PM.`,
+      thinkingSteps: steps,
+      timeline: timeline(steps),
+      createdComponents: [overview],
+      blocks: [
+        {
+          type: 'text',
+          content: `By 4 PM, ${FLOOD_BRIEFING.rainMm} mm of rain could put ${FLOOD_BRIEFING.floodedHa('before')} ha of Downtown streets under water.`,
+        },
+        { type: 'bullets', items: FLOOD_BRIEFING.roads.map((road) => `${road.title}: ${road.depth}`) },
+        { type: 'text', content: 'Ask me to run a simulation to compare responses.' },
+      ],
+    },
+  }
+}
+
+const FLOOD_RESPONSES: Record<Horizon, { title: string; summary: string; mapNote: string; actions: ReplySolution['actions'] }> = {
+  immediate: {
+    title: 'Deploy mobile pumps',
+    summary: 'Four pump units keep the worst junctions open. Water elsewhere stays.',
+    mapNote: 'The lower map is the same storm with four pumps running.',
+    actions: [
+      { title: 'Pump the Financial Centre Rd interchange', subtitle: '2.5 m³/s' },
+      { title: 'Pump Sheikh Zayed Rd at Burj Khalifa metro', subtitle: '2.5 m³/s' },
+      { title: 'Pump Al Khail Rd and the Boulevard', subtitle: '2 × 2.5 m³/s' },
+    ],
+  },
+  intermediate: {
+    title: 'Upgrade the storm drains',
+    summary: 'Clear and enlarge Downtown’s drains, adding 12 mm/h of capacity.',
+    mapNote: 'The lower map is the same storm with the upgraded drains.',
+    actions: [
+      { title: 'Clear blocked gullies and inlets', subtitle: 'All of Downtown' },
+      { title: 'Enlarge drains at the five low points', subtitle: '+12 mm/h' },
+    ],
+  },
+  long: {
+    title: 'Build a storage tunnel',
+    summary: 'Intakes at the five low points feed a tunnel draining to Business Bay.',
+    mapNote: 'The lower map is the same storm with the tunnel and drains in place.',
+    actions: [
+      { title: 'Five tunnel intakes', subtitle: '8 m³/s each' },
+      { title: 'Outfall to Business Bay', subtitle: 'Below Burj Khalifa' },
+      { title: 'Drain upgrades feeding the intakes', subtitle: '+16 mm/h' },
+    ],
+  },
+}
+
+function floodSolution(horizon: Horizon): SolutionSpec {
+  const response = FLOOD_RESPONSES[horizon]
+  return {
+    ...response,
+    label: HORIZON_TAB[horizon],
+    span: HORIZON_SPAN[horizon],
+    color: HORIZON_COLOR[horizon],
+    stats: [
+      { label: 'Streets under water', value: `${FLOOD_BRIEFING.floodedHa('before')} → ${FLOOD_BRIEFING.floodedHa(horizon)} ha` },
+      { label: 'Financial Centre Rd interchange', value: `${FLOOD_BRIEFING.worst('before')} → ${FLOOD_BRIEFING.worst(horizon)}` },
+    ],
+    map: {
+      place: `flood-${horizon}`,
+      title: `${HORIZON_TAB[horizon]} · ${response.title}`,
+      tag: 'Downtown Dubai',
+      meta: `${FLOOD_BRIEFING.floodedHa(horizon)} ha under water`,
+    },
+  }
+}
+
+function floodSimulationReply(overviewId: string, stateId: (place: EstateFindingStageId) => string): AssistantReplyPayload {
+  const steps: ThinkingStep[] = [
+    { id: 'flood-sim-run', kind: 'search', title: 'Simulating the same storm with three responses…' },
+    { id: 'flood-sim-done', kind: 'done', title: 'Simulations ready' },
+  ]
+  const solutions = HORIZONS.map(floodSolution).map(({ map, ...solution }) => ({
+    solution,
+    component: mapComponent(stateId(map.place), map, `${solution.summary} ${solution.mapNote}`),
+  }))
+  return {
+    headline: 'Three responses, simulated on the same storm.',
+    thinkingSteps: steps,
+    timeline: timeline(steps),
+    createdComponents: solutions.map(({ component }) => component),
+    blocks: [
+      { type: 'text', content: 'Same storm, three responses. Open one to compare it with no action.' },
+      {
+        type: 'solutions',
+        overviewId,
+        solutions: solutions.map(({ solution, component }) => ({ ...solution, componentId: component.id })),
+      },
+    ],
+  }
+}
+
+/**
+ * A typed follow-up the conversation's map has a scripted answer for, or null. `onMap` gives the state id
+ * of each view the conversation has shown, by view; `stateId` names the reply's new ones.
+ */
+export function estateFollowUp(
+  text: string,
+  onMap: Readonly<Record<string, string>>,
+  stateId: (place: EstateFindingStageId) => string,
+): AssistantReplyPayload | null {
+  if (onMap.flood && /simulat/i.test(text)) return floodSimulationReply(onMap.flood, stateId)
+  return null
+}
+
+/** Whether the conversation can be taken further by typing, so the stage keeps its composer. */
+export const hasEstateFollowUps = (onMap: Readonly<Record<string, string>>) => Boolean(onMap.flood)
+
+/** The alert the Aurora raises for the flood forecast; Tell me more and View both open the flood map. */
+export const FLOOD_ALERT: FindingToastItem = {
+  id: FLOOD_ALERT_ID,
+  type: 'ai',
+  severity: 'alert',
+  viewOpensAsk: true,
+  title: 'Potential rain flood',
+  domain: 'Drainage & Flood Risk',
+  before: 'Heavy rain this afternoon could flood ',
+  highlight: 'Downtown Dubai by 4 PM',
+  after: `, with up to ${FLOOD_BRIEFING.worst('before')} of water at the Financial Centre Rd interchange`,
 }
 
 /** The Tell Me More experience for a Briefing finding, or null for findings without one. */

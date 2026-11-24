@@ -78,6 +78,8 @@ export type CommandPaletteProps = {
   onOpenAurora: () => void
   onCurrentAurora: () => void
   onDualStateAurora: () => void
+  /** Dubai Municipality only: the Aurora warns of a potential rain flood in Downtown Dubai. */
+  onFloodAlert: () => void
 }
 
 export function CommandPalette({
@@ -100,6 +102,7 @@ export function CommandPalette({
   onOpenAurora,
   onCurrentAurora,
   onDualStateAurora,
+  onFloodAlert,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [tab, setTab] = useState<Tab>('All')
@@ -287,9 +290,24 @@ export function CommandPalette({
           onDualStateAurora()
         },
       },
+      ...(DEMO_SPACE === 'dm'
+        ? [
+            {
+              id: 'flood-alert',
+              group: 'Aurora',
+              label: 'Potential rain flood warning',
+              hint: 'Aurora alert: Downtown Dubai could flood by 4 PM',
+              run: () => {
+                onOpenChange(false)
+                onFloodAlert()
+              },
+            },
+          ]
+        : []),
       ...demoCommands,
     ]
   }, [
+    onFloodAlert,
     comparisonSplit,
     demoCommands,
     findingsStyle,

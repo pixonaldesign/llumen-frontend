@@ -89,6 +89,14 @@ export type EstateLabel = {
   group: string
 }
 
+/** A baked raster laid on the ground, such as flood depth: its corners run top-left, top-right, bottom-right, bottom-left. */
+export type EstateWater = {
+  url: string
+  corners: [LngLat, LngLat, LngLat, LngLat]
+  opacity?: number
+  group: string
+}
+
 export type EstateMapScene = {
   towers: EstateTower[]
   heat: EstateHeatPoint[]
@@ -104,6 +112,7 @@ export type EstateMapScene = {
   wind?: EstateWind
   points?: EstatePoint[]
   labels?: EstateLabel[]
+  water?: EstateWater
 }
 
 export const EMPTY_SCENE: EstateMapScene = { towers: [], heat: [], heatRadiusM: 220, heatRamp: ['#5a2fc7', '#f6f2ff'] }
@@ -126,6 +135,7 @@ const lineId = (prefix: string) => `${prefix}-line`
 const pointId = (prefix: string) => `${prefix}-point`
 const pulseId = (prefix: string) => `${prefix}-pulse`
 const windId = (prefix: string) => `${prefix}-wind`
+const waterId = (prefix: string) => `${prefix}-water`
 /** The overlay layers a hover can name, top first. */
 const tipLayers = (prefix: string) => [
   pointId(prefix),
@@ -430,6 +440,33 @@ function setOverlays(map: mapboxgl.Map, prefix: string, scene: EstateMapScene, g
     })),
   })
   windOf(map, prefix).set(scene.wind && grow > 0 && !hidden.has(scene.wind.group) ? scene.wind : null, grow)
+  setWater(map, prefix, scene.water && !hidden.has(scene.water.group) ? scene.water : null, grow)
+}
+
+/** An image source needs its picture up front, so the water layer is added the first time a scene has one. */
+function setWater(map: mapboxgl.Map, prefix: string, water: EstateWater | null, grow: number) {
+  const id = waterId(prefix)
+  const source = map.getSource(id) as mapboxgl.ImageSource | undefined
+  if (!water) {
+    if (map.getLayer(id)) map.setPaintProperty(id, 'raster-opacity', 0)
+    return
+  }
+  if (!source) {
+    map.addSource(id, { type: 'image', url: water.url, coordinates: water.corners })
+    map.addLayer(
+      {
+        id,
+        type: 'raster',
+        source: id,
+        slot: 'middle',
+        paint: { 'raster-opacity': 0, 'raster-resampling': 'linear', 'raster-fade-duration': 0, 'raster-emissive-strength': 1 },
+      },
+      `${areaId(prefix)}-fill`,
+    )
+  } else if ((source as unknown as { url?: string }).url !== water.url) {
+    source.updateImage({ url: water.url, coordinates: water.corners })
+  }
+  map.setPaintProperty(id, 'raster-opacity', (water.opacity ?? 1) * grow)
 }
 
 /** The overlay under `point` that names itself on hover, with a key that changes when another does. */

@@ -83,7 +83,13 @@ import {
 } from './landing/LandingAskStage'
 import { findingReply, tellMeMorePrompt } from './landing/landingAskReplies'
 import { findingExperience } from './landing/landingFindingExperiences'
-import { estateFindingExperience, isEstateFindingPlace } from './municipality/dmFindingExperiences'
+import {
+  FLOOD_ALERT,
+  estateFindingExperience,
+  estateFollowUp,
+  hasEstateFollowUps,
+  isEstateFindingPlace,
+} from './municipality/dmFindingExperiences'
 import { bySpace } from './demoSpace'
 import { CommandPalette } from './CommandPalette'
 import {
@@ -427,7 +433,8 @@ type LandingAskPlan = {
   prompt?: string
   reply: AssistantReplyPayload
   stateId: string
-  map: { snapshot: StoryAiSnapshot; captureDelay: number; revealWith?: string } | null
+  /** `open` puts the map up with the stage, before the reply, instead of sliding it in alongside. */
+  map: { snapshot: StoryAiSnapshot; captureDelay: number; revealWith?: string; open?: boolean } | null
 }
 
 /**
@@ -450,6 +457,7 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
             snapshot: estate.map.snapshot,
             captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS,
             revealWith: estate.map.revealWith,
+            open: estate.map.open,
           }
         : null,
     }
@@ -511,6 +519,18 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
 
 /** Typed into the landing AI bar on the first keystroke: the story builder's location prompt, already set to Mussafah. */
 const LANDING_DEMO_PROMPT = locationPrompt(MUSSAFAH_LOCATION)
+
+/** The state id of each finding view the conversation's replies have put on the map, by view. */
+function mapViewsShown(messages: ChatMessage[]): Record<string, string> {
+  const shown: Record<string, string> = {}
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue
+    for (const { preview } of message.reply?.createdComponents ?? []) {
+      if (preview?.kind === 'story-map-state' && preview.snapshot.findingPlace) shown[preview.snapshot.findingPlace] = preview.stateId
+    }
+  }
+  return shown
+}
 
 function lastMapState(messages: ChatMessage[]): { stateId: string; snapshot: StoryAiSnapshot } | undefined {
   return messages
@@ -1272,12 +1292,11 @@ export function CompactAssistantDemo() {
     launchAlert()
   }, [activeStoryId, hubStoryOpen, launchAlert])
 
-  const launchCurrentAurora = useCallback(() => {
-    const template = nextAlertFromPool(
-      alertPoolIndexRef.current,
-      alertCentreRef.current ? ENVIRONMENT_ALERT_POOL : ALERT_FINDING_POOL,
-    )
-    alertPoolIndexRef.current += 1
+  /** Raises `chosen`, or the next alert from the pool. */
+  const launchCurrentAurora = useCallback((chosen?: FindingToastItem) => {
+    const template =
+      chosen ?? nextAlertFromPool(alertPoolIndexRef.current, alertCentreRef.current ? ENVIRONMENT_ALERT_POOL : ALERT_FINDING_POOL)
+    if (!chosen) alertPoolIndexRef.current += 1
     const alert: FindingToastInstance = { ...template, severity: 'alert', instanceId: uid() }
     const show = (borderCue = true) => {
       pendingClearRef.current = null
@@ -1347,6 +1366,8 @@ export function CompactAssistantDemo() {
     }, STAGED_AURORA_PHASE1_MS)
   }, [activeStoryId, hubStoryOpen, isHub, open])
 
+  const launchFloodAlert = useCallback(() => launchCurrentAurora(FLOOD_ALERT), [launchCurrentAurora])
+
   const launchDualStateAurora = useCallback(() => {
     const notices: FindingToastInstance[] = []
     for (let i = 0; i < 4; i++) {
@@ -1415,7 +1436,7 @@ export function CompactAssistantDemo() {
     const onKey = (event: KeyboardEvent) => {
       if (!event.metaKey || !event.altKey || !event.shiftKey) return
       const launch =
-        event.code === 'KeyF' ? launchFindingShortcut : event.code === 'KeyA' ? launchCurrentAurora : null
+        event.code === 'KeyF' ? launchFindingShortcut : event.code === 'KeyA' ? () => launchCurrentAurora() : null
       if (!launch) return
       event.preventDefault()
       event.stopPropagation()
@@ -1507,6 +1528,14 @@ export function CompactAssistantDemo() {
         setActiveConversationId((id) => id ?? uid())
         setMessages((m) => [...m, { id: uid(), role: 'user', text: t }])
         startAssistantReply(workUnderwayReply(slash))
+        return
+      }
+      const base = `map-state-${Date.now()}`
+      const followUp = estateFollowUp(t, mapViewsShown(messages), (place) => `${base}-${place}`)
+      if (followUp) {
+        setDraft('')
+        setMessages((m) => [...m, { id: uid(), role: 'user', text: t }])
+        startAssistantReply(followUp)
         return
       }
       setDraft('')
@@ -2502,7 +2531,8 @@ export function CompactAssistantDemo() {
       setChatTitle(plan.prompt ? truncateTitle(plan.prompt) : finding ? truncateTitle(finding.title) : titleFromReply(reply))
       setMessages([{ id: uid(), role: 'user', text: plan.prompt ?? prompt }])
       const messageId = startAssistantReply(reply)
-      if (map) landingAskPendingRef.current = { messageId, stateId, ...map }
+      if (map?.open) setLandingAskMap({ open: true, snapshot: map.snapshot, capture: { stateId, delay: map.captureDelay } })
+      else if (map) landingAskPendingRef.current = { messageId, stateId, ...map }
     },
     [openLandingAsk, resetConversation, startAssistantReply],
   )
@@ -2944,7 +2974,7 @@ export function CompactAssistantDemo() {
   const hubChatComponents = storyActive ? storyChatComponents : []
   const inStudio = landingVariant === 'briefing' && !storyActive && briefingView === 'studio'
   const briefingWithoutBar = !BRIEFING_CHAT_BAR && landingVariant === 'briefing' && !storyActive && !inStudio
-  const showComposer = !(briefingWithoutBar && landingAsk)
+  const showComposer = !(briefingWithoutBar && landingAsk) || hasEstateFollowUps(mapViewsShown(messages))
   const showHub =
     isHub &&
     (!inStudio || studioAskBar !== null) &&
@@ -3664,6 +3694,7 @@ export function CompactAssistantDemo() {
           onOpenAurora={() => onAuroraPanelOpenChange(true)}
           onCurrentAurora={launchCurrentAurora}
           onDualStateAurora={launchDualStateAurora}
+          onFloodAlert={launchFloodAlert}
         />
         <ShareModal
           open={shareOpen}

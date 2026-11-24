@@ -16,6 +16,8 @@ export type FindingToastItem = {
   severity?: FindingSeverity
   /** Recommended-story id opened by "View slides". */
   storyId?: string
+  /** With no story to open, View opens the same answer as Tell me more. */
+  viewOpensAsk?: boolean
 }
 
 const FINDING_STORY_IDS: Record<string, string> = {
