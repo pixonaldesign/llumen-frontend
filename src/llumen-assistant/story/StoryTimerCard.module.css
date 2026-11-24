@@ -58,6 +58,10 @@
   transition: stroke 240ms linear;
 }
 
+.minorTick {
+  opacity: 0.45;
+}
+
 .timer[data-size='2x2'] .tick {
   stroke-width: 3px;
 }
