@@ -189,6 +189,7 @@ export function BriefingMap({
   onReady,
   align = null,
   onSampler,
+  paused = false,
 }: {
   place: BriefingPlace
   blank?: boolean
@@ -203,6 +204,8 @@ export function BriefingMap({
   align?: BriefingMapEnter | null
   /** Hands over a reader of the map's next frame, shrunk to a few pixels (null until the style loads). */
   onSampler?: (sample: (() => Promise<ImageData | null>) | null) => void
+  /** Stops the orbit while the map is covered, so Mapbox stops repainting. */
+  paused?: boolean
 }) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -225,13 +228,15 @@ export function BriefingMap({
   const onArriveRef = useRef(onArrive)
   const onReadyRef = useRef(onReady)
   const onSamplerRef = useRef(onSampler)
+  const pausedRef = useRef(paused)
 
   useEffect(() => {
     onArriveRef.current = onArrive
     onReadyRef.current = onReady
     onSamplerRef.current = onSampler
     alignRef.current = align
-  }, [onArrive, onReady, onSampler, align])
+    pausedRef.current = paused
+  }, [onArrive, onReady, onSampler, align, paused])
 
   useEffect(() => {
     const el = elRef.current
@@ -345,7 +350,14 @@ export function BriefingMap({
     const orbit = (now: number) => {
       const dt = Math.min(64, now - last)
       last = now
-      if (readyRef.current && !reduce && !flyingRef.current && !document.hidden && now > holdUntilRef.current) {
+      if (
+        readyRef.current &&
+        !reduce &&
+        !pausedRef.current &&
+        !flyingRef.current &&
+        !document.hidden &&
+        now > holdUntilRef.current
+      ) {
         map.setBearing(map.getBearing() + (ORBIT_DEG_PER_S * dt) / 1000)
       }
       frame = window.requestAnimationFrame(orbit)

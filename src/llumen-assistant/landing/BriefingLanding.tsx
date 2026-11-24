@@ -840,6 +840,7 @@ export function BriefingLanding({
               start={returnHeld ? storyReturn.from : null}
               onReady={onStoryReturnReady}
               onSampler={onMapSampler}
+              paused={inStudio}
             />
           </div>
           <div className={styles.scrim} aria-hidden />

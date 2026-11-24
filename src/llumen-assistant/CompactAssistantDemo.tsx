@@ -3069,7 +3069,7 @@ export function CompactAssistantDemo() {
       >
         <div className={styles.demoPageShader} aria-hidden>
           <MeshGradient
-            speed={open || storyActive ? 0 : 0.4}
+            speed={open || storyActive || inStudio ? 0 : 0.4}
             scale={1}
             distortion={0.09}
             swirl={0}
