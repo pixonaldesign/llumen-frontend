@@ -7,7 +7,7 @@ Each scenario adds drainage the source model leaves out (pumps, drains, a
 storage tunnel), so the after views are the same storm with that fix.
 
     python3 scripts/bake-downtown-flood.py analyze   # hotspots of the unmitigated storm
-    python3 scripts/bake-downtown-flood.py bake      # hourly WebP overlays + floodBake.ts stats
+    python3 scripts/bake-downtown-flood.py bake      # half-hourly depth frames (3 per WebP) + floodBake.ts stats
 """
 
 import json
@@ -25,6 +25,11 @@ STATS = Path(__file__).resolve().parent.parent / "src" / "llumen-assistant" / "m
 SIM_SECONDS = 240.0
 TIME_LAPSE = 240.0
 HOUR_SIM_S = 3600 / TIME_LAPSE
+# Depth frames per storm hour; the map blends between them, so the shoreline creeps rather than jumps.
+FRAMES_PER_HOUR = 2
+FRAME_SIM_S = HOUR_SIM_S / FRAMES_PER_HOUR
+# Depth is stored as sqrt(d / DEPTH_MAX_M) in a byte: finer steps in the shallows, where the edge is drawn.
+DEPTH_MAX_M = 2.5
 DAMPING = 0.999
 G = 9.81
 DRY_M = 0.02
@@ -85,7 +90,7 @@ def rain_total_mm(sim_seconds):
 
 
 def simulate(drain_mm_h=0.0, drain_mask=None, sinks=()):
-    """Depth on the hour from midnight to SIM_SECONDS. `sinks` are (mask, m3/s) pumps or intakes, in real-time capacity."""
+    """Depth every FRAME_SIM_S from midnight to SIM_SECONDS. `sinks` are (mask, m3/s) pumps or intakes, in real-time capacity."""
     dt = min(0.25, 0.5 * CELL / math.sqrt(G * max(0.1, HARBOR_LEVEL - float(ground.min()))))
     steps = int(math.ceil(SIM_SECONDS / dt))
     dt = SIM_SECONDS / steps
@@ -108,7 +113,7 @@ def simulate(drain_mm_h=0.0, drain_mask=None, sinks=()):
     k = dt * G * CELL
     frames = [depth.copy()]
     for i in range(steps):
-        if (i * dt) >= len(frames) * HOUR_SIM_S - 1e-6:
+        if (i * dt) >= len(frames) * FRAME_SIM_S - 1e-6:
             frames.append(depth.copy())
         head = ground + depth
         hn = np.empty((4, ROWS, COLS), np.float32)
@@ -203,19 +208,20 @@ SCENARIOS = {
     },
 }
 
-RAMP = [(0.0, (124, 226, 255)), (0.3, (40, 160, 255)), (0.8, (40, 84, 230)), (1.5, (70, 40, 190))]
+def encode(depth):
+    """One byte per cell, 0 off land; north-up, as the image's rows run (row 0 of the grid is south)."""
+    value = np.sqrt(np.clip(depth / DEPTH_MAX_M, 0, 1)) * 255
+    value[~land] = 0
+    return np.round(value).astype(np.uint8)[::-1]
 
 
-def color(depth):
-    rgb = np.zeros((*depth.shape, 3), np.float32)
-    for (d0, c0), (d1, c1) in zip(RAMP, RAMP[1:]):
-        t = np.clip((depth - d0) / (d1 - d0), 0, 1)[..., None]
-        band = (depth >= d0) & (depth < d1) if d1 != RAMP[-1][0] else depth >= d0
-        rgb = np.where(band[..., None], np.array(c0) + t * (np.array(c1) - np.array(c0)), rgb)
-    alpha = np.clip((depth - DRY_M) / (FLOODED_M - DRY_M), 0, 1) * 0.92
-    alpha[~land] = 0
-    rgba = np.dstack([rgb, alpha * 255]).astype(np.uint8)
-    return Image.fromarray(rgba[::-1])  # row 0 is south; images run north-down
+def pack(frames):
+    """Three depth frames to an image, one per colour channel; opaque, so no browser premultiplies them away."""
+    for start in range(0, len(frames), 3):
+        chunk = [encode(f) for f in frames[start : start + 3]]
+        while len(chunk) < 3:
+            chunk.append(np.zeros_like(chunk[0]))
+        yield Image.fromarray(np.dstack(chunk), "RGB")
 
 
 def main():
@@ -235,8 +241,9 @@ def main():
     stats = {
         "simSeconds": SIM_SECONDS,
         "rainMm": round(rain_total_mm(SIM_SECONDS), 1),
-        "start": header["rain"]["start"],
         "hours": hours,
+        "framesPerHour": FRAMES_PER_HOUR,
+        "depthMaxM": DEPTH_MAX_M,
         "rainByHour": [round(rain_total_mm(h * HOUR_SIM_S), 1) for h in range(hours + 1)],
         "bounds": B,
         "hotspots": {k: list(v) for k, v in HOTSPOTS.items()},
@@ -246,12 +253,20 @@ def main():
     spots = {k: disk(*v, 6) for k, v in HOTSPOTS.items()}
     for name, spec in {"before": {}, **SCENARIOS}.items():
         frames = simulate(**spec.get("sim", {}))
-        for h, frame in enumerate(frames):
-            color(frame).save(OUT / f"downtown-{name}-{h:02d}.webp", quality=80, method=6)
+        packs = list(pack(frames))
+        for index, image in enumerate(packs):
+            image.save(OUT / f"downtown-{name}-{index:02d}.webp", lossless=True, quality=100, method=6)
         depth = frames[-1]
+        hourly = frames[::FRAMES_PER_HOUR]
         hot = {k: round(float(depth[m].max(initial=0)), 2) for k, m in spots.items()}
-        series = {k: [round(float(f[m].max(initial=0)), 2) for f in frames] for k, m in spots.items()}
-        stats["scenarios"][name] = {**summary(depth), "hotspots": hot, "hotspotsByHour": series}
+        series = {k: [round(float(f[m].max(initial=0)), 2) for f in hourly] for k, m in spots.items()}
+        stats["scenarios"][name] = {
+            **summary(depth),
+            "frames": len(frames),
+            "packs": len(packs),
+            "hotspots": hot,
+            "hotspotsByHour": series,
+        }
         print(name, json.dumps(stats["scenarios"][name]), flush=True)
     STATS.write_text(
         "/** Written by scripts/bake-downtown-flood.py from Map 3D's Downtown Dubai grid. Depths in m, areas in ha. */\n"

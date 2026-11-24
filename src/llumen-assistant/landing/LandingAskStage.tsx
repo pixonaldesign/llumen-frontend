@@ -46,6 +46,7 @@ import { EstateMap, type EstateMapHandle } from '../realEstate/EstateMap'
 import { EstateLegendGlyph } from '../realEstate/EstateLegendGlyph'
 import estateStyles from '../realEstate/EstateStory.module.css'
 import type { EstateTower } from '../realEstate/estateMapLayers'
+import { waterEnd } from '../realEstate/floodWater'
 import type { MapDataLayer } from '../realEstate/estateTypes'
 import storyStyles from '../story/StoryView.module.css'
 import { createCameraLink } from '../story/storyCameraLink'
@@ -498,11 +499,10 @@ const PLAYER_GRANULARITY = TIMELINE_GRANULARITIES.find((granularity) => granular
 const PLAYER_STEP_MS = 650
 /** Lets the stage open and the scene grow in before the water starts rising. */
 const PLAYER_START_MS = 1400
+/** How long the last frame holds before the storm plays again. */
+const PLAYER_HOLD_MS = 2400
 
-/**
- * Steps a view's water through its frames, once from the first to the last when the view opens; Play
- * from the end starts over.
- */
+/** Steps a view's water through its frames from the moment the view opens, over and over until paused. */
 function useWaterPlayer(place: EstateFindingStageId, frameCount: number) {
   const last = frameCount - 1
   const [state, setState] = useState({ place, frame: 0, playing: true, started: false })
@@ -512,13 +512,8 @@ function useWaterPlayer(place: EstateFindingStageId, frameCount: number) {
   useEffect(() => {
     if (!state.playing || last < 1) return
     const timer = window.setTimeout(
-      () =>
-        setState((current) =>
-          current.frame >= last
-            ? { ...current, playing: false }
-            : { ...current, frame: current.frame + 1, started: true },
-        ),
-      state.started ? stepMs : PLAYER_START_MS,
+      () => setState((current) => ({ ...current, frame: current.frame >= last ? 0 : current.frame + 1, started: true })),
+      !state.started ? PLAYER_START_MS : state.frame >= last ? PLAYER_HOLD_MS : stepMs,
     )
     return () => window.clearTimeout(timer)
   }, [state, last, stepMs])
@@ -539,19 +534,37 @@ function useWaterPlayer(place: EstateFindingStageId, frameCount: number) {
   }
 }
 
-/** Fetches every frame up front, so stepping through them never waits on the network. */
-function usePreloaded(urls: readonly string[]) {
+/**
+ * Runs the maps' water on with the player: while it plays, each step glides from the hour before to the
+ * new one over the step's length, so the water rises without a jump; a picked hour lands at once.
+ */
+function useWaterTime(
+  maps: RefObject<EstateMapHandle | null>[],
+  frame: number,
+  playing: boolean,
+  stepMs: number,
+  active: boolean,
+  /** Changes when a map mounts or unmounts, so a new one picks up the hour. */
+  mapKey: string,
+) {
+  const fromRef = useRef(frame)
   useEffect(() => {
-    const images = urls.map((url) => {
-      const image = new Image()
-      image.src = url
-      return image
-    })
-    return () => images.forEach((image) => (image.src = ''))
-  }, [urls])
+    const set = (hours: number | null) => maps.forEach((map) => map.current?.setWaterTime(hours))
+    if (!active) return set(null)
+    const from = fromRef.current
+    fromRef.current = frame
+    if (!playing || frame !== from + 1) return set(frame)
+    const start = performance.now()
+    let raf = 0
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / stepMs)
+      set(from + t)
+      if (t < 1) raf = window.requestAnimationFrame(tick)
+    }
+    tick(start)
+    return () => window.cancelAnimationFrame(raf)
+  }, [maps, frame, playing, stepMs, active, mapKey])
 }
-
-const NO_FRAMES: readonly string[] = []
 
 /**
  * A real-estate finding's place, as Tell Me More reads it: every tall tower coloured by its potential. A
@@ -573,19 +586,20 @@ function FindingPlaceMap({
     () => (preview ? { ...stage.camera, zoom: stage.camera.zoom + PREVIEW_ZOOM_OFFSET } : stage.camera),
     [preview, stage],
   )
-  const frames = (!preview && stage.player && stage.scene.water?.frames) || NO_FRAMES
-  const beforeFrames = (compare && stage.player && compare.before.scene.water?.frames) || NO_FRAMES
-  const playable = frames.length > 1
-  const player = useWaterPlayer(place, frames.length)
-  usePreloaded(frames)
-  usePreloaded(beforeFrames)
-  const range = useMemo(() => ({ id: 'storm', label: 'Storm', unit: 'hour' as const, amount: frames.length - 1 }), [frames.length])
+  const water = !preview && stage.player ? stage.scene.water : undefined
+  const frameCount = water ? Math.floor(waterEnd(water)) + 1 : 0
+  const playable = frameCount > 1
+  const player = useWaterPlayer(place, frameCount)
+  const beforeRef = useRef<EstateMapHandle>(null)
+  const [waterMaps] = useState(() => [handleRef, beforeRef])
+  useWaterTime(waterMaps, player.frame, player.playing, player.stepMs, playable, compare ? 'compare' : 'single')
+  const range = useMemo(() => ({ id: 'storm', label: 'Storm', unit: 'hour' as const, amount: frameCount - 1 }), [frameCount])
   const playerCard =
     playable && stage.player ? (
       <StoryTimeSeries
         range={range}
         granularity={PLAYER_GRANULARITY}
-        frameCount={frames.length}
+        frameCount={frameCount}
         end={stage.player.end}
         editable={false}
         {...player}
@@ -641,7 +655,7 @@ function FindingPlaceMap({
             padding={padding?.before ?? MAP_PADDING}
             controlsClassName={styles.mapControls}
             cameraLink={cameraLink}
-            waterFrame={playable ? (beforeFrames[player.frame] ?? null) : null}
+            handleRef={beforeRef}
           />
           <span className={styles.compareTag}>{compare.labels[0]}</span>
           <div className={styles.mapDock}>
@@ -661,7 +675,6 @@ function FindingPlaceMap({
           controlsClassName={styles.mapControls}
           handleRef={handleRef}
           cameraLink={compare ? cameraLink : undefined}
-          waterFrame={playable ? frames[player.frame] : null}
         />
         {compare ? <span className={styles.compareTag}>{compare.labels[1]}</span> : null}
         {preview ? null : (

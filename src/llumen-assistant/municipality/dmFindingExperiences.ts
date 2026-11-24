@@ -413,7 +413,7 @@ const EXPERIENCES: Record<string, (stateId: (place: EstateFindingStageId) => str
   [FLOOD_ALERT_ID]: floodAlert,
 }
 
-/* —— The Downtown flood alert: a short read of the forecast, then a simulation of three responses on request —— */
+/* —— The Downtown flood alert: a short read of the forecast, then the same storm run with three responses —— */
 
 const FLOOD_MAP: EstateFindingMap = {
   place: 'flood',
@@ -426,9 +426,17 @@ function floodAlert(stateId: (place: EstateFindingStageId) => string): EstateFin
   const steps: ThinkingStep[] = [
     { id: 'flood-read', kind: 'reasoning', title: 'Reading the rainfall forecast for Downtown Dubai…' },
     { id: 'flood-search', kind: 'search', title: 'Running the cloudburst on the Downtown terrain model…' },
-    { id: 'flood-done', kind: 'done', title: 'Flood map ready' },
+    { id: 'flood-responses', kind: 'search', title: 'Simulating the same storm with three responses…' },
+    { id: 'flood-done', kind: 'done', title: 'Maps ready' },
   ]
   const overview = mapComponent(stateId('flood'), FLOOD_MAP)
+  const solutions = HORIZONS.map(floodSolution).map(({ map, ...solution }) => ({
+    solution,
+    component: mapComponent(stateId(map.place), map, `${solution.summary} ${solution.mapNote}`),
+  }))
+  const top = Math.ceil(Math.max(...FLOOD_BRIEFING.roads.flatMap((road) => road.byHour)) * 10) / 10
+  const tick = (m: number) => (m === 0 ? '0' : m < 1 ? `${Math.round(m * 100)} cm` : `${+m.toFixed(1)} m`)
+  const yTicks = [top, top / 2, 0].map((value) => ({ value, label: tick(value) }))
   const roads = FLOOD_BRIEFING.roads.map((road) =>
     chartComponent(
       `${overview.id}-road-${road.spot}`,
@@ -440,6 +448,7 @@ function floodAlert(stateId: (place: EstateFindingStageId) => string): EstateFin
         color: road.color,
         points: road.byHour,
         xLabels: ['12 AM', '4 PM'],
+        yTicks,
       },
       `Modelled water on ${road.title} through the day`,
     ),
@@ -451,13 +460,21 @@ function floodAlert(stateId: (place: EstateFindingStageId) => string): EstateFin
       headline: `${FLOOD_BRIEFING.floodedHa('before')} ha of Downtown streets could be under water by 4 PM.`,
       thinkingSteps: steps,
       timeline: timeline(steps),
-      createdComponents: [overview, ...roads],
+      createdComponents: [overview, ...roads, ...solutions.map(({ component }) => component)],
       blocks: [
+        { type: 'heading', content: 'Today’s forecast' },
         {
           type: 'text',
           content: `I simulated today’s forecast on Downtown’s streets. By 4 PM, ${FLOOD_BRIEFING.rainMm} mm of rain could put ${FLOOD_BRIEFING.floodedHa('before')} ha under water.`,
         },
         { type: 'visualRow', componentIds: roads.map((road) => road.id) },
+        { type: 'heading', content: 'Three responses' },
+        { type: 'text', content: 'I ran the same storm with three responses. Here are the results.' },
+        {
+          type: 'solutions',
+          overviewId: overview.id,
+          solutions: solutions.map(({ solution, component }) => ({ ...solution, componentId: component.id })),
+        },
       ],
     },
   }
@@ -514,47 +531,6 @@ function floodSolution(horizon: Horizon): SolutionSpec {
     },
   }
 }
-
-function floodSimulationReply(overviewId: string, stateId: (place: EstateFindingStageId) => string): AssistantReplyPayload {
-  const steps: ThinkingStep[] = [
-    { id: 'flood-sim-run', kind: 'search', title: 'Simulating the same storm with three responses…' },
-    { id: 'flood-sim-done', kind: 'done', title: 'Simulations ready' },
-  ]
-  const solutions = HORIZONS.map(floodSolution).map(({ map, ...solution }) => ({
-    solution,
-    component: mapComponent(stateId(map.place), map, `${solution.summary} ${solution.mapNote}`),
-  }))
-  return {
-    headline: 'Three responses, simulated on the same storm.',
-    thinkingSteps: steps,
-    timeline: timeline(steps),
-    createdComponents: solutions.map(({ component }) => component),
-    blocks: [
-      { type: 'text', content: 'I ran the same storm with three responses. Here are the results.' },
-      {
-        type: 'solutions',
-        overviewId,
-        solutions: solutions.map(({ solution, component }) => ({ ...solution, componentId: component.id })),
-      },
-    ],
-  }
-}
-
-/**
- * A typed follow-up the conversation's map has a scripted answer for, or null. `onMap` gives the state id
- * of each view the conversation has shown, by view; `stateId` names the reply's new ones.
- */
-export function estateFollowUp(
-  text: string,
-  onMap: Readonly<Record<string, string>>,
-  stateId: (place: EstateFindingStageId) => string,
-): AssistantReplyPayload | null {
-  if (onMap.flood && /simulat/i.test(text)) return floodSimulationReply(onMap.flood, stateId)
-  return null
-}
-
-/** Whether the conversation can be taken further by typing, so the stage keeps its composer. */
-export const hasEstateFollowUps = (onMap: Readonly<Record<string, string>>) => Boolean(onMap.flood)
 
 /** The alert the Aurora raises for the flood forecast; Tell me more and View both open the flood map. */
 export const FLOOD_ALERT: FindingToastItem = {

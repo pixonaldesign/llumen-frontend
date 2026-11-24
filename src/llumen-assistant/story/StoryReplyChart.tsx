@@ -44,11 +44,22 @@ function useMorphSettled() {
 const SPARK_H = 32
 
 function Spark({ chart, gradientId }: { chart: Extract<StoryReplyChartData, { type: 'spark' }>; gradientId: string }) {
-  const max = Math.max(...chart.points) || 1
+  const ticks = chart.yTicks ?? []
+  const max = Math.max(...chart.points, ...ticks.map((tick) => tick.value)) || 1
   const last = chart.points.length - 1
-  const coords = chart.points.map((v, i) => `${(i / last) * 100},${SPARK_H - 2 - (v / max) * (SPARK_H - 4)}`)
+  const y = (v: number) => SPARK_H - 2 - (v / max) * (SPARK_H - 4)
+  const coords = chart.points.map((v, i) => `${(i / last) * 100},${y(v)}`)
   return (
-    <div className={styles.spark}>
+    <div className={`${styles.spark} ${ticks.length ? styles.sparkTicked : ''}`}>
+      {ticks.length ? (
+        <div className={styles.sparkTicks} aria-hidden>
+          {ticks.map((tick) => (
+            <span key={tick.value} style={{ top: `${(y(tick.value) / SPARK_H) * 100}%` }}>
+              {tick.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <svg viewBox={`0 0 100 ${SPARK_H}`} preserveAspectRatio="none" aria-hidden>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -56,6 +67,17 @@ function Spark({ chart, gradientId }: { chart: Extract<StoryReplyChartData, { ty
             <stop offset="1" stopColor={chart.color} stopOpacity={0} />
           </linearGradient>
         </defs>
+        {ticks.map((tick) => (
+          <line
+            key={tick.value}
+            className={styles.sparkGrid}
+            x1={0}
+            x2={100}
+            y1={y(tick.value)}
+            y2={y(tick.value)}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
         <polygon points={`0,${SPARK_H} ${coords.join(' ')} 100,${SPARK_H}`} fill={`url(#${gradientId})`} />
         <polyline
           className={styles.sparkLine}

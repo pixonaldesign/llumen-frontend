@@ -22,6 +22,7 @@ import {
   overlayTipAt,
   resolveTowers,
   sceneLabels,
+  setWaterTime,
   towerAt,
   type EstateMapScene,
 } from './estateMapLayers'
@@ -38,7 +39,12 @@ const FOCUS_MS = 1400
 const FOCUS_ZOOM = 16.4
 const MAX_PITCH = 85
 
-export type EstateMapHandle = { view: () => StoryMapView | undefined; capture: () => Promise<StoryMapCapture | null> }
+export type EstateMapHandle = {
+  view: () => StoryMapView | undefined
+  capture: () => Promise<StoryMapCapture | null>
+  /** Hours after the scene's first water frame, between frames included; null rests on the last. */
+  setWaterTime: (hours: number | null) => void
+}
 
 /** A tower to frame beside an open panel, with the padding that keeps it clear of the panel. */
 /**
@@ -78,7 +84,6 @@ export function EstateMap({
   onReady,
   handleRef,
   cameraLink,
-  waterFrame = null,
 }: {
   className?: string
   camera: EstateCamera
@@ -98,8 +103,6 @@ export function EstateMap({
   onReady?: (stage: 'loaded' | 'painted') => void
   handleRef?: Ref<EstateMapHandle>
   cameraLink?: StoryCameraLink
-  /** One of the scene's `water.frames` to show in place of `water.url`, swapped without regrowing the scene. */
-  waterFrame?: string | null
 }) {
   const elRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
@@ -111,7 +114,7 @@ export function EstateMap({
   const styleRef = useRef(styleUrl)
   const onReadyRef = useRef(onReady)
   const onClickRef = useRef(onTowerClick)
-  const waterFrameRef = useRef(waterFrame)
+  const waterTimeRef = useRef<number | null>(null)
 
   useEffect(() => {
     onReadyRef.current = onReady
@@ -140,15 +143,16 @@ export function EstateMap({
         map.once('render', () => resolve(captureMapView(map)))
         map.triggerRepaint()
       }),
+    setWaterTime: (hours) => {
+      waterTimeRef.current = hours
+      if (mapRef.current) setWaterTime(mapRef.current, hours)
+    },
   }))
 
   const paint = (map: mapboxgl.Map) => {
     const drawn = drawnRef.current
     const { hidden: off, focus: focused } = latestRef.current
-    const frame = waterFrameRef.current
-    const water = drawn.scene.water
-    const scene = water && frame && water.frames?.includes(frame) ? { ...drawn.scene, water: { ...water, url: frame } } : drawn.scene
-    drawEstateScene(map, PREFIX, scene, drawn.grow, off)
+    drawEstateScene(map, PREFIX, drawn.scene, drawn.grow, off)
     labelsRef.current?.sync(sceneLabels(drawn.scene), drawn.grow, off, focused?.id ?? null)
   }
 
@@ -181,6 +185,7 @@ export function EstateMap({
     })
     map.setPadding(start.padding)
     mapRef.current = map
+    setWaterTime(map, waterTimeRef.current)
     const observer = new ResizeObserver(() => map.resize())
     observer.observe(el)
     const labels = new TowerLabels(map, PREFIX, onClickRef.current ? (id) => onClickRef.current?.(id) : undefined)
@@ -295,12 +300,6 @@ export function EstateMap({
   useEffect(() => {
     mapRef.current?.setPadding(padding)
   }, [padding])
-
-  useEffect(() => {
-    waterFrameRef.current = waterFrame
-    const map = mapRef.current
-    if (map && readyRef.current) paint(map)
-  }, [waterFrame])
 
   /* A new page: fly to its camera, fade the old heat out and the new one in. */
   useEffect(() => {

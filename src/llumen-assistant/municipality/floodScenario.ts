@@ -5,7 +5,14 @@
  * against it.
  */
 import type { LngLat } from '../realEstate/estateGeo'
-import { EMPTY_SCENE, type EstateLabel, type EstateLine, type EstateMapScene, type EstatePoint } from '../realEstate/estateMapLayers'
+import {
+  EMPTY_SCENE,
+  type EstateLabel,
+  type EstateLine,
+  type EstateMapScene,
+  type EstateModel,
+  type EstatePoint,
+} from '../realEstate/estateMapLayers'
 import type { EstateAskView, EstateCamera, Horizon, MapDataLayer } from '../realEstate/estateTypes'
 import { circle } from './dmGeo'
 import { HORIZON_COLOR, LEVEL } from './dmShared'
@@ -62,21 +69,29 @@ const CAMERA: EstateCamera = { center: [55.2765, 25.1925], zoom: 14.2, pitch: 50
 /** Where the storage tunnel lets out: the Business Bay bank below Burj Khalifa. */
 const OUTFALL: LngLat = [55.27063, 25.18557]
 
-const HOURS = Array.from({ length: FLOOD_BAKE.hours + 1 }, (_, hour) => hour)
 /** The recorded storm replayed as today's forecast: from midnight to 4 PM today. */
 const END = new Date(new Date().setHours(FLOOD_BAKE.hours, 0, 0, 0))
 
-const frames = (run: Run) => HOURS.map((hour) => `${BASE}/downtown-${run}-${String(hour).padStart(2, '0')}.webp`)
+const packs = (run: Run) =>
+  Array.from({ length: FLOOD_BAKE.scenarios[run].packs }, (_, index) => `${BASE}/downtown-${run}-${String(index).padStart(2, '0')}.webp`)
 
-const scene = (run: Run, parts: Partial<EstateMapScene> = {}): EstateMapScene => {
-  const hourly = frames(run)
-  return {
-    ...EMPTY_SCENE,
-    ...parts,
-    labels: [...roadLabels(run), ...(parts.labels ?? [])],
-    water: { url: hourly[hourly.length - 1], frames: hourly, corners: CORNERS, opacity: 0.95, group: 'flood' },
-  }
-}
+const scene = (run: Run, parts: Partial<EstateMapScene> = {}): EstateMapScene => ({
+  ...EMPTY_SCENE,
+  ...parts,
+  labels: [...roadLabels(run), ...(parts.labels ?? [])],
+  water: {
+    packs: packs(run),
+    frames: FLOOD_BAKE.scenarios[run].frames,
+    framesPerHour: FLOOD_BAKE.framesPerHour,
+    depthMaxM: FLOOD_BAKE.depthMaxM,
+    corners: CORNERS,
+    opacity: 0.95,
+    group: 'flood',
+  },
+})
+
+/** Every depth image the flood views play, to fetch ahead of the player. */
+export const FLOOD_PACKS = (Object.keys(FLOOD_BAKE.scenarios) as Run[]).flatMap(packs)
 
 const LAYER = {
   flood: {
@@ -101,6 +116,22 @@ const pumpPoints = (): EstatePoint[] =>
     radius: 8,
     group: 'actions',
     tip: { title: 'Mobile pump unit', rows: [['Capacity', '2.5 m³/s']] },
+  }))
+
+const TRUCK_URL = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/models/truck.glb`
+/** Each pump truck's heading, so the four don't park in step. */
+const TRUCK_BEARINGS = [64, 152, 28, 116]
+
+/** A pump truck parked on each pump. */
+const pumpTrucks = (): EstateModel[] =>
+  FLOOD_BAKE.pumps.map((pump, index) => ({
+    id: `pump-truck-${index}`,
+    at: pump as unknown as LngLat,
+    url: TRUCK_URL,
+    scale: 28,
+    bearing: TRUCK_BEARINGS[index % TRUCK_BEARINGS.length],
+    color: HORIZON_COLOR.immediate,
+    group: 'actions',
   }))
 
 const drainAreas = () =>
@@ -129,7 +160,7 @@ const tunnelLines = (): EstateLine[] =>
     path: [at(spot), ...via, OUTFALL],
     color: HORIZON_COLOR.long,
     width: 4,
-    dashed: true,
+    flow: true,
     group: 'actions',
     tip: { title: 'Storage tunnel', rows: [['Lets out to', 'Business Bay']] },
   }))
@@ -154,14 +185,14 @@ const actionsLayer = (horizon: Horizon, label: string): MapDataLayer => ({
 })
 
 const FLOOD_VIEW: EstateAskView = {
-  camera: CAMERA,
+  camera: { ...CAMERA, center: [55.27553, 25.1933], zoom: 15.29 },
   scene: scene('before'),
   layers: [LAYER.flood, LAYER.roads('before')],
   player: { end: END },
 }
 
 const RESPONSE: Record<Horizon, { label: string; after: string; parts: Partial<EstateMapScene> }> = {
-  immediate: { label: 'Mobile pumps', after: 'With mobile pumps', parts: { points: pumpPoints() } },
+  immediate: { label: 'Mobile pumps', after: 'With mobile pumps', parts: { points: pumpPoints(), models: pumpTrucks() } },
   intermediate: { label: 'Drain upgrades', after: 'With upgraded drains', parts: { areas: drainAreas() } },
   long: { label: 'Storage tunnel', after: 'With the storage tunnel', parts: { lines: tunnelLines(), points: tunnelPoints() } },
 }

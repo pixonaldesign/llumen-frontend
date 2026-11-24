@@ -86,8 +86,6 @@ import { findingExperience } from './landing/landingFindingExperiences'
 import {
   FLOOD_ALERT,
   estateFindingExperience,
-  estateFollowUp,
-  hasEstateFollowUps,
   isEstateFindingPlace,
 } from './municipality/dmFindingExperiences'
 import { bySpace } from './demoSpace'
@@ -519,18 +517,6 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
 
 /** Typed into the landing AI bar on the first keystroke: the story builder's location prompt, already set to Mussafah. */
 const LANDING_DEMO_PROMPT = locationPrompt(MUSSAFAH_LOCATION)
-
-/** The state id of each finding view the conversation's replies have put on the map, by view. */
-function mapViewsShown(messages: ChatMessage[]): Record<string, string> {
-  const shown: Record<string, string> = {}
-  for (const message of messages) {
-    if (message.role !== 'assistant') continue
-    for (const { preview } of message.reply?.createdComponents ?? []) {
-      if (preview?.kind === 'story-map-state' && preview.snapshot.findingPlace) shown[preview.snapshot.findingPlace] = preview.stateId
-    }
-  }
-  return shown
-}
 
 function lastMapState(messages: ChatMessage[]): { stateId: string; snapshot: StoryAiSnapshot } | undefined {
   return messages
@@ -1528,14 +1514,6 @@ export function CompactAssistantDemo() {
         setActiveConversationId((id) => id ?? uid())
         setMessages((m) => [...m, { id: uid(), role: 'user', text: t }])
         startAssistantReply(workUnderwayReply(slash))
-        return
-      }
-      const base = `map-state-${Date.now()}`
-      const followUp = estateFollowUp(t, mapViewsShown(messages), (place) => `${base}-${place}`)
-      if (followUp) {
-        setDraft('')
-        setMessages((m) => [...m, { id: uid(), role: 'user', text: t }])
-        startAssistantReply(followUp)
         return
       }
       setDraft('')
@@ -2974,7 +2952,7 @@ export function CompactAssistantDemo() {
   const hubChatComponents = storyActive ? storyChatComponents : []
   const inStudio = landingVariant === 'briefing' && !storyActive && briefingView === 'studio'
   const briefingWithoutBar = !BRIEFING_CHAT_BAR && landingVariant === 'briefing' && !storyActive && !inStudio
-  const showComposer = !(briefingWithoutBar && landingAsk) || hasEstateFollowUps(mapViewsShown(messages))
+  const showComposer = !(briefingWithoutBar && landingAsk)
   const showHub =
     isHub &&
     (!inStudio || studioAskBar !== null) &&

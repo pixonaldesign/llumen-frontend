@@ -8,9 +8,10 @@
 import mapboxgl from 'mapbox-gl'
 import type { LngLat } from './estateGeo'
 import { WindField, type EstateWind } from './windField'
+import { FloodWater, type EstateWater } from './floodWater'
 import './estateMap.css'
 
-export type { EstateWind }
+export type { EstateWind, EstateWater }
 
 export const ESTATE_MAP_STYLE = 'mapbox://styles/pixonal/cmu15yibh003r01r16sdc7t05'
 
@@ -68,8 +69,35 @@ export type EstateArea = {
   tip?: EstateTip
 }
 
-/** A route along the ground: a pipe, a feeder main, a wind path. */
-export type EstateLine = { id: string; path: LngLat[]; color: string; width?: number; dashed?: boolean; group: string; tip?: EstateTip }
+/**
+ * A route along the ground: a pipe, a feeder main, a wind path. With `flow`, something runs along it from
+ * its first point to its last: bright pulses travel its length.
+ */
+export type EstateLine = {
+  id: string
+  path: LngLat[]
+  color: string
+  width?: number
+  dashed?: boolean
+  flow?: boolean
+  group: string
+  tip?: EstateTip
+}
+
+/**
+ * A 3D model standing on the ground, such as a vehicle; `scale` blows it up to read at city zoom. Its own
+ * texture gives way to `color`, the one material Map 3D gives every model.
+ */
+export type EstateModel = {
+  id: string
+  at: LngLat
+  url: string
+  scale: number
+  /** Clockwise from north. */
+  bearing: number
+  color: string
+  group: string
+}
 
 /** A site: a complaint, a sampling point, a sensor. */
 export type EstatePoint = { id: string; at: LngLat; color: string; radius?: number; group: string; tip?: EstateTip }
@@ -89,16 +117,6 @@ export type EstateLabel = {
   group: string
 }
 
-/** A baked raster laid on the ground, such as flood depth: its corners run top-left, top-right, bottom-right, bottom-left. */
-export type EstateWater = {
-  url: string
-  /** Earlier states of the same raster, oldest first, ending on `url`: what a view's player steps through. */
-  frames?: readonly string[]
-  corners: [LngLat, LngLat, LngLat, LngLat]
-  opacity?: number
-  group: string
-}
-
 export type EstateMapScene = {
   towers: EstateTower[]
   heat: EstateHeatPoint[]
@@ -115,6 +133,7 @@ export type EstateMapScene = {
   points?: EstatePoint[]
   labels?: EstateLabel[]
   water?: EstateWater
+  models?: EstateModel[]
 }
 
 export const EMPTY_SCENE: EstateMapScene = { towers: [], heat: [], heatRadiusM: 220, heatRamp: ['#5a2fc7', '#f6f2ff'] }
@@ -138,11 +157,14 @@ const pointId = (prefix: string) => `${prefix}-point`
 const pulseId = (prefix: string) => `${prefix}-pulse`
 const windId = (prefix: string) => `${prefix}-wind`
 const waterId = (prefix: string) => `${prefix}-water`
+const flowId = (prefix: string) => `${prefix}-flow`
+const modelId = (prefix: string) => `${prefix}-model`
 /** The overlay layers a hover can name, top first. */
 const tipLayers = (prefix: string) => [
   pointId(prefix),
   lineId(prefix),
   `${lineId(prefix)}-dashed`,
+  flowId(prefix),
   `${areaId(prefix)}-fill`,
 ]
 
@@ -302,6 +324,37 @@ function mountOverlays(map: mapboxgl.Map, prefix: string) {
       paint: { ...paint, 'line-dasharray': [1.6, 1.4] },
     })
   }
+  const flow = flowId(prefix)
+  if (!map.getSource(flow)) {
+    map.addSource(flow, { type: 'geojson', data: EMPTY, lineMetrics: true })
+    map.addLayer({
+      id: flow,
+      type: 'line',
+      source: flow,
+      slot: 'middle',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-opacity': ['*', ['get', 'o'], 0.5],
+        'line-width': ['get', 'width'],
+        'line-emissive-strength': 1,
+      },
+    })
+    map.addLayer({
+      id: `${flow}-pulse`,
+      type: 'line',
+      source: flow,
+      slot: 'middle',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-gradient': flowGradient('#ffffff', 0),
+        'line-opacity': ['get', 'o'],
+        'line-width': ['+', ['get', 'width'], 2],
+        'line-blur': 1.5,
+        'line-emissive-strength': 1,
+      },
+    })
+  }
   const wind = windOf(map, prefix)
   if (!map.getLayer(wind.id)) map.addLayer(wind)
   const pulse = pulseId(prefix)
@@ -397,6 +450,55 @@ function runPulse(map: mapboxgl.Map, prefix: string, on: boolean) {
   pulseFrames.set(map, window.requestAnimationFrame(tick))
 }
 
+/** Pulses along a flow line at once, the share of its length each one lights, and how long one takes to run it. */
+const FLOW_PULSES = 3
+const FLOW_SPREAD = 0.09
+const FLOW_MS = 2600
+const FLOW_STOPS = 48
+
+/** A flow line's colour along its length, `phase` (0 to 1) of the way through a pulse's run: clear between pulses. */
+function flowGradient(color: string, phase: number): mapboxgl.ExpressionSpecification {
+  const [r, g, b] = [1, 3, 5].map((at) => parseInt(color.slice(at, at + 2), 16))
+  const stops: (number | string)[] = []
+  for (let index = 0; index <= FLOW_STOPS; index += 1) {
+    const at = index / FLOW_STOPS
+    let glow = 0
+    for (let pulse = -1; pulse <= FLOW_PULSES; pulse += 1) {
+      const ahead = at - (pulse + phase) / FLOW_PULSES
+      glow = Math.max(glow, Math.exp(-((ahead / (ahead > 0 ? FLOW_SPREAD * 0.3 : FLOW_SPREAD)) ** 2)))
+    }
+    const lift = 0.45 * glow
+    stops.push(at, `rgba(${Math.round(r + (255 - r) * lift)}, ${Math.round(g + (255 - g) * lift)}, ${Math.round(b + (255 - b) * lift)}, ${glow.toFixed(3)})`)
+  }
+  return ['interpolate', ['linear'], ['line-progress'], ...stops] as mapboxgl.ExpressionSpecification
+}
+
+/** Per map: the frame that runs its flow pulses, while a scene has flow lines. */
+const flowFrames = new WeakMap<mapboxgl.Map, { frame: number; color: string }>()
+
+function runFlow(map: mapboxgl.Map, prefix: string, color: string | null) {
+  const running = flowFrames.get(map)
+  if (!color || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (running) window.cancelAnimationFrame(running.frame)
+    flowFrames.delete(map)
+    if (color && map.getLayer(`${flowId(prefix)}-pulse`)) map.setPaintProperty(`${flowId(prefix)}-pulse`, 'line-gradient', flowGradient(color, 0.5))
+    return
+  }
+  if (running) {
+    running.color = color
+    return
+  }
+  const id = `${flowId(prefix)}-pulse`
+  const state = { frame: 0, color }
+  const tick = (now: number) => {
+    if ((map as unknown as { _removed?: boolean })._removed) return void flowFrames.delete(map)
+    if (!heldPulses.has(map) && map.getLayer(id)) map.setPaintProperty(id, 'line-gradient', flowGradient(state.color, (now % FLOW_MS) / FLOW_MS))
+    state.frame = window.requestAnimationFrame(tick)
+  }
+  state.frame = window.requestAnimationFrame(tick)
+  flowFrames.set(map, state)
+}
+
 /** A footprint's radius in meters: from its point to its first corner. */
 function radiusM(at: LngLat, ring: LngLat[]) {
   const [lng, lat] = ring[0]
@@ -425,14 +527,20 @@ function setOverlays(map: mapboxgl.Map, prefix: string, scene: EstateMapScene, g
       geometry: { type: 'Polygon', coordinates: [[...area.ring, area.ring[0]]] },
     })),
   })
-  ;(map.getSource(lineId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
+  const lineFeatures = (lines: EstateLine[]): GeoJSON.FeatureCollection => ({
     type: 'FeatureCollection',
-    features: shown(scene.lines).map((line) => ({
+    features: lines.map((line) => ({
       type: 'Feature',
       properties: { id: line.id, color: line.color, o: grow, width: line.width ?? 2.5, dashed: line.dashed === true, tip: tip(line.tip) },
       geometry: { type: 'LineString', coordinates: line.path },
     })),
   })
+  const lines = shown(scene.lines)
+  const flows = lines.filter((line) => line.flow)
+  ;(map.getSource(lineId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData(lineFeatures(lines.filter((line) => !line.flow)))
+  ;(map.getSource(flowId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData(lineFeatures(flows))
+  runFlow(map, prefix, flows[0]?.color ?? null)
+  setModels(map, prefix, shown(scene.models), grow)
   ;(map.getSource(pointId(prefix)) as mapboxgl.GeoJSONSource | undefined)?.setData({
     type: 'FeatureCollection',
     features: shown(scene.points).map((point) => ({
@@ -445,30 +553,81 @@ function setOverlays(map: mapboxgl.Map, prefix: string, scene: EstateMapScene, g
   setWater(map, prefix, scene.water && !hidden.has(scene.water.group) ? scene.water : null, grow)
 }
 
-/** An image source needs its picture up front, so the water layer is added the first time a scene has one. */
+/** Per map: its flood layer, kept with its loaded frames so a style change can add the same one back. */
+const waters = new WeakMap<mapboxgl.Map, FloodWater>()
+/** Per map: the hour set before its flood layer existed. */
+const pendingWaterTimes = new WeakMap<mapboxgl.Map, number | null>()
+
+/** The water layer goes in under the zones the first time a scene has water. */
 function setWater(map: mapboxgl.Map, prefix: string, water: EstateWater | null, grow: number) {
-  const id = waterId(prefix)
-  const source = map.getSource(id) as mapboxgl.ImageSource | undefined
-  if (!water) {
-    if (map.getLayer(id)) map.setPaintProperty(id, 'raster-opacity', 0)
-    return
+  let layer = waters.get(map)
+  if (!water && !layer) return
+  if (!layer) {
+    layer = new FloodWater(waterId(prefix))
+    layer.setTime(pendingWaterTimes.get(map) ?? null)
+    waters.set(map, layer)
   }
-  if (!source) {
-    map.addSource(id, { type: 'image', url: water.url, coordinates: water.corners })
-    map.addLayer(
-      {
-        id,
-        type: 'raster',
-        source: id,
-        slot: 'middle',
-        paint: { 'raster-opacity': 0, 'raster-resampling': 'linear', 'raster-fade-duration': 0, 'raster-emissive-strength': 1 },
+  layer.set(water, grow)
+  if (!map.getLayer(layer.id)) map.addLayer(layer, `${areaId(prefix)}-fill`)
+}
+
+/** Moves the map's water to `hours` after its first frame, between frames included; null rests on the last. */
+export function setWaterTime(map: mapboxgl.Map, hours: number | null) {
+  const layer = waters.get(map)
+  if (layer) layer.setTime(hours)
+  else pendingWaterTimes.set(map, hours)
+}
+
+/** Per map: the model URLs added to its style, by id. */
+const addedModels = new WeakMap<mapboxgl.Map, Set<string>>()
+
+/** Model layers need their model up front, so the layer is added the first time a scene stands one up. */
+function setModels(map: mapboxgl.Map, prefix: string, models: EstateModel[], grow: number) {
+  const id = modelId(prefix)
+  if (!models.length && !map.getLayer(id)) return
+  let added = addedModels.get(map)
+  if (!added) addedModels.set(map, (added = new Set()))
+  for (const model of models) {
+    if (added.has(model.url) && map.hasModel(model.url)) continue
+    map.addModel(model.url, new URL(model.url, window.location.href).href)
+    added.add(model.url)
+  }
+  if (!map.getSource(id)) {
+    map.addSource(id, { type: 'geojson', data: EMPTY })
+    map.addLayer({
+      id,
+      type: 'model',
+      source: id,
+      slot: 'middle',
+      layout: { 'model-id': ['get', 'model'] },
+      paint: {
+        'model-type': 'common-3d',
+        'model-scale': ['array', 'number', 3, ['get', 'scale']] as unknown as [number, number, number],
+        'model-rotation': ['array', 'number', 3, ['get', 'rotation']] as unknown as [number, number, number],
+        'model-opacity': ['get', 'o'],
+        'model-color': ['get', 'color'],
+        'model-color-mix-intensity': 1,
+        'model-roughness': 0.55,
+        'model-emissive-strength': 0.45,
+        'model-cast-shadows': false,
       },
-      `${areaId(prefix)}-fill`,
-    )
-  } else if ((source as unknown as { url?: string }).url !== water.url) {
-    source.updateImage({ url: water.url, coordinates: water.corners })
+    })
   }
-  map.setPaintProperty(id, 'raster-opacity', (water.opacity ?? 1) * grow)
+  ;(map.getSource(id) as mapboxgl.GeoJSONSource).setData({
+    type: 'FeatureCollection',
+    features: models.map((model) => ({
+      type: 'Feature',
+      properties: {
+        id: model.id,
+        model: model.url,
+        color: model.color,
+        scale: [model.scale * grow, model.scale * grow, model.scale * grow],
+        rotation: [0, 0, model.bearing],
+        o: grow,
+      },
+      geometry: { type: 'Point', coordinates: model.at },
+    })),
+  })
 }
 
 /** The overlay under `point` that names itself on hover, with a key that changes when another does. */

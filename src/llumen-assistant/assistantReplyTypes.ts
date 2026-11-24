@@ -118,6 +118,8 @@ export type StoryReplyChartData =
       color: string
       points: readonly number[]
       xLabels: [start: string, end: string]
+      /** Readouts up the left, in the points' own units; the top one also fixes the scale, so cards can share it. */
+      yTicks?: readonly { value: number; label: string }[]
     }
 
 export type CreatedComponentPreview =

@@ -2,8 +2,9 @@
 export const FLOOD_BAKE = {
   "simSeconds": 240.0,
   "rainMm": 75.6,
-  "start": "2024-04-16T00:00:00+04:00",
   "hours": 16,
+  "framesPerHour": 2,
+  "depthMaxM": 2.5,
   "rainByHour": [
     0.0,
     0.5,
@@ -74,6 +75,8 @@ export const FLOOD_BAKE = {
       "floodedHa": 182.9,
       "deepHa": 21.6,
       "maxStreetM": 0.77,
+      "frames": 33,
+      "packs": 11,
       "hotspots": {
         "financialCentre": 0.91,
         "burjKhalifaMetro": 0.29,
@@ -183,6 +186,8 @@ export const FLOOD_BAKE = {
       "floodedHa": 165.4,
       "deepHa": 15.9,
       "maxStreetM": 0.74,
+      "frames": 33,
+      "packs": 11,
       "hotspots": {
         "financialCentre": 0.08,
         "burjKhalifaMetro": 0.0,
@@ -292,6 +297,8 @@ export const FLOOD_BAKE = {
       "floodedHa": 14.3,
       "deepHa": 1.9,
       "maxStreetM": 0.44,
+      "frames": 33,
+      "packs": 11,
       "hotspots": {
         "financialCentre": 0.63,
         "burjKhalifaMetro": 0.11,
@@ -401,6 +408,8 @@ export const FLOOD_BAKE = {
       "floodedHa": 4.0,
       "deepHa": 1.4,
       "maxStreetM": 0.41,
+      "frames": 33,
+      "packs": 11,
       "hotspots": {
         "financialCentre": 0.0,
         "burjKhalifaMetro": 0.0,
