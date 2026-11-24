@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { bySpace } from '../demoSpace'
 
 export const APPS_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/llumen-assets/apps`
 
@@ -14,7 +15,40 @@ export type AppHighlight = {
   focus?: string
 }
 
-export const APP_HIGHLIGHTS: AppHighlight[] = [
+const LLUMEN_APPS: AppHighlight[] = [
+  {
+    id: 'construction-surge',
+    title: 'Construction Surge Driving Multi-System Pressure Across Saudi Arabia',
+    description:
+      'Real estate investment across the Kingdom is rising due to steady material costs and a higher rate of project approvals, with activity clustering around the major cities.',
+    image: `${APPS_BASE}/insight-saudi-arabia.jpg`,
+    focus: 'center',
+  },
+  {
+    id: 'rainfall-disruption',
+    title: 'Rainfall Event Triggering Service Disruption — Northern Districts',
+    description:
+      'Northern Districts flooding has disrupted waste and sewage services, requiring urgent municipal intervention.',
+    image: `${APPS_BASE}/insight-2.jpg`,
+  },
+  {
+    id: 'tourism-peak',
+    title: 'Tourism Peak Increasing Load on Public Facilities — Coastal Areas',
+    description:
+      'Surging tourism and park footfall have strained maintenance and waste services. Increased service frequency is required to maintain “Customer Happiness” in high-traffic zones.',
+    image: `${APPS_BASE}/insight-coastal-areas.jpg`,
+    focus: 'center',
+  },
+  {
+    id: 'permit-concentration',
+    title: 'Permit Concentration Driving Spatial Imbalance — Central City vs Peripheral Districts',
+    description:
+      'A surge in central building permits has pushed density far beyond planned thresholds, straining infrastructure, while peripheral zones remain severely underutilized.',
+    image: `${APPS_BASE}/insight-4.jpg`,
+  },
+]
+
+const DM_APPS: AppHighlight[] = [
   {
     id: 'dm-odor-app',
     storyId: 'dm-odor',
@@ -52,6 +86,8 @@ export const APP_HIGHLIGHTS: AppHighlight[] = [
     focus: 'center',
   },
 ]
+
+export const APP_HIGHLIGHTS: AppHighlight[] = bySpace({ llumen: LLUMEN_APPS, dm: DM_APPS })
 
 /** Which card's menu is open; a press outside any menu or Escape closes it. */
 export function useAppMenu() {

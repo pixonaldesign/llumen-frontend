@@ -21,6 +21,7 @@ import {
   ArrowsOutSimple,
   CalendarBlank,
   CaretDown,
+  ChatText,
   Check,
   MapPin,
   Plus,
@@ -41,10 +42,12 @@ import { FEED_STOPS, type FeedChart, type FeedStop } from './briefingFindings'
 import { BriefingIntro } from './BriefingIntro'
 import { BriefingMap, type BriefingMapEnter } from './BriefingMap'
 import { BriefingTour, type TourStep } from './BriefingTour'
-import { BRIEFING_PLACES, type BriefingPlace } from './briefingMapPlaces'
+import { BRIEFING_PLACES, HOME_PLACE, type BriefingPlace } from './briefingMapPlaces'
 import { landingAssets } from './landingAssets'
+import { bySpace } from '../demoSpace'
 import { STORY_CAMERA_PADDING } from '../story/StoryMap'
-import { ESTATE_STORIES } from '../realEstate/estateScenario'
+import { storySceneAt } from '../story/storyDemoScenes'
+import { ESTATE_PLACES, ESTATE_STORIES } from '../realEstate/estateScenario'
 import { EMPTY_SCENE } from '../realEstate/estateMapLayers'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
@@ -70,14 +73,55 @@ const StudioView = lazy(() => import('../studio/StudioView').then((module) => ({
 type SummaryPart = { text: string; highlight?: boolean }
 
 /** What is happening now, in two lines at most. */
-const ASSETS_STATEMENT: SummaryPart[] = [
-  { text: 'Odor complaints around Al Barsha’s parks rose ' },
-  { text: '14% in 7 days', highlight: true },
-  { text: ', and JVC, Arjan and Motor City are outgrowing their facilities and infrastructure.' },
+const ASSETS_STATEMENT: SummaryPart[] = bySpace({
+  llumen: [
+    { text: 'Coastal air quality crossed the sensitive\u2011groups line overnight, ' },
+    { text: 'up 18% to 142', highlight: true },
+    { text: '.' },
+  ],
+  dm: [
+    { text: 'Odor complaints around Al Barsha’s parks rose ' },
+    { text: '14% in 7 days', highlight: true },
+    { text: ', and JVC, Arjan and Motor City are outgrowing their facilities and infrastructure.' },
+  ],
+})
+
+const LLUMEN_DETAIL: SummaryPart[] = [
+  { text: 'AQI has stayed above the line since 09:00. Heat-related clinic visits reached ' },
+  { text: '1,284 this week', highlight: true },
+  { text: ', 22% higher and peaking at 244 on Sunday, while bus delays sit on ' },
+  { text: 'Routes 54 and 65', highlight: true },
+  {
+    text: ' at 18 and 14 minutes late. Non-compliant facilities run 14% over their permit limits, Al Mussafah is now 31% industrial and adults make up 68% of residents. Network pressure in Al Ain holds at ',
+  },
+  { text: '62% of target', highlight: true },
+  { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
 ]
 
-/** What the assets below say about it. */
-const ASSETS_DETAIL: SummaryPart[] = [
+const LLUMEN_INSIGHTS: SummaryPart[][] = [
+  [
+    { text: 'Heat-related clinic visits reached ' },
+    { text: '1,284 this week', highlight: true },
+    { text: ', 22% higher and peaking at 244 on Sunday.' },
+  ],
+  [
+    { text: 'Bus delays sit on ' },
+    { text: 'Routes 54 and 65', highlight: true },
+    { text: ' at 18 and 14 minutes late.' },
+  ],
+  [
+    {
+      text: 'Non-compliant facilities run 14% over their permit limits, and Al Mussafah is now 31% industrial.',
+    },
+  ],
+  [
+    { text: 'Network pressure in Al Ain holds at ' },
+    { text: '62% of target', highlight: true },
+    { text: ', and station coverage is thinnest in Al Dhafra at 76%.' },
+  ],
+]
+
+const DM_DETAIL: SummaryPart[] = [
   { text: 'Dubai residents filed ' },
   { text: '1,284 municipal reports today', highlight: true },
   { text: ', 14% above average, and odor is the largest share at 24%. Al Barsha logged ' },
@@ -89,8 +133,7 @@ const ASSETS_DETAIL: SummaryPart[] = [
   { text: ', and JVC, Arjan and Motor City are 32 public sports courts short.' },
 ]
 
-/** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
-const ASSETS_INSIGHTS: SummaryPart[][] = [
+const DM_INSIGHTS: SummaryPart[][] = [
   [
     { text: 'Dubai residents filed ' },
     { text: '1,284 municipal reports today', highlight: true },
@@ -108,6 +151,12 @@ const ASSETS_INSIGHTS: SummaryPart[][] = [
     { text: ', and with Arjan and Motor City is 32 public sports courts short.' },
   ],
 ]
+
+/** What the assets below say about it. */
+const ASSETS_DETAIL: SummaryPart[] = bySpace({ llumen: LLUMEN_DETAIL, dm: DM_DETAIL })
+
+/** The same read-out as ASSETS_DETAIL, one insight to a bullet, under My Board's statement. */
+const ASSETS_INSIGHTS: SummaryPart[][] = bySpace({ llumen: LLUMEN_INSIGHTS, dm: DM_INSIGHTS })
 
 function SummaryText({ parts }: { parts: SummaryPart[] }) {
   return parts.map((part) =>
@@ -135,21 +184,39 @@ function layoutTop(el: HTMLElement) {
   return top
 }
 
+type StoryOpening = { place: BriefingPlace; enter: BriefingMapEnter }
+
 /** A story opens on its first scene, framed clear of its insight column. */
-const STORY_OPENINGS: Record<string, { place: BriefingPlace; enter: BriefingMapEnter }> = Object.fromEntries(
+const STORY_OPENINGS: Record<string, StoryOpening> = Object.fromEntries(
   Object.values(ESTATE_STORIES).map((story) => [
     story.id,
     {
-      place: { ...BRIEFING_PLACES[story.place], scene: story.pages[0].scene },
+      place: { ...ESTATE_PLACES[story.place], scene: story.pages[0].scene },
       enter: { camera: story.pages[0].camera, padding: STORY_CAMERA_PADDING },
     },
   ]),
 )
-const DM_LOGO = { src: landingAssets.dmLogo, alt: 'Dubai Municipality' }
+/** The column stories share the story map's first scene, over Abu Dhabi. */
+const COLUMN_STORY_OPENING: StoryOpening = {
+  place: BRIEFING_PLACES['abu-dhabi'],
+  enter: { camera: storySceneAt(0).camera, padding: STORY_CAMERA_PADDING },
+}
+const storyOpeningFor = (storyId: string) => STORY_OPENINGS[storyId] ?? COLUMN_STORY_OPENING
+
+/**
+ * Dubai Municipality's Briefing opens on the DM Mind introduction and a guided tour after it, under a top
+ * bar of just the two logos, which brings the introduction back.
+ */
+const BRIEFING_INTRO = bySpace({ llumen: false, dm: true })
+const PARTNER_LOGO = bySpace({ llumen: undefined, dm: { src: landingAssets.dmLogo, alt: 'Dubai Municipality' } })
+const FINDING_ACTION = bySpace({
+  llumen: { label: 'Tell Me More', Icon: ChatText },
+  dm: { label: 'Simulate recommended actions', Icon: Sparkle },
+})
 
 /** The introduction's map: Dubai from the Palm to Downtown, no scene on it. */
 const INTRO_PLACE: BriefingPlace = {
-  ...BRIEFING_PLACES.barsha,
+  ...ESTATE_PLACES.barsha,
   camera: { center: [55.235, 25.14], zoom: 10.5, pitch: 48, bearing: -18 },
   scene: EMPTY_SCENE,
 }
@@ -191,7 +258,7 @@ const TOUR_STEPS: readonly TourStep[] = [
     side: 'left',
   },
 ]
-const FIRST_STORY = FEED_STOPS.find((stop) => stop.storyId)?.storyId ?? Object.keys(ESTATE_STORIES)[0]
+const FIRST_STORY = FEED_STOPS.find((stop) => stop.storyId)?.storyId ?? ''
 /** BriefingMap's flight (2200ms) plus slack. */
 const STORY_FLIGHT_FALLBACK_MS = 3200
 const SIDE_SLIDE_MS = 900
@@ -346,7 +413,7 @@ export function BriefingLanding({
   const [active, setActive] = useState(0)
   /** The introduction over the zoomed-out map; `entering` while it hands over to the findings. */
   const [intro, setIntro] = useState<'shown' | 'entering' | null>(() =>
-    introSeen.current || storyReturn || storyRelease ? null : 'shown',
+    !BRIEFING_INTRO || introSeen.current || storyReturn || storyRelease ? null : 'shown',
   )
   /** Remounts the introduction each time the logo brings it back, so it opens on its first view. */
   const [introEpoch, setIntroEpoch] = useState(0)
@@ -357,7 +424,7 @@ export function BriefingLanding({
   if (storyRelease && storyFlight) setStoryFlight(null)
   /** The story last opened: the map holds its opening view while the page comes back from it. */
   const [lastStory, setLastStory] = useState(FIRST_STORY)
-  const storyOpening = STORY_OPENINGS[storyFlight ?? lastStory] ?? STORY_OPENINGS[FIRST_STORY]
+  const storyOpening = storyOpeningFor(storyFlight ?? lastStory)
   const arrivedRef = useRef(false)
   const [assetsOpen, setAssetsOpen] = useState(false)
   /** Findings style 8 is style 6 with Assets and Apps as a modal over the map instead of a slide past it. */
@@ -461,7 +528,7 @@ export function BriefingLanding({
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
-    return BRIEFING_PLACES.barsha
+    return HOME_PLACE
   }, [active, opening, returnHeld, storyOpening, intro])
 
   const enterStory = useCallback(
@@ -937,9 +1004,9 @@ export function BriefingLanding({
           briefingTab
           view={view}
           onViewChange={changeView}
-          partnerLogo={DM_LOGO}
-          logoOnly
-          onLogoClick={showIntro}
+          partnerLogo={PARTNER_LOGO}
+          logoOnly={BRIEFING_INTRO}
+          onLogoClick={BRIEFING_INTRO ? showIntro : undefined}
         />
       </header>
       {inStudio ? (
@@ -1117,7 +1184,10 @@ export function BriefingLanding({
   )
 }
 
-const ASSET_LOCATIONS = ['Dubai', 'Al Barsha', 'Jumeirah Village Circle', 'Business Bay'] as const
+const ASSET_LOCATIONS: readonly string[] = bySpace({
+  llumen: ['Abu Dhabi Emirate', 'Abu Dhabi City', 'Al Ain', 'Al Dhafra'],
+  dm: ['Dubai', 'Al Barsha', 'Jumeirah Village Circle', 'Business Bay'],
+})
 const ASSET_PERIODS = ['Today', 'Last 7 days', 'Last 30 days', 'This year'] as const
 
 /**
@@ -1210,7 +1280,7 @@ function FilterSelect<T extends string>({
 
 /** Global filters for the Assets section: location and time. */
 function AssetsFilters() {
-  const [location, setLocation] = useState<(typeof ASSET_LOCATIONS)[number]>('Dubai')
+  const [location, setLocation] = useState(ASSET_LOCATIONS[0])
   const [period, setPeriod] = useState<(typeof ASSET_PERIODS)[number]>('Last 7 days')
   return (
     <div className={styles.assetsFilters} role="group" aria-label="Filters">
@@ -1787,7 +1857,7 @@ function FindingBody({
           type="button"
           className={`${home.actionBtn} ${styles.tellMoreBtn}`}
           data-tour="simulate"
-          aria-label="Simulate recommended actions"
+          aria-label={FINDING_ACTION.label}
           aria-disabled={stop.tellMore === false || undefined}
           onClick={() => {
             if (stop.tellMore === false) return
@@ -1800,8 +1870,8 @@ function FindingBody({
           }}
         >
           <span className={home.actionInner}>
-            <Sparkle size={20} weight="regular" aria-hidden />
-            <span>Simulate recommended actions</span>
+            <FINDING_ACTION.Icon size={20} weight="regular" aria-hidden />
+            <span>{FINDING_ACTION.label}</span>
           </span>
         </button>
         {stop.storyId ? (

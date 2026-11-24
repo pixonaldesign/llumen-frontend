@@ -45,6 +45,15 @@ type BoardItem =
 
 /** Preferred width in cells, how narrow and wide each card still reads well, and its height. */
 const ASSET_FITS: Record<string, Fit> = {
+  'permit-deviation': { cols: 2, min: 2, max: 3, rows: 1 },
+  'land-use': { cols: 2, min: 2, max: 3, rows: 1 },
+  population: { cols: 2, min: 2, max: 3, rows: 1 },
+  'water-pressure': { cols: 1, min: 1, max: 2, rows: 1 },
+  'air-quality': { cols: 4, min: 3, max: 5, rows: 2 },
+  'bus-delays': { cols: 2, min: 2, max: 3, rows: 2 },
+  'heat-visits': { cols: 2, min: 2, max: 4, rows: 2 },
+  'night-temperature': { cols: 2, min: 2, max: 4, rows: 2 },
+  'station-uptime': { cols: 4, min: 3, max: 4, rows: 2 },
   'dm-odor-complaints': { cols: 2, min: 2, max: 3, rows: 1 },
   'dm-plan-alignment': { cols: 2, min: 2, max: 3, rows: 1 },
   'dm-complaint-types': { cols: 2, min: 2, max: 3, rows: 1 },
@@ -61,15 +70,26 @@ const ASSET_FITS: Record<string, Fit> = {
 }
 
 /**
- * A roomy board's cell is wide enough for the small charts, so they pair up a cell each (the donut
- * without its legend, the week's complaints beside the H₂S line, the odor posts beside the Creek Harbour
- * gauge). The rest run the board's width one row tall, the complaint-types donut with its legend, so three
- * cards down the first column still fit the edge peek above the composer.
+ * A roomy board's cell is wide enough for the small charts, so they pair up a cell each. In Llumen's
+ * space: the donut and pie without their legends, the clinic visits beside the night-time lows that drive
+ * them; apps take a square cell each, thumbnail on top, except the tourism peak, thumbnail-left across the
+ * row. In Dubai Municipality's: the donut without its legend, the week's complaints beside the H₂S line,
+ * the odor posts beside the Creek Harbour gauge, and the complaint-types donut wide with its legend. The
+ * rest run the board's width one row tall, so three cards down the first column still fit the edge peek
+ * above the composer.
  */
 const ROOMY_SMALL: Fit = { cols: 1, min: 1, max: 2, rows: 1 }
 const ROOMY_APP: Fit = { cols: 1, min: 1, max: 1, rows: 1 }
 const ROOMY_WIDE: Fit = { cols: 2, min: 2, max: 2, rows: 1 }
 const ROOMY_FITS: Record<string, Fit> = {
+  'permit-deviation': ROOMY_SMALL,
+  'water-pressure': ROOMY_SMALL,
+  'land-use': ROOMY_SMALL,
+  population: ROOMY_SMALL,
+  'heat-visits': ROOMY_SMALL,
+  'night-temperature': ROOMY_SMALL,
+  'station-uptime': { cols: 2, min: 2, max: 2, rows: 2 },
+  'tourism-peak': ROOMY_WIDE,
   'dm-odor-complaints': ROOMY_SMALL,
   'dm-jvc-sewer': ROOMY_SMALL,
   'dm-plan-alignment': ROOMY_SMALL,
@@ -82,6 +102,10 @@ const ROOMY_FITS: Record<string, Fit> = {
 }
 
 const APP_LAYOUTS: Record<string, AppLayout> = {
+  'construction-surge': 'tall',
+  'rainfall-disruption': 'wide',
+  'tourism-peak': 'tall',
+  'permit-concentration': 'wide',
   'dm-odor-app': 'tall',
   'dm-creek-app': 'wide',
   'dm-jvc-app': 'tall',

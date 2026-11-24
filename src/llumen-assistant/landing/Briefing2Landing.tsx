@@ -5,7 +5,7 @@ import type { TopBarVariant } from '../prototypeChrome'
 import { AssetsSheet, FeedChartCard } from './BriefingLanding'
 import { FEED_STOPS } from './briefingFindings'
 import { BriefingMap } from './BriefingMap'
-import { BRIEFING_PLACES } from './briefingMapPlaces'
+import { BRIEFING_PLACES, HOME_PLACE } from './briefingMapPlaces'
 import type { LandingTellMeMorePayload } from './LandingHomeDefault'
 import { LandingTopBar, type TopBarView } from './LandingTopBar'
 import { OverlayScrollThumb } from './OverlayScrollThumb'
@@ -77,7 +77,7 @@ export function Briefing2Landing({ topBar, onTellMeMore, onOpenStory, reserveCom
       const place = FEED_STOPS[index].place
       if (place) return BRIEFING_PLACES[place]
     }
-    return BRIEFING_PLACES.barsha
+    return HOME_PLACE
   }, [active])
 
   const vote = (id: string, value: 'up' | 'down') =>

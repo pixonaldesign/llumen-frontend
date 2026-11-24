@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, MagnifyingGlass } from '@phosphor-icons/react'
 import { useDemoCommands } from '../demo-recorder/useDemoCommands'
+import { DEMO_SPACE, DEMO_SPACE_OPTIONS, switchDemoSpace } from './demoSpace'
 import type { ChatInteractionModel } from './interactionModel'
 import {
   COMPARISON_SPLIT_OPTIONS,
@@ -30,7 +31,20 @@ type Command = {
 }
 
 /** The tab row under the search: every command, or one group's. */
-const TABS = ['All', 'Landing', 'Findings', 'Studio', 'States', 'Shaders', 'Comparison', 'Top bar', 'UX', 'Aurora', 'Demo'] as const
+const TABS = [
+  'All',
+  'Space',
+  'Landing',
+  'Findings',
+  'Studio',
+  'States',
+  'Shaders',
+  'Comparison',
+  'Top bar',
+  'UX',
+  'Aurora',
+  'Demo',
+] as const
 type Tab = (typeof TABS)[number]
 
 /** Forced data states for reviewing Studio's asset cards and list. */
@@ -100,6 +114,14 @@ export function CommandPalette({
       onOpenChange(false)
     }
     return [
+      ...DEMO_SPACE_OPTIONS.map((option) => ({
+        id: `space-${option.space}`,
+        group: 'Space',
+        label: option.label,
+        hint: option.hint,
+        active: DEMO_SPACE === option.space,
+        run: choose(() => switchDemoSpace(option.space)),
+      })),
       {
         id: 'briefing',
         group: 'Landing',

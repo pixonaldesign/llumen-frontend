@@ -26,10 +26,22 @@ import {
   topSchoolsAnnotation,
 } from '../story/storyAnnotations'
 import type { StoryAiSnapshot, StoryMapCapture } from '../story/storyAiScenarios'
-import { StoryMap, type StoryMapHandle } from '../story/StoryMap'
+import { StoryMap, type StoryMapAnnotationLayer, type StoryMapHandle } from '../story/StoryMap'
 import mapStyles from '../story/StoryMap.module.css'
 import styles from './LandingAskStage.module.css'
-import { findingStage, isFindingPlace, type FindingStageId } from './landingFindingExperiences'
+import {
+  findingAffectedMarkers,
+  findingAffectedRegion,
+  findingAreas,
+  findingRegion,
+  findingSceneIndex,
+  isFindingPlace,
+} from './landingFindingExperiences'
+import {
+  estateFindingStage,
+  isEstateFindingPlace,
+  type EstateFindingStageId,
+} from '../municipality/dmFindingExperiences'
 import { EstateMap, type EstateMapHandle } from '../realEstate/EstateMap'
 import { EstateLegendGlyph } from '../realEstate/EstateLegendGlyph'
 import estateStyles from '../realEstate/EstateStory.module.css'
@@ -489,12 +501,12 @@ function FindingPlaceMap({
   capture,
   onCapture,
   preview,
-}: Omit<LandingAskMapProps, 'snapshot'> & { place: FindingStageId }) {
+}: Omit<LandingAskMapProps, 'snapshot'> & { place: EstateFindingStageId }) {
   const handleRef = useRef<EstateMapHandle>(null)
   const stackRef = useRef<HTMLDivElement>(null)
   const [cameraLink] = useState(createCameraLink)
   const [split, setSplit] = useState(COMPARE_SPLIT_DEFAULT)
-  const stage = findingStage(place)
+  const stage = estateFindingStage(place)
   const compare = preview ? undefined : stage.compare
   const camera = useMemo(
     () => (preview ? { ...stage.camera, zoom: stage.camera.zoom + PREVIEW_ZOOM_OFFSET } : stage.camera),
@@ -567,9 +579,9 @@ function FindingPlaceMap({
   )
 }
 
-/** The story map with whatever the reply annotated on it. */
+/** The story map with whatever the reply annotated on it, or an estate finding's own scene. */
 export function LandingAskMap({ snapshot, ...rest }: LandingAskMapProps) {
-  const place = isFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
+  const place = isEstateFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
   if (place) return <FindingPlaceMap place={place} {...rest} />
   return <ReplyMap snapshot={snapshot} {...rest} />
 }
@@ -588,9 +600,9 @@ export function FindingCaptureQueue({
   pending: { stateId: string; snapshot: StoryAiSnapshot }[]
   onCapture: (stateId: string, capture: StoryMapCapture) => void
 }) {
-  const next = pending.find((item) => isFindingPlace(item.snapshot.findingPlace))
+  const next = pending.find((item) => isEstateFindingPlace(item.snapshot.findingPlace))
   const place = next?.snapshot.findingPlace
-  if (!next || !isFindingPlace(place)) return null
+  if (!next || !isEstateFindingPlace(place)) return null
   return (
     <div className={styles.captureStage} aria-hidden>
       <QueuedCapture key={next.stateId} stateId={next.stateId} place={place} onCapture={onCapture} />
@@ -604,12 +616,12 @@ function QueuedCapture({
   onCapture,
 }: {
   stateId: string
-  place: FindingStageId
+  place: EstateFindingStageId
   onCapture: (stateId: string, capture: StoryMapCapture) => void
 }) {
   const handleRef = useRef<EstateMapHandle>(null)
   const timerRef = useRef(0)
-  const stage = findingStage(place)
+  const stage = estateFindingStage(place)
   useEffect(() => () => window.clearTimeout(timerRef.current), [])
   const onReady = useCallback(
     (ready: 'loaded' | 'painted') => {
@@ -641,7 +653,17 @@ function ReplyMap({ snapshot, capture, onCapture, preview = false }: LandingAskM
   const onHandle = useCallback((handle: StoryMapHandle | null) => {
     handleRef.current = handle
   }, [])
-  const region = useMemo(() => (snapshot?.region ? snapshotRegion(snapshot) : null), [snapshot])
+  const place = isFindingPlace(snapshot?.findingPlace) ? snapshot.findingPlace : null
+  const affected = snapshot?.findingAffected
+  const region = useMemo(() => {
+    if (place) return affected ? findingAffectedRegion(place, affected) : findingRegion(place)
+    return snapshot?.region ? snapshotRegion(snapshot) : null
+  }, [place, affected, snapshot])
+  const annotations = useMemo<StoryMapAnnotationLayer | null>(() => {
+    if (!place) return null
+    const items = affected ? findingAffectedMarkers(place, affected) : findingAreas(place, snapshot?.findingAreas)
+    return { items, validity: {}, selectedId: null, drawing: null }
+  }, [place, affected, snapshot?.findingAreas])
   const annotation = useMemo(() => {
     const request = snapshot?.annotation
     if (!request) return null
@@ -660,7 +682,7 @@ function ReplyMap({ snapshot, capture, onCapture, preview = false }: LandingAskM
 
   return (
     <StoryMap
-      sceneIndex={0}
+      sceneIndex={place ? findingSceneIndex(place) : 0}
       framePhase={0}
       flyToScene={false}
       cameraPadding={preview ? PREVIEW_PADDING : MAP_PADDING}
@@ -670,6 +692,7 @@ function ReplyMap({ snapshot, capture, onCapture, preview = false }: LandingAskM
       controlsClassName={styles.mapControls}
       region={region}
       annotation={annotation}
+      annotations={annotations}
       cameraRequest={cameraRequest}
       onHandle={onHandle}
     />

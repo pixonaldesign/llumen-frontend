@@ -83,6 +83,8 @@ import {
 } from './landing/LandingAskStage'
 import { findingReply, tellMeMorePrompt } from './landing/landingAskReplies'
 import { findingExperience } from './landing/landingFindingExperiences'
+import { estateFindingExperience, isEstateFindingPlace } from './municipality/dmFindingExperiences'
+import { bySpace } from './demoSpace'
 import { CommandPalette } from './CommandPalette'
 import {
   persistComparisonSplit,
@@ -199,6 +201,13 @@ const parseTopBarView = (value: string | null): TopBarView | null =>
 
 /** The Studio's page only means something inside the Studio. */
 const leaveStudio = (next: TopBarView) => (next === 'studio' ? [] : [PAGE_PARAM])
+
+/** Dubai Municipality's Briefings have no chat bar: neither on the page nor in the AI panel its findings open. */
+const BRIEFING_CHAT_BAR = bySpace({ llumen: true, dm: false })
+/** Dubai Municipality's AI panel shows Conversations and New conversation without letting either be clicked. */
+const ASK_SESSIONS_LOCKED = bySpace({ llumen: false, dm: true })
+/** Where an answer's map is when nothing narrower names it. */
+const SPACE_PLACE = bySpace({ llumen: 'Abu Dhabi', dm: 'Dubai' })
 
 type ChatMessage = SavedChatMessage
 
@@ -430,19 +439,41 @@ function planLandingAsk(subject: LandingAskSubject): LandingAskPlan {
   const finding = subject && 'finding' in subject ? subject.finding : null
   const location = subject && 'location' in subject ? subject.location : null
   const stateId = `map-state-${Date.now()}`
-  const experience = finding ? findingExperience(finding.id, (place) => `${stateId}-${place}`) : null
-  if (experience) {
+  const estate = finding ? estateFindingExperience(finding.id, (place) => `${stateId}-${place}`) : null
+  if (estate) {
     return {
-      prompt: experience.prompt,
-      stateId: experience.map?.stateId ?? stateId,
-      reply: experience.reply,
-      map: experience.map
+      prompt: estate.prompt,
+      stateId: estate.map?.stateId ?? stateId,
+      reply: estate.reply,
+      map: estate.map
         ? {
-            snapshot: experience.map.snapshot,
+            snapshot: estate.map.snapshot,
             captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS,
-            revealWith: experience.map.revealWith,
+            revealWith: estate.map.revealWith,
           }
         : null,
+    }
+  }
+  const experience = finding ? findingExperience(finding.id) : null
+  if (experience) {
+    const snapshot: StoryAiSnapshot | null = experience.map
+      ? {
+          cards: null,
+          region: false,
+          areaEffect: null,
+          filterLabels: {},
+          findingPlace: experience.map.place,
+          findingAreas: experience.map.areas,
+          findingAffected: experience.map.affected,
+        }
+      : null
+    return {
+      stateId,
+      reply:
+        experience.map && snapshot
+          ? withMapState(experience.reply, { stateId, snapshot, ...experience.map })
+          : experience.reply,
+      map: snapshot ? { snapshot, captureDelay: REGION_ANNOTATION_CAPTURE_DELAY_MS } : null,
     }
   }
   const region = location ? locationRegion(location) : null
@@ -2482,8 +2513,8 @@ export function CompactAssistantDemo() {
     if (!pending || pending.messageId !== messageId) return
     if (componentId !== null && componentId !== (pending.revealWith ?? pending.stateId)) return
     landingAskPendingRef.current = null
-    // A finding's place is its own scene and goes in with the slide; other annotations land once the map settles.
-    const placed = pending.snapshot.findingPlace !== undefined
+    // An estate finding's place is its own scene and goes in with the slide; other annotations land once the map settles.
+    const placed = isEstateFindingPlace(pending.snapshot.findingPlace)
     setLandingAskMap((current) => ({ ...current, open: true, snapshot: placed ? pending.snapshot : current.snapshot }))
     window.clearTimeout(landingAskMapTimer.current)
     landingAskMapTimer.current = window.setTimeout(() => {
@@ -2912,8 +2943,7 @@ export function CompactAssistantDemo() {
   const railComposerOpen = open && !hubSessionsRail
   const hubChatComponents = storyActive ? storyChatComponents : []
   const inStudio = landingVariant === 'briefing' && !storyActive && briefingView === 'studio'
-  /** Briefings has no chat bar: neither on the page nor in the AI panel its findings open. */
-  const briefingWithoutBar = landingVariant === 'briefing' && !storyActive && !inStudio
+  const briefingWithoutBar = !BRIEFING_CHAT_BAR && landingVariant === 'briefing' && !storyActive && !inStudio
   const showComposer = !(briefingWithoutBar && landingAsk)
   const showHub =
     isHub &&
@@ -3416,7 +3446,7 @@ export function CompactAssistantDemo() {
                   onAddSource={addSource}
                   shrunk={landingAskShrunk}
                   onToggleShrunk={() => setLandingAskShrunk((current) => !current)}
-                  sessionsLocked
+                  sessionsLocked={ASK_SESSIONS_LOCKED}
                 />
               </div>
             }
@@ -3428,7 +3458,7 @@ export function CompactAssistantDemo() {
               <LandingAskAsset
                 stateId={landingAskAsset?.stateId ?? null}
                 title={landingAskAsset?.title ?? chatTitle}
-                place={landingAskAsset?.place ?? 'Dubai'}
+                place={landingAskAsset?.place ?? SPACE_PLACE}
                 caption={landingAskAsset?.caption}
                 analysis={landingAskAsset?.analysis}
                 onShowInConversation={

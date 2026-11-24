@@ -49,9 +49,12 @@ import {
 import type { AnnotationTool, AnnotationValidity, DrawnShape, MapAnnotationItem } from './storyMapAnnotations'
 import styles from './StoryMap.module.css'
 import { captureMapView } from './captureMapView'
+import { bySpace } from '../demoSpace'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
-const MAPBOX_STYLE = 'mapbox://styles/pixonal/cmu15yibh003r01r16sdc7t05'
+/** The value-column scenes' base map. */
+export const COLUMN_MAP_STYLE = 'mapbox://styles/pixonal/cmgnqbyjf005g01sh9s510hi2'
+const MAPBOX_STYLE = bySpace({ llumen: COLUMN_MAP_STYLE, dm: ESTATE_MAP_STYLE })
 export const STORY_MAP_STYLE = MAPBOX_STYLE
 /** Keeps the demo overlay clear of the 380px insight column. */
 export const STORY_CAMERA_PADDING = { top: 0, right: 0, bottom: 0, left: 400 }

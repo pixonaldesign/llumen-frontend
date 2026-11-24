@@ -1,12 +1,15 @@
 /**
- * Briefing backdrop: each finding's night Dubai scene (its towers lit, sales heat and roof labels),
- * slowly orbiting and flying to each map stop's place. It is a backdrop: it takes no pointer, wheel or touch.
+ * Briefing backdrop, slowly orbiting and flying to each map stop's place. Column places show the story
+ * map's value columns and junction disks, and dragging, rotating or pinching pauses the orbit. Estate places
+ * show a night Dubai scene (its towers lit, heat and roof labels) as a backdrop that takes no pointer, wheel
+ * or touch. A map draws one kind for its life: its first place's.
  */
 import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import type { StoryMapView } from '../story/StoryMap'
-import type { BriefingPlace } from './briefingMapPlaces'
+import { COLUMN_MAP_STYLE, type StoryMapView } from '../story/StoryMap'
+import { rampColor, rgbString } from '../story/storyDemoScenes'
+import { isColumnPlace, type BriefingPlace, type ColumnPlace } from './briefingMapPlaces'
 import {
   ESTATE_MAP_STYLE,
   TowerLabels,
@@ -19,7 +22,9 @@ import {
 import styles from './BriefingLanding.module.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? ''
+const COLUMN_RADIUS_M = 36
 const ORBIT_DEG_PER_S = 2.2
+const RESUME_AFTER_MS = 2600
 const FLY_MS = 2800
 const SHRINK_MS = 700
 const GROW_DELAY_MS = 1300
@@ -47,17 +52,128 @@ const CHART_FOCUS = { clearance: 130, minRatio: 0.17 }
 
 const LAYERS = 'briefing'
 
+/** Web-mercator meters per pixel at zoom 0 for 512px tiles, at the demo latitude. */
+const METERS_PER_PX_Z0 = (40075016.686 / 512) * Math.cos((24.6 * Math.PI) / 180)
+
+function metersToPixels(scale: number): mapboxgl.ExpressionSpecification {
+  const base = ['/', ['*', ['get', 'radius'], scale], METERS_PER_PX_Z0]
+  return ['interpolate', ['exponential', 2], ['zoom'], 0, base, 22, ['*', base, 2 ** 22]]
+}
+
+function ring(lng: number, lat: number, radiusMeters: number, sides: number) {
+  const dLat = radiusMeters / 111320
+  const dLng = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180))
+  const coords: [number, number][] = []
+  for (let i = 0; i <= sides; i += 1) {
+    const t = (i / sides) * Math.PI * 2
+    coords.push([lng + Math.cos(t) * dLng, lat + Math.sin(t) * dLat])
+  }
+  return { type: 'Polygon' as const, coordinates: [coords] }
+}
+
+const geometryCache = new WeakMap<ColumnPlace, ReturnType<typeof ring>[]>()
+
+function columnGeometry(place: ColumnPlace) {
+  let geometry = geometryCache.get(place)
+  if (!geometry) {
+    geometry = place.columns.map(([lng, lat]) => ring(lng, lat, COLUMN_RADIUS_M, 14))
+    geometryCache.set(place, geometry)
+  }
+  return geometry
+}
+
+function columnData(place: ColumnPlace, grow: number): GeoJSON.FeatureCollection {
+  const geometry = columnGeometry(place)
+  return {
+    type: 'FeatureCollection',
+    features:
+      grow <= 0
+        ? []
+        : place.columns.map(([, , height], index) => ({
+            type: 'Feature',
+            properties: { height: height * grow, color: rgbString(rampColor(place.ramp, height)) },
+            geometry: geometry[index],
+          })),
+  }
+}
+
+function junctionData(place: ColumnPlace, grow: number): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features:
+      grow <= 0
+        ? []
+        : place.junctions.map(([lng, lat, radius]) => ({
+            type: 'Feature',
+            properties: { radius: radius * grow },
+            geometry: { type: 'Point', coordinates: [lng, lat] },
+          })),
+  }
+}
+
+function mountColumnLayers(map: mapboxgl.Map, place: ColumnPlace) {
+  map.addSource('briefing-junctions', { type: 'geojson', data: junctionData(place, 0) })
+  map.addSource('briefing-columns', { type: 'geojson', data: columnData(place, 0) })
+  map.addLayer({
+    id: 'briefing-junctions-halo',
+    type: 'circle',
+    source: 'briefing-junctions',
+    paint: {
+      'circle-radius': metersToPixels(1.7),
+      'circle-color': place.diskHalo,
+      'circle-opacity': 0.22,
+      'circle-blur': 1,
+      'circle-pitch-alignment': 'map',
+      'circle-pitch-scale': 'map',
+    },
+  })
+  map.addLayer({
+    id: 'briefing-junctions',
+    type: 'circle',
+    source: 'briefing-junctions',
+    paint: {
+      'circle-radius': metersToPixels(1),
+      'circle-color': place.diskCore,
+      'circle-opacity': 0.36,
+      'circle-blur': 0.55,
+      'circle-pitch-alignment': 'map',
+      'circle-pitch-scale': 'map',
+    },
+  })
+  map.addLayer({
+    id: 'briefing-columns',
+    type: 'fill-extrusion',
+    source: 'briefing-columns',
+    paint: {
+      'fill-extrusion-color': ['to-color', ['get', 'color']],
+      'fill-extrusion-height': ['get', 'height'],
+      'fill-extrusion-base': 0,
+      'fill-extrusion-opacity': 1,
+      'fill-extrusion-vertical-gradient': true,
+    },
+  })
+}
+
 type Drawn = { place: BriefingPlace; grow: number }
 
 const labelsByMap = new WeakMap<mapboxgl.Map, TowerLabels>()
 
 function drawPlace(map: mapboxgl.Map, drawn: { current: Drawn }, place: BriefingPlace, grow: number) {
   drawn.current = { place, grow }
+  if (isColumnPlace(place)) {
+    ;(map.getSource('briefing-columns') as mapboxgl.GeoJSONSource | undefined)?.setData(columnData(place, grow))
+    ;(map.getSource('briefing-junctions') as mapboxgl.GeoJSONSource | undefined)?.setData(junctionData(place, grow))
+    return
+  }
   drawEstateScene(map, LAYERS, place.scene, grow)
   labelsByMap.get(map)?.sync(sceneLabels(place.scene), grow)
 }
 
 function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {
+  if (isColumnPlace(place)) {
+    mountColumnLayers(map, place)
+    return
+  }
   forgetTowers(map)
   mountEstateLayers(map, LAYERS, place.scene.towers)
   let labels = labelsByMap.get(map)
@@ -66,6 +182,16 @@ function mountLayers(map: mapboxgl.Map, place: BriefingPlace) {
     labelsByMap.set(map, labels)
   }
   labels.mount()
+}
+
+/** Readies the layers for a new place: its disks' palette, or its towers. */
+function adoptPlace(map: mapboxgl.Map, place: BriefingPlace) {
+  if (isColumnPlace(place)) {
+    map.setPaintProperty('briefing-junctions', 'circle-color', place.diskCore)
+    map.setPaintProperty('briefing-junctions-halo', 'circle-color', place.diskHalo)
+    return
+  }
+  mountEstateLayers(map, LAYERS, place.scene.towers)
 }
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
@@ -180,14 +306,15 @@ export function BriefingMap({
     if (!el || mapRef.current || !MAPBOX_TOKEN) return
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     mapboxgl.accessToken = MAPBOX_TOKEN
+    const columns = isColumnPlace(placeRef.current)
     const map = new mapboxgl.Map({
       container: el,
-      style: ESTATE_MAP_STYLE,
+      style: columns ? COLUMN_MAP_STYLE : ESTATE_MAP_STYLE,
       ...(heldRef.current?.camera ?? placeRef.current.camera),
       maxPitch: MAX_PITCH,
       antialias: true,
       attributionControl: false,
-      interactive: false,
+      interactive: columns,
     })
     map.setPadding(heldRef.current?.padding ?? cameraPadding(el, focusRightRef.current, focusLowRef.current, chartTopRef.current?.() ?? null))
     if (heldRef.current) holdUntilRef.current = Number.POSITIVE_INFINITY
@@ -253,7 +380,10 @@ export function BriefingMap({
         onReadyRef.current?.('painted')
       }
       map.on('render', announce)
-      map.on('idle', () => resolveTowers(map, drawnRef.current.place.scene.towers))
+      map.on('idle', () => {
+        const drawn = drawnRef.current.place
+        if (!isColumnPlace(drawn)) resolveTowers(map, drawn.scene.towers)
+      })
       drawPlace(map, drawnRef, current, held && !blankRef.current ? 1 : 0)
       if (blankRef.current || held) return
       const start = performance.now()
@@ -264,6 +394,31 @@ export function BriefingMap({
       }
       tweenRef.current = window.requestAnimationFrame(grow)
     })
+
+    const hold = (ms: number) => {
+      holdUntilRef.current = Math.max(holdUntilRef.current, performance.now() + ms)
+    }
+    let pressed = false
+    const onPress = () => {
+      pressed = true
+      holdUntilRef.current = Number.POSITIVE_INFINITY
+    }
+    const onRelease = () => {
+      if (!pressed) return
+      pressed = false
+      if (enterRef.current || heldRef.current) return
+      holdUntilRef.current = 0
+      hold(RESUME_AFTER_MS)
+    }
+    const canvas = map.getCanvasContainer()
+    if (columns) {
+      canvas.addEventListener('pointerdown', onPress)
+      window.addEventListener('pointerup', onRelease)
+      window.addEventListener('pointercancel', onRelease)
+      map.on('move', (event) => {
+        if (event.originalEvent) hold(RESUME_AFTER_MS)
+      })
+    }
 
     let frame = 0
     let last = performance.now()
@@ -287,6 +442,9 @@ export function BriefingMap({
     return () => {
       window.cancelAnimationFrame(frame)
       window.cancelAnimationFrame(tweenRef.current)
+      canvas.removeEventListener('pointerdown', onPress)
+      window.removeEventListener('pointerup', onRelease)
+      window.removeEventListener('pointercancel', onRelease)
       observer.disconnect()
       onSamplerRef.current?.(null)
       labelsByMap.get(map)?.clear()
@@ -354,7 +512,7 @@ export function BriefingMap({
       if (entering) map.jumpTo({ ...enter.camera, padding: enter.padding })
       else if (moved || releasing) map.jumpTo({ ...place.camera, padding })
       if (releasing) holdUntilRef.current = 0
-      mountEstateLayers(map, LAYERS, place.scene.towers)
+      adoptPlace(map, place)
       drawPlace(map, drawnRef, place, target)
       if (entering) onArriveRef.current?.()
       return
@@ -379,7 +537,7 @@ export function BriefingMap({
       })
     }
 
-    /** A new place dims the old scene, then lights its own once the flight is underway. */
+    /** A new place shrinks or dims the old one, then grows or lights its own once the flight is underway. */
     const startedAt = performance.now()
     const growFrom = swapping ? 0 : from
     const delay = swapping ? GROW_DELAY_MS : 0
@@ -394,7 +552,7 @@ export function BriefingMap({
           return
         }
         swapped = true
-        mountEstateLayers(map, LAYERS, place.scene.towers)
+        adoptPlace(map, place)
       }
       const t = Math.max(0, Math.min(1, (elapsed - delay) / span))
       drawPlace(map, drawnRef, place, growFrom + (target - growFrom) * easeOut(t))
