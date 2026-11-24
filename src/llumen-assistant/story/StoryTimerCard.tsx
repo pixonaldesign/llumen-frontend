@@ -33,16 +33,29 @@ function segments(seconds: number, withHours: boolean): Segment[] {
 
 const clockText = (seconds: number, withHours: boolean) =>
   segments(seconds, withHours)
+    .map((segment) => segment.value)
+    .join(':')
+
+const spokenText = (seconds: number, withHours: boolean) =>
+  segments(seconds, withHours)
     .map((segment) => `${segment.value}${segment.unit}`)
     .join(' ')
 
+/** Colon-separated parts, each with its letter underneath. */
 function Readout({ seconds, withHours, className }: { seconds: number; withHours: boolean; className: string }) {
   return (
-    <p className={className} role="timer" aria-live="off" aria-label={clockText(seconds, withHours)}>
-      {segments(seconds, withHours).map((segment) => (
-        <span key={segment.unit} className={styles.segment}>
-          {segment.value}
-          <span className={styles.unit}>{segment.unit}</span>
+    <p className={className} role="timer" aria-live="off" aria-label={spokenText(seconds, withHours)}>
+      {segments(seconds, withHours).map((segment, index) => (
+        <span key={segment.unit} className={styles.part}>
+          {index > 0 ? (
+            <span className={styles.colon} aria-hidden>
+              :
+            </span>
+          ) : null}
+          <span className={styles.segment}>
+            {segment.value}
+            <span className={styles.unit}>{segment.unit}</span>
+          </span>
         </span>
       ))}
     </p>
@@ -323,10 +336,8 @@ export function StoryTimerCard({
   const cardRef = useRef<HTMLElement>(null)
   const { seconds, fraction, done } = useRemaining(timer)
   const withHours = timer.durationS >= 3600
-  const parts = withHours ? 3 : 2
-  /* The readout's width in mono digits: two per part, its letter, and the gap between parts. */
-  const chars = parts * 2.6 + (parts - 1) * 0.4
-  const status = done ? 'Time’s up' : timer.startedAt === null ? 'Ready' : 'Remaining'
+  /* The readout's width in mono characters, fixed by the full duration so it never jumps. */
+  const chars = clockText(timer.durationS, withHours).length
   return (
     <section
       ref={cardRef}
@@ -347,7 +358,7 @@ export function StoryTimerCard({
           <div className={styles.head}>
             <p className={styles.title}>{timer.title}</p>
             {timer.size === '2x1' ? (
-              <span className={styles.total}>{done ? status : clockText(timer.durationS, withHours)}</span>
+              <span className={styles.total}>{done ? 'Time’s up' : clockText(timer.durationS, withHours)}</span>
             ) : null}
           </div>
           {timer.size === '2x1' ? (
@@ -362,7 +373,7 @@ export function StoryTimerCard({
               <TickGauge fraction={fraction} large={timer.size === '2x2'} />
               <div className={styles.dialCentre}>
                 <Readout seconds={seconds} withHours={withHours} className={styles.dialValue} />
-                <p className={styles.dialStatus}>{status}</p>
+                {done ? <p className={styles.dialStatus}>Time’s up</p> : null}
               </div>
             </div>
           )}

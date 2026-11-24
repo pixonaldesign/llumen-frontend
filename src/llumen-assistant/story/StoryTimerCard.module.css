@@ -15,17 +15,29 @@
   gap: 12px;
 }
 
-/* Each part of the readout carries its letter, so minutes never read as hours. */
-.segment + .segment {
-  margin-left: 0.24em;
+/* Each part of the readout carries its letter underneath, so minutes never read as hours. */
+.part {
+  display: flex;
+}
+
+.colon {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.segment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .unit {
-  margin-left: 0.06em;
+  margin-top: 0.12em;
   color: rgba(255, 255, 255, 0.56);
   font-family: var(--lc-font-sans);
-  font-size: 0.4em;
-  font-weight: 400;
+  font-size: max(10px, 0.18em);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.04em;
 }
 
 .timer[data-done] {
@@ -76,6 +88,8 @@
 
 .dialValue,
 .wideValue {
+  display: flex;
+  align-items: flex-start;
   margin: 0;
   color: #fff;
   font-family: var(--lc-font-mono);
@@ -86,10 +100,14 @@
   text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* Fills the width inside the ticks (--tick-clear each side); fewer characters read larger. */
+/* Fills the width inside the ticks (--tick-clear each side; a mono character is 0.6em); fewer characters read larger. */
 .dialValue {
   --tick-clear: 20px;
-  font-size: min(calc((100cqi - 2 * var(--tick-clear)) * 1.9 / var(--chars)), calc(100cqh - 3 * var(--tick-clear)));
+  justify-content: center;
+  font-size: min(
+    calc((100cqi - 2 * var(--tick-clear)) * 1.6 / var(--chars)),
+    calc((100cqh - 2 * var(--tick-clear)) * 0.7)
+  );
 }
 
 .timer[data-size='2x2'] .dialValue {
@@ -167,7 +185,7 @@
 /* Spans the card's width, capped so it never crowds the title or the bar. */
 .wideValue {
   margin-block: auto;
-  font-size: min(calc(196cqi / var(--chars)), 120px);
+  font-size: min(calc(160cqi / var(--chars)), 96px);
   line-height: 0.9;
 }
 
@@ -264,6 +282,13 @@
   font-weight: 500;
   line-height: 38px;
   cursor: text;
+}
+
+.field .unit {
+  margin: 0 0 0 0.06em;
+  font-size: 0.4em;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .fieldInput {
