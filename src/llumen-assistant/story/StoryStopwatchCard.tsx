@@ -57,25 +57,16 @@ export function StopwatchControls({
   )
 }
 
-/** Newest first, with the lap in progress on top; once there are two, the fastest and slowest are marked. */
+/** Newest first, with the lap in progress on top. */
 function LapList({ laps, elapsed }: { laps: number[]; elapsed: number }) {
-  const splits = laps.map((total, index) => total - (laps[index - 1] ?? 0))
-  const fastest = splits.length > 1 ? Math.min(...splits) : null
-  const slowest = splits.length > 1 ? Math.max(...splits) : null
   const rows = [
-    { lap: laps.length + 1, split: elapsed - (laps[laps.length - 1] ?? 0), rank: undefined },
-    ...splits
-      .map((split, index) => ({
-        lap: index + 1,
-        split,
-        rank: split === fastest ? 'fastest' : split === slowest ? 'slowest' : undefined,
-      }))
-      .reverse(),
+    { lap: laps.length + 1, split: elapsed - (laps[laps.length - 1] ?? 0) },
+    ...laps.map((total, index) => ({ lap: index + 1, split: total - (laps[index - 1] ?? 0) })).reverse(),
   ]
   return (
     <ol className={styles.laps} aria-label="Laps">
       {rows.map((row) => (
-        <li key={row.lap} className={styles.lap} data-rank={row.rank}>
+        <li key={row.lap} className={styles.lap}>
           <span>Lap {row.lap}</span>
           <span className={styles.lapTime}>{stopwatchText(row.split)}</span>
         </li>

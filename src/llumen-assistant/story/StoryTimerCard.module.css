@@ -205,14 +205,6 @@
   color: #fff;
 }
 
-.lap[data-rank='fastest'] {
-  color: var(--color-positive-300, #7dcea0);
-}
-
-.lap[data-rank='slowest'] {
-  color: var(--color-negative-300, #f17474);
-}
-
 .lapTime {
   font-family: var(--lc-font-mono);
   font-variant-numeric: tabular-nums;
