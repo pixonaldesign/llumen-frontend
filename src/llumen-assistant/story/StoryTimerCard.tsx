@@ -28,7 +28,7 @@ function segments(seconds: number, withHours: boolean): Segment[] {
     unit: 'M',
   }
   const s: Segment = { value: pad(seconds % 60), unit: 'S' }
-  return withHours ? [{ value: String(Math.floor(seconds / 3600)), unit: 'H' }, m, s] : [m, s]
+  return withHours ? [{ value: pad(Math.floor(seconds / 3600)), unit: 'H' }, m, s] : [m, s]
 }
 
 const clockText = (seconds: number, withHours: boolean) =>
