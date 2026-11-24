@@ -379,6 +379,8 @@ export type BriefingLandingProps = {
   onViewChange?: (view: TopBarView) => void
   /** Where the Studio page under the bar wants this page's AI bar docked over it, or null. */
   onStudioAskBarChange?: (bar: StudioAskBar | null) => void
+  /** Something full-screen sits over the page: the map holds still underneath. */
+  covered?: boolean
 }
 
 export function BriefingLanding({
@@ -402,6 +404,7 @@ export function BriefingLanding({
   view: viewProp,
   onViewChange,
   onStudioAskBarChange,
+  covered = false,
 }: BriefingLandingProps) {
   const [ownView, setOwnView] = useState<TopBarView>('briefing')
   const view = viewProp ?? ownView
@@ -1043,7 +1046,7 @@ export function BriefingLanding({
               start={returnHeld ? storyReturn.from : null}
               onReady={onStoryReturnReady}
               onSampler={onMapSampler}
-              paused={inStudio}
+              paused={inStudio || covered}
             />
           </div>
           <div className={styles.scrim} aria-hidden />

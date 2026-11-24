@@ -15,6 +15,7 @@ import {
   TowerLabels,
   drawEstateScene,
   forgetTowers,
+  holdPulse,
   mountEstateLayers,
   resolveTowers,
   sceneLabels,
@@ -266,7 +267,7 @@ export function BriefingMap({
   align?: BriefingMapEnter | null
   /** Hands over a reader of the map's next frame, shrunk to a few pixels (null until the style loads). */
   onSampler?: (sample: (() => Promise<ImageData | null>) | null) => void
-  /** Stops the orbit while the map is covered, so Mapbox stops repainting. */
+  /** Stops the orbit and the estate pulse while the map is covered, so Mapbox stops repainting. */
   paused?: boolean
 }) {
   const elRef = useRef<HTMLDivElement>(null)
@@ -453,6 +454,11 @@ export function BriefingMap({
       readyRef.current = false
     }
   }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (map) holdPulse(map, paused)
+  }, [paused])
 
   useEffect(() => {
     const map = mapRef.current

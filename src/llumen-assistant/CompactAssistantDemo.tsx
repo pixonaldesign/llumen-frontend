@@ -3095,6 +3095,9 @@ export function CompactAssistantDemo() {
   /** Styles 5 and 6 on the findings: a toast takes the finding's place instead of floating over the composer. */
   const toastInFindings = toastOverHub && alertCentre
 
+  /** The ask stage or the expanded chat fills the screen: what's underneath stops animating. */
+  const pageCovered = (Boolean(landingAsk) && !landingAskShrunk && !landingAskLeaving) || (open && expanded)
+
   const landingHome =
     landingVariant === 'briefing' ? (
       <BriefingLanding
@@ -3117,6 +3120,7 @@ export function CompactAssistantDemo() {
         view={briefingView}
         onViewChange={setBriefingView}
         onStudioAskBarChange={setStudioAskBar}
+        covered={pageCovered}
       />
     ) : landingVariant === 'briefing-2' ? (
       <Briefing2Landing
@@ -3157,7 +3161,7 @@ export function CompactAssistantDemo() {
       >
         <div className={styles.demoPageShader} aria-hidden>
           <MeshGradient
-            speed={open || storyActive || inStudio ? 0 : 0.4}
+            speed={open || storyActive || inStudio || pageCovered ? 0 : 0.4}
             scale={1}
             distortion={0.09}
             swirl={0}

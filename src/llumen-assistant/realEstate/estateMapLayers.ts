@@ -356,6 +356,13 @@ function pulsePaint(phase: number) {
 
 /** Per map: the frame that swells its pulse rings, while a scene has any. */
 const pulseFrames = new WeakMap<mapboxgl.Map, number>()
+/** Maps whose pulse is frozen because something covers them: no paint changes, so Mapbox stops repainting. */
+const heldPulses = new WeakSet<mapboxgl.Map>()
+
+export function holdPulse(map: mapboxgl.Map, held: boolean) {
+  if (held) heldPulses.add(map)
+  else heldPulses.delete(map)
+}
 
 function runPulse(map: mapboxgl.Map, prefix: string, on: boolean) {
   const frame = pulseFrames.get(map)
@@ -368,7 +375,7 @@ function runPulse(map: mapboxgl.Map, prefix: string, on: boolean) {
   const id = pulseId(prefix)
   const tick = (now: number) => {
     if ((map as unknown as { _removed?: boolean })._removed) return void pulseFrames.delete(map)
-    if (map.getLayer(id)) {
+    if (!heldPulses.has(map) && map.getLayer(id)) {
       for (const [property, value] of Object.entries(pulsePaint((now % PULSE_MS) / PULSE_MS))) {
         map.setPaintProperty(id, property as 'circle-radius', value)
       }

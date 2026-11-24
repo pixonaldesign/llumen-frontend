@@ -25,6 +25,8 @@ type Command = {
   label: string
   hint: string
   active?: boolean
+  /** No longer used in demos; kept reachable for reference. */
+  archived?: boolean
   /** Keyboard shortcut that runs the command outside the palette. */
   shortcut?: string
   run: () => void
@@ -136,6 +138,7 @@ export function CommandPalette({
         label: 'Landing · Briefing 2',
         hint: 'Full-screen findings feed, with My Assets',
         active: landing === 'briefing-2',
+        archived: true,
         run: choose(() => onLanding('briefing-2')),
       },
       {
@@ -160,6 +163,7 @@ export function CommandPalette({
         label: 'Feed · Full screen',
         hint: 'Scroll findings over a traveling map',
         active: landing === 'feed',
+        archived: true,
         run: choose(() => onLanding('feed')),
       },
       {
@@ -168,6 +172,7 @@ export function CommandPalette({
         label: 'Feed · Contained',
         hint: 'Same feed, cards at 70% width',
         active: landing === 'feed-card',
+        archived: true,
         run: choose(() => onLanding('feed-card')),
       },
       {
@@ -176,6 +181,7 @@ export function CommandPalette({
         label: 'Feed · Conversational',
         hint: 'Findings as chat bubbles over the map',
         active: landing === 'feed-chat',
+        archived: true,
         run: choose(() => onLanding('feed-chat')),
       },
       ...FINDINGS_STYLE_OPTIONS.map((option) => ({
@@ -310,7 +316,7 @@ export function CommandPalette({
     const q = query.trim().toLowerCase()
     const inTab = tab === 'All' ? commands : commands.filter((command) => command.group === tab)
     if (!q) return inTab
-    return inTab.filter((command) => `${command.group} ${command.label} ${command.hint}`.toLowerCase().includes(q))
+    return inTab.filter((command) => `${command.group} ${command.label} ${command.hint}${command.archived ? ' archived' : ''}`.toLowerCase().includes(q))
   }, [commands, query, tab])
 
   const pickTab = (next: Tab) => {
@@ -445,6 +451,7 @@ export function CommandPalette({
                     <span className={styles.itemLabel}>{command.label}</span>
                     <span className={styles.itemHint}>{command.hint}</span>
                   </span>
+                  {command.archived ? <span className={styles.archived}>Archived</span> : null}
                   {command.shortcut ? (
                     <kbd className={styles.kbd} aria-label={`Shortcut ${command.shortcut}`}>
                       {command.shortcut}
