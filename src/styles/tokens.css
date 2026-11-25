@@ -63,7 +63,7 @@
   --lc-backdrop-blur-ui: 24px;
 
   /* Typography — families (component-library) */
-  --lc-font-sans: "Innovator Grotesk", "Google Sans Arabic", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --lc-font-sans: "Innovator Grotesk", "Google Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --lc-font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --lc-font-data: var(--lc-font-mono);
 

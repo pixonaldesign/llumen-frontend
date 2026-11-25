@@ -90,7 +90,7 @@
   --lc-ui-radius: var(--radius-ui-default);
 
   /* Typography — families */
-  --lc-font-sans: "Innovator Grotesk", "Google Sans Arabic", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --lc-font-sans: "Innovator Grotesk", "Google Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --lc-font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --lc-font-data: var(--lc-font-mono);
 
@@ -978,7 +978,7 @@ html[data-theme="light"] #mesh-gradient-bg {
 }
 
 .theme-toggle button {
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   font-size: 12px;
   font-weight: 500;
   padding: 6px 14px;
@@ -1057,7 +1057,7 @@ html[data-theme="dark"] .theme-toggle button[aria-pressed="true"] {
 .pg-btn,
 .pg-pill,
 .pg-inp {
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   font-size: 14px;
   line-height: 20px;
   transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
@@ -1544,7 +1544,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   margin: 0;
   border: none;
   background: transparent;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.25;
@@ -1632,7 +1632,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   border: none;
   border-radius: var(--lc-ui-radius);
   background: transparent;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: var(--lc-text-primary);
@@ -1684,7 +1684,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 .pg-variant-title {
   font-size: 11px;
   font-weight: 600;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   color: var(--lc-text-secondary);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1767,7 +1767,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   font-weight: 500;
   border-radius: var(--lc-ui-radius);
   line-height: 1.4;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
 }
 
 .pg-badge--neutral {
@@ -1886,7 +1886,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   padding: var(--space-md) var(--space-lg);
   border-radius: var(--lc-ui-radius);
   border: 1px solid var(--lc-border-default);
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   text-align: left;
 }
 
@@ -1975,7 +1975,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   border: 1px dashed var(--lc-border-card);
   background: color-mix(in srgb, var(--lc-bg-card) 40%, transparent);
   color: var(--lc-text-secondary);
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -2074,7 +2074,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   color: var(--lc-text-primary);
   line-height: 1.25;
 }
@@ -2094,7 +2094,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   line-height: 1.5;
   color: var(--lc-text-secondary);
   margin: 0 0 var(--space-md);
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
 }
 
 .pg-surface-modal-overlay__lede strong {
@@ -2455,7 +2455,7 @@ textarea.general-info-field__input {
   background: var(--lc-bg-tooltip);
   color: var(--lc-text-tooltip);
   font-size: 12px;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   line-height: 1.35;
   box-shadow: var(--lc-shadow-2);
   -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
@@ -2505,7 +2505,7 @@ textarea.general-info-field__input {
 .pg-radius-toolbar__label {
   font-size: 10px;
   font-weight: 600;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   color: var(--lc-text-secondary);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2516,7 +2516,7 @@ textarea.general-info-field__input {
   font-size: 11px;
   color: var(--lc-text-tertiary);
   margin: var(--space-sm) 0 0;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
 }
 
 .pg-radius-swatch-row {
@@ -2586,7 +2586,7 @@ textarea.general-info-field__input {
 }
 
 .pg-play-tab {
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   font-size: 14px;
   font-weight: 400;
   line-height: 20px;
@@ -2635,7 +2635,7 @@ textarea.general-info-field__input {
 
 h3.pg-modifier-heading {
   margin: 0 0 var(--space-lg);
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.35;
@@ -2671,7 +2671,7 @@ body {
 .page-shell {
   position: relative;
   z-index: 1;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', system-ui, sans-serif;
   background: var(--lc-surface-base);
   -webkit-backdrop-filter: blur(30px);
   backdrop-filter: blur(30px);
@@ -2786,7 +2786,7 @@ body {
   color: var(--lc-text-secondary);
   font-size: 13px;
   font-weight: 500;
-  font-family: 'Innovator Grotesk', 'Google Sans Arabic', sans-serif;
+  font-family: 'Innovator Grotesk', 'Google Sans', sans-serif;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
   margin-bottom: 0;

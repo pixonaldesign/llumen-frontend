@@ -35,7 +35,7 @@ The bar is visual: never trade fidelity for speed. Keep the design exactly as it
 ### Assets
 
 - **Images:** WebP, sized at most 2x their largest on-screen size. A thumbnail shown at 640 px is 1280 px wide, never 4K. Use lossless WebP for UI captures and overlays with transparency so they look identical.
-- **Fonts:** WOFF2 only. Weights used on the first screen get a `<link rel="preload">` in `index.html`. Arabic text uses Google Sans Arabic through the `--lc-font-sans` stack, so do not hardcode a font family without it.
+- **Fonts:** WOFF2 only. Weights used on the first screen get a `<link rel="preload">` in `index.html`. Arabic text uses Google Sans (the open-source release on Google Fonts) through the `--lc-font-sans` stack, so do not hardcode a font family without it. Never use the `Google Sans Arabic` family instead: it is the older proprietary release and triggers license warnings.
 - **Delete what you stop using.** Every pull request preview copies all of `public/` and GitHub Pages caps the site at 1 GB, so unused files cost preview slots even though users never download them.
 
 ### Icons

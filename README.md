@@ -164,7 +164,7 @@ The app is **dark-theme only**. Surfaces use translucent fills plus `backdrop-fi
 
 Typography:
 - **UI:** Innovator Grotesk (self-hosted WOFF2 in `fonts/`, preloaded in `index.html`)
-- **Arabic:** Google Sans Arabic (loaded from Google Fonts in `index.html`, second in every sans stack)
+- **Arabic:** [Google Sans](https://fonts.google.com/specimen/Google+Sans), the open-source (SIL Open Font License) release, loaded from Google Fonts in `index.html` and second in every sans stack. Do not use the older `Google Sans Arabic` family: it is proprietary ("All Rights Reserved")
 - **Mono / data:** IBM Plex Mono (loaded from Google Fonts in `index.html`)
 
 ---

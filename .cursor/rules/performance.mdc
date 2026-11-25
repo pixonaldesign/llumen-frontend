@@ -12,7 +12,7 @@ Never trade visual quality for speed; make the same result cheaper. Reasons and 
 - **Mapbox:** do not mount maps that are hidden or behind an entrance animation. Per-frame `setData` is only acceptable for small sources like `StoryMap`'s columns (under 1 ms a frame); for large sources animate paint properties, and profile both.
 - **MeshGradient:** always pass `maxPixelCount={MESH_MAX_PIXEL_COUNT_DEMO_PAGE}`, and `speed={0}` whenever it is covered, off screen or in another view.
 - **CSS:** `filter: none` at rest, not `blur(0)`. Animate only `transform` and `opacity`. No `backdrop-filter` on hidden panels. Keep `cssMinify: 'esbuild'`.
-- **Assets:** WebP at most 2x display size; WOFF2 fonts; font stacks include `"Google Sans Arabic"`; delete unused files from `public/`.
+- **Assets:** WebP at most 2x display size; WOFF2 fonts; font stacks include `"Google Sans"` (the open-source family, never the proprietary `Google Sans Arabic`); delete unused files from `public/`.
 - **Icons:** only Phosphor `regular`, `bold`, `fill` ship to production. Other weights render nothing on the live site unless added to `ICON_WEIGHTS` in `vite.config.ts`.
 - **Verify** on `npm run build && npm run preview` with before/after long tasks and frame times, and put the numbers in the PR.
 

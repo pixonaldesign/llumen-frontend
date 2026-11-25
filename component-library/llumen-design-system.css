@@ -744,7 +744,7 @@ html[data-theme="light"] #mesh-gradient-bg {
 }
 
 .theme-toggle button {
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   font-size: 12px;
   font-weight: 500;
   padding: 6px 14px;
@@ -823,7 +823,7 @@ html[data-theme="dark"] .theme-toggle button[aria-pressed="true"] {
 .pg-btn,
 .pg-pill,
 .pg-inp {
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.25;
   border-radius: var(--lc-ui-radius);
@@ -1308,7 +1308,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   margin: 0;
   border: none;
   background: transparent;
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.25;
@@ -1396,7 +1396,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   border: none;
   border-radius: var(--lc-ui-radius);
   background: transparent;
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: var(--lc-text-primary);
@@ -1448,7 +1448,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 .pg-variant-title {
   font-size: 11px;
   font-weight: 600;
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   color: var(--lc-text-secondary);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1530,7 +1530,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   font-weight: 500;
   border-radius: var(--lc-ui-radius);
   line-height: 1.4;
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
 }
 
 .pg-badge--neutral {
@@ -1646,7 +1646,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   padding: var(--space-md) var(--space-lg);
   border-radius: var(--lc-ui-radius);
   border: 1px solid var(--lc-border-default);
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   text-align: left;
 }
 
@@ -1735,7 +1735,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   border: 1px dashed var(--lc-border-card);
   background: color-mix(in srgb, var(--lc-bg-card) 40%, transparent);
   color: var(--lc-text-secondary);
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -1834,7 +1834,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   color: var(--lc-text-primary);
   line-height: 1.25;
 }
@@ -1854,7 +1854,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   line-height: 1.5;
   color: var(--lc-text-secondary);
   margin: 0 0 var(--space-md);
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
 }
 
 .pg-surface-modal-overlay__lede strong {
@@ -1923,7 +1923,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   border: 1px solid var(--lc-border-control);
   background: var(--lc-bg-control);
   color: var(--lc-text-control);
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -1983,7 +1983,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   border-radius: calc(var(--lc-ui-radius) - 2px);
   background: transparent;
   color: var(--lc-text-primary);
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   cursor: pointer;
   transition: background 0.12s;
@@ -2016,7 +2016,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   background: var(--lc-bg-tooltip);
   color: var(--lc-text-tooltip);
   font-size: 12px;
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   line-height: 1.35;
   box-shadow: var(--lc-shadow-2);
   -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
@@ -2066,7 +2066,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 .pg-radius-toolbar__label {
   font-size: 10px;
   font-weight: 600;
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   color: var(--lc-text-secondary);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2077,7 +2077,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
   font-size: 11px;
   color: var(--lc-text-tertiary);
   margin: var(--space-sm) 0 0;
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
 }
 
 .pg-radius-swatch-row {
@@ -2147,7 +2147,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 }
 
 .pg-play-tab {
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.2;
@@ -2193,7 +2193,7 @@ html[data-theme="dark"] .pg-btn--flat.pg-btn--secondary:active {
 
 h3.pg-modifier-heading {
   margin: 0 0 var(--space-lg);
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.35;
@@ -2229,7 +2229,7 @@ body {
 .page-shell {
   position: relative;
   z-index: 1;
-  font-family: 'DM Sans', 'Google Sans Arabic', system-ui, sans-serif;
+  font-family: 'DM Sans', 'Google Sans', system-ui, sans-serif;
   background: var(--lc-surface-base);
   -webkit-backdrop-filter: blur(var(--lc-backdrop-blur-ui));
   backdrop-filter: blur(var(--lc-backdrop-blur-ui));
@@ -2344,7 +2344,7 @@ body {
   color: var(--lc-text-secondary);
   font-size: 13px;
   font-weight: 500;
-  font-family: 'DM Sans', 'Google Sans Arabic', sans-serif;
+  font-family: 'DM Sans', 'Google Sans', sans-serif;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
   margin-bottom: 0;
