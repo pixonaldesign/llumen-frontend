@@ -1,0 +1,25 @@
+---
+description: Frontend performance rules that keep the app fast without changing how it looks
+alwaysApply: true
+---
+
+# Performance without losing fidelity
+
+Never trade visual quality for speed; make the same result cheaper. Reasons and measurements are in `CONTRIBUTING.md` (Performance section). Read it before touching loading, maps, shaders, animation or assets.
+
+- **Lazy views:** off-screen views load with `React.lazy` plus prefetch. Never statically import from a lazily loaded file on the main path; use `import type` for types.
+- **Big dependencies** (over about 100 KB) join a chunk group in `vite.config.ts` or load lazily. After `npm run build`, check the `index` chunk did not grow.
+- **Mapbox:** do not mount maps that are hidden or behind an entrance animation. Per-frame `setData` is only acceptable for small sources like `StoryMap`'s columns (under 1 ms a frame); for large sources animate paint properties, and profile both.
+- **MeshGradient:** always pass `maxPixelCount={MESH_MAX_PIXEL_COUNT_DEMO_PAGE}`, and `speed={0}` whenever it is covered, off screen or in another view.
+- **CSS:** `filter: none` at rest, not `blur(0)`. Animate only `transform` and `opacity`. No `backdrop-filter` on hidden panels. Keep `cssMinify: 'esbuild'`.
+- **Assets:** WebP at most 2x display size; WOFF2 fonts; font stacks include `"Google Sans Arabic"`; delete unused files from `public/`.
+- **Icons:** only Phosphor `regular`, `bold`, `fill` ship to production. Other weights render nothing on the live site unless added to `ICON_WEIGHTS` in `vite.config.ts`.
+- **Verify** on `npm run build && npm run preview` with before/after long tasks and frame times, and put the numbers in the PR.
+
+```tsx
+// ❌ BAD: a hidden map pane creates its Mapbox map during the stage's entrance animation
+<section aria-hidden={!mapOpen}>{map}</section>
+
+// ✅ GOOD: mount once the animation has finished, or straight away if the pane is already open
+<section aria-hidden={!mapOpen}>{mapMounted ? map : null}</section>
+```

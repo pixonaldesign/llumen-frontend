@@ -18,7 +18,7 @@ import { CaretDown, DotsSix } from '@phosphor-icons/react'
 import gsap from 'gsap'
 import { MapBleedHeader, type DetailTab } from '../ComponentDetailPanel'
 import detailStyles from '../compact-assistant.module.css'
-import { MESH_COLORS_LUMEN_DARK, MESH_FRAME_PANEL } from '../paperMeshConstants'
+import { MESH_COLORS_LUMEN_DARK, MESH_FRAME_PANEL, MESH_MAX_PIXEL_COUNT_DEMO_PAGE } from '../paperMeshConstants'
 import {
   locationAnnotation,
   schoolMarkersAnnotation,
@@ -122,6 +122,15 @@ export function LandingAskStage({
   const stageRef = useRef<HTMLDivElement>(null)
   const [closing, setClosing] = useState(false)
   const reduceMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, [])
+  /** Mapbox setup blocks the main thread, so a hidden map pane waits for the morph to finish. */
+  const [mapMounted, setMapMounted] = useState(() => mapOpen || reduceMotion)
+  if (mapOpen && !mapMounted) setMapMounted(true)
+
+  useEffect(() => {
+    if (mapMounted) return
+    const timer = window.setTimeout(() => setMapMounted(true), MORPH_IN_S * 1000)
+    return () => window.clearTimeout(timer)
+  }, [mapMounted])
 
   useLayoutEffect(() => {
     const el = stageRef.current
@@ -214,6 +223,7 @@ export function LandingAskStage({
           swirl={0}
           frame={MESH_FRAME_PANEL}
           colors={[...MESH_COLORS_LUMEN_DARK]}
+          maxPixelCount={MESH_MAX_PIXEL_COUNT_DEMO_PAGE}
           className={`${styles.backdropShader}${thinking ? ` ${styles.backdropShaderActive}` : ''}`}
         />
       </div>
@@ -223,7 +233,7 @@ export function LandingAskStage({
           {chat}
         </section>
         <section className={styles.mapPane} aria-label="Map" aria-hidden={!mapOpen || shrunk}>
-          {map}
+          {mapMounted ? map : null}
         </section>
       </div>
     </div>

@@ -2130,7 +2130,7 @@ button.summaryStatus:disabled {
 }
 
 .pollutantValue strong {
-  font-family: 'IBM Plex Sans', 'Innovator Grotesk', sans-serif;
+  font-family: 'IBM Plex Sans', 'Innovator Grotesk', 'Google Sans Arabic', sans-serif;
   font-size: 22px;
   font-weight: 500;
   line-height: 1;

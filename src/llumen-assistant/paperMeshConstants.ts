@@ -12,7 +12,7 @@ export const MESH_FRAME_PANEL = 17852.964999998498
  */
 export const MESH_FRAME_DEMO_PAGE = 77672.56499999807
 
-/** Cap the page mesh at 720p so a 2x viewport does not allocate a 4K buffer. */
+/** Cap full-screen meshes at 720p so a 2x viewport does not allocate a 4K buffer. */
 export const MESH_MAX_PIXEL_COUNT_DEMO_PAGE = 1280 * 720
 
 export const MESH_COLORS_DEMO_PAGE = [

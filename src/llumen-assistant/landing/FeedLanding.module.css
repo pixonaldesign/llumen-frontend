@@ -15,7 +15,7 @@
   overflow: hidden;
   pointer-events: none;
   transform: scale(1);
-  filter: blur(0);
+  filter: none;
   transition:
     filter 700ms ease,
     transform 700ms ease;

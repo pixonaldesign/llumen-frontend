@@ -307,6 +307,9 @@ const FEED_DOTS_VISIBLE = 7
  */
 const HOLD_ZONE = { x: 70, top: 220, bottom: 144, reach: 666 }
 
+/** Dense enough that a scroll, slide or scale reports the moment the map stops filling the viewport. */
+const MAP_FILL_THRESHOLDS = Array.from({ length: 101 }, (_, i) => i / 100)
+
 /** One-section glide; longer jumps (Home, End) take up to the max. */
 const PAGE_GLIDE_MS = 900
 const PAGE_GLIDE_MAX_MS = 1400
@@ -381,6 +384,8 @@ export type BriefingLandingProps = {
   onStudioAskBarChange?: (bar: StudioAskBar | null) => void
   /** Something full-screen sits over the page: the map holds still underneath. */
   covered?: boolean
+  /** Whether the opaque map fills the viewport, hiding whatever is painted beneath the page. */
+  onMapFillsView?: (fills: boolean) => void
 }
 
 export function BriefingLanding({
@@ -405,6 +410,7 @@ export function BriefingLanding({
   onViewChange,
   onStudioAskBarChange,
   covered = false,
+  onMapFillsView,
 }: BriefingLandingProps) {
   const [ownView, setOwnView] = useState<TopBarView>('briefing')
   const view = viewProp ?? ownView
@@ -479,6 +485,23 @@ export function BriefingLanding({
   const afterAssetsRef = useRef<HTMLElement>(null)
   const [assetsPlay, setAssetsPlay] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = mapRef.current
+    if (!el || !onMapFillsView) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const view = entry.rootBounds
+        const seen = entry.intersectionRect
+        onMapFillsView(view !== null && seen.width >= view.width - 1 && seen.height >= view.height - 1)
+      },
+      { threshold: MAP_FILL_THRESHOLDS },
+    )
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      onMapFillsView(false)
+    }
+  }, [onMapFillsView])
   const barRef = useRef<HTMLElement | null>(null)
   const progressRef = useRef(onAssetsProgress)
   const scrollActivityRef = useRef(onScrollActivity)

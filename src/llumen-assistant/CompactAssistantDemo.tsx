@@ -3,6 +3,8 @@
  * Integration: theme tokens in src/styles/tokens.css; icons in public/llumen-assets/*.svg.
  */
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -116,8 +118,7 @@ import {
   readChatInteractionModel,
   type ChatInteractionModel,
 } from './interactionModel'
-import { StoryView } from './story/StoryView'
-import { EstateStoryView, type EstateAskContext } from './realEstate/EstateStoryView'
+import type { EstateAskContext } from './realEstate/EstateStoryView'
 import { ESTATE_STORIES, isEstateStory } from './realEstate/estateScenario'
 import type { StoryMapView } from './story/StoryMap'
 import type { StoryAiSnapshot, StoryMapCapture } from './story/storyAiScenarios'
@@ -199,6 +200,13 @@ import {
 import type { SendVisualState } from './SendButton'
 import { useRevealScrollbarOnScroll } from './useRevealScrollbarOnScroll'
 import { useStickToBottomScroll } from './useStickToBottomScroll'
+
+const loadStoryView = () => import('./story/StoryView')
+const loadEstateStoryView = () => import('./realEstate/EstateStoryView')
+const StoryView = lazy(() => loadStoryView().then((module) => ({ default: module.StoryView })))
+const EstateStoryView = lazy(() => loadEstateStoryView().then((module) => ({ default: module.EstateStoryView })))
+/** How long after mount the story views are fetched, so they don't compete with the landing's first map tiles. */
+const STORY_PREFETCH_MS = 2500
 
 const parseTopBarView = (value: string | null): TopBarView | null =>
   value === 'briefing' || value === 'assets' || value === 'studio' ? value : null
@@ -2181,8 +2189,16 @@ export function CompactAssistantDemo() {
   const startStoryFlight = useCallback((storyId: string) => {
     storyGateRef.current = { landed: false, loaded: false, painted: false }
     window.clearTimeout(storyGraceRef.current)
+    void (isEstateStory(storyId) ? loadEstateStoryView() : loadStoryView())
     setStoryFlightId(storyId)
     setStoryHandoff('flight')
+  }, [])
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadStoryView()
+      void loadEstateStoryView()
+    }, STORY_PREFETCH_MS)
+    return () => window.clearTimeout(timer)
   }, [])
   useEffect(() => {
     if (storyHandoff !== 'flight' || !storyFlightId) return
@@ -2238,6 +2254,8 @@ export function CompactAssistantDemo() {
   /** The Briefing top bar's Briefing / Studio switch; the Studio has no hub composer unless its page asks for it. */
   const [briefingView, setBriefingView] = useHistoryParam<TopBarView>(VIEW_PARAM, 'briefing', parseTopBarView, leaveStudio)
   const [studioAskBar, setStudioAskBar] = useState<StudioAskBar | null>(null)
+  /** The Briefing map fills the viewport: the page shader under it can't be seen. */
+  const [briefingMapFills, setBriefingMapFills] = useState(false)
   /** Picking a style from the palette also opens the view it styles. */
   const pickFindingsStyle = useCallback(
     (next: FindingsStyle) => {
@@ -3129,6 +3147,7 @@ export function CompactAssistantDemo() {
         onViewChange={setBriefingView}
         onStudioAskBarChange={setStudioAskBar}
         covered={pageCovered}
+        onMapFillsView={setBriefingMapFills}
       />
     ) : landingVariant === 'briefing-2' ? (
       <Briefing2Landing
@@ -3169,7 +3188,7 @@ export function CompactAssistantDemo() {
       >
         <div className={styles.demoPageShader} aria-hidden>
           <MeshGradient
-            speed={open || storyActive || inStudio || pageCovered ? 0 : 0.4}
+            speed={open || storyActive || inStudio || pageCovered || briefingMapFills ? 0 : 0.4}
             scale={1}
             distortion={0.09}
             swirl={0}
@@ -3185,6 +3204,7 @@ export function CompactAssistantDemo() {
           ref={(node) => setLandingScrollEl((current) => (current === node ? current : node))}
         >
           {!storyActive || storyHandoff || storyRelease ? landingHome : null}
+          <Suspense fallback={null}>
           {storyActive && isEstateStory(activeStoryId) ? (
             <EstateStoryView
               key={activeStoryId}
@@ -3231,6 +3251,7 @@ export function CompactAssistantDemo() {
               comparisonDirection={comparisonSplit}
             />
           ) : null}
+          </Suspense>
         </div>
         {storyActive || inStudio ? null : <OverlayScrollThumb scrollEl={landingScrollEl} />}
         </div>

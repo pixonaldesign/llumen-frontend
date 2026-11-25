@@ -1,7 +1,7 @@
 import { forwardRef, type ReactNode } from 'react'
 import { MeshGradient } from '@paper-design/shaders-react'
 import styles from './compact-assistant.module.css'
-import { MESH_COLORS_LUMEN_DARK, MESH_FRAME_PANEL } from './paperMeshConstants'
+import { MESH_COLORS_LUMEN_DARK, MESH_FRAME_PANEL, MESH_MAX_PIXEL_COUNT_DEMO_PAGE } from './paperMeshConstants'
 
 export type AssistantPanelProps = {
   expanded: boolean
@@ -34,6 +34,7 @@ export const AssistantPanel = forwardRef<HTMLDivElement, AssistantPanelProps>(
             swirl={0}
             frame={MESH_FRAME_PANEL}
             colors={[...MESH_COLORS_LUMEN_DARK]}
+            maxPixelCount={MESH_MAX_PIXEL_COUNT_DEMO_PAGE}
             className={`${styles.panelBackdropShader}${
               thinking ? ` ${styles.panelBackdropShaderActive}` : ''
             }`}
